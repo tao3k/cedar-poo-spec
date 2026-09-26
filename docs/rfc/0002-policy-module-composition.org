@@ -1,0 +1,38 @@
+#+TITLE: RFC 0002: Cedar Policy Module Composition
+#+OPTIONS: toc:nil
+
+* Contract
+
+=PolicyModules.Model.compile= turns a C4 hierarchy of policy modules into
+an ordinary Cedar =Policies= value. A module has a name, ordered parents,
+and explicit edits. The edits are =extend=, =overlay=, and =remove=.
+
+Compilation linearizes the requested root with Lean-POO C4, applies the
+base modules first, and applies descendant edits last. =extend= introduces
+a new policy ID. =overlay= replaces an inherited policy with the same ID.
+=remove= retires an inherited policy ID. An ID may be reintroduced later by
+an explicit =extend=. The compiler preserves a deterministic policy order.
+
+Compilation returns a typed error for an inconsistent C4 graph, a duplicate
+ID on extend, an absent ID on overlay or remove, or competing sibling edits
+to the same ID. A descendant may change an ancestor's policy. A sibling may
+not silently replace another sibling's edit, even when C4 gives a linear
+order; the conflicting parent modules must be reconciled before compilation.
+
+The output is passed to Cedar's own validator and authorizer. This feature
+does not reinterpret Cedar's permit/forbid rules, policy errors, or schema.
+Its purpose is to make policy provenance and evolution explicit before
+evaluation and to connect resulting policies to Lean-POO proof objects.
+
+* Executable scenario
+
+[[file:../../Examples/Scenarios/README.org][The tenant document migration]] demonstrates a broad legacy permit that
+survives a strict overlay. An added forbid blocks untrusted devices; removal
+of the legacy permit then blocks cross-tenant reads. The executable Lean
+scenario checks every revision against the Cedar evaluator, validates every
+compiled policy set, verifies the final requests have no runtime policy
+errors, and closes a Cedar authorization soundness certificate.
+
+This scenario shows fewer repeated policy records for four revisions, but
+does not claim a measured LOC or maintenance-cost reduction. Broader claims
+require additional scenario corpora and change-cost measurements.

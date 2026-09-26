@@ -3,3 +3,4 @@ import CedarPooSpec.Validation
 import CedarPooSpec.Composition
 import CedarPooSpec.Soundness
 import CedarPooSpec.Slicing
+import CedarPooSpec.PolicyModules

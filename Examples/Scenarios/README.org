@@ -1,0 +1,56 @@
+#+TITLE: Cedar Authorization Scenarios
+#+OPTIONS: toc:nil
+
+* Tenant document access during policy migration
+
+[[file:TenantDevicePolicyEvolution.lean][TenantDevicePolicyEvolution.lean]] is an executable Cedar scenario, not a
+replacement evaluator. Alice belongs to tenant A. Documents A and B belong
+to tenants A and B. The request context contains a typed =deviceTrusted=
+fact. The desired rule is: permit reading only a document in the same tenant
+from a trusted device.
+
+The starting policy set is realistic during migration: a tenant-scoped
+permit and a legacy broad read permit coexist. This matters because Cedar
+combines all applicable policies. Tightening one permit cannot revoke a
+different permit. A forbid has precedence over permits, while a policy that
+errors is excluded from the decision. Cedar documents both behaviors in its
+[[https://github.com/cedar-policy/cedar-docs/blob/main/docs/collections/_other/security.md][security guidance]]. The skip-on-error consequence was illustrated by
+[[https://github.com/cedar-policy/cedar/issues/2428][Cedar issue #2428]]. This example uses typed attributes and validates the
+policy sets; it does not reproduce that issue's malformed =in= expression.
+
+| Composed root | Change from parent | Tenant A, trusted | Tenant B, trusted | Tenant A, untrusted |
+|---------------+--------------------+-------------------+-------------------+---------------------|
+| Base | Tenant permit and legacy permit | Allow | Allow | Allow |
+| Overlay | Require trusted device on tenant permit | Allow | Allow | Allow |
+| Extend | Add untrusted-device forbid | Allow | Allow | Deny |
+| Remove | Retire legacy permit | Allow | Deny | Deny |
+
+The surprising Overlay row is the reason for the composition example. The
+overlay changed exactly one policy ID, but the old independent permit still
+authorizes the request. The Extend and Remove rows record two separate
+policy migration decisions. Cedar evaluates every resulting policy set.
+
+* Why POO appears here
+
+The modules declare five edits over four revisions: two initial extends,
+one overlay, one further extend, and one remove. Each revision inherits the
+earlier edits through C4; it does not copy a full policy set. Materializing
+all four revisions independently would repeat nine policy records (2 + 2 +
+3 + 2). The source example instead names the policy changes and lets the
+compiler produce each Cedar policy set. This is a count of authored records
+in this scenario, not a general LOC or maintenance-cost benchmark.
+
+The compiler rejects duplicate IDs, overlays of absent IDs, and ambiguous
+sibling edits. Those failures happen before Cedar evaluation. The example
+checks the C4 order, policy IDs, validator results, authorization decisions,
+empty runtime-error lists for the final requests, and a Cedar soundness
+theorem carried by a Lean-POO certificate. A policy revision selects the
+policy-validation obligation and leaves the schema, request, and entity
+obligations untouched. Cedar remains authoritative for
+validation, permit/forbid aggregation, and soundness; POO owns inheritance,
+edit intent, conflict detection, and proof-object dependency management.
+
+#+begin_src sh
+lake env lean Examples/Scenarios/TenantDevicePolicyEvolution.lean
+just check
+#+end_src
