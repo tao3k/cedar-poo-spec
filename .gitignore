@@ -1,0 +1,6 @@
+.lake/
+.direnv/
+.devenv/
+.data/
+*.olean
+*.ilean

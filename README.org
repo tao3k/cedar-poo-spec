@@ -1,0 +1,55 @@
+#+TITLE: Cedar POO Spec
+#+OPTIONS: toc:nil
+
+*Cedar POO Spec* is the formal integration of
+[[https://github.com/cedar-policy/cedar-spec][cedar-spec]] with [[https://github.com/tao3k/lean-poo][Lean-POO]]. It studies prototype-oriented
+composition and incremental proof reuse against Cedar's upstream Lean
+specification.
+
+* Repository boundary
+
+- =cedar-spec= remains the authority for Cedar expressions, evaluation,
+  typechecking, extensions, and soundness. This repository depends on
+  upstream definitions rather than forking them.
+- Lean-POO owns generic C4 resolution, prototype and object composition,
+  patches, proof objects, obligations, dependency tracking, invalidation,
+  refinement, and certificate closure.
+- This repository owns the Cedar-specific adapter, formal integration
+  examples, and reproducible proof-reuse measurements.
+- Domain policies and product extensions belong in separate downstream
+  repositories. They are not part of Lean-POO or this specification
+  adapter.
+
+* Planned layers
+
+| Layer | Responsibility |
+|-------+----------------|
+| Cedar adapter | Represent upstream Cedar definitions through Lean-POO abstractions without changing Cedar semantics. |
+| Composition examples | Exercise overrides and proof obligations on small Cedar-derived cases. |
+| Evaluation | Measure proof reuse, change impact, and repair effort on pinned upstream revisions. |
+
+Agent delegation, device trust, temporal authorization, and healthcare
+policy are possible downstream studies. They do not define this library's
+semantics.
+
+* Initial milestones
+
+1. Pin compatible upstream =cedar-spec= and Lean-POO revisions.
+2. Implement a small adapter for Cedar expressions and evaluator artifacts.
+3. Compose a minimal Cedar-derived extension and record its proof
+   obligations.
+4. Compare reused and invalidated proofs after an override.
+5. Report reproducible measurements and the exact revisions used.
+
+* Status
+
+This repository currently defines the integration boundary and research
+plan. No Cedar adapter, extension, or proof-reuse result is claimed yet.
+
+* Credits and license
+
+Cedar and =cedar-spec= are developed by the
+[[https://github.com/cedar-policy][Cedar project]]. Lean-POO draws on the POOF work of
+François-René Rideau, Alex Knauth, and Nada Amin. Their projects retain
+their own copyright and licenses. This repository is licensed under the
+Apache License 2.0; see [[file:LICENSE][LICENSE]].
