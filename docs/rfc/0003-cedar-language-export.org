@@ -122,6 +122,15 @@ The Cedar-specific =CompoundAuthorization.authorizeAll= evaluates the request
 list against one compiled policy set and one supplied entity store; its
 receipt binds every response to that exact compilation. An empty request
 list, any denial, or any policy evaluation error makes =allowed= false.
+The AI agent delegation case adds thirty-three layer requests across eight
+POO roots. It checks a three-query tool/delegation/origin flow, including a
+runtime error that leaves raw Cedar =Allow= but is rejected by the compound
+consumer because diagnostics are nonempty.
+The AI payment case adds twenty-two requests across five POO roots. It
+authorizes both the finance agent's tool call and the concrete transfer,
+then overlays account scope, a positive amount and ceiling, and originating
+user role and MFA. Lean checks the compound outcomes; Rust Cedar checks each
+layer receipt and the generated policy artifacts.
 The extension coverage case adds eight requests across three extension
 families, including timezone normalization and a negative duration value.
 

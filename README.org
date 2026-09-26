@@ -48,8 +48,8 @@ The [[file:Examples/Language/README.org][language example]] checks concrete
 Cedar scope and pattern syntax across a POO overlay, plus all pinned Cedar
 extension functions and values. The
 [[file:Examples/Enterprise/README.org][enterprise examples]] cover delegated
-procurement approval and compound payment release across independently
-evolving controls.
+procurement approval, compound payment release, and AI agent delegation and
+payment authorization across independently evolving controls.
 
 | Feature | Implemented contract |
 |---------+----------------------|
@@ -64,9 +64,9 @@ evolving controls.
 | Cedar language export | Convert supported materialized Cedar policies, entities, and requests to the public JSON formats; reject unsupported abstract syntax; compare Lean authorization receipts with the Rust Cedar engine. |
 | Reuse probe | Check dependency selection across 10,000 indexed evaluator obligations. |
 
-Agent delegation, device trust, temporal authorization, and healthcare
-policy are possible downstream studies. They do not define this library's
-semantics.
+Enterprise agent authorization, device trust, temporal authorization, and
+healthcare policy remain downstream studies. They do not define this
+library's semantics.
 
 * Status
 

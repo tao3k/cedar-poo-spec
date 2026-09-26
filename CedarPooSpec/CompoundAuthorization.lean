@@ -34,4 +34,28 @@ def authorizeAll (model : Model) (root : String) (requests : List Request)
   | .ok policies =>
       .ok ⟨policies, hc, requests.map (fun req => isAuthorized req entities policies), rfl⟩
 
+/-- One decision from one root, with its exact compilation and Cedar response. -/
+structure LayerReceipt (model : Model) (entities : Entities) where
+  root : String
+  request : Request
+  policies : Policies
+  compiled : model.compile root = .ok policies
+  response : Response
+  evaluated : response = isAuthorized request entities policies
+
+/-- All required layers must allow without policy evaluation errors. -/
+def layersAllowed {model : Model} {entities : Entities}
+    (receipts : List (LayerReceipt model entities)) : Bool :=
+  !receipts.isEmpty && receipts.all fun layer =>
+    layer.response.decision == .allow && layer.response.erroringPolicies.isEmpty
+
+/-- Evaluate requests from different POO roots against one supplied entity store. -/
+def authorizeLayers (model : Model) (checks : List (String × Request))
+    (entities : Entities) : Except PolicyModules.Error (List (LayerReceipt model entities)) :=
+  checks.mapM fun (root, request) =>
+    match hc : model.compile root with
+    | .error error => .error error
+    | .ok policies =>
+        .ok ⟨root, request, policies, hc, isAuthorized request entities policies, rfl⟩
+
 end CedarPooSpec.CompoundAuthorization

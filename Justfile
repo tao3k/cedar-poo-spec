@@ -19,7 +19,7 @@ check: build check-docs
     just check-cedar-language
 
 [parallel]
-check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-governance check-ticket-sharing check-language check-payment-release check-reuse-scale
+check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-payment check-reuse-scale
 
 check-evaluation:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Evaluation.lean
@@ -57,6 +57,12 @@ check-delegated-approval:
 
 check-payment-release:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/PaymentRelease.lean
+
+check-agent-delegation:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/AgentDelegation.lean
+
+check-agent-payment:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/AgentPayment.lean
 
 check-extension-coverage:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/ExtensionCoverage.lean
@@ -113,12 +119,21 @@ prepare-payment-manifest: build
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/PaymentReleaseExport.lean > .lake/build/payment-release-manifest.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/PublishedPayment.lean > .lake/build/payment-published.json
 
+prepare-agent-manifest: build
+    mkdir -p .lake/build/lib/lean/Examples/Enterprise
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Enterprise/AgentDelegation.olean Examples/Enterprise/AgentDelegation.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/AgentDelegationExport.lean > .lake/build/agent-delegation-manifest.json
+
+prepare-agent-payment-manifest: prepare-agent-manifest
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Enterprise/AgentPayment.olean Examples/Enterprise/AgentPayment.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/AgentPaymentExport.lean > .lake/build/agent-payment-manifest.json
+
 prepare-extension-manifest: build
     mkdir -p .lake/build/lib/lean/Examples/Language
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Language/ExtensionCoverage.olean Examples/Language/ExtensionCoverage.lean
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Language/ExtensionCoverageExport.lean > .lake/build/extension-coverage-manifest.json
 
-export-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-delegated-manifest prepare-payment-manifest prepare-extension-manifest
+export-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-delegated-manifest prepare-payment-manifest prepare-agent-payment-manifest prepare-extension-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/Policies < .lake/build/ticket-sharing-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/AttestedPolicies < .lake/build/attested-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Health/Policies < .lake/build/clinical-manifest.json
@@ -128,10 +143,12 @@ export-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prep
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Policies < .lake/build/purchase-approval-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/DelegatedPolicies < .lake/build/delegated-approval-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/PaymentPolicies < .lake/build/payment-release-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/AgentPolicies < .lake/build/agent-delegation-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/AgentPaymentPolicies < .lake/build/agent-payment-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Language/ExtensionPolicies < .lake/build/extension-coverage-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render < .lake/build/expanded-policy.json > Examples/Governance/Policies/expanded.cedar
 
-check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-delegated-matrix prepare-payment-manifest prepare-extension-manifest
+check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-delegated-matrix prepare-payment-manifest prepare-agent-payment-manifest prepare-extension-manifest
     cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features -e normal -p cedar-poo-bridge > .lake/build/bridge-default-tree.txt
     ! rg -q 'cedar-policy' .lake/build/bridge-default-tree.txt
     cargo fmt --manifest-path rust/Cargo.toml --check
@@ -149,6 +166,8 @@ check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepa
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/DelegatedPolicies < .lake/build/delegated-approval-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml < .lake/build/delegated-matrix-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/PaymentPolicies < .lake/build/payment-release-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/AgentPolicies < .lake/build/agent-delegation-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/AgentPaymentPolicies < .lake/build/agent-payment-manifest.json
     jq -S . .lake/build/payment-published.json > .lake/build/payment-published.sorted.json
     jq -S '[.cases[] | select(.revision == "integrated") | .policies][0]' .lake/build/payment-release-manifest.json > .lake/build/payment-receipt.sorted.json
     cmp .lake/build/payment-published.sorted.json .lake/build/payment-receipt.sorted.json

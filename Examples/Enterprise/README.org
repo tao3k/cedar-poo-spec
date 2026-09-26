@@ -136,3 +136,95 @@ clerk other than the payment's recorded =preparedBy=.
 just check-payment-release
 just check-cedar-language
 #+end_src
+
+* AI agent delegation across three authorization layers
+
+[[file:AgentDelegation.lean][AgentDelegation.lean]] adapts the three checks in
+[[https://github.com/aws-samples/sample-cedar-agentic-ai-authorization][AWS's published Cedar agent delegation sample]]: agent-to-tool,
+agent-to-agent delegation, and originating-user authorization. The sample
+notes that agent attributes and user claims need an authoritative source.
+This example keeps agent attributes in Cedar entities and takes the original
+user as a context entity reference; it does not implement the sample's HMAC
+or OAuth token exchange.
+
+| Evidence | Local contract |
+|----------+----------------|
+| [[https://arxiv.org/abs/2606.28679][ScopeGate preprint]]: tool exposure does not by itself authorize concrete tool calls. | =ToolHardened= checks the actual agent and tool UID, trust score, namespace, and deployment stage for each request. The wrong-tool case is denied. |
+| [[https://github.com/aws-samples/sample-cedar-agentic-ai-authorization][AWS agent sample]]: tool, delegation, and originating-user checks all contribute to a decision. | =authorizeFlow= constructs all three requests; =authorizeLayers= preserves each POO root, response, and policy evaluation errors. |
+| [[https://github.com/cedar-policy/cedar/issues/2428][Cedar issue #2428]]: an erroring forbid can be skipped while another permit still allows. | =OriginUnsafe= reproduces an =Allow= with an error on malformed runtime context; =layersAllowed= rejects the compound flow. |
+
+=ToolBase=, =DelegationBase=, and =OriginBase= intentionally allow a
+support user's deletion request. Each hardened root overlays one policy:
+=ToolHardened= checks the invoking agent, =DelegationBounded= checks depth
+and requested capabilities against the target agent, and =OriginBounded=
+checks the user role, MFA, and depth. =OriginRevoked= adds an explicit user
+revocation veto. Ten flow cases separate the effect of user role, MFA,
+delegation depth, capability, agent state, target tool, missing user, and
+revocation. [[file:AgentDelegationExport.lean][AgentDelegationExport.lean]] sends
+thirty-three individual layer requests to the official Cedar Rust
+authorizer and checks the generated
+[[file:AgentPolicies/originbounded.cedar][Cedar policies]]. Every POO root
+also passes Lean Cedar schema and policy validation.
+
+=OriginUnsafe= is a diagnostic counterexample, not a deployment revision.
+Its policy is valid against a schema where =context.origin= is a User entity.
+A caller that instead supplies a String at runtime causes the forbid to
+error; Cedar's documented skip-on-error behavior leaves the broad permit in
+effect. =malformedRawAllowsWithError= checks that raw result, while
+=malformedFlowRejectedFully= checks that the compound API declines it.
+This demonstrates why an =Allow= decision alone is insufficient when the
+response also reports policy evaluation errors.
+
+The host must authenticate the origin, verify delegation integrity, bind
+capabilities and tool arguments to the proposed call, and reauthorize at
+execution time. Cedar cannot verify a self-asserted context entity or
+perform the tool call. The preprint's money ceiling and idempotency stages
+are outside this deletion scenario.
+
+#+begin_src sh
+just check-agent-delegation
+just check-cedar-language
+#+end_src
+
+* AI agent payment with per-call value authorization
+
+[[file:AgentPayment.lean][AgentPayment.lean]] extends the agent authorization
+model with a separate transfer decision for the concrete receiving account,
+amount, and originating user. The motivation is the
+[[https://arxiv.org/abs/2606.28679][ScopeGate preprint]]'s confused-deputy
+case: exposing a payment tool to an agent does not authorize every value in
+its arguments. [[https://genai.owasp.org/llmrisk/llm062025-excessive-agency/][OWASP's excessive-agency guidance]] likewise warns about excessive
+tool permissions and missing approval for consequential actions. The roots
+and values below are a fictive model of those problems, not a reproduction
+of a published financial incident.
+
+| POO root | Added decision boundary |
+|----------+-------------------------|
+| =FinanceTool= | Check the finance agent's identity, tool UID, trust, namespace, and production stage. |
+| =PaymentBase= | Legacy transfer permit with no account or amount bound. |
+| =PaymentScoped= | Overlay the permit so the receiving account belongs to the approved group. |
+| =PaymentCapped= | Overlay a strictly positive amount at or below =100.0000=. |
+| =PaymentHuman= | Overlay originating-user Admin role and MFA requirements. |
+
+Each of eleven operations requires both =FinanceTool= and one payment root
+through =CompoundAuthorization.authorizeLayers=. The cases show that a
+tool-approved agent can still be denied an external destination, excessive
+or zero amount, unprivileged origin, or missing MFA. A base operation with
+an external account and large amount exposes the legacy gap; later roots
+close one dimension at a time. The exact =100.0000= ceiling is allowed and
+=100.0001= is denied. [[file:AgentPaymentExport.lean][The exporter]] sends
+all twenty-two layer requests to the official Cedar Rust authorizer and
+checks the five generated [[file:AgentPaymentPolicies/paymenthuman.cedar][Cedar policies]]. Every POO root also passes
+Lean Cedar schema and policy validation.
+
+The host must authenticate the originating user and agent, obtain account
+group membership from an authoritative source, bind the transfer context to
+the proposed transaction, enforce the conjunction, and make execution
+atomic. Idempotency, replay prevention, human approval workflow, and the
+integrity of those inputs remain host responsibilities. The case checks
+authorization behavior; it does not claim to implement a payment processor.
+
+#+begin_src sh
+just check-agent-payment
+just check-cedar-language
+#+end_src
