@@ -20,29 +20,22 @@ specification.
   repositories. They are not part of Lean-POO or this specification
   adapter.
 
-* Planned layers
+* Features
 
-The staged proof-to-runtime work is tracked in
-[[file:docs/implementation-plan.org][the implementation plan]].
+[[file:docs/rfc/0001-certified-authorization.org][RFC 0001]] defines the
+implemented authorization and entity-slicing certificate contract.
 
-| Layer | Responsibility |
-|-------+----------------|
-| Cedar adapter | Represent upstream Cedar definitions through Lean-POO abstractions without changing Cedar semantics. |
-| Composition examples | Exercise overrides and proof obligations on small Cedar-derived cases. |
-| Evaluation | Measure proof reuse, change impact, and repair effort on pinned upstream revisions. |
+| Feature | Implemented contract |
+|---------+----------------------|
+| Cedar adapters | Store upstream evaluation and typechecking results in typed Lean-POO proof objects. |
+| Composition | Track alignment and preserve unaffected certificates across overrides. |
+| Authorization | Transport Cedar's policy-set and response-level soundness theorems. |
+| Entity slicing | Certify equality of full and request-relative sliced authorization responses. |
+| Reuse probe | Check dependency selection across 10,000 indexed evaluator obligations. |
 
 Agent delegation, device trust, temporal authorization, and healthcare
 policy are possible downstream studies. They do not define this library's
 semantics.
-
-* Initial milestones
-
-1. Pin compatible upstream =cedar-spec= and Lean-POO revisions.
-2. Implement a small adapter for Cedar expressions and evaluator artifacts.
-3. Compose a minimal Cedar-derived extension and record its proof
-   obligations.
-4. Compare reused and invalidated proofs after an override.
-5. Report reproducible measurements and the exact revisions used.
 
 * Status
 
@@ -73,6 +66,9 @@ It also transports =validation_is_sound= for a whole policy set through
 four explicit Cedar validation obligations. The theorem retains Cedar's
 documented runtime-error cases; it is not an unconditional allow or
 error-free claim.
+[[file:CedarPooSpec/Slicing.lean][Slicing.lean]] combines that certificate
+with Cedar's level validation and transports the upstream response
+equality theorem for request-relative entity slices.
 
 #+begin_src sh
 just update

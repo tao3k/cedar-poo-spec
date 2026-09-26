@@ -1,0 +1,149 @@
+#+TITLE: RFC 0001: Certified Cedar Authorization and Entity Slicing
+#+OPTIONS: toc:2
+
+* Status
+
+The formal interface in this RFC is implemented by
+[[file:../../CedarPooSpec/Soundness.lean][Soundness.lean]] and
+[[file:../../CedarPooSpec/Slicing.lean][Slicing.lean]].
+[[file:../../Examples/AuthorizationSoundness.lean][AuthorizationSoundness.lean]]
+closes a certificate for a nonempty policy set and demonstrates slicing
+at level zero. This RFC defines the Lean feature contract. It makes no
+claim that a POO Flow runtime bundle or Rust decision receipt is already
+bound to that certificate.
+
+* Motivation
+
+An evaluation snapshot only establishes that its stored result came
+from Cedar's evaluator. A useful authorization certificate must also
+carry the exact preconditions of Cedar's upstream validation theorem.
+Entity slicing requires a separate level-validation precondition and
+must preserve the complete Cedar authorization response.
+
+The specification imports Cedar types and theorems directly. It does
+not translate the AST or define a second evaluator, validator, or
+permit/forbid aggregation rule.
+
+* Authority and scope
+
+- =cedar-spec= defines =Schema=, =Policies=, =Request=, =Entities=,
+  =validate=, =validateWithLevel=, =isAuthorized=, =sliceAtLevel=, and
+  their soundness theorems.
+- Lean-POO defines proof objects, typed dependencies, certificate
+  closure, product composition, patches, and invalidation.
+- This repository defines the Cedar-specific dependency footprints and
+  transports the upstream conclusions through Lean-POO certificates.
+- POO Flow owns source bundle construction, canonical projection,
+  trusted request context, runtime identity, and grant issuance.
+
+Domain policy facts and semantic extensions belong in downstream
+repositories. C4 may compose policy-producing modules, but Cedar's
+own authorizer always determines the decision over the resulting
+policy set.
+
+* Authorization certificate
+
+=Soundness.AuthorizationSnapshot= contains the exact Cedar policies,
+schema, request, and entities being certified. Its proof object has
+four obligations:
+
+| Obligation | Cedar premise | Dependencies |
+|------------+---------------+--------------|
+| =schemaObligation= | =schema.validateWellFormed = .ok ()= | schema |
+| =policiesObligation= | =validate policies schema = .ok ()= | policies, schema |
+| =requestObligation= | =validateRequest schema request = .ok ()= | schema, request |
+| =entitiesObligation= | =validateEntities schema entities = .ok ()= | schema, entities |
+
+=AuthorizationSnapshot.certificate= closes exactly these obligations
+from their corresponding Cedar facts. =certifiedAuthorizationSound=
+then applies =Cedar.Thm.validation_is_sound= and returns
+=AllEvaluateToBool policies request entities=. The conclusion retains
+the three runtime error cases that validation cannot exclude:
+=entityDoesNotExist=, =extensionError=, and =arithBoundsError=. It does
+not assert that evaluation always succeeds or that authorization
+allows the request.
+
+=certifiedAuthorizationSoundResponse= transports Cedar's response-level
+error classification. It additionally requires
+=PolicyIdsUnique policies=, because an ID in =erroringPolicies= cannot
+otherwise identify one particular policy.
+
+The existing =certifiedPolicySound= remains the separate per-policy
+typechecker theorem. Its typed-result and well-formed-environment
+premises are not interchangeable with whole-set validation.
+
+* Entity slicing certificate
+
+=Slicing.Snapshot= pairs an =AuthorizationSnapshot= with a natural-number
+level. Its proof object is the product of the authorization proof
+object and a level object, plus one cross-component obligation:
+
+#+begin_src lean
+validateWithLevel policies schema level = .ok ()
+#+end_src
+
+This obligation depends on policies, schema, and level. Changing any
+of them invalidates it; request and entity changes retain their own
+authorization obligations. =Slicing.Snapshot.certificate= composes the
+authorization certificate and successful level validation.
+
+=Slicing.certifiedSlice= applies
+=Cedar.Thm.validate_with_level_is_sound=. Its conclusion is equality of
+the complete =isAuthorized= responses for the original entity store
+and =entities.sliceAtLevel request level=. The theorem requires schema
+well-formedness, request validation, entity validation, and successful
+=validateWithLevel=. It does not require full-policy =validate= for
+this particular equality; the combined proof object retains that
+obligation because it also represents certified authorization.
+
+The stronger claim that no policy encounters =entityDoesNotExist=
+requires Cedar's additional =entities.closedAtLevel request level=
+premise. Response equality alone must not be reported as that claim.
+
+* Failure behavior and examples
+
+The example schema defines a read action, applicable principal and
+resource types, one default policy, and an action entity. It closes
+the four authorization premises and level-zero validation. The proof
+checks the full/sliced response equality. Removing the action entity
+makes =validateEntities= fail, so that altered input cannot use the
+same certificate.
+
+The example computes its closed validation facts with =native_decide=.
+The public theorem transport itself was audited with =#print axioms=;
+it depends only on Lean's standard logical axioms. The example's
+native computation is a fixture mechanism, not an additional Cedar
+soundness theorem.
+
+The 10,000-item example in
+[[file:../../Examples/ReuseScale.lean][ReuseScale.lean]] checks that an
+expression change selects one indexed Cedar evaluator obligation for
+repair and leaves 9,999 unaffected. It checks dependency selection,
+not theorem replay time, 10,000 distinct validated policies, or a
+runtime performance claim.
+
+* Runtime trust boundary
+
+A Lean certificate applies only to its exact Lean values. A runtime
+cannot inherit the theorem merely by carrying a hash or matching a
+human-readable policy name. Before a runtime decision can be described
+as using these certified inputs, its canonical schema, policies,
+request, entities, Cedar semantics revision, and projection version
+must be bound to the checked values. Rust/Lean execution parity and
+JSON/Protobuf parsing parity are separate obligations. Proof terms are
+not serialized as runtime certificates.
+
+This RFC neither defines a parallel editable POO Flow Bootstrap nor
+changes the owner of reserved =context.poo_flow=. The proof-to-runtime
+identity contract needs its own RFC at the POO Flow integration
+boundary before any end-to-end certification claim.
+
+* Verification
+
+#+begin_src sh
+just check
+#+end_src
+
+The check builds the public modules, elaborates the concrete Cedar
+certificate and slicing proof, checks the negative entity-validation
+case, checks dependency selection, and parses maintained Org files.

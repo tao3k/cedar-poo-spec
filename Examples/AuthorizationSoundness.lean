@@ -1,4 +1,4 @@
-import CedarPooSpec.Soundness
+import CedarPooSpec.Slicing
 
 namespace CedarPooSpec.AuthorizationSoundnessExample
 
@@ -41,6 +41,34 @@ theorem certificate : Certificate snapshot.proofObject :=
 
 example : Cedar.Thm.AllEvaluateToBool policies request entities :=
   certifiedAuthorizationSound snapshot certificate
+
+def sliceSnapshot : CedarPooSpec.Slicing.Snapshot := ⟨snapshot, 0⟩
+
+theorem sliceCertificate : Certificate sliceSnapshot.proofObject :=
+  sliceSnapshot.certificate certificate
+    (okOfIsOk _ (by native_decide))
+
+example : isAuthorized request entities policies =
+    isAuthorized request (entities.sliceAtLevel request 0) policies :=
+  CedarPooSpec.Slicing.certifiedSlice sliceSnapshot sliceCertificate
+
+-- Level validation tracks its exact policy, schema, and level inputs.
+#guard match changedDependencies CedarPooSpec.Slicing.levelObligation
+    (Patch.set (.inl .policies) policies) with
+  | [.inl .policies] => true
+  | _ => false
+#guard match changedDependencies CedarPooSpec.Slicing.levelObligation
+    (Patch.set (.inl .schema) schema) with
+  | [.inl .schema] => true
+  | _ => false
+#guard match changedDependencies CedarPooSpec.Slicing.levelObligation
+    (Patch.set (Value := CedarPooSpec.Slicing.Value) (.inr ()) (1 : Nat)) with
+  | [.inr ()] => true
+  | _ => false
+#guard (changedDependencies CedarPooSpec.Slicing.levelObligation
+  (Patch.set (.inl .request) request)).isEmpty
+#guard (changedDependencies CedarPooSpec.Slicing.levelObligation
+  (Patch.set (.inl .entities) entities)).isEmpty
 
 -- Omitting the action entity invalidates the entity-validation premise.
 #guard !(validateEntities schema Map.empty).isOk
