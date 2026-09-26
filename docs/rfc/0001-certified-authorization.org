@@ -63,6 +63,13 @@ the three runtime error cases that validation cannot exclude:
 not assert that evaluation always succeeds or that authorization
 allows the request.
 
+=AuthorizationSnapshot.checks= evaluates those four Cedar validators as a
+single Boolean validation check. =certificateOfChecks= proves that a true
+result closes the same proof object; it never treats a Boolean as a certificate
+without the per-validator soundness conversion. This presentation helper
+belongs to the Cedar adapter. LeanPOO continues to own only the generic
+obligation, certificate, patch, and reuse algebra.
+
 =certifiedAuthorizationSoundResponse= transports Cedar's response-level
 error classification. It additionally requires
 =PolicyIdsUnique policies=, because an ID in =erroringPolicies= cannot

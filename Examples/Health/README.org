@@ -44,6 +44,17 @@ without editing any policy module. =preferenceRevisionFootprintExact= proves
 that the entity-validation obligation is selected while policy validation,
 schema validation, and request validation are unaffected.
 
+=privacyRevision= follows the Privacy to Integrated compilation. Its checked
+=privacyRevisionBodies= receipt identifies the emergency overlay and device
+veto as the two fresh policy bodies; =privacyRevisionReused= identifies the
+routine permit and patient restriction as the two unchanged bodies.
+=privacyCertificate= closes the Privacy
+baseline once, =freshClinicalCertificates= checks only the two new bodies,
+and =integratedCertificateFromPrivacy= derives the Integrated authorization
+certificate through the Cedar adapter. The final soundness example consumes
+that migrated certificate. This is proof reuse across a concrete clinical
+policy evolution, not just a count of shared policy records.
+
 Across Base, Privacy, Security, Emergency, and Integrated, separately stored
 snapshots would repeat 15 policy records (2 + 3 + 3 + 3 + 4). The module
 source defines six policy bodies and seven explicit edits. This counts
@@ -55,6 +66,8 @@ review time, or maintenance cost.
 =scenarioConformsFully= checks all twelve named requests against the
 compiled policy set, Cedar validation, Cedar authorization, and empty runtime
 policy-error lists. =caseNamesUnique= prevents ambiguous case references.
+=privacyRevisionBodies= and =integratedCertificateFromPrivacy= check the
+specific incrementally reclosed authorization certificate.
 =provenanceConformsFully= checks C4 order and policy origin;
 =removalRecordedFully= checks the final removal event. A closed
 authorization certificate transports Cedar's upstream soundness theorem for

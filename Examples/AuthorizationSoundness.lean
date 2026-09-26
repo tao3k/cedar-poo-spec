@@ -38,11 +38,7 @@ def snapshot : AuthorizationSnapshot := ‚ü®policies, schema, request, entities‚ü
 
 /-- A concrete, nonempty Cedar policy set closes all four obligations. -/
 theorem certificate : Certificate snapshot.proofObject :=
-  snapshot.certificate
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
+  snapshot.certificateOfChecks (by native_decide)
 
 example : Cedar.Thm.AllEvaluateToBool policies request entities :=
   certifiedAuthorizationSound snapshot certificate

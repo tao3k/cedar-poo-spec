@@ -118,6 +118,29 @@ theorem AuthorizationSnapshot.certificate (snapshot : AuthorizationSnapshot)
   · exact hr
   · exact he
 
+/-- A concise, executable presentation of Cedar's four validation premises. -/
+def AuthorizationSnapshot.checks (snapshot : AuthorizationSnapshot) : Bool :=
+  snapshot.schema.validateWellFormed.isOk &&
+  (validate snapshot.policies snapshot.schema).isOk &&
+  (validateRequest snapshot.schema snapshot.request).isOk &&
+  (validateEntities snapshot.schema snapshot.entities).isOk
+
+private theorem okUnitOfIsOk {ε : Type} (result : Except ε Unit)
+    (accepted : result.isOk = true) : result = .ok () := by
+  cases result with
+  | ok value => cases value; rfl
+  | error _ => cases accepted
+
+/-- Close the proof object from Cedar's executable validation results. -/
+theorem AuthorizationSnapshot.certificateOfChecks
+    (snapshot : AuthorizationSnapshot) (accepted : snapshot.checks = true) :
+    Certificate snapshot.proofObject := by
+  simp only [AuthorizationSnapshot.checks, Bool.and_eq_true] at accepted
+  rcases accepted with ⟨⟨⟨hwf, hp⟩, hr⟩, he⟩
+  exact snapshot.certificate
+    (okUnitOfIsOk _ hwf) (okUnitOfIsOk _ hp)
+    (okUnitOfIsOk _ hr) (okUnitOfIsOk _ he)
+
 /-- A closed Lean-POO certificate supplies exactly Cedar's four premises. -/
 theorem certifiedAuthorizationSound (snapshot : AuthorizationSnapshot)
     (certificate : Certificate snapshot.proofObject) :

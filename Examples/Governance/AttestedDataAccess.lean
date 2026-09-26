@@ -297,11 +297,7 @@ private theorem okOfIsOk {ε : Type} (result : Except ε Unit)
   | ok value => cases value; rfl
   | error _ => cases h
 theorem baselineCertificate : Certificate baselineSnapshot.proofObject :=
-  baselineSnapshot.certificate
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
+  baselineSnapshot.certificateOfChecks (by native_decide)
 theorem freshPoliciesExact :
     revision.freshPolicies = [platformVetoV2] := by
   native_decide

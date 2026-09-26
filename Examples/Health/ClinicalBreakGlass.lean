@@ -1,4 +1,4 @@
-import CedarPooSpec.PolicyModules
+import CedarPooSpec.Revision
 import CedarPooSpec.Soundness
 
 /-!
@@ -241,13 +241,63 @@ private theorem okOfIsOk {ε : Type} (result : Except ε Unit)
   | ok value => cases value; rfl
   | error _ => cases h
 theorem certificate : Certificate snapshot.proofObject :=
-  snapshot.certificate
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
+  snapshot.certificateOfChecks (by native_decide)
 example : Cedar.Thm.AllEvaluateToBool snapshot.policies
     snapshot.request snapshot.entities :=
   certifiedAuthorizationSound snapshot certificate
+
+-- Privacy's patient restriction survives integration unchanged. Emergency and
+-- device policies are the only new bodies needing Cedar validation.
+def privacyRevision : Revision :=
+  (model.compileRevision "Privacy" "Integrated").toOption.get (by native_decide)
+
+theorem privacyRevisionBodies :
+    privacyRevision.freshPolicies = [emergencyPermitV2, deviceForbid] ∧
+    privacyRevision.afterPolicies.length - privacyRevision.freshPolicies.length = 2 := by
+  native_decide
+
+theorem privacyRevisionReused :
+    (privacyRevision.beforePolicies.filter fun policy =>
+      decide (policy ∈ privacyRevision.afterPolicies)) =
+        [routinePermit, privacyForbid] := by
+  native_decide
+
+def privacySnapshot : AuthorizationSnapshot :=
+  privacyRevision.beforeSnapshot schema emergencyRequest entities
+
+theorem privacyCertificate : Certificate privacySnapshot.proofObject :=
+  privacySnapshot.certificateOfChecks (by native_decide)
+
+theorem freshClinicalValid :
+    ∀ policy ∈ privacyRevision.freshPolicies,
+      PolicyValidation.check policy schema = .ok () := by
+  intro policy member
+  rw [privacyRevisionBodies.1] at member
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at member
+  rcases member with same | same
+  · subst policy
+    exact okOfIsOk _ (by native_decide)
+  · subst policy
+    exact okOfIsOk _ (by native_decide)
+
+theorem freshClinicalCertificates :
+    ∀ policy ∈ privacyRevision.freshPolicies,
+      Certificate (PolicyValidation.Snapshot.mk policy schema).proofObject := by
+  intro policy member
+  exact (PolicyValidation.Snapshot.mk policy schema).certificate
+    (freshClinicalValid policy member)
+
+theorem integratedCertificateFromPrivacy :
+    Certificate
+      (privacyRevision.afterSnapshot schema emergencyRequest entities).proofObject :=
+  privacyRevision.authorizationCertificate schema emergencyRequest entities
+    (by simpa [privacySnapshot] using privacyCertificate)
+    freshClinicalCertificates
+
+example : Cedar.Thm.AllEvaluateToBool privacyRevision.afterPolicies
+    emergencyRequest entities :=
+  certifiedAuthorizationSound
+    (privacyRevision.afterSnapshot schema emergencyRequest entities)
+    integratedCertificateFromPrivacy
 
 end CedarPooSpec.ClinicalBreakGlassExample

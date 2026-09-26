@@ -83,11 +83,7 @@ private theorem okOfIsOk {ε : Type} (result : Except ε Unit)
 def snapshot : AuthorizationSnapshot :=
   ⟨policies, schema, allowedRequest, entities⟩
 theorem authorizationCertificate : Certificate snapshot.proofObject :=
-  snapshot.certificate
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
+  snapshot.certificateOfChecks (by native_decide)
 
 def sliced : CedarPooSpec.Slicing.Snapshot := ⟨snapshot, 1⟩
 theorem sliceCertificate : Certificate sliced.proofObject :=
@@ -251,11 +247,7 @@ theorem authoringErrorsDetectedFully : authoringErrorsDetected = true := by nati
 def evolvedSnapshot : AuthorizationSnapshot :=
   ⟨finalPolicies, schema, allowedRequest, entities⟩
 theorem evolvedCertificate : Certificate evolvedSnapshot.proofObject :=
-  evolvedSnapshot.certificate
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
-    (okOfIsOk _ (by native_decide))
+  evolvedSnapshot.certificateOfChecks (by native_decide)
 
 def policyRevision : Patch AuthorizationKey AuthorizationValue :=
   Patch.set .policies finalPolicies
