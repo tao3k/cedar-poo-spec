@@ -62,16 +62,18 @@ the evaluated expression and the checked policy. A change on one side
 reuses the other side's certificate, while alignment becomes pending.
 [[file:Examples/Composition.lean][Composition.lean]] prints the exact
 dependency and repair report through Lean-POO's public Debug API.
+[[file:CedarPooSpec/Soundness.lean][Soundness.lean]] transports the upstream
+Cedar typechecker soundness theorem through the certified snapshot. It
+requires Cedar's well-formed environment premise and a successful typed
+result; no replacement soundness argument is invented here.
 
 #+begin_src sh
 just update
 just check
 #+end_src
 
-The Lake manifest pins =cedar-spec= and Lean-POO. This slice binds to the
-upstream typechecker result but does not yet transport Cedar's soundness
-theorems, provide domain extensions, or measure reuse on a large proof
-corpus.
+The Lake manifest pins =cedar-spec= and Lean-POO. This slice does not yet
+provide domain extensions or measure reuse on a large proof corpus.
 
 * Credits and license
 

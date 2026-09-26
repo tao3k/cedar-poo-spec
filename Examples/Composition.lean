@@ -19,6 +19,18 @@ example : LeanPoo.Proof.Certificate
   · rfl
   · rfl
 
+example (typed : Cedar.Validation.TypedExpr)
+    (accepted : exampleValidation.result = .ok typed)
+    (request : Request) (entities : Entities)
+    (wellFormed : Cedar.Thm.InstanceOfWellFormedEnvironment
+      request entities exampleValidation.environment) :
+    ∃ result : Bool,
+      Cedar.Thm.EvaluatesTo exampleValidation.policy.toExpr
+        request entities result := by
+  exact Soundness.certifiedPolicySound exampleValidation
+    (Validation.Snapshot.typecheck_certificate examplePolicy default)
+    typed accepted request entities wellFormed
+
 -- The expression override invalidates evaluation and alignment, not typechecking.
 #eval LeanPoo.Proof.Debug.explainPatch
   (Composition.alignedProofObject exampleEvaluation exampleValidation)
