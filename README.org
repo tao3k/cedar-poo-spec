@@ -69,6 +69,10 @@ dependency and repair report through Lean-POO's public Debug API.
 Cedar typechecker soundness theorem through the certified snapshot. It
 requires Cedar's well-formed environment premise and a successful typed
 result; no replacement soundness argument is invented here.
+It also transports =validation_is_sound= for a whole policy set through
+four explicit Cedar validation obligations. The theorem retains Cedar's
+documented runtime-error cases; it is not an unconditional allow or
+error-free claim.
 
 #+begin_src sh
 just update

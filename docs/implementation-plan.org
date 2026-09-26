@@ -14,11 +14,19 @@ At =c365a33=, =Evaluation=, =Validation=, and =Composition= certify
 adapter results and dependency reuse. =Soundness= already transports
 =Cedar.Thm.typecheck_policy_is_sound= for one successfully checked
 policy, given Cedar's well-formed environment premise. Whole-policy-set
-soundness, source-bundle projection, proof/runtime identity binding,
-and entity slicing are still open. The original audit described the
+soundness now has a whole-policy theorem transport with four explicit
+validation premises. Source-bundle projection, proof/runtime identity
+binding, and entity slicing are still open. The original audit described the
 earlier =20db52c= head; its proposed single-policy soundness task has
 since landed. Recheck every baseline against the exact target heads
 before implementation.
+
+The executable scale probe in =Examples/ReuseScale.lean= currently checks
+10,000 indexed Cedar evaluator dependency footprints: one expression
+change selects one obligation for repair and leaves 9,999 reusable. This
+is a dependency-selection check, not a 10,000-policy proof corpus or a
+runtime performance measurement. The full proof-reuse evaluation remains
+an M6 deliverable.
 
 The formal dependency currently pins =cedar-spec= at
 =017c35c3d1f856a0f8b62a66660ee6628870bbcf=. The observed POO Flow
@@ -74,7 +82,14 @@ that justify it. Changing either version invalidates that receipt.
 
 ** M1. Transport whole-policy Cedar soundness
 
-Add a whole-set validation snapshot and proof object. Its obligations
+The whole-set authorization snapshot and proof object now carry
+the four validation obligations. Both the policy-set conclusion and the
+response-level error classification are transported, with Cedar's
+unique-policy-ID premise retained for the latter. A concrete nonempty
+policy fixture closes the certificate; removing its action entity fails
+entity validation. The fixture computes its validation facts with
+=native_decide=, while the reusable theorem transport depends only on
+Lean's standard logical axioms. The obligations
 must carry the exact Cedar premises:
 
 - =schema.validateWellFormed = .ok ()=;
