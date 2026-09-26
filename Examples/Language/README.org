@@ -1,0 +1,23 @@
+#+TITLE: Cedar Concrete Language Boundary
+#+OPTIONS: toc:nil
+
+* Scope and pattern conformance
+
+[[file:ScopeAndPattern.lean][ScopeAndPattern.lean]] is a focused concrete-language
+example based on Cedar's documented [[https://docs.cedarpolicy.com/policies/json-format.html][JSON policy format]]. The Published
+module permits a =User= to view a =Document= when the email matches a
+pattern. The Scoped module overlays that policy to require membership in a
+staff group and a public folder, plus a nested metadata attribute.
+
+The example exercises the Lean policy AST forms =is=, =is ... in=, =like=,
+unary =is=, and nested =has=. The Lean theorem =decisionsExactFully= checks
+five requests. [[file:ScopeAndPatternExport.lean][ScopeAndPatternExport.lean]]
+exports both POO roots; the Rust Cedar engine checks the same requests and
+reparses the generated [[file:Policies/scoped.cedar][Cedar source]]. The
+=just check-language= and =just check-cedar-language= commands keep the Lean
+and concrete-language boundaries independently inspectable.
+
+These identifiers are fictive. This is a syntax and authorization conformance
+case, not a domain policy recommendation. Cedar Lean admits =is= in an action
+scope, while Cedar's concrete grammar does not; the exporter rejects that
+abstract-only form with =unsupportedScope=.

@@ -34,12 +34,23 @@ policy language. The exporter returns a typed error for unsupported scopes,
 expressions, values, duplicate policy IDs, and duplicate record keys. Policy
 expressions and nested values have an explicit 1,024-level export limit, so
 an extremely deep generated object fails instead of exhausting the stack.
+A concrete-language conformance example exercises =is= and =is ... in=
+principal/resource scopes, =like= patterns, unary =is=, and nested =has=.
+Cedar Lean's abstract Action scope permits =is=, but Cedar's concrete Action
+grammar does not; export rejects that form explicitly.
 A successful Lean export is
 then parsed again by Rust Cedar. This parser check is part of the integration
 contract; the adapter does not claim that every abstract Cedar policy can be
 published as a concrete Cedar policy.
 
 * Executable conformance case
+
+The Lean source contains the C4 module graph, overlay and removal edits,
+provenance, and proof obligations. Compilation erases those construction
+steps into an ordinary Cedar policy set. A short generated =.cedar= file is
+therefore expected; it is the deployed result, not a textual rendering of
+the proof or composition history. The compiled JSON retains the original
+policy IDs, while the readable Cedar file records them in comments.
 
 [[file:../../Examples/Governance/TicketSharingExport.lean][TicketSharingExport]]
 computes the manifest from the existing Lean policy model, entity store,
@@ -58,6 +69,22 @@ attested-data exporter checks thirteen cases across three roots, including
 the attestation-freshness delta. These source models are independently checked
 in Lean; the Rust gate then compares their computed responses with official
 Cedar and the regenerated policy text.
+The [[file:../../Examples/Language/README.org][concrete-language example]]
+checks five more requests across a POO overlay and two generated revisions.
+
+Each Lean receipt separately records the IDs returned by POO compilation,
+alongside the exported JSON. The Rust boundary checks that Cedar loaded
+exactly those IDs and only materialized policies, then compares the Lean and
+Rust decisions and error counts for each named request. Rust unit checks
+reject changed IDs, changed decisions, duplicate case names, unmaterialized
+template payloads, and conflicting revision artifacts. Cedar owns JSON and
+policy-language parsing; these checks target our translation boundary.
+
+The finite request tables establish conformance for their named requests.
+They are not a universal proof that every abstract Lean policy has identical
+behavior for every possible request in Rust. Unsupported abstract syntax
+fails export, and a successful export must pass Cedar's parser and the
+boundary checks before the artifact is admitted.
 
 #+begin_src sh
 just export-cedar-language

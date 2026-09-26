@@ -10,7 +10,7 @@ open CedarPooSpec.TicketSharingExample
 theorem unsupportedScopeRejected :
     (match PolicyJson.policy
       { Cedar.Spec.Policy.allowAll with
-        principalScope := .principalScope (.is userType) } with
+        actionScope := .actionScope (.is actionType) } with
      | .error (.unsupportedScope _) => true
      | _ => false) = true := by
   native_decide

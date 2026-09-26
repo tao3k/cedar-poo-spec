@@ -29,14 +29,20 @@ private def obj (fields : List (String × Lean.Json)) : Lean.Json := Lean.Json.m
 def entity (uid : EntityUID) : Lean.Json :=
   obj [("type", Lean.toJson (toString uid.ty)), ("id", Lean.toJson uid.eid)]
 
-private def scope (id : PolicyID) : Scope → Except Error Lean.Json
+private def scope : Scope → Except Error Lean.Json
   | .any => .ok (obj [("op", Lean.toJson "All")])
   | .eq uid => .ok (obj [("op", Lean.toJson "=="), ("entity", entity uid)])
   | .mem uid => .ok (obj [("op", Lean.toJson "in"), ("entity", entity uid)])
-  | .is _ | .isMem _ _ => .error (.unsupportedScope id)
+  | .is ty => .ok (obj [("op", Lean.toJson "is"),
+      ("entity_type", Lean.toJson (toString ty))])
+  | .isMem ty uid => .ok (obj [("op", Lean.toJson "is"),
+      ("entity_type", Lean.toJson (toString ty)),
+      ("in", obj [("entity", entity uid)])])
 
 private def actionScope (id : PolicyID) : ActionScope → Except Error Lean.Json
-  | .actionScope s => scope id s
+  | .actionScope (.is _) => .error (.unsupportedScope id)
+  | .actionScope (.isMem _ _) => .error (.unsupportedScope id)
+  | .actionScope s => scope s
   | .actionInAny uids =>
       .ok (obj [("op", Lean.toJson "in"), ("entities", Lean.toJson (uids.map entity))])
 
@@ -72,6 +78,10 @@ private def pair (name : String) (left right : Lean.Json) : Lean.Json :=
 private def unary (name : String) (arg : Lean.Json) : Lean.Json :=
   obj [(name, obj [("arg", arg)])]
 
+private def patternElement : PatElem → Lean.Json
+  | .star => Lean.toJson "Wildcard"
+  | .justChar char => obj [("Literal", Lean.toJson (String.ofList [char]))]
+
 private def expressionFuel (id : PolicyID) : Nat → Cedar.Spec.Expr → Except Error Lean.Json
   | 0, _ => .error (.expressionDepthExceeded id)
   | _fuel + 1, .lit value => .ok (obj [("Value", primitive value)])
@@ -86,9 +96,18 @@ private def expressionFuel (id : PolicyID) : Nat → Cedar.Spec.Expr → Except 
       return obj [(".", obj [("left", ← expressionFuel id fuel left), ("attr", Lean.toJson attr)])]
   | fuel + 1, .hasAttr left attr => do
       return obj [("has", obj [("left", ← expressionFuel id fuel left), ("attr", Lean.toJson attr)])]
+  | fuel + 1, .extHasAttr left attr attrs => do
+      return obj [("has", obj [("left", ← expressionFuel id fuel left),
+        ("attr", Lean.toJson (attr :: attrs))])]
   | fuel + 1, .unaryApp .not arg => do return unary "!" (← expressionFuel id fuel arg)
   | fuel + 1, .unaryApp .neg arg => do return unary "neg" (← expressionFuel id fuel arg)
   | fuel + 1, .unaryApp .isEmpty arg => do return unary "isEmpty" (← expressionFuel id fuel arg)
+  | fuel + 1, .unaryApp (.is ty) arg => do
+      return obj [("is", obj [("left", ← expressionFuel id fuel arg),
+        ("entity_type", Lean.toJson (toString ty))])]
+  | fuel + 1, .unaryApp (.like pattern) arg => do
+      return obj [("like", obj [("left", ← expressionFuel id fuel arg),
+        ("pattern", Lean.toJson (pattern.map patternElement))])]
   | fuel + 1, .ite cond yes no => do
       return obj [("if-then-else", obj [
         ("if", ← expressionFuel id fuel cond), ("then", ← expressionFuel id fuel yes),
@@ -117,9 +136,9 @@ def policy (value : Policy) : Except Error Lean.Json := do
     ("effect", Lean.toJson (match value.effect with
       | .permit => "permit"
       | .forbid => "forbid")),
-    ("principal", ← scope value.id value.principalScope.scope),
+    ("principal", ← scope value.principalScope.scope),
     ("action", ← actionScope value.id value.actionScope),
-    ("resource", ← scope value.id value.resourceScope.scope),
+    ("resource", ← scope value.resourceScope.scope),
     ("conditions", Lean.toJson (← value.condition.mapM (condition value.id)))]
 
 /-- A materialized policy set with no templates or links. -/
@@ -197,6 +216,7 @@ def authorizationCase (name revision : String) (model : PolicyModules.Model)
   return obj [
     ("name", Lean.toJson name),
     ("revision", Lean.toJson revision),
+    ("policy_ids", Lean.toJson (policies.map Policy.id)),
     ("policies", exported),
     ("entities", exportedEntities),
     ("request", exportedRequest),

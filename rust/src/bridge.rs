@@ -4,7 +4,7 @@ use crate::CompiledPolicyJson;
 use cedar_policy::{Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request};
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
 /// Request fields emitted from the Lean Cedar model.
@@ -21,6 +21,7 @@ pub struct RequestInput {
 pub struct Case {
     pub name: String,
     pub revision: String,
+    pub policy_ids: Vec<String>,
     pub policies: CompiledPolicyJson,
     pub entities: Value,
     pub request: RequestInput,
@@ -39,7 +40,11 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
     if manifest.cases.is_empty() {
         return Err("manifest has no cases".into());
     }
+    let mut names = BTreeSet::new();
     for case in &manifest.cases {
+        if !names.insert(&case.name) {
+            return Err(format!("duplicate case name: {}", case.name));
+        }
         check_case(case).map_err(|error| format!("{}: {error}", case.name))?;
     }
     render_artifacts(manifest)?;
@@ -48,8 +53,36 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
 
 /// Load a Lean-POO compiled policy set through Cedar's public JSON parser.
 pub fn load_policy_set(json: &CompiledPolicyJson) -> Result<PolicySet, String> {
-    PolicySet::from_json_value(json.as_value().clone())
-        .map_err(|error| format!("Cedar policy parse: {error}"))
+    let object = json
+        .as_value()
+        .as_object()
+        .ok_or("compiled policy artifact must be a JSON object")?;
+    let static_policies = object
+        .get("staticPolicies")
+        .and_then(Value::as_object)
+        .ok_or("compiled policy artifact needs staticPolicies")?;
+    if !object
+        .get("templates")
+        .and_then(Value::as_object)
+        .is_some_and(serde_json::Map::is_empty)
+        || !object
+            .get("templateLinks")
+            .and_then(Value::as_array)
+            .is_some_and(Vec::is_empty)
+    {
+        return Err("compiled policy artifact must contain only materialized policies".into());
+    }
+    let policies = PolicySet::from_json_value(json.as_value().clone())
+        .map_err(|error| format!("Cedar policy parse: {error}"))?;
+    let expected = static_policies.keys().cloned().collect::<BTreeSet<_>>();
+    let loaded = policies
+        .policies()
+        .map(|policy| policy.id().to_string())
+        .collect::<BTreeSet<_>>();
+    if expected != loaded {
+        return Err("Cedar loaded a different policy ID set".into());
+    }
+    Ok(policies)
 }
 
 fn render_policy_set(policies: &PolicySet) -> Result<String, String> {
@@ -110,6 +143,14 @@ pub fn render_artifacts(manifest: &Manifest) -> Result<BTreeMap<String, String>,
 
 fn check_case(case: &Case) -> Result<(), String> {
     let policies = load_policy_set(&case.policies)?;
+    let expected_ids = case.policy_ids.iter().cloned().collect::<BTreeSet<_>>();
+    let loaded_ids = policies
+        .policies()
+        .map(|policy| policy.id().to_string())
+        .collect::<BTreeSet<_>>();
+    if expected_ids.len() != case.policy_ids.len() || expected_ids != loaded_ids {
+        return Err("loaded policy IDs differ from the Lean compilation".into());
+    }
     let entities = Entities::from_json_value(case.entities.clone(), None)
         .map_err(|error| format!("Cedar entity parse: {error}"))?;
     let uid = |text: &str| EntityUid::from_str(text).map_err(|error| error.to_string());
@@ -147,3 +188,7 @@ fn check_case(case: &Case) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/bridge.rs"]
+mod tests;
