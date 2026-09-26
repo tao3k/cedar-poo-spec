@@ -9,8 +9,10 @@ ordinary policy set using Cedar's public JSON policy-set format. The
 [[file:../../rust/Cargo.toml][Rust bridge]] parses the result with the official
 =cedar-policy= crate and calls its authorizer. Composition and proof reuse stay
 in Lean-POO; Cedar continues to own policy parsing and authorization.
-The Rust library exposes =load_policy_set= for applications that want to load
-the exported JSON into the official =cedar_policy::PolicySet= type.
+The Rust package defaults to a small JSON artifact type with no Cedar runtime
+dependency. Enabling =cedar-runtime= exposes =load_policy_set= for applications
+that want to load the exported JSON into the official
+=cedar_policy::PolicySet= type.
 The same bridge renders that policy set into human-readable =.cedar= files in
 [[file:../../Examples/Governance/Policies/expanded.cedar][the governance example]].
 The files cover published, posture, revoked, and expanded revisions. The same
@@ -93,10 +95,13 @@ def main : IO Unit :=
 #+end_src
 
 The top-level Cargo workspace makes the =cedar-poo-bridge= package available
-as a Git dependency. The Rust library exposes =CompiledPolicyJson=,
-=load_policy_set=, and =render_policy_source=. The same package provides a
-generic CLI command that reads one compiled policy set from standard input
-and writes Cedar source to standard output:
+as a Git dependency. Its default library exposes =CompiledPolicyJson= and
+=to_json_string= for passing or storing a compiled artifact. Downstream Rust code
+that already uses =cedar-policy= may parse this JSON through its own Cedar
+dependency. It does not need to depend on this bridge merely to load the
+artifact. The optional =cedar-runtime= feature exposes =load_policy_set= and
+=render_policy_source=, and builds a CLI that reads one compiled policy set
+from standard input and writes Cedar source to standard output:
 
 #+begin_src toml
 [dependencies]
@@ -107,7 +112,8 @@ For the command-line form, install the binary from the same revision:
 
 #+begin_src sh
 cargo install --git https://github.com/tao3k/cedar-poo-spec.git \
-  --branch feat/cedar-evaluation-adapter --package cedar-poo-bridge
+  --branch feat/cedar-evaluation-adapter --package cedar-poo-bridge \
+  --features cedar-runtime
 #+end_src
 
 #+begin_src sh

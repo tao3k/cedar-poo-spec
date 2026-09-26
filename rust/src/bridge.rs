@@ -1,23 +1,11 @@
 //! Parse official Cedar JSON and compare Rust authorization to Lean receipts.
 
+use crate::CompiledPolicyJson;
 use cedar_policy::{Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::str::FromStr;
-
-/// Materialized Cedar policy set in the official JSON policy-set format.
-#[derive(Debug, Deserialize)]
-#[serde(transparent)]
-pub struct CompiledPolicyJson(Value);
-
-impl FromStr for CompiledPolicyJson {
-    type Err = serde_json::Error;
-
-    fn from_str(source: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(source)
-    }
-}
 
 /// Request fields emitted from the Lean Cedar model.
 #[derive(Debug, Deserialize)]
@@ -60,7 +48,7 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
 
 /// Load a Lean-POO compiled policy set through Cedar's public JSON parser.
 pub fn load_policy_set(json: &CompiledPolicyJson) -> Result<PolicySet, String> {
-    PolicySet::from_json_value(json.0.clone())
+    PolicySet::from_json_value(json.as_value().clone())
         .map_err(|error| format!("Cedar policy parse: {error}"))
 }
 

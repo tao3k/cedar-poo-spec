@@ -3,12 +3,21 @@ name = "cedar-poo-bridge"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
-description = "Cedar policy language conformance runner for Lean-POO policy exports"
+description = "Lean-POO policy artifacts and optional Cedar language conformance runner"
+
+[features]
+default = []
+cedar-runtime = ["dep:cedar-policy"]
 
 [dependencies]
-cedar-policy = "=4.12.0"
+cedar-policy = { version = "=4.12.0", optional = true, default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[[bin]]
+name = "cedar-poo-bridge"
+path = "src/main.rs"
+required-features = ["cedar-runtime"]
 
 [dev-dependencies]
 asp-rust = { git = "https://github.com/tao3k/asp-rust", rev = "9b95fd6744a89f3f38e87f9bda33ea762f1f65e1", default-features = false }
