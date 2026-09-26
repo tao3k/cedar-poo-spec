@@ -1,0 +1,41 @@
+#+TITLE: Enterprise Purchase Approval
+#+OPTIONS: toc:nil
+
+* Source and model boundary
+
+[[file:PurchaseApproval.lean][PurchaseApproval.lean]] combines two published
+mechanisms in a fictive procurement model. Cedar documents
+[[https://docs.cedarpolicy.com/policies/syntax-operators.html][decimal comparison
+operators]] including =lessThanOrEqual=, which the model uses for a request
+amount and an order-specific limit. [[https://csrc.nist.gov/CSRC/media/Projects/risk-management/800-53%20Downloads/800-53r5/SP_800-53_v5_1-derived-OSCAL.pdf][NIST SP 800-53 AC-5]]
+describes separation of duties as a security control; the model represents
+one narrow instance by forbidding a requester to approve their own order.
+Neither source prescribes this example's amount, department structure, or
+policy module layout. The =500.0000= limit and every identity are fictive.
+
+The application must establish the order requester, order group, approval
+amount, and authenticated principal before calling Cedar. The model proves
+neither the provenance of those facts nor completion of a purchase.
+
+* POO evolution
+
+=Base= permits operations approvers and deliberately lacks an amount bound.
+=Budget= overlays that policy with a decimal comparison against the order's
+limit. =Duties= independently adds a self-approval forbid. =Integrated=
+composes both branches. The eight named requests expose what each branch
+alone misses: a self-approval below the limit and another approver's request
+above it. They also check the exact limit, one unit in the fourth decimal
+place above and below it, and a cross-department request.
+
+=budgetEditLocal= checks that the budget revision changes only the permit
+body. =decisionsExactFully= checks the finite Lean request table. The
+[[file:PurchaseApprovalExport.lean][exporter]] feeds those same requests to
+the official Rust Cedar authorizer and reparses the generated
+[[file:Policies/integrated.cedar][integrated policy source]]. This checks the
+translation boundary for these requests; it is not a general procurement
+compliance certification.
+
+#+begin_src sh
+just check-purchase-approval
+just check-cedar-language
+#+end_src

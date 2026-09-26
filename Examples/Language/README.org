@@ -21,3 +21,22 @@ These identifiers are fictive. This is a syntax and authorization conformance
 case, not a domain policy recommendation. Cedar Lean admits =is= in an action
 scope, while Cedar's concrete grammar does not; the exporter rejects that
 abstract-only form with =unsupportedScope=.
+
+* Complete extension boundary
+
+[[file:ExtensionCoverage.lean][ExtensionCoverage.lean]] checks all 22
+functions in Cedar Lean's =ExtFun= type and all four =Ext= value variants.
+The corresponding official Rust Cedar feature families are =decimal=,
+=ipaddr=, and =datetime=. Eight positive and negative requests exercise the
+constructor and method calls, as well as extension values in request
+context. [[file:ExtensionCoverageExport.lean][ExtensionCoverageExport.lean]]
+supplies Lean-computed receipts to the official Rust authorizer, which also
+reparses the four generated [[file:ExtensionPolicies/datetime.cedar][Cedar
+policy versions]]. A timezone-offset datetime and a negative duration are
+included as value-serialization boundaries. The full mapping is listed in
+[[file:../../docs/rfc/0003-cedar-language-export.org][RFC 0003]].
+
+#+begin_src sh
+just check-extension-coverage
+just check-cedar-language
+#+end_src

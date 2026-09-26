@@ -45,7 +45,10 @@ a ticket-sharing template revision based on Cedar's published design pattern.
 It also includes a trusted-network revision that checks Cedar IP extension
 values and a narrower network veto through the official Rust authorizer.
 The [[file:Examples/Language/README.org][language example]] checks concrete
-Cedar scope and pattern syntax across a POO overlay.
+Cedar scope and pattern syntax across a POO overlay, plus all pinned Cedar
+extension functions and values. The
+[[file:Examples/Enterprise/README.org][enterprise example]] combines decimal
+approval limits with a separation-of-duties branch.
 
 | Feature | Implemented contract |
 |---------+----------------------|

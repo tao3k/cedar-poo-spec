@@ -38,11 +38,26 @@ A concrete-language conformance example exercises =is= and =is ... in=
 principal/resource scopes, =like= patterns, unary =is=, and nested =has=.
 Cedar Lean's abstract Action scope permits =is=, but Cedar's concrete Action
 grammar does not; export rejects that form explicitly.
-The adapter also exports the Cedar IP extension value and its =ip=,
-=isInRange=, =isIpv4=, =isIpv6=, =isLoopback=, and =isMulticast= calls.
-Other extension values and functions still fail with typed export errors.
-The optional Rust =cedar-runtime= feature enables Cedar's =ipaddr= support;
-the default lightweight artifact library still does not depend on Cedar.
+The adapter covers all four extension value variants and all 22 =ExtFun=
+constructors in the pinned Cedar Lean version. The =cedar-runtime= feature
+enables the corresponding official Rust Cedar =decimal=, =ipaddr=, and
+=datetime= features; the default artifact library still has no Cedar runtime
+dependency. The inventory is explicit:
+
+| Family | Lean extension value | Lean functions exported to Cedar JSON |
+|--------+----------------------+---------------------------------------|
+| Decimal | =decimal= | =decimal=, =lessThan=, =lessThanOrEqual=, =greaterThan=, =greaterThanOrEqual= |
+| IP | =ipaddr= | =ip=, =isIpv4=, =isIpv6=, =isLoopback=, =isMulticast=, =isInRange= |
+| Time | =datetime=, =duration= | =datetime=, =duration=, =offset=, =durationSince=, =toDate=, =toTime=, =toMilliseconds=, =toSeconds=, =toMinutes=, =toHours=, =toDays= |
+
+The [[file:../../Examples/Language/ExtensionCoverage.lean][extension coverage
+case]] executes every function and serializes every value family through
+Lean and Rust Cedar. Datetime values are rendered as canonical UTC timestamps
+and reparsed before export; duration values are rendered in milliseconds and
+reparsed. A value outside Cedar's printable date range fails with
+=unsupportedValue= instead of changing meaning. Function arity is checked
+before export. This inventory concerns the pinned Cedar Lean extension AST,
+not every API of the Rust =cedar-policy= crate.
 Entity export rejects self-ancestry and locally visible ancestor chains whose
 transitive members are absent. Cedar Lean reads the supplied ancestor set;
 the official Rust Cedar JSON loader computes transitive closure. Requiring
@@ -90,6 +105,11 @@ The [[file:../../Examples/Governance/CountryApproval.lean][country approver
 revision]] checks twelve requests with role, action, and resource groups,
 entity tags, country expansion, and removal of a broad legacy grant. It
 also checks the negative incomplete-ancestry export path.
+The [[file:../../Examples/Enterprise/PurchaseApproval.lean][procurement
+revision]] checks eight requests across base, budget, duties, and integrated
+roots, including a four-decimal-place amount boundary and self-approval veto.
+The extension coverage case adds eight requests across three extension
+families, including timezone normalization and a negative duration value.
 
 Each Lean receipt separately records the IDs returned by POO compilation,
 alongside the exported JSON. The Rust boundary checks that Cedar loaded

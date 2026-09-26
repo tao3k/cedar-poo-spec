@@ -83,14 +83,29 @@ private def patternElement : PatElem → Lean.Json
   | .star => Lean.toJson "Wildcard"
   | .justChar char => obj [("Literal", Lean.toJson (String.ofList [char]))]
 
-private def ipFunction : ExtFun → Option (String × Nat)
+private def extensionFunction : ExtFun → Option (String × Nat)
+  | .decimal => some ("decimal", 1)
+  | .lessThan => some ("lessThan", 2)
+  | .lessThanOrEqual => some ("lessThanOrEqual", 2)
+  | .greaterThan => some ("greaterThan", 2)
+  | .greaterThanOrEqual => some ("greaterThanOrEqual", 2)
   | .ip => some ("ip", 1)
   | .isIpv4 => some ("isIpv4", 1)
   | .isIpv6 => some ("isIpv6", 1)
   | .isLoopback => some ("isLoopback", 1)
   | .isMulticast => some ("isMulticast", 1)
   | .isInRange => some ("isInRange", 2)
-  | _ => none
+  | .datetime => some ("datetime", 1)
+  | .duration => some ("duration", 1)
+  | .offset => some ("offset", 2)
+  | .durationSince => some ("durationSince", 2)
+  | .toDate => some ("toDate", 1)
+  | .toTime => some ("toTime", 1)
+  | .toMilliseconds => some ("toMilliseconds", 1)
+  | .toSeconds => some ("toSeconds", 1)
+  | .toMinutes => some ("toMinutes", 1)
+  | .toHours => some ("toHours", 1)
+  | .toDays => some ("toDays", 1)
 
 private def expressionFuel (id : PolicyID) : Nat → Cedar.Spec.Expr → Except Error Lean.Json
   | 0, _ => .error (.expressionDepthExceeded id)
@@ -131,7 +146,7 @@ private def expressionFuel (id : PolicyID) : Nat → Cedar.Spec.Expr → Except 
         return (key, ← expressionFuel id fuel value)
       return obj [("Record", obj fields)]
   | fuel + 1, .call fn args => do
-      let some (name, arity) := ipFunction fn
+      let some (name, arity) := extensionFunction fn
         | throw (.unsupportedExpression id)
       if args.length != arity then
         throw (.unsupportedExpression id)
@@ -182,10 +197,29 @@ private def valueFuel : Nat → Value → Except Error Lean.Json
       let fields ← attrs.toList.mapM fun (key, val) => do
         return (key, ← valueFuel fuel val)
       return obj fields
+  | _fuel + 1, .ext (.decimal amount) =>
+      .ok (obj [("__extn", obj [("fn", Lean.toJson "decimal"),
+        ("arg", Lean.toJson (toString amount))])])
   | _fuel + 1, .ext (.ipaddr address) =>
       .ok (obj [("__extn", obj [("fn", Lean.toJson "ip"),
         ("arg", Lean.toJson (toString address))])])
-  | _, .ext _ => .error .unsupportedValue
+  | _fuel + 1, .ext (.datetime timestamp) =>
+      let millis := Std.Time.Millisecond.Offset.ofInt timestamp.val.toInt
+      let utc := Std.Time.DateTime.ofTimestampWithZone
+        (Std.Time.Timestamp.ofMillisecondsSinceUnixEpoch millis) Std.Time.TimeZone.UTC
+      let format : Std.Time.GenericFormat .any :=
+        Std.Time.GenericFormat.spec! "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+      let encoded := format.format utc
+      if Cedar.Spec.Ext.Datetime.parse encoded == some timestamp then
+        .ok (obj [("__extn", obj [("fn", Lean.toJson "datetime"),
+          ("arg", Lean.toJson encoded)])])
+      else .error .unsupportedValue
+  | _fuel + 1, .ext (.duration duration) =>
+      let encoded := s!"{duration.val.toInt}ms"
+      if Cedar.Spec.Ext.Datetime.Duration.parse encoded == some duration then
+        .ok (obj [("__extn", obj [("fn", Lean.toJson "duration"),
+          ("arg", Lean.toJson encoded)])])
+      else .error .unsupportedValue
 
 private def value (input : Value) : Except Error Lean.Json :=
   valueFuel 1024 input
