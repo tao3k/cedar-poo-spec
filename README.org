@@ -43,8 +43,26 @@ semantics.
 
 * Status
 
-This repository currently defines the integration boundary and research
-plan. No Cedar adapter, extension, or proof-reuse result is claimed yet.
+The first executable adapter is in
+[[file:CedarPooSpec/Evaluation.lean][CedarPooSpec/Evaluation.lean]]. It stores upstream Cedar expressions,
+requests, entities, and evaluation results in a typed Lean-POO proof
+object. Its obligation states that the stored result equals Cedar's own
+evaluator output.
+
+The adapter declares an exact dependency footprint. A label-only patch
+reuses the existing evaluation certificate. An expression override writes
+the new expression and upstream evaluation result, reports the changed
+dependencies, and closes the pending certificate. The runnable
+[[file:Examples/Evaluation.lean][evaluation example]] shows both paths.
+
+#+begin_src sh
+just update
+just check
+#+end_src
+
+The Lake manifest pins =cedar-spec= and Lean-POO. This initial slice does
+not yet adapt Cedar's typechecker or soundness proofs, provide domain
+extensions, or measure reuse on a large proof corpus.
 
 * Credits and license
 
