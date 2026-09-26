@@ -7,3 +7,4 @@ import CedarPooSpec.PolicyModules
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
 import CedarPooSpec.TemplateValidation
+import CedarPooSpec.PolicyJson

@@ -1,0 +1,59 @@
+#+TITLE: RFC 0003: Cedar Policy Language Export
+#+OPTIONS: toc:nil
+
+* Contract
+
+=PolicyModules.Model.compile= yields =Cedar.Spec.Policies= in Lean. The
+[[file:../../CedarPooSpec/PolicyJson.lean][PolicyJson adapter]] serializes that
+ordinary policy set using Cedar's public JSON policy-set format. The
+[[file:../../rust/Cargo.toml][Rust bridge]] parses the result with the official
+=cedar-policy= crate and calls its authorizer. Composition and proof reuse stay
+in Lean-POO; Cedar continues to own policy parsing and authorization.
+The Rust library exposes =load_policy_set= for applications that want to load
+the exported JSON into the official =cedar_policy::PolicySet= type.
+
+The exporter materializes linked templates before serialization, so its JSON
+contains static policies with their original IDs and empty template and link
+collections. This preserves the compiled authorization behavior. Applications
+that must retain editable Cedar templates and links need a separate export of
+those source objects.
+
+The Lean specification's abstract syntax is broader than Cedar's concrete
+policy language. The exporter returns a typed error for unsupported scopes,
+expressions, values, duplicate policy IDs, and duplicate record keys. Policy
+expressions and nested values have an explicit 1,024-level export limit, so
+an extremely deep generated object fails instead of exhausting the stack.
+A successful Lean export is
+then parsed again by Rust Cedar. This parser check is part of the integration
+contract; the adapter does not claim that every abstract Cedar policy can be
+published as a concrete Cedar policy.
+
+* Executable conformance case
+
+[[file:../../Examples/Governance/TicketSharingExport.lean][TicketSharingExport]]
+computes the manifest from the existing Lean policy model, entity store,
+requests, and authorization responses. The Rust bridge checks nine cases
+across published, posture, revoked, and expanded revisions. Each case compares the
+authorization decision and the count of policy evaluation errors. A mismatch
+or a parse failure exits with an error.
+
+#+begin_src sh
+just check-cedar-language
+#+end_src
+
+The top-level =just check= and GitHub CI also run this gate. The Rust crate
+uses [[https://github.com/tao3k/asp-rust][asp-rust]] only as a pinned
+=dev-dependency= for its code-policy gate. No Lean/Rust FFI is involved in
+the artifact boundary.
+
+* Source authority
+
+- [[https://docs.cedarpolicy.com/policies/json-format.html][Cedar JSON policy format]]
+  defines the exported policy-set structure and expression encoding.
+- [[https://docs.cedarpolicy.com/auth/entities-syntax.html][Cedar entities and context JSON]]
+  defines the request data boundary.
+- [[https://github.com/cedar-policy/cedar][Cedar Rust implementation]] provides
+  =PolicySet=, =Entities=, =Context=, =Request=, and =Authorizer=.
+- [[https://github.com/cedar-policy/cedar-spec][Cedar Lean specification]]
+  provides the policy, template, evaluator, and validation definitions used
+  before export.

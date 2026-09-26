@@ -117,21 +117,55 @@ theorem invalidTemplateRejected :
      | _ => false) = true := by
   native_decide
 
+def revokedLinks : TemplateLinkedPolicies :=
+  links.filter fun link => link.id != "bob-ticket-b"
+def revokedPolicies : Policies :=
+  (Cedar.Spec.link? templatesV2 revokedLinks).toOption.get (by native_decide)
+
+def postureReconciliation : Reconciliation policiesV1 policiesV2 :=
+  (Edit.reconcile policiesV1 policiesV2).toOption.get (by native_decide)
+def revokedReconciliation : Reconciliation policiesV2 revokedPolicies :=
+  (Edit.reconcile policiesV2 revokedPolicies).toOption.get (by native_decide)
+
 def published : Module :=
   { name := "Published", edits := Edit.extendAll policiesV1 }
 def posture : Module :=
   { name := "Posture", parentOrders := [["Published"]],
-    edits := Edit.overlayAll (PolicyValidation.freshPolicies policiesV1 policiesV2) }
+    edits := postureReconciliation.edits }
 def revoked : Module :=
   { name := "Revoked", parentOrders := [["Posture"]],
-    edits := [.remove "bob-ticket-b"] }
+    edits := revokedReconciliation.edits }
 def model : Model := { modules := [published, posture, revoked] }
 def finalPolicies : Policies :=
   (model.compile "Revoked").toOption.get (by native_decide)
-def revokedLinks : TemplateLinkedPolicies :=
-  links.filter fun link => link.id != "bob-ticket-b"
 def revokedLinked : LinkedSet schema :=
   (revised.tryRefresh templatesV2 revokedLinks).toOption.get (by native_decide)
+
+def expandedLinks : TemplateLinkedPolicies :=
+  revokedLinks ++ [linked "alice-ticket-b" "contributor" alice ticketB]
+def expandedPolicies : Policies :=
+  (Cedar.Spec.link? templatesV2 expandedLinks).toOption.get (by native_decide)
+def expandedReconciliation : Reconciliation finalPolicies expandedPolicies :=
+  (Edit.reconcile finalPolicies expandedPolicies).toOption.get (by native_decide)
+def expanded : Module :=
+  { name := "Expanded", parentOrders := [["Revoked"]],
+    edits := expandedReconciliation.edits }
+def expandedModel : Model :=
+  { modules := [published, posture, revoked, expanded] }
+def expandedLinked : LinkedSet schema :=
+  (revokedLinked.tryRefresh templatesV2 expandedLinks).toOption.get (by native_decide)
+
+theorem linkChurnAligned :
+    (expandedModel.compile "Expanded").toOption = some expandedPolicies ∧
+    expandedLinked.validated.policies = expandedPolicies ∧
+    expandedReconciliation.edits.length = 1 := by
+  native_decide
+
+theorem reconciliationRejectsDuplicates :
+    (match Edit.reconcile policiesV1 (policiesV1 ++ [policiesV1.head!]) with
+     | .error (.duplicateInputIds "after") => true
+     | _ => false) = true := by
+  native_decide
 
 theorem revokedAligned : revokedLinked.validated.policies = finalPolicies := by
   native_decide
@@ -247,6 +281,8 @@ def decisionsConform : Bool :=
   (isAuthorized (request alice ticketA true) closedEntities policiesV2).decision == .deny &&
   (isAuthorized (request bob ticketA false) entities finalPolicies).decision == .allow &&
   (isAuthorized (request bob ticketB true) entities finalPolicies).decision == .deny
+  &&
+  (isAuthorized (request alice ticketB true) entities expandedPolicies).decision == .allow
 theorem decisionsConformFully : decisionsConform = true := by native_decide
 
 end CedarPooSpec.TicketSharingExample

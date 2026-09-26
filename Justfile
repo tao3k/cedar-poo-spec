@@ -15,6 +15,7 @@ check-docs:
 check: build check-docs
     just --jobs 2 check-examples
     just check-policy-reuse
+    just check-cedar-language
 
 [parallel]
 check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-governance check-ticket-sharing check-reuse-scale
@@ -39,6 +40,15 @@ check-governance:
 
 check-ticket-sharing:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/TicketSharing.lean
+
+check-cedar-language: build
+    mkdir -p .lake/build/lib/lean/Examples/Governance
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Governance/TicketSharing.olean Examples/Governance/TicketSharing.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/TicketSharingExport.lean > .lake/build/ticket-sharing-manifest.json
+    cargo fmt --manifest-path rust/Cargo.toml --check
+    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets -- -D warnings
+    cargo test --locked --manifest-path rust/Cargo.toml
+    cargo run --locked --quiet --manifest-path rust/Cargo.toml < .lake/build/ticket-sharing-manifest.json
 
 check-reuse-scale:
     timeout --signal=TERM --kill-after=3s 30s lake env lean -M 2048 -T 10000000 Examples/ReuseScale.lean

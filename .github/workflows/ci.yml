@@ -22,6 +22,9 @@ jobs:
           build: false
           test: false
           lint: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - uses: taiki-e/install-action@just
       - name: Install Org parser
         run: sudo apt-get update && sudo apt-get install -y emacs-nox

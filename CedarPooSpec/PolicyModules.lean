@@ -42,6 +42,8 @@ inductive Error where
   | policyAlreadyExists (id : PolicyID)
   | missingPolicy (id : PolicyID)
   | competingEdits (id previousOwner currentOwner : String)
+  | duplicateInputIds (side : String)
+  | unrepresentableOrder
   deriving Repr, BEq
 
 /-- A surviving policy and the modules responsible for its origin and latest edit. -/
@@ -101,6 +103,47 @@ def Model.compileWithProvenance (model : Model) (root : String) :
 /-- Materialize the compiled policies for Cedar's validator and authorizer. -/
 def Model.compile (model : Model) (root : String) : Except Error Policies :=
   (model.compileWithProvenance root).map (·.map CompiledPolicy.policy)
+
+/-- Check a generated edit sequence with the same C4 compiler used by public
+    policy modules. New policies append; existing policy order is preserved. -/
+def Edit.replay (before : Policies) (edits : List Edit) : Except Error Policies :=
+  ({ modules := [
+      { name := "Before", edits := Edit.extendAll before },
+      { name := "Next", parentOrders := [["Before"]], edits }] } : Model).compile "Next"
+
+/-- A generated revision carries an equality receipt from the C4 compiler. -/
+structure Reconciliation (before after : Policies) where
+  edits : List Edit
+  replays : Edit.replay before edits = .ok after
+
+private def Edit.candidates (before after : Policies) : List Edit :=
+  let removals := before.filterMap fun old =>
+    if after.any (fun policy => policy.id == old.id) then none
+    else some (.remove old.id)
+  let overlays := after.filterMap fun policy =>
+    match before.find? (fun old => old.id == policy.id) with
+    | some old => if decide (old = policy) then none else some (.overlay policy)
+    | none => none
+  let extensions := after.filterMap fun policy =>
+    if before.any (fun old => old.id == policy.id) then none
+    else some (.extend policy)
+  removals ++ overlays ++ extensions
+
+/-- Turn a generated policy revision into extend, overlay, and remove edits.
+    Reject duplicate IDs and ordering changes that these edits cannot express;
+    the returned proof certifies the exact Cedar policy list after C4 replay. -/
+def Edit.reconcile (before after : Policies) :
+    Except Error (Reconciliation before after) :=
+  if !(decide (before.map Policy.id).Nodup) then .error (.duplicateInputIds "before")
+  else if !(decide (after.map Policy.id).Nodup) then .error (.duplicateInputIds "after")
+  else
+    let edits := Edit.candidates before after
+    match replayed : Edit.replay before edits with
+    | .error error => .error error
+    | .ok actual =>
+        if same : actual = after then
+          .ok ⟨edits, by simpa [same] using replayed⟩
+        else .error .unrepresentableOrder
 
 /-- Compare policy bodies by ID, ignoring provenance-only changes. -/
 def Compilation.changedPolicyIds (before after : Compilation) : List PolicyID :=

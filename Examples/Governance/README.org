@@ -129,10 +129,13 @@ reported as a deployed ticket system.
 
 =TemplateValidation.LinkedSet= calls upstream =Cedar.Spec.link?= before
 using the certified policy cache. A revised contributor template changes
-two linked bodies while the viewer link stays identical. The POO module
-overlays only =freshPolicies=, then a descendant removes one link. The
+two linked bodies while the viewer link stays identical. =Edit.reconcile=
+derives exact overlay edits from the linked policy revision, then a descendant
+derives a remove edit when one link is revoked. A further descendant links
+Alice to another ticket and derives an extend edit. Its replay receipt proves
+each generated edit sequence yields Cedar's exact linked policy list. The
 checked decisions distinguish the template update, an unchanged viewer,
-closed-ticket denial, and actual revocation of an otherwise allowed share.
+closed-ticket denial, revocation, and a later new share.
 =revokedAligned= proves the POO removal produces exactly the same policy list
 as deleting the link and calling upstream Cedar's linker again, so the two
 revision paths do not create competing authorization snapshots.
@@ -141,6 +144,12 @@ validation failures stay distinct. =revisedCertificate= reuses the baseline
 authorization certificate and requires fresh per-policy certificates only
 for the two changed linked bodies. =revokedCertificate= then closes the
 removal revision without a new policy-body certificate.
+
+[[file:TicketSharingExport.lean][TicketSharingExport.lean]] derives nine
+authorization receipts from this Lean model. The
+[[file:../../rust/Cargo.toml][Rust bridge]] parses the generated policies
+with the Cedar policy language implementation and checks each decision and
+policy error count.
 
 This model calls =tryRefresh= explicitly when a template changes. Actual
 applications must trigger that update, control template writes, and enforce

@@ -83,13 +83,15 @@ slot bindings. Link failures and validation failures have separate error
 constructors. =LinkedSet.incremental_eq_validate= carries the exact-result
 theorem, including Cedar's first policy validation error.
 
-=Edit.extendAll= and =Edit.overlayAll= lift generated policy lists into
-explicit POO edits. They only map constructors; they do not reinterpret
-template linkage, Cedar permit/forbid aggregation, or C4 conflict handling.
+=Edit.reconcile= derives extend, overlay, and remove edits from two ordinary
+Cedar policy lists. It rejects duplicate policy IDs and ordering changes that
+POO edits cannot represent. Its dependent receipt proves that replaying the
+generated edits through the same C4 compiler yields the exact target list.
+It does not reinterpret template linkage or Cedar permit/forbid aggregation.
 [[file:../../Examples/Governance/TicketSharing.lean][TicketSharing.lean]] checks one template update, an unchanged linked
-policy, a revoked link, and two successive reused authorization certificates.
-It proves the POO removal and Cedar's linker after link deletion materialize
-the same final policy list.
+policy, a revoked link, a new link, and two successive reused authorization
+certificates. It proves the POO revisions and Cedar's linker materialize the
+same policy lists after link deletion and addition.
 
 * Executable scenario
 
