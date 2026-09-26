@@ -7,7 +7,8 @@
 mechanisms in a fictive procurement model. Cedar documents
 [[https://docs.cedarpolicy.com/policies/syntax-operators.html][decimal comparison
 operators]] including =lessThanOrEqual=, which the model uses for a request
-amount and an order-specific limit. [[https://csrc.nist.gov/CSRC/media/Projects/risk-management/800-53%20Downloads/800-53r5/SP_800-53_v5_1-derived-OSCAL.pdf][NIST SP 800-53 AC-5]]
+amount and an order-specific limit. This example additionally requires the
+requested amount to be strictly positive. [[https://csrc.nist.gov/CSRC/media/Projects/risk-management/800-53%20Downloads/800-53r5/SP_800-53_v5_1-derived-OSCAL.pdf][NIST SP 800-53 AC-5]]
 describes separation of duties as a security control; the model represents
 one narrow instance by forbidding a requester to approve their own order.
 Neither source prescribes this example's amount, department structure, or
@@ -36,14 +37,24 @@ limit. =Duties= independently adds a self-approval forbid. =Integrated=
 composes both branches. =Delegated= overlays the bounded permit with
 an agent operator and enabled check while preserving the duties veto.
 =Revoked= extends that root with a forbid for the purchasing bot. The
-eight original named requests expose what each branch
+nine original named requests expose what each branch
 alone misses: a self-approval below the limit and another approver's request
 above it. They also check the exact limit, one unit in the fourth decimal
-place above and below it, and a cross-department request.
+place above and below it, zero and negative amounts, and a cross-department
+request.
 
-The seven [[file:DelegatedApprovalExport.lean][delegation requests]] distinguish
+The ten [[file:DelegatedApprovalExport.lean][delegation requests]] distinguish
 an active agent, self approval, amount over the limit, inactive agent,
-wrong department, and revoked agent. =delegatedPublication= and
+missing agent, wrong department, zero and negative amounts, and revoked
+agent. An attribute-presence check makes a missing agent a clean deny rather
+than a policy evaluation error. The
+[[file:DelegatedApprovalMatrixExport.lean][160-request matrix]] crosses both
+final roots with two users, two orders, four agent identities, and five
+amounts. It asserts an independent expected decision for each combination,
+requires no Lean policy evaluation errors, and compares every receipt with
+the official Cedar Rust authorizer.
+
+=delegatedPublication= and
 =revokedPublication= establish schema and Cedar policy validation before
 publication. [[file:PublishedPolicy.lean][PublishedPolicy.lean]] emits the
 validated JSON; the check compares that exact JSON to the delegated
@@ -59,6 +70,13 @@ the official Rust Cedar authorizer and reparses the generated
 [[file:Policies/integrated.cedar][integrated policy source]]. This checks the
 translation boundary for these requests; it is not a general procurement
 compliance certification.
+
+The generated =.cedar= files contain only the surviving materialized
+policies. C4 parent order, overlay history, and removed or replaced bodies
+are resolved in Lean before export. A short Cedar file therefore reflects
+the small policy model, while the Lean modules record its evolution. The
+checks establish behavior for these inputs; they do not establish genuine
+agent authentication, grant provenance, or complete enterprise coverage.
 
 #+begin_src sh
 just check-purchase-approval

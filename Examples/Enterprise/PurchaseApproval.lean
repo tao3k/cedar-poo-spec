@@ -65,6 +65,8 @@ def schema : Schema :=
 def amount : Expr := .getAttr (.var .context) "amount"
 def limit : Expr := .getAttr (.var .resource) "limit"
 def withinLimit : Expr := .call .lessThanOrEqual [amount, limit]
+def positiveAmount : Expr := .call .greaterThan [amount, .call .decimal [.lit (.string "0.0000")]]
+def withinBudget : Expr := .and positiveAmount withinLimit
 def selfApproval : Expr :=
   .binaryApp .eq (.var .principal) (.getAttr (.var .resource) "requester")
 
@@ -76,7 +78,7 @@ def legacyPermit : Policy :=
     condition := [] }
 
 def boundedPermit : Policy :=
-  { legacyPermit with condition := [{ kind := .when, body := withinLimit }] }
+  { legacyPermit with condition := [{ kind := .when, body := withinBudget }] }
 
 def dutiesVeto : Policy :=
   { id := "no-self-approval", effect := .forbid,
@@ -104,7 +106,8 @@ def cases : List (String × String × Request × Decision) := [
   ("integrated-self-under-limit", "Integrated", request alice operationsOrder "499.9999", .deny),
   ("integrated-other-exact-limit", "Integrated", request bob operationsOrder "500.0000", .allow),
   ("integrated-other-over-limit", "Integrated", request bob operationsOrder "500.0001", .deny),
-  ("integrated-other-zero", "Integrated", request bob operationsOrder "0.0000", .allow),
+  ("integrated-other-zero", "Integrated", request bob operationsOrder "0.0000", .deny),
+  ("integrated-other-negative", "Integrated", request bob operationsOrder "-1.0000", .deny),
   ("integrated-cross-department", "Integrated", request alice researchOrder "10.0000", .deny)]
 
 def decisionsExact : Bool := cases.all fun (_, root, req, expected) =>

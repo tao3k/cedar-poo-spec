@@ -101,6 +101,9 @@ prepare-delegated-manifest: prepare-purchase-manifest
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/DelegatedApprovalExport.lean > .lake/build/delegated-approval-manifest.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/PublishedPolicy.lean > .lake/build/delegated-published.json
 
+prepare-delegated-matrix: prepare-delegated-manifest
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/DelegatedApprovalMatrixExport.lean > .lake/build/delegated-matrix-manifest.json
+
 prepare-extension-manifest: build
     mkdir -p .lake/build/lib/lean/Examples/Language
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Language/ExtensionCoverage.olean Examples/Language/ExtensionCoverage.lean
@@ -118,7 +121,7 @@ export-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prep
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Language/ExtensionPolicies < .lake/build/extension-coverage-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render < .lake/build/expanded-policy.json > Examples/Governance/Policies/expanded.cedar
 
-check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-delegated-manifest prepare-extension-manifest
+check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-delegated-matrix prepare-extension-manifest
     cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features -e normal -p cedar-poo-bridge > .lake/build/bridge-default-tree.txt
     ! rg -q 'cedar-policy' .lake/build/bridge-default-tree.txt
     cargo fmt --manifest-path rust/Cargo.toml --check
@@ -134,6 +137,7 @@ check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepa
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/CountryPolicies < .lake/build/country-approval-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Policies < .lake/build/purchase-approval-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/DelegatedPolicies < .lake/build/delegated-approval-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml < .lake/build/delegated-matrix-manifest.json
     jq -S . .lake/build/delegated-published.json > .lake/build/delegated-published.sorted.json
     jq -S ".cases[0].policies" .lake/build/delegated-approval-manifest.json > .lake/build/delegated-receipt.sorted.json
     cmp .lake/build/delegated-published.sorted.json .lake/build/delegated-receipt.sorted.json
