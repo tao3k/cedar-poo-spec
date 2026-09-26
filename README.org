@@ -43,26 +43,35 @@ semantics.
 
 * Status
 
-The first executable adapter is in
-[[file:CedarPooSpec/Evaluation.lean][CedarPooSpec/Evaluation.lean]]. It stores upstream Cedar expressions,
-requests, entities, and evaluation results in a typed Lean-POO proof
-object. Its obligation states that the stored result equals Cedar's own
-evaluator output.
+The executable adapters are in
+[[file:CedarPooSpec/Evaluation.lean][Evaluation.lean]] and
+[[file:CedarPooSpec/Validation.lean][Validation.lean]]. They store upstream
+Cedar expressions, requests, entities, policies, type environments, and
+computed results in typed Lean-POO proof objects. Their obligations bind
+those results to Cedar's own evaluator and policy typechecker.
 
-The adapter declares an exact dependency footprint. A label-only patch
+Each adapter declares an exact dependency footprint. A label-only patch
 reuses the existing evaluation certificate. An expression override writes
 the new expression and upstream evaluation result, reports the changed
-dependencies, and closes the pending certificate. The runnable
-[[file:Examples/Evaluation.lean][evaluation example]] shows both paths.
+dependencies, and closes the pending certificate. A policy override
+does the corresponding work for typechecking.
+
+[[file:CedarPooSpec/Composition.lean][Composition.lean]] pairs these
+independent certificates and adds an explicit alignment obligation between
+the evaluated expression and the checked policy. A change on one side
+reuses the other side's certificate, while alignment becomes pending.
+[[file:Examples/Composition.lean][Composition.lean]] prints the exact
+dependency and repair report through Lean-POO's public Debug API.
 
 #+begin_src sh
 just update
 just check
 #+end_src
 
-The Lake manifest pins =cedar-spec= and Lean-POO. This initial slice does
-not yet adapt Cedar's typechecker or soundness proofs, provide domain
-extensions, or measure reuse on a large proof corpus.
+The Lake manifest pins =cedar-spec= and Lean-POO. This slice binds to the
+upstream typechecker result but does not yet transport Cedar's soundness
+theorems, provide domain extensions, or measure reuse on a large proof
+corpus.
 
 * Credits and license
 
