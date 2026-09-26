@@ -1,4 +1,4 @@
-import CedarPooSpec.PolicyModules
+import CedarPooSpec.Revision
 import CedarPooSpec.Soundness
 
 /-!
@@ -132,14 +132,28 @@ def governedV2 : Module :=
     edits := [.overlay purposePermit, .remove legacyPermit.id] }
 def sandbox : Module :=
   { name := "Sandbox", parentOrders := [["Base"]] }
+def auditView : Module :=
+  { name := "AuditView", parentOrders := [["GovernedV2"]] }
 def model : Model :=
   { modules := [base, dataOwner, platform, platformV2, compliance,
-      governed, governedV2, sandbox] }
+      governed, governedV2, sandbox, auditView] }
+def revision : Revision :=
+  (model.compileRevision "Governed" "GovernedV2").toOption.get (by native_decide)
 def compilation : Compilation :=
-  (model.compileWithTrace "GovernedV2").toOption.get (by native_decide)
+  revision.after
 def updatedPolicies : Policies := compilation.policies.map CompiledPolicy.policy
 def baselinePolicies : Policies :=
-  (model.compile "Governed").toOption.get (by native_decide)
+  revision.before.policies.map CompiledPolicy.policy
+theorem policyDeltaExact : revision.changedPolicyIds = ["attested-platform"] := by
+  native_decide
+theorem policyListsDiffer :
+    revision.before.policies.map CompiledPolicy.policy ≠
+      revision.after.policies.map CompiledPolicy.policy := by
+  native_decide
+def auditRevision : Revision :=
+  (model.compileRevision "GovernedV2" "AuditView").toOption.get (by native_decide)
+theorem auditRevisionHasNoPolicyDelta : auditRevision.changedPolicyIds = [] := by
+  native_decide
 
 structure Facts where
   subscriptionActive : Bool := true
@@ -212,14 +226,19 @@ theorem compositionTraceConformsFully : compositionTraceConforms = true := by
 
 def impactIsLocal : Bool :=
   let affected := invalidatedNodes model.graph ["PlatformV2"]
-  affected.length == 2 &&
+  affected.length == 3 &&
   affected.contains "PlatformV2" && affected.contains "GovernedV2" &&
+  affected.contains "AuditView" &&
   !affected.contains "Governed" && !affected.contains "DataOwner" &&
   !affected.contains "Compliance" && !affected.contains "Sandbox"
 theorem impactIsLocalFully : impactIsLocal = true := by native_decide
 
 def policyRevision : Patch AuthorizationKey AuthorizationValue :=
-  Patch.set .policies updatedPolicies
+  revision.authorizationPatch
+theorem policyRevisionEq :
+    policyRevision = Patch.set .policies updatedPolicies := by
+  simp [policyRevision, Revision.authorizationPatch, policyListsDiffer,
+    updatedPolicies, compilation]
 def proofReuseFootprint : Bool :=
   (match changedDependencies policiesObligation policyRevision with
    | [.policies] => true
@@ -234,6 +253,9 @@ def baselineSnapshot : AuthorizationSnapshot :=
   ⟨baselinePolicies, schema, authorizedRequest, entities⟩
 def snapshot : AuthorizationSnapshot :=
   ⟨updatedPolicies, schema, authorizedRequest, entities⟩
+theorem auditRevisionHasNoPendingProofs :
+    (pending snapshot.proofObject auditRevision.authorizationPatch).isEmpty = true := by
+  native_decide
 private theorem okOfIsOk {ε : Type} (result : Except ε Unit)
     (h : result.isOk = true) : result = .ok () := by
   cases result with
@@ -254,12 +276,13 @@ theorem patchedCertificate :
       changedDependencies] at membership
     rcases membership with ⟨owned, changed⟩ | added
     · rcases owned with rfl | rfl | rfl | rfl
-      · simp [schemaObligation, policyRevision, Patch.set] at changed
+      · simp [schemaObligation, policyRevisionEq, Patch.set] at changed
       · rfl
-      · simp [requestObligation, policyRevision, Patch.set] at changed
-      · simp [entitiesObligation, policyRevision, Patch.set] at changed
-    · simp [policyRevision, Patch.set] at added
+      · simp [requestObligation, policyRevisionEq, Patch.set] at changed
+      · simp [entitiesObligation, policyRevisionEq, Patch.set] at changed
+    · simp [policyRevisionEq, Patch.set] at added
   subst obligation
+  rw [policyRevisionEq]
   change validate updatedPolicies schema = .ok ()
   exact okOfIsOk _ (by native_decide)
 theorem patchedObjectEq :
@@ -267,11 +290,23 @@ theorem patchedObjectEq :
   apply (ProofObject.mk.injEq _ _ _ _).mpr
   constructor
   · funext key
-    cases key <;> rfl
-  · rfl
+    cases key <;> simp [policyRevisionEq, Patch.set, snapshot,
+      baselineSnapshot, AuthorizationSnapshot.proofObject,
+      AuthorizationSnapshot.state]
+    all_goals rfl
+  · simp [policyRevisionEq, Patch.set,
+      AuthorizationSnapshot.proofObject]
 theorem certificate : Certificate snapshot.proofObject := by
   rw [← patchedObjectEq]
   exact patchedCertificate
+theorem auditCertificate :
+    Certificate (append snapshot.proofObject auditRevision.authorizationPatch) := by
+  apply closePending snapshot.proofObject auditRevision.authorizationPatch certificate
+  intro obligation membership
+  have noPending :
+      pending snapshot.proofObject auditRevision.authorizationPatch = [] := by
+    simpa only [List.isEmpty_iff] using auditRevisionHasNoPendingProofs
+  simp [noPending] at membership
 example : Cedar.Thm.AllEvaluateToBool snapshot.policies
     snapshot.request snapshot.entities :=
   certifiedAuthorizationSound snapshot certificate

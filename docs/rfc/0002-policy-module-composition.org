@@ -27,6 +27,15 @@ evaluation and to connect resulting policies to Lean-POO proof objects.
 with its introducing and latest editing module. =compileWithProvenance=
 projects those surviving policies; =compile= projects the ordinary Cedar
 policy set from the same result.
+=compileRevision= pairs two traced compilations. =changedPolicyIds= lists
+added, removed, or body-changed policy IDs, regardless of edit provenance.
+The separate =Revision.authorizationPatch= maps a revision to the Cedar
+authorization proof object. It emits an empty patch only when the complete
+ordered policy lists are equal; otherwise it replaces the policy-set key.
+Consequently a no-edit descendant can reuse the whole certificate, while a
+changed policy set selects Cedar's whole-set validation obligation. This
+adapter does not yet split that Cedar obligation into independently reusable
+per-policy certificates.
 
 * Executable scenario
 
@@ -42,6 +51,11 @@ device-security, and emergency-access branches over a shared base. It
 checks a twelve-request decision matrix, a risky pre-integration branch,
 policy provenance, and a final Cedar soundness certificate. Session grants
 and audit remain responsibilities of the calling application.
+
+[[file:../../Examples/Governance/README.org][The attested governance case]] isolates a platform attestation overlay
+from independent data-owner and compliance branches. It checks the changed
+policy ID, graph impact, one pending policy-validation obligation, and a
+no-edit descendant whose revision has no pending obligations.
 
 This scenario shows fewer repeated policy records for four revisions, but
 does not claim a measured LOC or maintenance-cost reduction. Broader claims

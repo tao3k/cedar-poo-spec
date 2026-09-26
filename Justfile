@@ -13,10 +13,28 @@ check-docs:
     emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
 
 check: build check-docs
-    lake env lean Examples/Evaluation.lean
-    lake env lean Examples/Composition.lean
-    lake env lean Examples/AuthorizationSoundness.lean
-    lake env lean Examples/Scenarios/TenantDevicePolicyEvolution.lean
-    lake env lean Examples/Health/ClinicalBreakGlass.lean
-    lake env lean Examples/Governance/AttestedDataAccess.lean
+    just --jobs 2 check-examples
+
+[parallel]
+check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-governance check-reuse-scale
+
+check-evaluation:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Evaluation.lean
+
+check-composition:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Composition.lean
+
+check-authorization:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/AuthorizationSoundness.lean
+
+check-scenarios:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Scenarios/TenantDevicePolicyEvolution.lean
+
+check-health:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/ClinicalBreakGlass.lean
+
+check-governance:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/AttestedDataAccess.lean
+
+check-reuse-scale:
     timeout --signal=TERM --kill-after=3s 30s lake env lean -M 2048 -T 10000000 Examples/ReuseScale.lean

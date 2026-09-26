@@ -95,4 +95,29 @@ def Model.compileWithProvenance (model : Model) (root : String) :
 def Model.compile (model : Model) (root : String) : Except Error Policies :=
   (model.compileWithProvenance root).map (·.map CompiledPolicy.policy)
 
+/-- Compare policy bodies by ID, ignoring provenance-only changes. -/
+def Compilation.changedPolicyIds (before after : Compilation) : List PolicyID :=
+  let ids := ((before.policies.map (·.policy.id)) ++
+    (after.policies.map (·.policy.id))).eraseDups
+  ids.filter fun id =>
+    let old : Option Policy :=
+      (before.policies.find? (fun item => item.policy.id == id)).map (·.policy)
+    let new : Option Policy :=
+      (after.policies.find? (fun item => item.policy.id == id)).map (·.policy)
+    !decide (old = new)
+
+structure Revision where
+  before : Compilation
+  after : Compilation
+
+def Model.compileRevision (model : Model) (beforeRoot afterRoot : String) :
+    Except Error Revision := do
+  return {
+    before := (← model.compileWithTrace beforeRoot)
+    after := (← model.compileWithTrace afterRoot)
+  }
+
+def Revision.changedPolicyIds (revision : Revision) : List PolicyID :=
+  Compilation.changedPolicyIds revision.before revision.after
+
 end CedarPooSpec.PolicyModules

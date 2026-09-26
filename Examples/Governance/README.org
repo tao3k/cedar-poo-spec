@@ -40,13 +40,22 @@ removal is substantive: the owner branch alone can allow another project's
 dataset through the legacy permit, while the integrated module denies it.
 
 =impactIsLocalFully= computes affected roots from the module graph. The
-platform revision affects =PlatformV2= and =GovernedV2=; =Governed=,
-=DataOwner=, =Compliance=, and =Sandbox= remain outside that dependency cone.
+platform revision affects =PlatformV2=, =GovernedV2=, and its =AuditView=
+descendant; =Governed=, =DataOwner=, =Compliance=, and =Sandbox= remain
+outside that dependency cone. =policyDeltaExact= checks that only the
+=attested-platform= policy body differs between the two governed roots.
 =proofReuseFootprintExact= shows that the policy patch touches only the policy
 validation obligation. =patchedCertificate= reuses the baseline certificate
 and closes that one pending obligation; =certificate= transports the result to
 the updated authorization snapshot and then applies Cedar's soundness theorem.
-This is a checked proof reuse construction, not a timing or LOC benchmark.
+
+=AuditView= adds no edits. Its compiled policy list is exactly the same as
+=GovernedV2=. =auditRevisionHasNoPolicyDelta= reports no changed policy IDs;
+=auditRevisionHasNoPendingProofs= and =auditCertificate= show that this
+metadata-only extension needs no Cedar premise recheck. The patch uses exact
+ordered policy-list equality before choosing an empty write footprint:
+policy-ID diff alone would miss a reordering. These are checked proof reuse
+constructions, not timing or LOC benchmarks.
 
 The five =unchangedCases= keep the same decision across the revision.
 =staleAttestationDeltaExact= isolates the intended difference: a stale
