@@ -1,0 +1,231 @@
+#+TITLE: Cedar POO Spec Implementation Plan
+#+OPTIONS: toc:2
+
+* Goal and current baseline
+
+The goal is a Cedar proof plane that consumes upstream Cedar theorems,
+uses Lean-POO for composition and incremental certificate reuse, and
+binds its verified inputs to the existing POO Flow Cedar authority
+runtime. This repository owns the Cedar-specific formal projection. It
+does not own Cedar semantics, generic Lean-POO machinery, source bundle
+authoring, or runtime authorization.
+
+At =c365a33=, =Evaluation=, =Validation=, and =Composition= certify
+adapter results and dependency reuse. =Soundness= already transports
+=Cedar.Thm.typecheck_policy_is_sound= for one successfully checked
+policy, given Cedar's well-formed environment premise. Whole-policy-set
+soundness, source-bundle projection, proof/runtime identity binding,
+and entity slicing are still open. The original audit described the
+earlier =20db52c= head; its proposed single-policy soundness task has
+since landed. Recheck every baseline against the exact target heads
+before implementation.
+
+The formal dependency currently pins =cedar-spec= at
+=017c35c3d1f856a0f8b62a66660ee6628870bbcf=. The observed POO Flow
+Cedar wire contract identifies Lean semantics with
+=e9fa9c1e6b636f29b0897d8706bd7aa5eaf06f9a=. Treat this as an
+unresolved version pairing, not as proof of a semantic mismatch. Audit
+the intervening definitions, the Rust Cedar dependency, and the
+runtime's actual build before changing a version constant. The
+observed POO Flow checkout is not an authoritative remote-main
+snapshot.
+
+* Ownership and trust boundaries
+
+| Owner | Responsibility |
+|-------+----------------|
+| Upstream =cedar-spec= | Cedar AST, evaluator, validator, authorizer, slicing, and their theorems. |
+| Lean-POO | Domain-neutral C4, proof objects, obligations, patches, invalidation, Debug, and certificate closure. |
+| =cedar-poo-spec= | Typed Cedar projection, theorem transport, module-composition obligations, and proof receipts. |
+| POO Flow | Source-of-truth Bootstrap, provenance, canonicalization, trusted context, runtime projection, authority decisions, and grants. |
+| Downstream domains | Policy facts, scenarios, adapters, and any domain-specific semantic extension. |
+
+One source artifact must feed the POO Flow Rust projection and the Lean
+formal projection. Lean may describe and check the source contract, but
+must not maintain a second editable authorization bundle. Keep a
+static/versioned Bootstrap separate from the per-request
+=AuthorizationSubject=, request, projected entities, decision, and
+receipt. A proof about the static bundle alone does not certify an
+arbitrary later request or entity store.
+
+The Rust projection owns reserved =context.poo_flow=; caller data must
+not forge or replace it. C4 resolves module providers and their schema,
+projectors, capabilities, policy contributions, and proof obligations.
+Cedar alone determines permit/forbid aggregation over the resulting
+policy set. A duplicate policy ID with different canonical policy
+contents is an error; any equal-content deduplication must match the
+runtime's canonical policy identity rule.
+
+* Milestones and order
+
+** M0. Fix the baseline and version-pairing record
+
+Record exact heads for this repository, Lean-POO, =cedar-spec=, and
+POO Flow, plus the Rust Cedar package/version and feature set. Compare
+the Cedar revisions over evaluator, validation, authorizer, slicing,
+FFI, and theorem dependencies; do not infer compatibility from a
+commit count. Capture current =just check=, POO Flow Cedar checks,
+their CI links, and the canonical wire fixtures. Update PR #1's title
+and description to match the implemented adapters and soundness bridge.
+
+Exit: a checked-in English Org compatibility ledger states the chosen
+Lean/Rust semantic pair, relevant differences, and the exact checks
+that justify it. Changing either version invalidates that receipt.
+
+** M1. Transport whole-policy Cedar soundness
+
+Add a whole-set validation snapshot and proof object. Its obligations
+must carry the exact Cedar premises:
+
+- =schema.validateWellFormed = .ok ()=;
+- =validate policies schema = .ok ()=;
+- =validateRequest schema request = .ok ()=;
+- =validateEntities schema entities = .ok ()=.
+
+Transport =Cedar.Thm.validation_is_sound= without weakening the premises.
+Its conclusion is =AllEvaluateToBool= as defined upstream; document
+its admitted runtime-error cases precisely. Where a response-level
+claim is needed, use the upstream response theorem and its additional
+=PolicyIdsUnique= premise. Retain the existing per-policy
+=typecheck_policy_is_sound= bridge as a distinct guarantee. Model
+request and entity changes as dependencies that invalidate only the
+obligations they actually affect.
+
+Exit: =just check= builds a minimal policy-set example whose closed
+certificate yields the upstream theorem's exact conclusion, plus a
+negative example that cannot close when a premise is absent. No new
+Cedar soundness axiom or duplicate evaluator is introduced.
+
+** M2. Mirror the POO Flow source contract
+
+Define a typed, versioned formal projection of the existing Bootstrap
+and its provenance, capabilities, schema, policies, and entity source.
+Keep request-specific =AuthorizationSubject= and governance evidence in
+a separate prepared-authorization view. Specify canonical encoding,
+digest inputs, duplicate-policy behavior, reserved context ownership,
+missing-field rules, and projection size checks from the actual POO
+Flow wire contract. Prefer a generated fixture or shared schema from
+the source owner over hand-maintained parallel examples.
+
+Exit: the same source fixtures are accepted or rejected by the Rust
+projection and Lean model for the same documented reason. The formal
+model records assumptions for JSON/Protobuf parsing and digest
+canonicalization rather than claiming those implementations proved.
+
+** M3. Bind proof inputs to runtime inputs
+
+Define a versioned semantic manifest containing the Cedar spec
+revision, Rust Cedar version/build identity, Lean-POO revision,
+=cedar-poo-spec= revision, projection schema version, and canonical
+static-bundle digest. Bind each prepared request to separate request,
+policy-set, entity-store, subject, governance, epoch, and trusted
+context digests. The runtime decision receipt must identify the
+manifest and prepared-request digests it consumed. A missing or
+mismatched identity blocks grant issuance.
+
+The executable artifact is a reproducible verification receipt tied
+to canonical bytes and build identity. Lean proof terms are not
+serialized as self-verifying runtime certificates. If signing is
+required, name the signing authority, key rotation, verification point,
+and replay/expiry rules explicitly. Hashing alone provides identity,
+not issuer authenticity. A Rust/Lean dual witness is a separate
+runtime-conformance check; theorem transport alone does not prove
+Rust/Lean or JSON/Protobuf equivalence.
+
+Exit: a changed byte, revision, runtime build, or request subject
+causes a fail-closed mismatch in an end-to-end fixture. A matching
+receipt can be traced to the same canonical inputs and exact proof
+build. This milestone requires coordinated POO Flow work in its own
+isolated checkout and review.
+
+** M4. Define Cedar module composition
+
+Introduce a Cedar-specific module interface for schema contribution,
+policy contribution, projector contract, capabilities, and proof
+obligations. Reuse Lean-POO's existing C4 and proof-object APIs.
+Specify conflicts and merge decisions before creating an example:
+schema/type conflicts fail, distinct policies accumulate, same-ID
+equal canonical policies deduplicate only where the runtime does, and
+same-ID unequal policies fail. C4 order may select a module provider;
+it must not create first-policy-wins or last-policy-wins authorization.
+
+Exit: Base/Left/Right/Diamond fixtures demonstrate composition,
+affected-obligation invalidation, and the runtime's conflict result.
+Domain policy logic stays downstream.
+
+** M5. Certify entity slicing and measure its runtime value
+
+Transport =Cedar.Thm.validate_with_level_is_sound= with its schema,
+request, entity, and =validateWithLevel= premises. Its conclusion is
+equality of Cedar =isAuthorized= for full and sliced entities at the
+specified request and level. The stronger no-missing-entity result
+needs the separate =closedAtLevel= premise. Neither theorem alone
+establishes parity for Rust serialization or a Lambda deployment.
+
+Start with a reproducible synthetic 100,000-entity source and several
+query shapes. Measure canonical full/sliced input bytes, final encoded
+projection bytes against the runtime's 1 MiB bound, projection time,
+authorization time, and cold/warm deployment latency where a real
+Lambda environment is available. Keep the checked Lean theorem and
+Rust/Lean same-input witness with each measurement. If a slice fails
+validation or exceeds the bound, report the failure rather than
+claiming the optimization.
+
+Exit: a published fixture and benchmark report show exact revision,
+premises, decision equality, size, and latency results. No universal
+performance percentage is inferred from one synthetic graph.
+
+** M6. Build a scenario corpus, then evaluate extensions
+
+Classify each scenario before implementation:
+
+| Level | Decision rule | Proof/runtime impact |
+|-------+---------------+----------------------|
+| L0 | Stock Cedar schema, policies, entities, and context suffice. | Use upstream semantics unchanged. |
+| L1 | External authority computes facts and projects them into stock Cedar. | Prove/source the projection boundary; Cedar remains stock. |
+| L2 | C4 composes source modules into a stock Cedar policy bundle. | Certify module conflict and bundle generation; Cedar remains stock. |
+| L3 | The required behavior changes Cedar value/type/evaluator semantics. | Define Lean and Rust extensions, soundness obligations, and differential witness. |
+
+The corpus should cover multi-tenant access, device facts, agent
+delegation, temporary elevation, physical safety, healthcare consent,
+and source admission. Keep vertical implementation in downstream repos.
+Record every case's requirement, L0/L1/L2/L3 classification, Cedar
+artifact, evidence source, and reason for any L3 classification.
+Calculate any claimed stock-Cedar coverage from the explicit corpus
+denominator; do not assume an 80--90% result.
+
+Choose the first L3 candidate only after a documented L0--L2
+expressiveness failure. It needs a type/value definition, evaluator,
+typechecker, Lean theorem obligations, Rust implementation, and
+same-input differential witness. A domain fact that can be projected
+remains L1, regardless of its complexity upstream.
+
+* Deployment profiles and acceptance gates
+
+| Profile | Decision engine | Additional gate |
+|---------+-----------------+-----------------|
+| Portable Cedar | Stock Cedar or a compatible external service. | Verify supported Cedar features, projection shape, and receipt access for that target. |
+| Edge | Embedded Cedar Rust. | Check bundle identity, trusted-context construction, and runtime build pairing. |
+| High assurance | POO Flow Cedar authority with dual witness. | Keep existing strict lockstep and grant-admission gates. |
+
+Lean runs at build/admission time, outside the per-request Lambda hot
+path. A deployment profile may offer less assurance than another;
+each profile must state which checks it actually performs. The first
+release claim requires M0--M3 and a working runtime receipt. M4--M6
+extend composition, optimization, and coverage without delaying the
+basic proof-to-runtime binding.
+
+Every milestone closes with an Org design update, a =just= command
+receipt, exact dependency revisions, and CI on the final head. Tests
+here check projection and integration boundaries; they do not replace
+upstream Cedar's proofs. Do not report a theorem as a Rust runtime
+guarantee until the parser, canonicalization, revision-pairing, and
+receipt gates above have been exercised.
+
+* Immediate next change
+
+Start with M0's compatibility ledger and PR metadata, then implement
+M1's whole-policy theorem bridge. Prepare M2's source-contract schema
+in parallel at the design level, but do not ship an independent bundle
+format. M3 is the gate before claiming an authorization result is
+certified for the actual POO Flow runtime.

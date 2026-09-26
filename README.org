@@ -22,6 +22,9 @@ specification.
 
 * Planned layers
 
+The staged proof-to-runtime work is tracked in
+[[file:docs/implementation-plan.org][the implementation plan]].
+
 | Layer | Responsibility |
 |-------+----------------|
 | Cedar adapter | Represent upstream Cedar definitions through Lean-POO abstractions without changing Cedar semantics. |
