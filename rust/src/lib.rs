@@ -5,6 +5,7 @@ pub mod cli;
 
 pub use bridge::{
     Case, CompiledPolicyJson, Manifest, RequestInput, check_manifest, load_policy_set,
+    render_artifacts, render_policy_source,
 };
 
 #[cfg(test)]

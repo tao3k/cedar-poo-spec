@@ -35,6 +35,7 @@ private def case (name : String) (policyModel : CedarPooSpec.PolicyModules.Model
   let response := Cedar.Spec.isAuthorized req store policies
   return Lean.Json.mkObj [
     ("name", Lean.toJson name),
+    ("revision", Lean.toJson root.toLower),
     ("policies", exported),
     ("entities", exportedEntities),
     ("request", exportedRequest),

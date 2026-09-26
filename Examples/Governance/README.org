@@ -150,6 +150,9 @@ authorization receipts from this Lean model. The
 [[file:../../rust/Cargo.toml][Rust bridge]] parses the generated policies
 with the Cedar policy language implementation and checks each decision and
 policy error count.
+The resulting [[file:Policies/expanded.cedar][expanded Cedar policy file]]
+shows the final active share set; the same directory includes the three
+earlier revisions. =just export-cedar-language= regenerates these files.
 
 This model calls =tryRefresh= explicitly when a template changes. Actual
 applications must trigger that update, control template writes, and enforce

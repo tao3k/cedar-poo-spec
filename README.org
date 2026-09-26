@@ -29,6 +29,10 @@ policy module edits and conflict handling.
 [[file:docs/rfc/0003-cedar-language-export.org][Cedar language export]]
 connects compiled Lean policy modules to the official Rust authorizer through
 Cedar's public JSON policy-set format.
+The [[file:Examples/Governance/Policies/expanded.cedar][final ticket-sharing policy]]
+is also committed as readable Cedar language syntax.
+[[file:docs/rfc/0003-cedar-language-export.org][RFC 0003]] shows the downstream
+Lean extension and Rust deployment interface.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.
