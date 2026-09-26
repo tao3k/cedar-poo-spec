@@ -205,3 +205,38 @@ mapping; non-IP extension forms remain unsupported by this export path.
 lake env lean Examples/Governance/AttestedDataAccess.lean
 just check
 #+end_src
+
+* Country-specific approver revision
+
+[[file:CountryApproval.lean][CountryApproval.lean]] starts from Cedar's
+[[https://docs.cedarpolicy.com/bestpractices/bp-implementing-roles-groups.html][resource-specific approver role pattern]]: France, Germany, and UK have
+separate role and timesheet groups, and expansion to Japan adds another
+policy. The documented pattern leaves group membership to an external
+identity provider. The example supplies fictive membership and resource
+hierarchies as input; it does not establish their provenance.
+
+The local POO evolution assumption is a legacy Europe-wide permit that
+accidentally allows a French approver to approve a German timesheet. The
+=Integrated= root composes an =Expansion= branch with a =Sensitive= branch
+and removes that grant. The sensitive branch uses Cedar's documented
+[[https://docs.cedarpolicy.com/policies/syntax-operators.html][entity tag operators]] to forbid access when a restricted timesheet's
+classification does not match the principal's clearance. This clearance
+rule is a modeled enterprise requirement, not a claim about the published
+timesheet example.
+
+The scenario checks nested role membership, nested resource containers,
+an action group, a new country, cross-country denial, and the clearance
+veto before and after composition. =incompleteHierarchyRejected= records
+the adapter boundary: the Lean entity model reads supplied ancestor sets,
+while Rust Cedar computes closure while loading JSON entities. Export
+rejects a locally visible ancestry chain whose transitive members are
+missing. [[file:CountryApprovalExport.lean][CountryApprovalExport.lean]]
+feeds the named requests into Rust Cedar; the generated
+[[file:CountryPolicies/integrated.cedar][integrated policy source]] is
+reparsed and checked with the same requests. This is finite conformance
+evidence for the modeled requests, not a proof about all possible requests.
+
+#+begin_src sh
+just check-country-approval
+just check-cedar-language
+#+end_src

@@ -43,6 +43,13 @@ The adapter also exports the Cedar IP extension value and its =ip=,
 Other extension values and functions still fail with typed export errors.
 The optional Rust =cedar-runtime= feature enables Cedar's =ipaddr= support;
 the default lightweight artifact library still does not depend on Cedar.
+Entity export rejects self-ancestry and locally visible ancestor chains whose
+transitive members are absent. Cedar Lean reads the supplied ancestor set;
+the official Rust Cedar JSON loader computes transitive closure. Requiring
+locally closed sets prevents that loader from silently changing the meaning
+of a POO request at the translation boundary. Ancestors omitted from the
+entity store cannot be checked by this local rule; callers still own the
+completeness and authenticity of their entity input.
 A successful Lean export is
 then parsed again by Rust Cedar. This parser check is part of the integration
 contract; the adapter does not claim that every abstract Cedar policy can be
@@ -79,6 +86,10 @@ checks five more requests across a POO overlay and two generated revisions.
 The [[file:../../Examples/Governance/TrustedNetworkDataAccess.lean][trusted
 network revision]] checks nine requests and the IP extension boundary while
 overriding one network policy body on top of the attested governance graph.
+The [[file:../../Examples/Governance/CountryApproval.lean][country approver
+revision]] checks twelve requests with role, action, and resource groups,
+entity tags, country expansion, and removal of a broad legacy grant. It
+also checks the negative incomplete-ancestry export path.
 
 Each Lean receipt separately records the IDs returned by POO compilation,
 alongside the exported JSON. The Rust boundary checks that Cedar loaded

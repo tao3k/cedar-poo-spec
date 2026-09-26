@@ -20,6 +20,7 @@ inductive Error where
   | duplicatePolicyId (policyId : PolicyID)
   | duplicateRecordKey (policyId : PolicyID)
   | duplicateEntityAttribute
+  | incompleteEntityAncestors (uid : EntityUID)
   | unsupportedValue
   | valueDepthExceeded
   deriving Repr, BEq
@@ -199,6 +200,12 @@ private def attrs (values : Cedar.Data.Map String Value) : Except Error Lean.Jso
 /-- Export Cedar entities using the public entity JSON format. -/
 def entities (values : Cedar.Spec.Entities) : Except Error Lean.Json := do
   let rows ← Cedar.Data.Map.toList values |>.mapM fun (uid, data) => do
+    if data.ancestors.contains uid then
+      throw (.incompleteEntityAncestors uid)
+    for ancestor in data.ancestors.toList do
+      if let some ancestorData := values.find? ancestor then
+        if !ancestorData.ancestors.subset data.ancestors then
+          throw (.incompleteEntityAncestors uid)
     return obj [
       ("uid", entity uid),
       ("attrs", ← attrs data.attrs),
