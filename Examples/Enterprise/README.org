@@ -1,4 +1,4 @@
-#+TITLE: Enterprise Purchase Approval
+#+TITLE: Enterprise Authorization Scenarios
 #+OPTIONS: toc:nil
 
 * Source and model boundary
@@ -81,5 +81,58 @@ agent authentication, grant provenance, or complete enterprise coverage.
 #+begin_src sh
 just check-purchase-approval
 just check-delegated-approval
+just check-cedar-language
+#+end_src
+
+* Compound payment release
+
+[[file:PaymentRelease.lean][PaymentRelease.lean]] models a payment release that
+requires two Cedar queries on the same payment snapshot: the recorded clerk
+may prepare it, and a different controller may release it. The application
+combines both =Allow=
+results before performing the payment. This follows Cedar's
+[[https://docs.cedarpolicy.com/bestpractices/bp-compound-auth.html][compound authorization guidance]] for activities involving multiple
+parties. The [[https://www.gao.gov/greenbook][GAO Green Book]] describes internal controls over improper
+payments, and [[https://csrc.nist.gov/CSRC/media/Projects/risk-management/800-53%20Downloads/800-53r5/SP_800-53_v5_1-derived-OSCAL.pdf][NIST AC-5]] describes separation of duties. Neither source
+prescribes the fictional roles, payment states, or =500.0000= threshold in
+this example. [[file:../../CedarPooSpec/CompoundAuthorization.lean][CompoundAuthorization.authorizeAll]] compiles one POO root
+once, evaluates both requests against the same supplied entity store, and
+retains their exact responses. Its =allowed= projection rejects an empty
+request list and any policy evaluation error.
+
+The POO roots keep independent control changes visible:
+
+| Root | Payment release change |
+|------+------------------------|
+| =Base= | A legacy matched-payment permit allows any user to release. |
+| =Threshold= | A controller permit adds a senior role requirement above =500.0000=. |
+| =Duties= | A preparer cannot release the same payment. |
+| =Risk= | A blocked payment cannot be released. |
+| =Retired= | The legacy broad release permit is removed. |
+| =Integrated= | All four changes compose; four policies survive. |
+
+=controlsNeedCompositionFully= proves why a partial update is insufficient:
+the legacy permit bypasses =Threshold=, while =Retired= alone leaves the
+ordinary controller permit unbounded. The final root denies both paths.
+=thresholdEditLocal= identifies the one overlaid policy, and =legacyRetired=
+checks the surviving policy IDs. The [[file:PaymentReleaseExport.lean][exporter]]
+checks both authorization requests for each of ten operations, plus eight
+branch probes, against the official Rust Cedar authorizer. The
+[[file:PublishedPayment.lean][publication entrypoint]] emits the integrated
+JSON only after schema and policy validation; its JSON and generated
+[[file:PaymentPolicies/integrated.cedar][Cedar source]] are compared with the
+conformance artifact.
+
+The entity store supplies =preparedBy=, =matched=, =blocked=, and the payment
+amount. An application must authenticate the two actors, obtain those facts
+from an authoritative workflow, bind both queries to one consistent payment
+snapshot, enforce the conjunction, and execute the transfer transactionally.
+The Lean example computes the authorization conjunction; it does not
+implement a payment workflow or prove that those external facts are genuine.
+The wrong-preparer case checks that the first query cannot be performed by a
+clerk other than the payment's recorded =preparedBy=.
+
+#+begin_src sh
+just check-payment-release
 just check-cedar-language
 #+end_src

@@ -47,8 +47,9 @@ values and a narrower network veto through the official Rust authorizer.
 The [[file:Examples/Language/README.org][language example]] checks concrete
 Cedar scope and pattern syntax across a POO overlay, plus all pinned Cedar
 extension functions and values. The
-[[file:Examples/Enterprise/README.org][enterprise example]] combines decimal
-approval limits with a separation-of-duties branch.
+[[file:Examples/Enterprise/README.org][enterprise examples]] cover delegated
+procurement approval and compound payment release across independently
+evolving controls.
 
 | Feature | Implemented contract |
 |---------+----------------------|

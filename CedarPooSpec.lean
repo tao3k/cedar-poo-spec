@@ -4,6 +4,7 @@ import CedarPooSpec.Composition
 import CedarPooSpec.Soundness
 import CedarPooSpec.Slicing
 import CedarPooSpec.PolicyModules
+import CedarPooSpec.CompoundAuthorization
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
 import CedarPooSpec.TemplateValidation

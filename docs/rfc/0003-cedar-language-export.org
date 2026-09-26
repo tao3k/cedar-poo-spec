@@ -114,6 +114,14 @@ named requests across the delegated and revoked roots, checking agent status,
 operator binding, duties, budget, and revocation. A 160-request matrix also
 compares independent expected decisions, Lean receipts, and the official Rust
 authorizer. Its schema-validated publication is also rendered through Cedar.
+The payment-release example adds twenty-eight Cedar requests across six POO
+roots. Ten compound operations require both a prepare and a release query;
+eight further requests isolate the intermediate branch behavior. Its final
+validated JSON is checked against the emitted Cedar policy source.
+The Cedar-specific =CompoundAuthorization.authorizeAll= evaluates the request
+list against one compiled policy set and one supplied entity store; its
+receipt binds every response to that exact compilation. An empty request
+list, any denial, or any policy evaluation error makes =allowed= false.
 The extension coverage case adds eight requests across three extension
 families, including timezone normalization and a negative duration value.
 
