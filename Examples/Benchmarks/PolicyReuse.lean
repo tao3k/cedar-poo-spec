@@ -29,6 +29,33 @@ private theorem okOfIsOk {ε : Type} (result : Except ε Unit)
 theorem beforeValid : validate before schema = .ok () :=
   okOfIsOk _ (by native_decide)
 
+def staticAfter : Policies :=
+  before.dropLast ++ [platformVetoV2]
+
+theorem staticFreshExact : freshPolicies before staticAfter = [platformVetoV2] := by
+  native_decide
+
+theorem staticReuseCount :
+    staticAfter.length = 1000 ∧
+    (freshPolicies before staticAfter).length = 1 := by
+  native_decide
+
+theorem staticFreshCertificates :
+    ∀ policy ∈ freshPolicies before staticAfter,
+      LeanPoo.Proof.Certificate (Snapshot.mk policy schema).proofObject := by
+  intro policy member
+  have same : policy = platformVetoV2 := by
+    simpa [staticFreshExact] using member
+  subst policy
+  exact (Snapshot.mk platformVetoV2 schema).certificate
+    (okOfIsOk _ (by native_decide))
+
+/-- A concrete 1,000-policy certificate closed from 999 old bodies and one new body. -/
+theorem staticAfterBundle : Bundle staticAfter schema :=
+  Bundle.reviseSameSchema before staticAfter schema
+    (Bundle.ofValidate before schema beforeValid)
+    staticFreshCertificates
+
 def cache : ValidatedSet schema := ⟨before, beforeValid⟩
 
 theorem incrementalIsCedar (candidate : Policies) :

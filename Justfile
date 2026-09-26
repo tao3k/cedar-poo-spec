@@ -14,6 +14,7 @@ check-docs:
 
 check: build check-docs
     just --jobs 2 check-examples
+    just check-policy-reuse
 
 [parallel]
 check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-governance check-reuse-scale
@@ -39,7 +40,10 @@ check-governance:
 check-reuse-scale:
     timeout --signal=TERM --kill-after=3s 30s lake env lean -M 2048 -T 10000000 Examples/ReuseScale.lean
 
-bench-policy-reuse: build
+check-policy-reuse: build
     mkdir -p .lake/build/lib/lean/Examples/Governance
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Governance/AttestedDataAccess.olean Examples/Governance/AttestedDataAccess.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Benchmarks/PolicyReuse.lean
+
+bench-policy-reuse: check-policy-reuse
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Benchmarks/PolicyReuse.lean

@@ -101,8 +101,13 @@ three full and incremental durations in nanoseconds for each scenario. This
 is a local timing probe, not a performance guarantee for other policy shapes,
 schemas, or hardware. The timed region excludes Lean compilation and baseline
 validation; it includes building the lookup index from the trusted baseline.
+=staticAfterBundle= is a separate proof-scale receipt: it closes a concrete
+1,000-policy Cedar validation bundle using 999 unchanged bodies and one new
+policy certificate. =staticFreshExact= and =staticReuseCount= make that split
+machine-checkable. The timed runs and this certificate prove different claims.
 
 #+begin_src sh
+just check-policy-reuse
 just bench-policy-reuse
 #+end_src
 
