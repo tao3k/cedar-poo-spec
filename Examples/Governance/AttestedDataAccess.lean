@@ -326,6 +326,12 @@ theorem baselinePoliciesValidate : validate baselinePolicies schema = .ok () :=
   okOfIsOk _ (by native_decide)
 def validatedBase : PolicyValidation.ValidatedSet schema :=
   ⟨baselinePolicies, baselinePoliciesValidate⟩
+def invalidSameId : Policy :=
+  { projectPermit with
+    condition := [{ kind := .when, body := .lit (.string "not-a-boolean") }] }
+theorem invalidSameIdRejected :
+    (PolicyValidation.incrementalValidate validatedBase [invalidSameId]).isOk = false := by
+  native_decide
 theorem incrementalMatchesCedar :
     PolicyValidation.incrementalValidate validatedBase updatedPolicies =
       validate updatedPolicies schema :=

@@ -92,6 +92,8 @@ No old-schema policy certificate is reused for this transition.
 =incrementalMatchesCedar= proves exact result equality for the revision;
 =incrementalAccepted= executes the incremental path and =refreshedAccepted=
 checks that a new cache is issued only after success.
+=invalidSameIdRejected= changes a policy body without changing its ID and
+checks that the indexed cache still calls Cedar and rejects the invalid body.
 
 [[file:../Benchmarks/PolicyReuse.lean][PolicyReuse.lean]] measures a generated 1,000-policy set for a single
 changed body and a runtime-chosen reorder. It warms both paths and prints
