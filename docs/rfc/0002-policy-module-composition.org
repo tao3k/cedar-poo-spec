@@ -23,6 +23,10 @@ The output is passed to Cedar's own validator and authorizer. This feature
 does not reinterpret Cedar's permit/forbid rules, policy errors, or schema.
 Its purpose is to make policy provenance and evolution explicit before
 evaluation and to connect resulting policies to Lean-POO proof objects.
+=compileWithTrace= returns every successful edit and each surviving policy
+with its introducing and latest editing module. =compileWithProvenance=
+projects those surviving policies; =compile= projects the ordinary Cedar
+policy set from the same result.
 
 * Executable scenario
 
@@ -32,6 +36,12 @@ of the legacy permit then blocks cross-tenant reads. The executable Lean
 scenario checks every revision against the Cedar evaluator, validates every
 compiled policy set, verifies the final requests have no runtime policy
 errors, and closes a Cedar authorization soundness certificate.
+
+[[file:../../Examples/Health/README.org][The clinical break-glass case]] composes independent privacy,
+device-security, and emergency-access branches over a shared base. It
+checks a twelve-request decision matrix, a risky pre-integration branch,
+policy provenance, and a final Cedar soundness certificate. Session grants
+and audit remain responsibilities of the calling application.
 
 This scenario shows fewer repeated policy records for four revisions, but
 does not claim a measured LOC or maintenance-cost reduction. Broader claims

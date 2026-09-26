@@ -1,0 +1,77 @@
+#+TITLE: Health Authorization Examples
+#+OPTIONS: toc:nil
+
+* Clinical break-glass and patient preferences
+
+[[file:ClinicalBreakGlass.lean][ClinicalBreakGlass.lean]] is an executable,
+source-grounded model of patient-record access. It combines documented
+features from two deployed EHR settings; it is not a transcription of either
+hospital's entire production policy. The principal, patient, and facility
+identifiers are fictive. The example does not contain patient data.
+
+** Source-to-model map
+
+| Published source | Observed behavior or specification | Lean representation and checked case |
+|------------------+-------------------------------------+--------------------------------------|
+| [[https://pmc.ncbi.nlm.nih.gov/articles/PMC4265219/][Careweb design study]] | Patients could restrict display by provider or data category. Its break-glass control displayed that patient's hidden data for the current viewing session, and the system logged the event. | =restricted= is a deliberately coarse patient-preference projection. =patient-preference=, =expired-session=, =wrong-patient=, and =preferenceChangeConformsFully= exercise restriction, patient scope, session expiry, and a changed preference. |
+| [[https://pmc.ncbi.nlm.nih.gov/articles/PMC4265224/][Careweb prospective study]] | Providers used the control in a real clinic, and investigators recorded each break-glass event and subsequent data viewed. | The model requires a trusted =breakGlassGranted= fact but does not treat the fact itself as an audit record. |
+| [[https://pmc.ncbi.nlm.nih.gov/articles/PMC5333332/][French DMP deployment study]] | The shared record supported emergency access when the patient could not consent, required strong practitioner authentication, and exposed access logs to patients. | =cross-site-break-glass=, =patient-can-consent=, =weak-authentication=, and the shared-record entity model exercise those decision inputs. Patient incapacity, authentication, and patient-visible logging remain upstream or downstream facts. |
+| [[https://hl7.org/fhir/R4/security-labels.html#6.1.1.3][HL7 FHIR R4 security labels]] | A break-glass request has a treatment purpose; the specification calls for authorization, consent checks, and an =AuditEvent=, while leaving local protocol rules to implementers. | =non-treatment-purpose= is denied. The model treats the session grant as application-projected context and does not claim FHIR interoperability or =AuditEvent= emission. |
+| [[https://healthit.gov/test-method/emergency-access/][US HealthIT emergency-access test method]] | Emergency access is a pre-established, auditable capability of the health IT module. | The example asserts an access decision only. Audit recording is an explicit integration boundary. |
+| [[https://docs.aws.amazon.com/verified-access/latest/ug/trust-data-third-party-trust.html][AWS Verified Access device trust context]] | A separate AWS access product can supply device-risk context to Cedar policies through configured trust providers. | =deviceTrusted= is a simplified extra veto in this model, not a claim about Careweb, DMP, or direct Verified Access integration. |
+
+The split into Privacy, Security, and Emergency policy owners is a design
+assumption for exploring composition. It is not reported as the organization
+of any cited deployment.
+
+** Why POO is needed
+
+The clinical base, privacy rule, device rule, and emergency rule have separate
+owners. A C4 diamond composes those branches once. The integrated module
+overlays the emergency rule with patient, session, treatment-purpose, and
+device conditions, then removes a legacy broad permit. The executable
+=preIntegrationRiskDetected= theorem shows why the removal matters: before
+integration, the inherited broad permit allows a cross-site read without a
+break-glass grant; after integration it is denied.
+
+=compileWithTrace= records all seven applied edits, including removal of the
+legacy permit; its surviving-policy projection reports who introduced and
+last edited each policy. These APIs close a diagnostics gap exposed by the
+case: a materialized Cedar policy set alone did not explain why a permit was
+absent or how an emergency policy reached the final set.
+The patient-preference change alters entity data
+without editing any policy module. =preferenceRevisionFootprintExact= proves
+that the entity-validation obligation is selected while policy validation,
+schema validation, and request validation are unaffected.
+
+Across Base, Privacy, Security, Emergency, and Integrated, separately stored
+snapshots would repeat 15 policy records (2 + 3 + 3 + 3 + 4). The module
+source defines six policy bodies and seven explicit edits. This counts
+structural duplication in the example; it does not measure production LOC,
+review time, or maintenance cost.
+
+** Proof receipts and limits
+
+=scenarioConformsFully= checks all twelve named requests against the
+compiled policy set, Cedar validation, Cedar authorization, and empty runtime
+policy-error lists. =caseNamesUnique= prevents ambiguous case references.
+=provenanceConformsFully= checks C4 order and policy origin;
+=removalRecordedFully= checks the final removal event. A closed
+authorization certificate transports Cedar's upstream soundness theorem for
+the emergency request. These are machine-checked claims about this Lean
+model and its finite scenario table. They do not establish that a real
+hospital's policy, data projection, session service, or audit pipeline is
+correct.
+
+The application must authenticate the clinician, establish whether emergency
+access is justified, bind the grant to a patient and session, verify device
+posture, enforce Cedar's response, and write a durable audit event before
+releasing data. Neither Cedar's Allow nor the proof certificate proves that
+those external actions occurred. A later domain integration must supply and
+verify those effects; the generic =cedar-poo-spec= adapter does not impersonate
+an EHR or an AWS Verified Permissions service.
+
+#+begin_src sh
+lake env lean Examples/Health/ClinicalBreakGlass.lean
+just check
+#+end_src

@@ -54,3 +54,8 @@ edit intent, conflict detection, and proof-object dependency management.
 lake env lean Examples/Scenarios/TenantDevicePolicyEvolution.lean
 just check
 #+end_src
+
+* Industry examples
+
+Clinical break-glass, patient preferences, and source-to-model evidence live
+in [[file:../Health/README.org][Examples/Health]].

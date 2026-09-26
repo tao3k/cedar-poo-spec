@@ -28,6 +28,8 @@ implemented authorization and entity-slicing certificate contract.
 policy module edits and conflict handling. The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.
+The [[file:Examples/Health/README.org][health example]] connects a clinical
+emergency-access diamond to published EHR studies and HL7 guidance.
 
 | Feature | Implemented contract |
 |---------+----------------------|
@@ -35,7 +37,7 @@ overlay, extend, and remove are all needed during an authorization migration.
 | Composition | Track alignment and preserve unaffected certificates across overrides. |
 | Authorization | Transport Cedar's policy-set and response-level soundness theorems. |
 | Entity slicing | Certify equality of full and request-relative sliced authorization responses. |
-| Policy modules | Compile C4-ordered extend, overlay, and remove edits into Cedar policies; reject ambiguous edits. |
+| Policy modules | Compile C4-ordered extend, overlay, and remove edits into Cedar policies; reject ambiguous edits and retain an edit trace and policy provenance. |
 | Reuse probe | Check dependency selection across 10,000 indexed evaluator obligations. |
 
 Agent delegation, device trust, temporal authorization, and healthcare
