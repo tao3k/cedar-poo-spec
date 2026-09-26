@@ -82,6 +82,15 @@ private def patternElement : PatElem → Lean.Json
   | .star => Lean.toJson "Wildcard"
   | .justChar char => obj [("Literal", Lean.toJson (String.ofList [char]))]
 
+private def ipFunction : ExtFun → Option (String × Nat)
+  | .ip => some ("ip", 1)
+  | .isIpv4 => some ("isIpv4", 1)
+  | .isIpv6 => some ("isIpv6", 1)
+  | .isLoopback => some ("isLoopback", 1)
+  | .isMulticast => some ("isMulticast", 1)
+  | .isInRange => some ("isInRange", 2)
+  | _ => none
+
 private def expressionFuel (id : PolicyID) : Nat → Cedar.Spec.Expr → Except Error Lean.Json
   | 0, _ => .error (.expressionDepthExceeded id)
   | _fuel + 1, .lit value => .ok (obj [("Value", primitive value)])
@@ -120,7 +129,12 @@ private def expressionFuel (id : PolicyID) : Nat → Cedar.Spec.Expr → Except 
       let fields ← fields.mapM fun (key, value) => do
         return (key, ← expressionFuel id fuel value)
       return obj [("Record", obj fields)]
-  | _, _ => .error (.unsupportedExpression id)
+  | fuel + 1, .call fn args => do
+      let some (name, arity) := ipFunction fn
+        | throw (.unsupportedExpression id)
+      if args.length != arity then
+        throw (.unsupportedExpression id)
+      return obj [(name, Lean.toJson (← args.mapM (expressionFuel id fuel)))]
 
 private def expression (id : PolicyID) (expr : Cedar.Spec.Expr) : Except Error Lean.Json :=
   expressionFuel id 1024 expr
@@ -167,6 +181,9 @@ private def valueFuel : Nat → Value → Except Error Lean.Json
       let fields ← attrs.toList.mapM fun (key, val) => do
         return (key, ← valueFuel fuel val)
       return obj fields
+  | _fuel + 1, .ext (.ipaddr address) =>
+      .ok (obj [("__extn", obj [("fn", Lean.toJson "ip"),
+        ("arg", Lean.toJson (toString address))])])
   | _, .ext _ => .error .unsupportedValue
 
 private def value (input : Value) : Except Error Lean.Json :=

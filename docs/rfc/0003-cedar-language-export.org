@@ -38,6 +38,11 @@ A concrete-language conformance example exercises =is= and =is ... in=
 principal/resource scopes, =like= patterns, unary =is=, and nested =has=.
 Cedar Lean's abstract Action scope permits =is=, but Cedar's concrete Action
 grammar does not; export rejects that form explicitly.
+The adapter also exports the Cedar IP extension value and its =ip=,
+=isInRange=, =isIpv4=, =isIpv6=, =isLoopback=, and =isMulticast= calls.
+Other extension values and functions still fail with typed export errors.
+The optional Rust =cedar-runtime= feature enables Cedar's =ipaddr= support;
+the default lightweight artifact library still does not depend on Cedar.
 A successful Lean export is
 then parsed again by Rust Cedar. This parser check is part of the integration
 contract; the adapter does not claim that every abstract Cedar policy can be
@@ -71,6 +76,9 @@ in Lean; the Rust gate then compares their computed responses with official
 Cedar and the regenerated policy text.
 The [[file:../../Examples/Language/README.org][concrete-language example]]
 checks five more requests across a POO overlay and two generated revisions.
+The [[file:../../Examples/Governance/TrustedNetworkDataAccess.lean][trusted
+network revision]] checks nine requests and the IP extension boundary while
+overriding one network policy body on top of the attested governance graph.
 
 Each Lean receipt separately records the IDs returned by POO compilation,
 alongside the exported JSON. The Rust boundary checks that Cedar loaded
