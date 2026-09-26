@@ -1,6 +1,7 @@
 import Cedar.Validation.Validator
 import Cedar.Thm.Data.List.Lemmas
 import LeanPoo.Proof.Invalidation
+import Std.Data.HashSet.Lemmas
 
 /-! Reuse Cedar's own per-policy validator across policy-set revisions. -/
 
@@ -100,54 +101,62 @@ structure ValidatedSet (schema : Schema) where
   policies : Policies
   validated : validate policies schema = .ok ()
 
-private def incrementalValidateCore (before : Policies) :
+private structure PolicyKey where
+  policy : Policy
+  deriving DecidableEq
+
+private instance : BEq PolicyKey where
+  beq left right := decide (left = right)
+
+private instance : LawfulBEq PolicyKey := inferInstance
+
+-- Hashing the ID narrows the lookup; Boolean equality still checks the entire body.
+private instance : Hashable PolicyKey where
+  hash key := hash key.policy.id
+
+private def policyIndex (before : Policies) : Std.HashSet PolicyKey :=
+  Std.HashSet.ofList (before.map PolicyKey.mk)
+
+private theorem indexContains_iff_mem (before : Policies) (policy : Policy) :
+    (policyIndex before).contains ⟨policy⟩ = true ↔ policy ∈ before := by
+  simp [policyIndex, List.mem_map]
+
+private def incrementalValidateCore (index : Std.HashSet PolicyKey) :
     (after : Policies) → Schema → ValidationResult
   | [], _ => .ok ()
   | policy :: rest, schema => do
-      match before with
-      | [] => check policy schema
-      | previous :: _ =>
-          if !decide (previous = policy) then check policy schema
-      incrementalValidateCore before.tail rest schema
+      if !(index.contains ⟨policy⟩) then check policy schema
+      incrementalValidateCore index rest schema
 
-/-- Skip bodies identical at matching positions in a certified baseline. -/
+/-- Skip any whole policy body present in a certified baseline, including after reordering. -/
 def incrementalValidate (baseline : ValidatedSet schema) (after : Policies) :
     ValidationResult :=
-  incrementalValidateCore baseline.policies after schema
+  incrementalValidateCore (policyIndex baseline.policies) after schema
 
 /-- The incremental result, including its first error, is Cedar's result. -/
 private theorem incrementalValidateCore_eq_validate (before after : Policies)
     (schema : Schema) (baseline : validate before schema = .ok ()) :
-    incrementalValidateCore before after schema = validate after schema := by
-  induction after generalizing before with
+    incrementalValidateCore (policyIndex before) after schema = validate after schema := by
+  induction after with
   | nil => rfl
   | cons policy rest inductionHypothesis =>
-      cases before with
-      | nil =>
-          have tail := inductionHypothesis [] (by rfl)
-          have congruent := congrArg (fun result : ValidationResult =>
-            check policy schema >>= fun _ => result) tail
-          simpa [incrementalValidateCore, validate, check,
-            List.forM_eq_forM] using congruent
-      | cons previous earlier =>
-          have each := (validate_iff_each (previous :: earlier) schema).1 baseline
-          have oldValid := each previous (by simp)
-          have tailValid : validate earlier schema = .ok () := by
-            apply (validate_iff_each earlier schema).2
-            intro candidate member
-            exact each candidate (by simp [member])
-          have tail := inductionHypothesis earlier tailValid
-          by_cases same : previous = policy
-          · subst policy
-            have oldValidRaw :
-                typecheckPolicyWithEnvironments typecheckPolicy previous schema =
-                  .ok () := oldValid
-            simpa [incrementalValidateCore, validate,
-              List.forM_eq_forM, oldValidRaw] using tail
-          · have congruent := congrArg (fun result : ValidationResult =>
-              check policy schema >>= fun _ => result) tail
-            simpa [incrementalValidateCore, same, validate,
-              List.forM_eq_forM, check] using congruent
+      by_cases old : policy ∈ before
+      · have hit : (policyIndex before).contains ⟨policy⟩ = true :=
+          (indexContains_iff_mem before policy).2 old
+        have oldValid := (validate_iff_each before schema).1 baseline policy old
+        have oldValidRaw :
+            typecheckPolicyWithEnvironments typecheckPolicy policy schema = .ok () :=
+          oldValid
+        simpa [incrementalValidateCore, hit, validate, check,
+          List.forM_eq_forM, oldValidRaw] using inductionHypothesis
+      · have miss : (policyIndex before).contains ⟨policy⟩ = false := by
+          cases h : (policyIndex before).contains ⟨policy⟩ with
+          | false => rfl
+          | true => exact False.elim (old ((indexContains_iff_mem before policy).1 h))
+        have congruent := congrArg (fun result : ValidationResult =>
+          check policy schema >>= fun _ => result) inductionHypothesis
+        simpa [incrementalValidateCore, miss, validate,
+          List.forM_eq_forM, check] using congruent
 
 theorem incrementalValidate_eq_validate (baseline : ValidatedSet schema)
     (after : Policies) :

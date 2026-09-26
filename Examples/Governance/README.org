@@ -93,13 +93,12 @@ No old-schema policy certificate is reused for this transition.
 =incrementalAccepted= executes the incremental path and =refreshedAccepted=
 checks that a new cache is issued only after success.
 
-[[file:../Benchmarks/PolicyReuse.lean][PolicyReuse.lean]] measures a generated 1,000-policy set with one changed
-body at the end. It warms both paths, changes the new policy ID at runtime,
-and prints three full and incremental durations in nanoseconds. It is a
-local timing probe, not a performance guarantee for other policy shapes,
-schemas, hardware, or reorder patterns. The timed region excludes Lean
-compilation and baseline validation; it measures validation after a trusted
-baseline cache already exists.
+[[file:../Benchmarks/PolicyReuse.lean][PolicyReuse.lean]] measures a generated 1,000-policy set for a single
+changed body and a runtime-chosen reorder. It warms both paths and prints
+three full and incremental durations in nanoseconds for each scenario. This
+is a local timing probe, not a performance guarantee for other policy shapes,
+schemas, or hardware. The timed region excludes Lean compilation and baseline
+validation; it includes building the lookup index from the trusted baseline.
 
 #+begin_src sh
 just bench-policy-reuse

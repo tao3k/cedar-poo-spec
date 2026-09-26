@@ -92,14 +92,14 @@ unaffected by a changed schema without a finer Cedar-backed proof.
 
 =PolicyValidation.ValidatedSet= is an executable cache whose constructor
 requires Cedar validation evidence for its stored policy list.
-=incrementalValidate= scans the revised list in order, skips a body only when
-the policy at the same position in the validated baseline is identical, and
-calls Cedar's single-policy validator otherwise. Its result equals Cedar's
+=incrementalValidate= builds a hash index of the validated baseline and scans
+the revised list in order. An index hit compares the entire policy body, even
+when IDs match; every miss calls Cedar's single-policy validator. Its result equals Cedar's
 full =validate= result, including the first error, by
 =incrementalValidate_eq_validate=. =tryRefresh= advances the cache only after
-success. Insertions and reorderings may cause extra Cedar checks; they cannot
-cause an unchecked body to be accepted. The equality theorem requires no
-claim about wall-clock speed.
+success. Reordering identical bodies can reuse their validation regardless of
+position. A changed body with an existing ID is checked again. The equality
+theorem requires no claim about wall-clock speed.
 
 * Entity slicing certificate
 

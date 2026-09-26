@@ -1,6 +1,6 @@
 import Examples.Governance.AttestedDataAccess
 
-/-! A local timing probe for a single overlay in a 1,000-policy Cedar set. -/
+/-! Local timing probes for an overlay and a reorder in a 1,000-policy Cedar set. -/
 
 namespace CedarPooSpec.PolicyReuseBenchmark
 
@@ -15,6 +15,10 @@ def policies (count : Nat) : Policies :=
 def before : Policies := policies 1000
 def after (token : Nat) : Policies :=
   before.dropLast ++ [{ platformVetoV2 with id := s!"new-platform-{token}" }]
+
+def reordered (token : Nat) : Policies :=
+  let split := token % 999 + 1
+  before.drop split ++ before.take split
 
 private theorem okOfIsOk {ε : Type} (result : Except ε Unit)
     (h : result.isOk = true) : result = .ok () := by
@@ -47,12 +51,14 @@ def main : IO Unit := do
   let warmup ← IO.monoNanosNow
   discard <| measureFull (after warmup)
   discard <| measureIncremental (after warmup)
-  for sample in [1, 2, 3] do
-    let token ← IO.monoNanosNow
-    let candidate := after token
-    let full ← measureFull candidate
-    let incremental ← measureIncremental candidate
-    IO.println s!"sample={sample} policies=1000 full_ns={full} incremental_ns={incremental}"
+  for (scenario, makeCandidate) in
+      [("overlay", after), ("reorder", reordered)] do
+    for sample in [1, 2, 3] do
+      let token ← IO.monoNanosNow
+      let candidate := makeCandidate token
+      let full ← measureFull candidate
+      let incremental ← measureIncremental candidate
+      IO.println s!"scenario={scenario} sample={sample} policies=1000 full_ns={full} incremental_ns={incremental}"
 
 end CedarPooSpec.PolicyReuseBenchmark
 

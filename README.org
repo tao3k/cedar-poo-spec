@@ -42,7 +42,7 @@ invalidation, and certificate reuse across C4 composition.
 | Entity slicing | Certify equality of full and request-relative sliced authorization responses. |
 | Policy modules | Compile C4-ordered extend, overlay, and remove edits into Cedar policies; reject ambiguous edits and retain an edit trace and policy provenance. |
 | Policy revision | Compare compiled policy bodies by ID; compose per-policy proof objects for fresh bodies and reuse unchanged bodies under the same schema. Reclose all dependent premises after schema changes. |
-| Runtime validation cache | Skip unchanged policy bodies at matching positions in a Cedar-validated baseline; prove the incremental result equals Cedar's full validation result. |
+| Runtime validation cache | Reuse any identical policy body in a Cedar-validated baseline, including after reordering; prove the incremental result equals Cedar's full validation result. |
 | Reuse probe | Check dependency selection across 10,000 indexed evaluator obligations. |
 
 Agent delegation, device trust, temporal authorization, and healthcare
