@@ -63,6 +63,16 @@ review time, or maintenance cost.
 
 ** Proof receipts and limits
 
+[[file:ClinicalBreakGlassExport.lean][ClinicalBreakGlassExport.lean]] exports the
+emergency and integrated POO roots through Cedar's public JSON format. The
+official Cedar Rust authorizer checks fourteen Lean-computed requests,
+including all twelve clinical cases, the inherited broad-permit risk, and a
+released patient preference. It also reparses the generated
+[[file:Policies/clinical-integrated.cedar][integrated Cedar policy file]]
+and checks the same decisions and error counts. =just export-cedar-language=
+regenerates both clinical revisions; =just check-cedar-language= detects stale
+files or a semantic disagreement.
+
 =scenarioConformsFully= checks all twelve named requests against the
 compiled policy set, Cedar validation, Cedar authorization, and empty runtime
 policy-error lists. =caseNamesUnique= prevents ambiguous case references.

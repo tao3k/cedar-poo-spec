@@ -13,7 +13,9 @@ The Rust library exposes =load_policy_set= for applications that want to load
 the exported JSON into the official =cedar_policy::PolicySet= type.
 The same bridge renders that policy set into human-readable =.cedar= files in
 [[file:../../Examples/Governance/Policies/expanded.cedar][the governance example]].
-The files cover published, posture, revoked, and expanded revisions.
+The files cover published, posture, revoked, and expanded revisions. The same
+export and check commands cover the clinical break-glass and attested-data
+governance scenarios in their respective example directories.
 
 The exporter materializes linked templates before serialization, so its JSON
 contains static policies with their original IDs and empty template and link
@@ -46,6 +48,14 @@ the rendered =.cedar= syntax and checks that the decision and error count
 still match. A mismatch or parse failure exits with an error. The regular
 check also fails if committed =.cedar= files differ from freshly generated
 output.
+
+The public =PolicyJson.authorizationCase= builds this receipt from any POO
+model, root, Cedar request, and entity store. The clinical exporter checks
+fourteen cases across two roots, including a changed patient preference. The
+attested-data exporter checks thirteen cases across three roots, including
+the attestation-freshness delta. These source models are independently checked
+in Lean; the Rust gate then compares their computed responses with official
+Cedar and the regenerated policy text.
 
 #+begin_src sh
 just export-cedar-language

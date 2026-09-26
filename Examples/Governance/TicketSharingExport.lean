@@ -22,27 +22,10 @@ theorem duplicateIdsRejected :
      | _ => false) = true := by
   native_decide
 
-private def convert {α : Type} [Repr α] (result : Except α β) : Except String β :=
-  result.mapError (fun error => reprStr error)
-
 private def case (name : String) (policyModel : CedarPooSpec.PolicyModules.Model)
     (root : String) (req : Cedar.Spec.Request)
-    (store : Cedar.Spec.Entities) : Except String Lean.Json := do
-  let policies ← convert (policyModel.compile root)
-  let exported ← convert (PolicyJson.compiled policyModel root)
-  let exportedEntities ← convert (PolicyJson.entities store)
-  let exportedRequest ← convert (PolicyJson.request req)
-  let response := Cedar.Spec.isAuthorized req store policies
-  return Lean.Json.mkObj [
-    ("name", Lean.toJson name),
-    ("revision", Lean.toJson root.toLower),
-    ("policies", exported),
-    ("entities", exportedEntities),
-    ("request", exportedRequest),
-    ("expected", Lean.toJson (match response.decision with
-      | .allow => "allow"
-      | .deny => "deny")),
-    ("expected_errors", Lean.toJson response.erroringPolicies.toList.length)]
+    (store : Cedar.Spec.Entities) : Except String Lean.Json :=
+  PolicyJson.authorizationCase name root.toLower policyModel root req store
 
 def manifest : Except String Lean.Json := do
   let baselineCases ← List.mapM (fun (name, root, req, store) =>

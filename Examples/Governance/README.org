@@ -154,6 +154,16 @@ The resulting [[file:Policies/expanded.cedar][expanded Cedar policy file]]
 shows the final active share set; the same directory includes the three
 earlier revisions. =just export-cedar-language= regenerates these files.
 
+[[file:AttestedDataAccessExport.lean][AttestedDataAccessExport.lean]] also
+exports the data-owner, governed, and strengthened-attestation roots. Its
+thirteen Lean-computed requests include stable baseline and updated decisions,
+the stale-attestation decision change, and the inherited broad-permit risk.
+The Rust Cedar authorizer checks each JSON policy set, then parses the
+generated [[file:AttestedPolicies/attested-governedv2.cedar][governed policy
+file]] and compares its decision and error count. The three policy files live
+in =AttestedPolicies/= so each source scenario has its own checked artifact
+set.
+
 This model calls =tryRefresh= explicitly when a template changes. Actual
 applications must trigger that update, control template writes, and enforce
 the resulting Cedar decision. The example does not model a Verified

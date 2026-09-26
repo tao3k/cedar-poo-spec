@@ -1,6 +1,7 @@
 import CedarPooSpec.PolicyModules
 import Cedar.Spec.Entities
 import Cedar.Spec.Request
+import Cedar.Spec.Authorizer
 import Lean
 
 /-!
@@ -182,5 +183,26 @@ def compiled (model : PolicyModules.Model) (root : String) :
     Except (Sum PolicyModules.Error Error) Lean.Json := do
   let policies ← (model.compile root).mapError Sum.inl
   (policySet policies).mapError Sum.inr
+
+/-- A concrete Cedar authorization receipt for a compiled POO root. -/
+def authorizationCase (name revision : String) (model : PolicyModules.Model)
+    (root : String) (req : Request) (store : Entities) : Except String Lean.Json := do
+  let convert {α β : Type} [Repr α] (result : Except α β) : Except String β :=
+    result.mapError reprStr
+  let policies ← convert (model.compile root)
+  let exported ← convert (policySet policies)
+  let exportedEntities ← convert (entities store)
+  let exportedRequest ← convert (request req)
+  let response := isAuthorized req store policies
+  return obj [
+    ("name", Lean.toJson name),
+    ("revision", Lean.toJson revision),
+    ("policies", exported),
+    ("entities", exportedEntities),
+    ("request", exportedRequest),
+    ("expected", Lean.toJson (match response.decision with
+      | .allow => "allow"
+      | .deny => "deny")),
+    ("expected_errors", Lean.toJson response.erroringPolicies.toList.length)]
 
 end CedarPooSpec.PolicyJson
