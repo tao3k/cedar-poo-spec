@@ -43,6 +43,26 @@ def actionEntry : ActionSchemaEntry :=
 def schema : Schema :=
   ⟨Map.make [(workerType, workerEntry), (datasetType, datasetEntry)],
    Map.make [(queryAction, actionEntry)]⟩
+def datasetEntryV2 : EntitySchemaEntry :=
+  .standard ⟨Set.empty, Map.make [
+    ("project", .required .string),
+    ("region", .required .string),
+    ("measurement", .required .string),
+    ("classification", .optional .string)], none⟩
+def schemaV2 : Schema :=
+  ⟨Map.make [(workerType, workerEntry), (datasetType, datasetEntryV2)],
+   Map.make [(queryAction, actionEntry)]⟩
+def hasClassification (candidate : Schema) : Bool :=
+  match candidate.ets.find? datasetType with
+  | some (.standard entry) => entry.attrs.contains "classification"
+  | _ => false
+theorem schemaChanged : schema ≠ schemaV2 := by
+  intro same
+  have projected := congrArg hasClassification same
+  have old : hasClassification schema = false := by native_decide
+  have new : hasClassification schemaV2 = true := by native_decide
+  rw [old, new] at projected
+  cases projected
 
 def analyst : EntityUID := ⟨workerType, "analyst-a"⟩
 def customerDataset : EntityUID := ⟨datasetType, "customer-a"⟩
@@ -293,9 +313,39 @@ theorem freshPoliciesValidate :
     simpa [freshPoliciesExact] using membership
   subst policy
   exact okOfIsOk _ (by native_decide)
+theorem freshPoliciesCertified :
+    ∀ policy ∈ revision.freshPolicies,
+      Certificate (PolicyValidation.Snapshot.mk policy schema).proofObject := by
+  intro policy membership
+  exact (PolicyValidation.Snapshot.mk policy schema).certificate
+    (freshPoliciesValidate policy membership)
 theorem updatedPoliciesValidate : validate updatedPolicies schema = .ok () :=
   revision.validateAfter schema (okOfIsOk _ (by native_decide))
-    freshPoliciesValidate
+    freshPoliciesCertified
+theorem baselinePoliciesValidate : validate baselinePolicies schema = .ok () :=
+  okOfIsOk _ (by native_decide)
+def validatedBase : PolicyValidation.ValidatedSet schema :=
+  ⟨baselinePolicies, baselinePoliciesValidate⟩
+theorem incrementalMatchesCedar :
+    PolicyValidation.incrementalValidate validatedBase updatedPolicies =
+      validate updatedPolicies schema :=
+  PolicyValidation.incrementalValidate_eq_validate validatedBase updatedPolicies
+theorem incrementalAccepted :
+    PolicyValidation.incrementalValidate validatedBase updatedPolicies = .ok () :=
+  okOfIsOk _ (by native_decide)
+def refreshed : Except ValidationError (PolicyValidation.ValidatedSet schema) :=
+  revision.tryRefresh validatedBase rfl
+theorem refreshedAccepted : refreshed.isOk = true := by
+  unfold refreshed Revision.tryRefresh PolicyValidation.ValidatedSet.tryRefresh
+  split
+  · rfl
+  · rename_i error equation
+    have accepted :
+        PolicyValidation.incrementalValidate validatedBase
+          revision.afterPolicies = .ok () := by
+      simpa [updatedPolicies] using incrementalAccepted
+    rw [equation] at accepted
+    cases accepted
 theorem reorderedPoliciesValidate :
     validate reorderRevision.afterPolicies schema = .ok () := by
   apply reorderRevision.validateAfter schema
@@ -305,11 +355,45 @@ theorem reorderedPoliciesValidate :
 theorem patchedCertificate :
     Certificate (append baselineSnapshot.proofObject policyRevision) :=
   revision.patchedAuthorizationCertificate schema authorizedRequest entities
-    baselineCertificate freshPoliciesValidate
+    baselineCertificate freshPoliciesCertified
 theorem certificate : Certificate snapshot.proofObject := by
   change Certificate (revision.afterSnapshot schema authorizedRequest entities).proofObject
   rw [← revision.authorizationPatch_object]
   exact patchedCertificate
+def schemaRevision : Patch AuthorizationKey AuthorizationValue :=
+  Patch.set .schema schemaV2
+def schemaChangeFootprint : Bool :=
+  (changedDependencies schemaObligation schemaRevision == [.schema]) &&
+  (changedDependencies policiesObligation schemaRevision == [.schema]) &&
+  (changedDependencies requestObligation schemaRevision == [.schema]) &&
+  (changedDependencies entitiesObligation schemaRevision == [.schema]) &&
+  (changedDependencies PolicyValidation.policyObligation
+    (PolicyValidation.replaceSchema schemaV2) == [.schema])
+theorem schemaChangeFootprintExact : schemaChangeFootprint = true := by
+  native_decide
+def combinedSchemaRevision : Patch AuthorizationKey AuthorizationValue :=
+  revision.authorizationPatchWithSchema schemaV2
+def combinedSchemaFootprint : Bool :=
+  (changedDependencies schemaObligation combinedSchemaRevision == [.schema]) &&
+  (changedDependencies policiesObligation combinedSchemaRevision ==
+    [.policies, .schema]) &&
+  (changedDependencies requestObligation combinedSchemaRevision == [.schema]) &&
+  (changedDependencies entitiesObligation combinedSchemaRevision == [.schema])
+theorem combinedSchemaFootprintExact : combinedSchemaFootprint = true := by
+  native_decide
+theorem schemaV2Bundle : PolicyValidation.Bundle updatedPolicies schemaV2 :=
+  PolicyValidation.Bundle.ofValidate updatedPolicies schemaV2
+    (okOfIsOk _ (by native_decide))
+theorem schemaV2PatchedCertificate :
+    Certificate (append baselineSnapshot.proofObject combinedSchemaRevision) :=
+  revision.patchedAuthorizationCertificateWithSchema schema schemaV2
+    authorizedRequest entities
+    (okOfIsOk _ (by native_decide)) schemaV2Bundle
+    (okOfIsOk _ (by native_decide)) (okOfIsOk _ (by native_decide))
+theorem schemaV2Certificate :
+    Certificate (revision.afterSnapshot schemaV2 authorizedRequest entities).proofObject := by
+  rw [← revision.authorizationPatchWithSchema_object]
+  exact schemaV2PatchedCertificate
 theorem auditCertificate :
     Certificate (append snapshot.proofObject auditRevision.authorizationPatch) := by
   apply closePending snapshot.proofObject auditRevision.authorizationPatch certificate

@@ -1,14 +1,71 @@
 import Cedar.Validation.Validator
 import Cedar.Thm.Data.List.Lemmas
+import LeanPoo.Proof.Invalidation
 
 /-! Reuse Cedar's own per-policy validator across policy-set revisions. -/
 
 namespace CedarPooSpec.PolicyValidation
 
 open Cedar.Spec Cedar.Validation
+open LeanPoo.Proof
 
 def check (policy : Policy) (schema : Schema) : ValidationResult :=
   typecheckPolicyWithEnvironments typecheckPolicy policy schema
+
+inductive Key where
+  | policy
+  | schema
+  deriving DecidableEq
+
+def Value : Key → Type
+  | .policy => Policy
+  | .schema => Schema
+
+structure Snapshot where
+  policy : Policy
+  schema : Schema
+
+def Snapshot.state (snapshot : Snapshot) : State Key Value
+  | .policy => snapshot.policy
+  | .schema => snapshot.schema
+
+def policyObligation : Obligation Key Value where
+  dependencies := [.policy, .schema]
+  holds := fun state => check (state .policy) (state .schema) = .ok ()
+  stable := by
+    intro before after equal holds
+    have hp := equal .policy (by simp)
+    have hs := equal .schema (by simp)
+    simpa [hp, hs] using holds
+
+def Snapshot.proofObject (snapshot : Snapshot) : ProofObject Key Value where
+  state := snapshot.state
+  obligations := [policyObligation]
+
+theorem Snapshot.certificate (snapshot : Snapshot)
+    (valid : check snapshot.policy snapshot.schema = .ok ()) :
+    Certificate snapshot.proofObject := by
+  intro obligation membership
+  have same : obligation = policyObligation := by
+    simpa [Snapshot.proofObject] using membership
+  subst obligation
+  exact valid
+
+theorem Snapshot.validOfCertificate (snapshot : Snapshot)
+    (certificate : Certificate snapshot.proofObject) :
+    check snapshot.policy snapshot.schema = .ok () :=
+  certificate policyObligation (by simp [Snapshot.proofObject])
+
+def replacePolicy (policy : Policy) : Patch Key Value := Patch.set .policy policy
+def replaceSchema (schema : Schema) : Patch Key Value := Patch.set .schema schema
+
+theorem policyChangeFootprint (policy : Policy) :
+    changedDependencies policyObligation (replacePolicy policy) = [.policy] := by
+  simp [changedDependencies, policyObligation, replacePolicy, Patch.set]
+
+theorem schemaChangeFootprint (schema : Schema) :
+    changedDependencies policyObligation (replaceSchema schema) = [.schema] := by
+  simp [changedDependencies, policyObligation, replaceSchema, Patch.set]
 
 /-- Cedar's policy-set validator succeeds exactly when each policy succeeds. -/
 theorem validate_iff_each (policies : Policies) (schema : Schema) :
@@ -38,6 +95,78 @@ theorem validateFromReuse (before after : Policies) (schema : Schema)
 def freshPolicies (before after : Policies) : Policies :=
   after.filter fun policy => !decide (policy ∈ before)
 
+/-- A cache can only contain a policy set certified by Cedar's validator. -/
+structure ValidatedSet (schema : Schema) where
+  policies : Policies
+  validated : validate policies schema = .ok ()
+
+private def incrementalValidateCore (before : Policies) :
+    (after : Policies) → Schema → ValidationResult
+  | [], _ => .ok ()
+  | policy :: rest, schema => do
+      match before with
+      | [] => check policy schema
+      | previous :: _ =>
+          if !decide (previous = policy) then check policy schema
+      incrementalValidateCore before.tail rest schema
+
+/-- Skip bodies identical at matching positions in a certified baseline. -/
+def incrementalValidate (baseline : ValidatedSet schema) (after : Policies) :
+    ValidationResult :=
+  incrementalValidateCore baseline.policies after schema
+
+/-- The incremental result, including its first error, is Cedar's result. -/
+private theorem incrementalValidateCore_eq_validate (before after : Policies)
+    (schema : Schema) (baseline : validate before schema = .ok ()) :
+    incrementalValidateCore before after schema = validate after schema := by
+  induction after generalizing before with
+  | nil => rfl
+  | cons policy rest inductionHypothesis =>
+      cases before with
+      | nil =>
+          have tail := inductionHypothesis [] (by rfl)
+          have congruent := congrArg (fun result : ValidationResult =>
+            check policy schema >>= fun _ => result) tail
+          simpa [incrementalValidateCore, validate, check,
+            List.forM_eq_forM] using congruent
+      | cons previous earlier =>
+          have each := (validate_iff_each (previous :: earlier) schema).1 baseline
+          have oldValid := each previous (by simp)
+          have tailValid : validate earlier schema = .ok () := by
+            apply (validate_iff_each earlier schema).2
+            intro candidate member
+            exact each candidate (by simp [member])
+          have tail := inductionHypothesis earlier tailValid
+          by_cases same : previous = policy
+          · subst policy
+            have oldValidRaw :
+                typecheckPolicyWithEnvironments typecheckPolicy previous schema =
+                  .ok () := oldValid
+            simpa [incrementalValidateCore, validate,
+              List.forM_eq_forM, oldValidRaw] using tail
+          · have congruent := congrArg (fun result : ValidationResult =>
+              check policy schema >>= fun _ => result) tail
+            simpa [incrementalValidateCore, same, validate,
+              List.forM_eq_forM, check] using congruent
+
+theorem incrementalValidate_eq_validate (baseline : ValidatedSet schema)
+    (after : Policies) :
+    incrementalValidate baseline after = validate after schema :=
+  incrementalValidateCore_eq_validate baseline.policies after schema
+    baseline.validated
+
+/-- Advance the cache only after the incremental Cedar check succeeds. -/
+def ValidatedSet.refresh (baseline : ValidatedSet schema) (after : Policies)
+    (accepted : incrementalValidate baseline after = .ok ()) :
+    ValidatedSet schema :=
+  ⟨after, by simpa [incrementalValidate_eq_validate] using accepted⟩
+
+def ValidatedSet.tryRefresh (baseline : ValidatedSet schema) (after : Policies) :
+    Except ValidationError (ValidatedSet schema) :=
+  match result : incrementalValidate baseline after with
+  | .ok () => .ok (baseline.refresh after result)
+  | .error error => .error error
+
 theorem validateFromFresh (before after : Policies) (schema : Schema)
     (baseline : validate before schema = .ok ())
     (fresh : ∀ policy ∈ freshPolicies before after,
@@ -47,5 +176,36 @@ theorem validateFromFresh (before after : Policies) (schema : Schema)
   intro policy member absent
   apply fresh policy
   simp [freshPolicies, member, absent]
+
+/-- A finite collection of independent Lean-POO policy certificates. -/
+structure Bundle (policies : Policies) (schema : Schema) : Prop where
+  certified : ∀ policy ∈ policies,
+    Certificate (Snapshot.mk policy schema).proofObject
+
+theorem Bundle.ofValidate (policies : Policies) (schema : Schema)
+    (validated : validate policies schema = .ok ()) : Bundle policies schema := by
+  refine ⟨?_⟩
+  intro policy member
+  exact (Snapshot.mk policy schema).certificate
+    ((validate_iff_each policies schema).1 validated policy member)
+
+theorem Bundle.validate (policies : Policies) (schema : Schema)
+    (bundle : Bundle policies schema) : validate policies schema = .ok () := by
+  apply (validate_iff_each policies schema).2
+  intro policy member
+  exact (Snapshot.mk policy schema).validOfCertificate
+    (bundle.certified policy member)
+
+theorem Bundle.reviseSameSchema (before after : Policies) (schema : Schema)
+    (baseline : Bundle before schema)
+    (fresh : ∀ policy ∈ freshPolicies before after,
+      Certificate (Snapshot.mk policy schema).proofObject) :
+    Bundle after schema := by
+  refine ⟨?_⟩
+  intro policy member
+  by_cases old : policy ∈ before
+  · exact baseline.certified policy old
+  · apply fresh policy
+    simp [freshPolicies, member, old]
 
 end CedarPooSpec.PolicyValidation

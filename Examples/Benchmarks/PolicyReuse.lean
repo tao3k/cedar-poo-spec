@@ -1,0 +1,59 @@
+import Examples.Governance.AttestedDataAccess
+
+/-! A local timing probe for a single overlay in a 1,000-policy Cedar set. -/
+
+namespace CedarPooSpec.PolicyReuseBenchmark
+
+open Cedar.Spec Cedar.Validation
+open CedarPooSpec.PolicyValidation
+open CedarPooSpec.AttestedDataAccessExample
+
+def policies (count : Nat) : Policies :=
+  (List.range count).map fun index =>
+    { projectPermit with id := s!"policy-{index}" }
+
+def before : Policies := policies 1000
+def after (token : Nat) : Policies :=
+  before.dropLast ++ [{ platformVetoV2 with id := s!"new-platform-{token}" }]
+
+private theorem okOfIsOk {ε : Type} (result : Except ε Unit)
+    (h : result.isOk = true) : result = .ok () := by
+  cases result with
+  | ok value => cases value; rfl
+  | error _ => cases h
+
+theorem beforeValid : validate before schema = .ok () :=
+  okOfIsOk _ (by native_decide)
+
+def cache : ValidatedSet schema := ⟨before, beforeValid⟩
+
+theorem incrementalIsCedar (candidate : Policies) :
+    incrementalValidate cache candidate = validate candidate schema :=
+  incrementalValidate_eq_validate cache candidate
+
+def measureFull (candidate : Policies) : IO Nat := do
+  let start ← IO.monoNanosNow
+  let result := validate candidate schema
+  if !result.isOk then throw (IO.userError "full validation failed")
+  return (← IO.monoNanosNow) - start
+
+def measureIncremental (candidate : Policies) : IO Nat := do
+  let start ← IO.monoNanosNow
+  let result := incrementalValidate cache candidate
+  if !result.isOk then throw (IO.userError "incremental validation failed")
+  return (← IO.monoNanosNow) - start
+
+def main : IO Unit := do
+  let warmup ← IO.monoNanosNow
+  discard <| measureFull (after warmup)
+  discard <| measureIncremental (after warmup)
+  for sample in [1, 2, 3] do
+    let token ← IO.monoNanosNow
+    let candidate := after token
+    let full ← measureFull candidate
+    let incremental ← measureIncremental candidate
+    IO.println s!"sample={sample} policies=1000 full_ns={full} incremental_ns={incremental}"
+
+end CedarPooSpec.PolicyReuseBenchmark
+
+def main : IO Unit := CedarPooSpec.PolicyReuseBenchmark.main

@@ -36,11 +36,16 @@ Consequently a no-edit descendant can reuse the whole certificate, while a
 changed policy set selects Cedar's whole-set validation obligation.
 =Revision.freshPolicies= selects policy bodies absent from the baseline;
 =Revision.validateAfter= derives Cedar's whole-set =validate= premise from
-baseline validation and fresh-body checks. This derivation uses the upstream
-validator's per-policy =forM= structure, so removed and reordered bodies need
-no new typechecking proof when the schema is unchanged. The proof-object
-dependency key remains the complete ordered policy set. Per-policy proof
-objects and schema-change reuse are still separate extensions.
+baseline validation and fresh-body Lean-POO certificates. Each
+=PolicyValidation.Snapshot= has one obligation depending on its policy body
+and Cedar schema. =PolicyValidation.Bundle= contains independent certificates
+for the current policy list; =Bundle.reviseSameSchema= carries certificates
+for identical bodies and requires certificates only for fresh bodies. No
+historical obligation remains attached to a removed body. The derivation
+uses the upstream validator's per-policy =forM= structure, so removed and
+reordered bodies need no new typechecking proof when the schema is unchanged.
+The authorization proof object's dependency key remains the complete ordered
+policy set; its Cedar premise is reclosed from the policy bundle.
 =Revision.authorizationPatch_object= proves that applying the diagnostic patch
 to the baseline produces the exact revised proof object.
 =Revision.authorizationCertificate= reuses the baseline schema, request, and
@@ -48,6 +53,21 @@ entity premises and derives the revised policy premise from fresh-body checks;
 callers supply only the baseline certificate and those fresh checks.
 =Revision.patchedAuthorizationCertificate= exposes the same result on the
 Lean-POO patched proof object.
+If the schema changes, every per-policy obligation and all four
+schema-dependent authorization obligations are invalidated.
+=Revision.authorizationCertificateWithSchema= accepts new per-policy
+certificates, schema well-formedness, request validation, and entity
+validation. It does not reuse old-schema policy certificates; finer schema
+dependency slicing would need an additional Cedar-backed theorem.
+=Revision.authorizationPatchWithSchema_object= proves that a combined policy
+and schema patch materializes exactly the revised proof object.
+=Revision.patchedAuthorizationCertificateWithSchema= closes that patched
+object from the new-schema evidence.
+For same-schema execution, =Revision.incrementalValidate= requires a proof
+that the baseline policy set passed Cedar validation. It delegates to the
+validated-set cache and is proven equivalent to Cedar's complete result.
+=Revision.tryRefresh= also requires proof that the cache's stored policy list
+equals this revision's baseline before it attempts to advance the cache.
 The governance example checks a reorder explicitly: the fresh-body set is
 empty, yet the ordered policy list changes and therefore the authorization
 patch still touches the policy key.

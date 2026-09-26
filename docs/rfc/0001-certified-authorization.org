@@ -72,6 +72,35 @@ The existing =certifiedPolicySound= remains the separate per-policy
 typechecker theorem. Its typed-result and well-formed-environment
 premises are not interchangeable with whole-set validation.
 
+** Per-policy validation certificates
+
+[[file:../../CedarPooSpec/PolicyValidation.lean][PolicyValidation.lean]] gives each policy body an independent Lean-POO
+proof object with policy and schema dependencies. Its obligation is Cedar's
+=typecheckPolicyWithEnvironments typecheckPolicy= result, including entity
+checks and the impossible-policy check. The upstream =validate= definition
+traverses policies with =forM=; =validate_iff_each= proves that a bundle of
+these per-policy certificates is exactly sufficient for the whole-set
+validation premise. The adapter does not replace Cedar's validator.
+
+The same-schema revision API reuses certificates for identical policy bodies
+and requires certificates for fresh bodies. A schema patch invalidates every
+per-policy validation obligation. The authorization proof object's schema,
+policy, request, and entity obligations also all depend on schema, so a
+schema revision requires new evidence for all four. This is a conservative
+dependency boundary: no assertion is made that an individual policy is
+unaffected by a changed schema without a finer Cedar-backed proof.
+
+=PolicyValidation.ValidatedSet= is an executable cache whose constructor
+requires Cedar validation evidence for its stored policy list.
+=incrementalValidate= scans the revised list in order, skips a body only when
+the policy at the same position in the validated baseline is identical, and
+calls Cedar's single-policy validator otherwise. Its result equals Cedar's
+full =validate= result, including the first error, by
+=incrementalValidate_eq_validate=. =tryRefresh= advances the cache only after
+success. Insertions and reorderings may cause extra Cedar checks; they cannot
+cause an unchecked body to be accepted. The equality theorem requires no
+claim about wall-clock speed.
+
 * Entity slicing certificate
 
 =Slicing.Snapshot= pairs an =AuthorizationSnapshot= with a natural-number

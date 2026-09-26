@@ -55,8 +55,10 @@ theorem.
 The policy-validation premise is itself reclosed through
 =Revision.validateAfter=: =freshPoliciesExact= identifies just the revised
 attestation policy body, =freshPoliciesValidate= checks that body with Cedar's
-validator, and the other policy bodies reuse validation derived from the
-baseline. No second whole-set validation computation is used in this proof.
+validator, and =freshPoliciesCertified= closes its Lean-POO policy proof
+object. The other policy proof objects are reused from the baseline through
+=PolicyValidation.Bundle.reviseSameSchema=. No second whole-set validation
+computation is used in this proof.
 
 =AuditView= adds no edits. Its compiled policy list is exactly the same as
 =GovernedV2=. =auditRevisionHasNoPolicyDelta= reports no changed policy IDs;
@@ -72,6 +74,36 @@ prove that Cedar typechecking needs no fresh body check. Nevertheless,
 =reorderChangesOrderedList= and =reorderStillTouchesPolicyKey= prove that the
 authorization proof object's ordered policy list must be patched. This keeps
 the state truthful while reusing the validation proofs.
+
+=schemaV2= adds an optional dataset classification attribute as an explicit
+model evolution, without claiming that any cited service made this change.
+=schemaChanged= proves that the attribute projection differs from the old
+schema. =schemaChangeFootprintExact= shows that the revision invalidates
+every Cedar authorization premise and each per-policy validation obligation.
+=combinedSchemaFootprintExact= checks the policy-plus-schema patch footprint.
+=schemaV2Bundle= closes the current policies against the new schema;
+=schemaV2PatchedCertificate= closes the combined Lean-POO patch, and
+=schemaV2Certificate= transports that result to the exact updated snapshot.
+No old-schema policy certificate is reused for this transition.
+
+** Runtime validation probe
+
+=validatedBase= carries Cedar's validation premise for the baseline set.
+=incrementalMatchesCedar= proves exact result equality for the revision;
+=incrementalAccepted= executes the incremental path and =refreshedAccepted=
+checks that a new cache is issued only after success.
+
+[[file:../Benchmarks/PolicyReuse.lean][PolicyReuse.lean]] measures a generated 1,000-policy set with one changed
+body at the end. It warms both paths, changes the new policy ID at runtime,
+and prints three full and incremental durations in nanoseconds. It is a
+local timing probe, not a performance guarantee for other policy shapes,
+schemas, hardware, or reorder patterns. The timed region excludes Lean
+compilation and baseline validation; it measures validation after a trusted
+baseline cache already exists.
+
+#+begin_src sh
+just bench-policy-reuse
+#+end_src
 
 The five =unchangedCases= keep the same decision across the revision.
 =staleAttestationDeltaExact= isolates the intended difference: a stale
