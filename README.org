@@ -30,6 +30,9 @@ policy module edits and conflict handling. The executable
 overlay, extend, and remove are all needed during an authorization migration.
 The [[file:Examples/Health/README.org][health example]] connects a clinical
 emergency-access diamond to published EHR studies and HL7 guidance.
+The [[file:Examples/Governance/README.org][governance example]] uses a
+source-grounded attestation revision to show policy provenance, local
+invalidation, and certificate reuse across C4 composition.
 
 | Feature | Implemented contract |
 |---------+----------------------|

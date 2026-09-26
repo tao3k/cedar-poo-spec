@@ -1,0 +1,65 @@
+#+TITLE: Attested Enterprise Data Governance
+#+OPTIONS: toc:nil
+
+* The POO question
+
+[[file:AttestedDataAccess.lean][AttestedDataAccess.lean]] asks what happens to a
+composed authorization proof when the platform owner strengthens attestation.
+The interesting result is the composition delta: which policy body changed,
+which composition roots are affected, and which proof obligations can be
+reused. Cedar already supplies authorization evaluation and validation; this
+example uses those operations as evidence for a POO evolution claim.
+
+The model combines a data subscription, owner approval, enclave measurement,
+and organizational region rule. It is a composite reference scenario, not a
+claim that these AWS products expose one Cedar policy interface. All people,
+projects, datasets, and measurements in the Lean file are fictitious.
+
+* Published sources and model boundaries
+
+| Source | Real mechanism | Projection in this example |
+|--------+----------------+----------------------------|
+| [[https://docs.aws.amazon.com/datazone/latest/userguide/approve-reject-subscription-request.html][Amazon DataZone subscription approval]] | An asset subscription request can be approved or rejected by an owning-project member; some requests are automatically approved. | =subscriptionActive= and =ownerApproved= are externally established facts. The model requires an independent approver as an additional enterprise rule; it does not assert that DataZone always enforces one. |
+| [[https://csrc.nist.gov/CSRC/media/Projects/risk-management/800-53%20Downloads/800-53r5/SP_800-53_v5_1-derived-OSCAL.pdf][NIST SP 800-53 AC-5]] | Separation of duties is a security control for separating conflicting responsibilities. | =ownerVeto= requires the projected approver to differ from the operator. Identity binding and approval authenticity are outside this Lean model. |
+| [[https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave-concepts.html][AWS Nitro Enclaves attestation]] | A signed attestation document contains enclave measurements and a nonce; an external party can use its values in an authorization decision. | =platformVetoV1= checks projected verification and measurement; =platformVetoV2= additionally requires projected freshness. Neither policy verifies a signature, nonce, or PCR. |
+| [[https://docs.aws.amazon.com/kms/latest/developerguide/conditions-nitro-enclave.html][AWS KMS enclave conditions]] | KMS condition keys can constrain cryptographic operations using attestation values. | Measurement is a model input, not a KMS key policy or proof that decryption succeeded. |
+| [[https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html][AWS Organizations SCPs]] | SCPs limit maximum permissions and grant none themselves. | =regionVeto= is an analogous organization-wide restriction. It is a Cedar forbid, not an implementation of SCP evaluation. |
+
+* Composition and evolution
+
+=Base= has a project subscription permit and an inherited legacy broad permit.
+=DataOwner=, =Platform=, and =Compliance= extend separate vetoes. =Governed=
+composes those owners, overlays the project permit with an analytics-purpose
+condition, and removes the legacy permit. =PlatformV2= overlays the attestation
+veto to require freshness; =GovernedV2= composes the updated platform branch.
+
+=compositionTraceConformsFully= checks the C4 order, eight applied edits, the
+final removal, and the provenance of the platform policy: introduced by
+=Platform=, last edited by =PlatformV2=. =broadPermitRiskDetected= shows why
+removal is substantive: the owner branch alone can allow another project's
+dataset through the legacy permit, while the integrated module denies it.
+
+=impactIsLocalFully= computes affected roots from the module graph. The
+platform revision affects =PlatformV2= and =GovernedV2=; =Governed=,
+=DataOwner=, =Compliance=, and =Sandbox= remain outside that dependency cone.
+=proofReuseFootprintExact= shows that the policy patch touches only the policy
+validation obligation. =patchedCertificate= reuses the baseline certificate
+and closes that one pending obligation; =certificate= transports the result to
+the updated authorization snapshot and then applies Cedar's soundness theorem.
+This is a checked proof reuse construction, not a timing or LOC benchmark.
+
+The five =unchangedCases= keep the same decision across the revision.
+=staleAttestationDeltaExact= isolates the intended difference: a stale
+attestation was allowed by the baseline policy and is denied after the
+platform overlay. The finite cases help inspect the evolution but are not a
+claim of complete real-world authorization coverage.
+
+The application must verify attestation and freshness, authenticate the
+approver, establish subscription state, bind all projected facts to this
+request, and enforce the returned decision. Those actions are external to the
+proof object and to Cedar evaluation.
+
+#+begin_src sh
+lake env lean Examples/Governance/AttestedDataAccess.lean
+just check
+#+end_src

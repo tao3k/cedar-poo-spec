@@ -18,4 +18,5 @@ check: build check-docs
     lake env lean Examples/AuthorizationSoundness.lean
     lake env lean Examples/Scenarios/TenantDevicePolicyEvolution.lean
     lake env lean Examples/Health/ClinicalBreakGlass.lean
+    lake env lean Examples/Governance/AttestedDataAccess.lean
     timeout --signal=TERM --kill-after=3s 30s lake env lean -M 2048 -T 10000000 Examples/ReuseScale.lean
