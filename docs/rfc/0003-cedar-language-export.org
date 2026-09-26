@@ -83,9 +83,10 @@ policy IDs, while the readable Cedar file records them in comments.
 computes the manifest from the existing Lean policy model, entity store,
 requests, and authorization responses. The Rust bridge checks nine cases
 across published, posture, revoked, and expanded revisions. Each case compares the
-authorization decision and the count of policy evaluation errors. It reparses
-the rendered =.cedar= syntax and checks that the decision and error count
-still match. A mismatch or parse failure exits with an error. The regular
+authorization decision, determining policy IDs, and IDs of policies with
+evaluation errors. It reparses the rendered =.cedar= syntax and checks that
+the decision and error count still match; Cedar assigns new IDs when parsing
+text, so ID comparison applies to the JSON artifact only. A mismatch or parse failure exits with an error. The regular
 check also fails if committed =.cedar= files differ from freshly generated
 output.
 
@@ -108,13 +109,16 @@ also checks the negative incomplete-ancestry export path.
 The [[file:../../Examples/Enterprise/PurchaseApproval.lean][procurement
 revision]] checks eight requests across base, budget, duties, and integrated
 roots, including a four-decimal-place amount boundary and self-approval veto.
+The delegated procurement case adds seven requests across the delegated and
+revoked roots, checking agent status, operator binding, duties, budget, and
+revocation. Its schema-validated publication is also rendered through Cedar.
 The extension coverage case adds eight requests across three extension
 families, including timezone normalization and a negative duration value.
 
 Each Lean receipt separately records the IDs returned by POO compilation,
 alongside the exported JSON. The Rust boundary checks that Cedar loaded
 exactly those IDs and only materialized policies, then compares the Lean and
-Rust decisions and error counts for each named request. Rust unit checks
+Rust decisions, determining policy IDs, and erroring policy IDs for each named request. Rust unit checks
 reject changed IDs, changed decisions, duplicate case names, unmaterialized
 template payloads, and conflicting revision artifacts. Cedar owns JSON and
 policy-language parsing; these checks target our translation boundary.
@@ -155,14 +159,19 @@ rev = "feat/cedar-evaluation-adapter"
 import CedarPooSpec.PolicyJson
 
 def main : IO Unit :=
-  match CedarPooSpec.PolicyJson.compiled myModel "Production" with
-  | .ok policies => IO.println policies.compress
-  | .error error => throw (IO.userError (reprStr error))
+  match CedarPooSpec.PolicyJson.publish myModel "Production" mySchema with
+  | .ok publication => IO.println publication.json.compress
+  | .error _ => throw (IO.userError "publication failed")
 #+end_src
 
 The top-level Cargo workspace makes the =cedar-poo-bridge= package available
 as a Git dependency. Its default library exposes =CompiledPolicyJson= and
-=to_json_string= for passing or storing a compiled artifact. Downstream Rust code
+=to_json_string= for passing or storing a compiled artifact. The
+=publish= API carries proofs that the chosen root compiled, the schema is well
+formed, Cedar validated the policy set against it, and serialization
+succeeded. =compiled= remains a lower-level unvalidated export. The proof is
+checked during Lean compilation; Rust receives the JSON artifact, not a
+transferable proof certificate. Downstream Rust code
 that already uses =cedar-policy= may parse this JSON through its own Cedar
 dependency. It does not need to depend on this bridge merely to load the
 artifact. The optional =cedar-runtime= feature exposes =load_policy_set= and

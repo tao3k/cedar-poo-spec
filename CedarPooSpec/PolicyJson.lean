@@ -2,6 +2,8 @@ import CedarPooSpec.PolicyModules
 import Cedar.Spec.Entities
 import Cedar.Spec.Request
 import Cedar.Spec.Authorizer
+import Cedar.Validation.Validator
+import Cedar.Validation.EnvironmentValidator
 import Lean
 
 /-!
@@ -261,6 +263,39 @@ def compiled (model : PolicyModules.Model) (root : String) :
   let policies ← (model.compile root).mapError Sum.inl
   (policySet policies).mapError Sum.inr
 
+inductive PublicationError where
+  | composition (error : PolicyModules.Error)
+  | schema (error : Cedar.Validation.EnvironmentValidationError)
+  | policy (error : Cedar.Validation.ValidationError)
+  | export (error : Error)
+
+/-- A publication carries the exact compiled set and Cedar validation premises. -/
+structure Publication (model : PolicyModules.Model) (root : String)
+    (schema : Cedar.Validation.Schema) where
+  policies : Policies
+  compiled : model.compile root = .ok policies
+  schemaValid : schema.validateWellFormed = .ok ()
+  policyValid : Cedar.Validation.validate policies schema = .ok ()
+  json : Lean.Json
+  serialized : policySet policies = .ok json
+
+/-- Produce a deployable policy artifact only after Cedar schema and policy validation. -/
+def publish (model : PolicyModules.Model) (root : String)
+    (schema : Cedar.Validation.Schema) :
+    Except PublicationError (Publication model root schema) :=
+  match hc : model.compile root with
+  | .error error => .error (.composition error)
+  | .ok policies =>
+    match hs : schema.validateWellFormed with
+    | .error error => .error (.schema error)
+    | .ok () =>
+      match hv : Cedar.Validation.validate policies schema with
+      | .error error => .error (.policy error)
+      | .ok () =>
+        match hj : policySet policies with
+        | .error error => .error (.export error)
+        | .ok json => .ok ⟨policies, hc, hs, hv, json, hj⟩
+
 /-- A concrete Cedar authorization receipt for a compiled POO root. -/
 def authorizationCase (name revision : String) (model : PolicyModules.Model)
     (root : String) (req : Request) (store : Entities) : Except String Lean.Json := do
@@ -281,6 +316,7 @@ def authorizationCase (name revision : String) (model : PolicyModules.Model)
     ("expected", Lean.toJson (match response.decision with
       | .allow => "allow"
       | .deny => "deny")),
-    ("expected_errors", Lean.toJson response.erroringPolicies.toList.length)]
+    ("expected_reasons", Lean.toJson response.determiningPolicies.toList),
+    ("expected_error_policies", Lean.toJson response.erroringPolicies.toList)]
 
 end CedarPooSpec.PolicyJson

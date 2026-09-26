@@ -50,6 +50,11 @@ check-country-approval:
 check-purchase-approval:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/PurchaseApproval.lean
 
+check-delegated-approval:
+    mkdir -p .lake/build/lib/lean/Examples/Enterprise
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Enterprise/PurchaseApproval.olean Examples/Enterprise/PurchaseApproval.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/DelegatedApproval.lean
+
 check-extension-coverage:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/ExtensionCoverage.lean
 
@@ -91,12 +96,17 @@ prepare-purchase-manifest: build
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Enterprise/PurchaseApproval.olean Examples/Enterprise/PurchaseApproval.lean
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/PurchaseApprovalExport.lean > .lake/build/purchase-approval-manifest.json
 
+prepare-delegated-manifest: prepare-purchase-manifest
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Enterprise/DelegatedApproval.olean Examples/Enterprise/DelegatedApproval.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/DelegatedApprovalExport.lean > .lake/build/delegated-approval-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/PublishedPolicy.lean > .lake/build/delegated-published.json
+
 prepare-extension-manifest: build
     mkdir -p .lake/build/lib/lean/Examples/Language
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Language/ExtensionCoverage.olean Examples/Language/ExtensionCoverage.lean
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Language/ExtensionCoverageExport.lean > .lake/build/extension-coverage-manifest.json
 
-export-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-extension-manifest
+export-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-delegated-manifest prepare-extension-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/Policies < .lake/build/ticket-sharing-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/AttestedPolicies < .lake/build/attested-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Health/Policies < .lake/build/clinical-manifest.json
@@ -104,10 +114,11 @@ export-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prep
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/NetworkPolicies < .lake/build/network-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/CountryPolicies < .lake/build/country-approval-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Policies < .lake/build/purchase-approval-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/DelegatedPolicies < .lake/build/delegated-approval-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Language/ExtensionPolicies < .lake/build/extension-coverage-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render < .lake/build/expanded-policy.json > Examples/Governance/Policies/expanded.cedar
 
-check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-extension-manifest
+check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepare-language-manifest prepare-network-manifest prepare-country-manifest prepare-purchase-manifest prepare-delegated-manifest prepare-extension-manifest
     cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features -e normal -p cedar-poo-bridge > .lake/build/bridge-default-tree.txt
     ! rg -q 'cedar-policy' .lake/build/bridge-default-tree.txt
     cargo fmt --manifest-path rust/Cargo.toml --check
@@ -122,6 +133,12 @@ check-cedar-language: prepare-cedar-manifest prepare-source-case-manifests prepa
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/NetworkPolicies < .lake/build/network-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/CountryPolicies < .lake/build/country-approval-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Policies < .lake/build/purchase-approval-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/DelegatedPolicies < .lake/build/delegated-approval-manifest.json
+    jq -S . .lake/build/delegated-published.json > .lake/build/delegated-published.sorted.json
+    jq -S ".cases[0].policies" .lake/build/delegated-approval-manifest.json > .lake/build/delegated-receipt.sorted.json
+    cmp .lake/build/delegated-published.sorted.json .lake/build/delegated-receipt.sorted.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render < .lake/build/delegated-published.json > .lake/build/delegated-published.cedar
+    cmp .lake/build/delegated-published.cedar Examples/Enterprise/DelegatedPolicies/delegated.cedar
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Language/ExtensionPolicies < .lake/build/extension-coverage-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render < .lake/build/expanded-policy.json > .lake/build/expanded.cedar
     cmp .lake/build/expanded.cedar Examples/Governance/Policies/expanded.cedar

@@ -17,15 +17,40 @@ The application must establish the order requester, order group, approval
 amount, and authenticated principal before calling Cedar. The model proves
 neither the provenance of those facts nor completion of a purchase.
 
+* Delegation source and application assumptions
+
+[[https://docs.cedarpolicy.com/bestpractices/bp-using-the-context.html][Cedar's context guidance]] explicitly describes the pattern where a user
+remains the principal and an agent appears in =context.viaAgent=. It also
+requires the application to include both entities in the entity store.
+[[file:DelegatedApproval.lean][DelegatedApproval.lean]] uses that pattern for
+procurement. The bot's operator binding, enabled flag, and explicit
+revocation are modeled requirements, not claims from Cedar or NIST. The
+caller must authenticate the agent and populate its entity facts; Cedar
+does not authenticate these inputs.
+
 * POO evolution
 
 =Base= permits operations approvers and deliberately lacks an amount bound.
 =Budget= overlays that policy with a decimal comparison against the order's
 limit. =Duties= independently adds a self-approval forbid. =Integrated=
-composes both branches. The eight named requests expose what each branch
+composes both branches. =Delegated= overlays the bounded permit with
+an agent operator and enabled check while preserving the duties veto.
+=Revoked= extends that root with a forbid for the purchasing bot. The
+eight original named requests expose what each branch
 alone misses: a self-approval below the limit and another approver's request
 above it. They also check the exact limit, one unit in the fourth decimal
 place above and below it, and a cross-department request.
+
+The seven [[file:DelegatedApprovalExport.lean][delegation requests]] distinguish
+an active agent, self approval, amount over the limit, inactive agent,
+wrong department, and revoked agent. =delegatedPublication= and
+=revokedPublication= establish schema and Cedar policy validation before
+publication. [[file:PublishedPolicy.lean][PublishedPolicy.lean]] emits the
+validated JSON; the check compares that exact JSON to the delegated
+conformance receipt, then the Rust bridge checks it and the generated
+[[file:DelegatedPolicies/delegated.cedar][Cedar source]]. These are finite
+conformance examples, not proofs that an arbitrary caller supplies genuine
+identity, delegation, or revocation state.
 
 =budgetEditLocal= checks that the budget revision changes only the permit
 body. =decisionsExactFully= checks the finite Lean request table. The
@@ -37,5 +62,6 @@ compliance certification.
 
 #+begin_src sh
 just check-purchase-approval
+just check-delegated-approval
 just check-cedar-language
 #+end_src

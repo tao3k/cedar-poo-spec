@@ -27,7 +27,8 @@ fn receipt() -> Case {
             "context": {}
         },
         "expected": "allow",
-        "expected_errors": 0
+        "expected_reasons": ["base"],
+        "expected_error_policies": []
     }))
     .expect("valid local receipt")
 }
@@ -69,6 +70,28 @@ fn rejects_policy_id_drift_from_lean_receipt() {
         check_manifest(&Manifest { cases: vec![case] })
             .unwrap_err()
             .contains("loaded policy IDs differ")
+    );
+}
+
+#[test]
+fn rejects_reason_drift_with_unchanged_decision() {
+    let mut case = receipt();
+    case.expected_reasons.clear();
+    assert!(
+        check_manifest(&Manifest { cases: vec![case] })
+            .unwrap_err()
+            .contains("reasons")
+    );
+}
+
+#[test]
+fn rejects_error_policy_drift_with_unchanged_count() {
+    let mut case = receipt();
+    case.expected_error_policies = vec!["other".into()];
+    assert!(
+        check_manifest(&Manifest { cases: vec![case] })
+            .unwrap_err()
+            .contains("errors")
     );
 }
 

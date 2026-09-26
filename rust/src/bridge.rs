@@ -1,7 +1,9 @@
 //! Parse official Cedar JSON and compare Rust authorization to Lean receipts.
 
 use crate::CompiledPolicyJson;
-use cedar_policy::{Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request};
+use cedar_policy::{
+    AuthorizationError, Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request,
+};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -26,7 +28,8 @@ pub struct Case {
     pub entities: Value,
     pub request: RequestInput,
     pub expected: String,
-    pub expected_errors: usize,
+    pub expected_reasons: Vec<String>,
+    pub expected_error_policies: Vec<String>,
 }
 
 /// Bundle of Lean-computed cases for the official Cedar engine.
@@ -170,11 +173,42 @@ fn check_case(case: &Case) -> Result<(), String> {
         Decision::Allow => "allow",
         Decision::Deny => "deny",
     };
-    let errors = response.diagnostics().errors().count();
-    if decision != case.expected || errors != case.expected_errors {
+    let reasons = response
+        .diagnostics()
+        .reason()
+        .map(ToString::to_string)
+        .collect::<BTreeSet<_>>();
+    let error_policies = response
+        .diagnostics()
+        .errors()
+        .map(|error| match error {
+            AuthorizationError::PolicyEvaluationError(error) => error.policy_id().to_string(),
+        })
+        .collect::<BTreeSet<_>>();
+    let expected_reasons = case
+        .expected_reasons
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let expected_error_policies = case
+        .expected_error_policies
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if decision != case.expected
+        || reasons != expected_reasons
+        || error_policies != expected_error_policies
+        || expected_reasons.len() != case.expected_reasons.len()
+        || expected_error_policies.len() != case.expected_error_policies.len()
+    {
         return Err(format!(
-            "expected {} with {} errors, got {} with {} errors",
-            case.expected, case.expected_errors, decision, errors
+            "expected {} reasons {:?} errors {:?}, got {} reasons {:?} errors {:?}",
+            case.expected,
+            expected_reasons,
+            expected_error_policies,
+            decision,
+            reasons,
+            error_policies
         ));
     }
     let text = render_policy_set(&policies)?;
@@ -182,7 +216,7 @@ fn check_case(case: &Case) -> Result<(), String> {
         .map_err(|error| format!("rendered Cedar text parse: {error}"))?;
     let reparsed = Authorizer::new().is_authorized(&request, &parsed, &entities);
     if reparsed.decision() != response.decision()
-        || reparsed.diagnostics().errors().count() != errors
+        || reparsed.diagnostics().errors().count() != error_policies.len()
     {
         return Err("rendered Cedar text changed authorization behavior".into());
     }

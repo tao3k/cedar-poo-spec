@@ -7,7 +7,7 @@ separation of duties. Amount limits, organization, and identities are fictive.
 
 namespace CedarPooSpec.PurchaseApprovalExample
 
-open Cedar.Spec Cedar.Data CedarPooSpec.PolicyModules
+open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
 
 def userType : EntityType := ⟨"User", []⟩
 def roleType : EntityType := ⟨"Role", []⟩
@@ -43,6 +43,24 @@ def entities : Entities := Map.make [
   (operationsOrder, orderData alice operations),
   (researchOrder, orderData bob research),
   (approve, emptyData)]
+
+def userEntry : EntitySchemaEntry :=
+  .standard ⟨Set.make [roleType], Map.empty, none⟩
+def roleEntry : EntitySchemaEntry :=
+  .standard ⟨Set.empty, Map.empty, none⟩
+def orderEntry : EntitySchemaEntry :=
+  .standard ⟨Set.make [groupType], Map.make [
+    ("requester", .required (.entity userType)),
+    ("limit", .required (.ext .decimal))], none⟩
+def groupEntry : EntitySchemaEntry :=
+  .standard ⟨Set.empty, Map.empty, none⟩
+def actionEntry : ActionSchemaEntry :=
+  ⟨Set.make [userType], Set.make [orderType], Set.empty,
+    Map.make [("amount", .required (.ext .decimal))]⟩
+def schema : Schema :=
+  ⟨Map.make [(userType, userEntry), (roleType, roleEntry),
+    (orderType, orderEntry), (groupType, groupEntry)],
+    Map.make [(approve, actionEntry)]⟩
 
 def amount : Expr := .getAttr (.var .context) "amount"
 def limit : Expr := .getAttr (.var .resource) "limit"
@@ -101,5 +119,21 @@ theorem decisionsExactFully : decisionsExact = true := by native_decide
 theorem budgetEditLocal :
     ((model.compileRevision "Base" "Budget").toOption.get
       (by native_decide)).changedPolicyIds = ["operations-approval"] := by native_decide
+
+theorem validatedPublication :
+    (CedarPooSpec.PolicyJson.publish model "Integrated" schema).isOk = true := by
+  native_decide
+
+def malformedPermit : Policy :=
+  { boundedPermit with condition :=
+      [{ kind := .when, body := .lit (.string "not-boolean") }] }
+def malformedModel : Model := { modules := model.modules ++ [
+  { name := "Malformed", parentOrders := [["Integrated"]],
+    edits := [.overlay malformedPermit] }] }
+
+theorem malformedPublicationRejected :
+    (match CedarPooSpec.PolicyJson.publish malformedModel "Malformed" schema with
+     | .error (.policy _) => true
+     | _ => false) = true := by native_decide
 
 end CedarPooSpec.PurchaseApprovalExample
