@@ -41,7 +41,7 @@ invalidation, and certificate reuse across C4 composition.
 | Authorization | Transport Cedar's policy-set and response-level soundness theorems. |
 | Entity slicing | Certify equality of full and request-relative sliced authorization responses. |
 | Policy modules | Compile C4-ordered extend, overlay, and remove edits into Cedar policies; reject ambiguous edits and retain an edit trace and policy provenance. |
-| Policy revision | Compare compiled policy bodies by ID and patch authorization proofs only when the ordered Cedar policy set changes. |
+| Policy revision | Compare compiled policy bodies by ID, validate only fresh bodies when the schema is unchanged, and patch authorization proofs only when the ordered Cedar policy set changes. |
 | Reuse probe | Check dependency selection across 10,000 indexed evaluator obligations. |
 
 Agent delegation, device trust, temporal authorization, and healthcare

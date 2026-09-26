@@ -33,9 +33,24 @@ The separate =Revision.authorizationPatch= maps a revision to the Cedar
 authorization proof object. It emits an empty patch only when the complete
 ordered policy lists are equal; otherwise it replaces the policy-set key.
 Consequently a no-edit descendant can reuse the whole certificate, while a
-changed policy set selects Cedar's whole-set validation obligation. This
-adapter does not yet split that Cedar obligation into independently reusable
-per-policy certificates.
+changed policy set selects Cedar's whole-set validation obligation.
+=Revision.freshPolicies= selects policy bodies absent from the baseline;
+=Revision.validateAfter= derives Cedar's whole-set =validate= premise from
+baseline validation and fresh-body checks. This derivation uses the upstream
+validator's per-policy =forM= structure, so removed and reordered bodies need
+no new typechecking proof when the schema is unchanged. The proof-object
+dependency key remains the complete ordered policy set. Per-policy proof
+objects and schema-change reuse are still separate extensions.
+=Revision.authorizationPatch_object= proves that applying the diagnostic patch
+to the baseline produces the exact revised proof object.
+=Revision.authorizationCertificate= reuses the baseline schema, request, and
+entity premises and derives the revised policy premise from fresh-body checks;
+callers supply only the baseline certificate and those fresh checks.
+=Revision.patchedAuthorizationCertificate= exposes the same result on the
+Lean-POO patched proof object.
+The governance example checks a reorder explicitly: the fresh-body set is
+empty, yet the ordered policy list changes and therefore the authorization
+patch still touches the policy key.
 
 * Executable scenario
 
@@ -55,7 +70,9 @@ and audit remain responsibilities of the calling application.
 [[file:../../Examples/Governance/README.org][The attested governance case]] isolates a platform attestation overlay
 from independent data-owner and compliance branches. It checks the changed
 policy ID, graph impact, one pending policy-validation obligation, and a
-no-edit descendant whose revision has no pending obligations.
+no-edit descendant whose revision has no pending obligations. Its updated
+certificate closes the policy-validation obligation by checking only the
+new attestation policy body.
 
 This scenario shows fewer repeated policy records for four revisions, but
 does not claim a measured LOC or maintenance-cost reduction. Broader claims

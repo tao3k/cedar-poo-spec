@@ -41,13 +41,22 @@ dataset through the legacy permit, while the integrated module denies it.
 
 =impactIsLocalFully= computes affected roots from the module graph. The
 platform revision affects =PlatformV2=, =GovernedV2=, and its =AuditView=
-descendant; =Governed=, =DataOwner=, =Compliance=, and =Sandbox= remain
+descendant, plus =GovernedV2Reordered=; =Governed=, =DataOwner=,
+=Compliance=, and =Sandbox= remain
 outside that dependency cone. =policyDeltaExact= checks that only the
 =attested-platform= policy body differs between the two governed roots.
 =proofReuseFootprintExact= shows that the policy patch touches only the policy
-validation obligation. =patchedCertificate= reuses the baseline certificate
-and closes that one pending obligation; =certificate= transports the result to
-the updated authorization snapshot and then applies Cedar's soundness theorem.
+validation obligation. =Revision.authorizationPatch_object= proves that the
+patch materializes the exact revised proof object. =patchedCertificate= uses
+the public =Revision.patchedAuthorizationCertificate= API to reuse the
+baseline Cedar premises and reclose policy validation; =certificate=
+transports that result to the revised snapshot and applies Cedar's soundness
+theorem.
+The policy-validation premise is itself reclosed through
+=Revision.validateAfter=: =freshPoliciesExact= identifies just the revised
+attestation policy body, =freshPoliciesValidate= checks that body with Cedar's
+validator, and the other policy bodies reuse validation derived from the
+baseline. No second whole-set validation computation is used in this proof.
 
 =AuditView= adds no edits. Its compiled policy list is exactly the same as
 =GovernedV2=. =auditRevisionHasNoPolicyDelta= reports no changed policy IDs;
@@ -56,6 +65,13 @@ metadata-only extension needs no Cedar premise recheck. The patch uses exact
 ordered policy-list equality before choosing an empty write footprint:
 policy-ID diff alone would miss a reordering. These are checked proof reuse
 constructions, not timing or LOC benchmarks.
+
+=GovernedV2Reordered= changes C4 parent precedence while retaining every
+policy body. =reorderHasNoFreshPolicies= and =reorderedPoliciesValidate=
+prove that Cedar typechecking needs no fresh body check. Nevertheless,
+=reorderChangesOrderedList= and =reorderStillTouchesPolicyKey= prove that the
+authorization proof object's ordered policy list must be patched. This keeps
+the state truthful while reusing the validation proofs.
 
 The five =unchangedCases= keep the same decision across the revision.
 =staleAttestationDeltaExact= isolates the intended difference: a stale

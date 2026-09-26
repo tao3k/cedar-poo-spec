@@ -1,4 +1,5 @@
 import CedarPooSpec.Revision
+import CedarPooSpec.PolicyValidation
 import CedarPooSpec.Soundness
 
 /-!
@@ -130,29 +131,46 @@ def governed : Module :=
 def governedV2 : Module :=
   { name := "GovernedV2", parentOrders := [["DataOwner", "PlatformV2", "Compliance"]],
     edits := [.overlay purposePermit, .remove legacyPermit.id] }
+def governedV2Reordered : Module :=
+  { name := "GovernedV2Reordered",
+    parentOrders := [["Compliance", "DataOwner", "PlatformV2"]],
+    edits := [.overlay purposePermit, .remove legacyPermit.id] }
 def sandbox : Module :=
   { name := "Sandbox", parentOrders := [["Base"]] }
 def auditView : Module :=
   { name := "AuditView", parentOrders := [["GovernedV2"]] }
 def model : Model :=
   { modules := [base, dataOwner, platform, platformV2, compliance,
-      governed, governedV2, sandbox, auditView] }
+      governed, governedV2, governedV2Reordered, sandbox, auditView] }
 def revision : Revision :=
   (model.compileRevision "Governed" "GovernedV2").toOption.get (by native_decide)
 def compilation : Compilation :=
   revision.after
-def updatedPolicies : Policies := compilation.policies.map CompiledPolicy.policy
-def baselinePolicies : Policies :=
-  revision.before.policies.map CompiledPolicy.policy
+def updatedPolicies : Policies := revision.afterPolicies
+def baselinePolicies : Policies := revision.beforePolicies
 theorem policyDeltaExact : revision.changedPolicyIds = ["attested-platform"] := by
   native_decide
 theorem policyListsDiffer :
-    revision.before.policies.map CompiledPolicy.policy ≠
-      revision.after.policies.map CompiledPolicy.policy := by
+    revision.beforePolicies ≠ revision.afterPolicies := by
   native_decide
 def auditRevision : Revision :=
   (model.compileRevision "GovernedV2" "AuditView").toOption.get (by native_decide)
 theorem auditRevisionHasNoPolicyDelta : auditRevision.changedPolicyIds = [] := by
+  native_decide
+def reorderRevision : Revision :=
+  (model.compileRevision "GovernedV2" "GovernedV2Reordered").toOption.get
+    (by native_decide)
+theorem reorderHasNoFreshPolicies : reorderRevision.freshPolicies = [] := by
+  native_decide
+theorem reorderChangesOrderedList :
+    reorderRevision.beforePolicies ≠ reorderRevision.afterPolicies := by
+  native_decide
+theorem reorderStartsFromUpdatedPolicies :
+    reorderRevision.beforePolicies = updatedPolicies := by
+  native_decide
+theorem reorderStillTouchesPolicyKey :
+    changedDependencies policiesObligation reorderRevision.authorizationPatch =
+      [.policies] := by
   native_decide
 
 structure Facts where
@@ -226,8 +244,9 @@ theorem compositionTraceConformsFully : compositionTraceConforms = true := by
 
 def impactIsLocal : Bool :=
   let affected := invalidatedNodes model.graph ["PlatformV2"]
-  affected.length == 3 &&
+  affected.length == 4 &&
   affected.contains "PlatformV2" && affected.contains "GovernedV2" &&
+  affected.contains "GovernedV2Reordered" &&
   affected.contains "AuditView" &&
   !affected.contains "Governed" && !affected.contains "DataOwner" &&
   !affected.contains "Compliance" && !affected.contains "Sandbox"
@@ -235,10 +254,6 @@ theorem impactIsLocalFully : impactIsLocal = true := by native_decide
 
 def policyRevision : Patch AuthorizationKey AuthorizationValue :=
   revision.authorizationPatch
-theorem policyRevisionEq :
-    policyRevision = Patch.set .policies updatedPolicies := by
-  simp [policyRevision, Revision.authorizationPatch, policyListsDiffer,
-    updatedPolicies, compilation]
 def proofReuseFootprint : Bool :=
   (match changedDependencies policiesObligation policyRevision with
    | [.policies] => true
@@ -250,9 +265,9 @@ theorem proofReuseFootprintExact : proofReuseFootprint = true := by native_decid
 
 def authorizedRequest : Request := request customerDataset {}
 def baselineSnapshot : AuthorizationSnapshot :=
-  ⟨baselinePolicies, schema, authorizedRequest, entities⟩
+  revision.beforeSnapshot schema authorizedRequest entities
 def snapshot : AuthorizationSnapshot :=
-  ⟨updatedPolicies, schema, authorizedRequest, entities⟩
+  revision.afterSnapshot schema authorizedRequest entities
 theorem auditRevisionHasNoPendingProofs :
     (pending snapshot.proofObject auditRevision.authorizationPatch).isEmpty = true := by
   native_decide
@@ -267,37 +282,33 @@ theorem baselineCertificate : Certificate baselineSnapshot.proofObject :=
     (okOfIsOk _ (by native_decide))
     (okOfIsOk _ (by native_decide))
     (okOfIsOk _ (by native_decide))
-theorem patchedCertificate :
-    Certificate (append baselineSnapshot.proofObject policyRevision) := by
-  apply closePending baselineSnapshot.proofObject policyRevision baselineCertificate
-  intro obligation membership
-  have policyOnly : obligation = policiesObligation := by
-    simp [pending, baselineSnapshot, AuthorizationSnapshot.proofObject,
-      changedDependencies] at membership
-    rcases membership with ⟨owned, changed⟩ | added
-    · rcases owned with rfl | rfl | rfl | rfl
-      · simp [schemaObligation, policyRevisionEq, Patch.set] at changed
-      · rfl
-      · simp [requestObligation, policyRevisionEq, Patch.set] at changed
-      · simp [entitiesObligation, policyRevisionEq, Patch.set] at changed
-    · simp [policyRevisionEq, Patch.set] at added
-  subst obligation
-  rw [policyRevisionEq]
-  change validate updatedPolicies schema = .ok ()
+theorem freshPoliciesExact :
+    revision.freshPolicies = [platformVetoV2] := by
+  native_decide
+theorem freshPoliciesValidate :
+    ∀ policy ∈ revision.freshPolicies,
+      PolicyValidation.check policy schema = .ok () := by
+  intro policy membership
+  have same : policy = platformVetoV2 := by
+    simpa [freshPoliciesExact] using membership
+  subst policy
   exact okOfIsOk _ (by native_decide)
-theorem patchedObjectEq :
-    append baselineSnapshot.proofObject policyRevision = snapshot.proofObject := by
-  apply (ProofObject.mk.injEq _ _ _ _).mpr
-  constructor
-  · funext key
-    cases key <;> simp [policyRevisionEq, Patch.set, snapshot,
-      baselineSnapshot, AuthorizationSnapshot.proofObject,
-      AuthorizationSnapshot.state]
-    all_goals rfl
-  · simp [policyRevisionEq, Patch.set,
-      AuthorizationSnapshot.proofObject]
+theorem updatedPoliciesValidate : validate updatedPolicies schema = .ok () :=
+  revision.validateAfter schema (okOfIsOk _ (by native_decide))
+    freshPoliciesValidate
+theorem reorderedPoliciesValidate :
+    validate reorderRevision.afterPolicies schema = .ok () := by
+  apply reorderRevision.validateAfter schema
+    (by simpa [reorderStartsFromUpdatedPolicies] using updatedPoliciesValidate)
+  intro policy membership
+  simp [reorderHasNoFreshPolicies] at membership
+theorem patchedCertificate :
+    Certificate (append baselineSnapshot.proofObject policyRevision) :=
+  revision.patchedAuthorizationCertificate schema authorizedRequest entities
+    baselineCertificate freshPoliciesValidate
 theorem certificate : Certificate snapshot.proofObject := by
-  rw [← patchedObjectEq]
+  change Certificate (revision.afterSnapshot schema authorizedRequest entities).proofObject
+  rw [← revision.authorizationPatch_object]
   exact patchedCertificate
 theorem auditCertificate :
     Certificate (append snapshot.proofObject auditRevision.authorizationPatch) := by
