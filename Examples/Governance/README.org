@@ -117,6 +117,36 @@ attestation was allowed by the baseline policy and is denied after the
 platform overlay. The finite cases help inspect the evolution but are not a
 claim of complete real-world authorization coverage.
 
+* Ticket-sharing template revision
+
+[[file:TicketSharing.lean][TicketSharing.lean]] adapts Cedar's published
+[[https://docs.cedarpolicy.com/overview/patterns.html][discretionary ticket-sharing pattern]]: an application links a user and
+an open ticket to a policy template. The
+[[https://docs.cedarpolicy.com/policies/templates.html][Cedar template specification]] says a template edit affects every linked
+policy. The principals, tickets, and device-posture requirement in this
+example are fictive additions for exercising a revision; they are not
+reported as a deployed ticket system.
+
+=TemplateValidation.LinkedSet= calls upstream =Cedar.Spec.link?= before
+using the certified policy cache. A revised contributor template changes
+two linked bodies while the viewer link stays identical. The POO module
+overlays only =freshPolicies=, then a descendant removes one link. The
+checked decisions distinguish the template update, an unchanged viewer,
+closed-ticket denial, and actual revocation of an otherwise allowed share.
+=revokedAligned= proves the POO removal produces exactly the same policy list
+as deleting the link and calling upstream Cedar's linker again, so the two
+revision paths do not create competing authorization snapshots.
+=missingSlotRejected= and =invalidTemplateRejected= show that linking and
+validation failures stay distinct. =revisedCertificate= reuses the baseline
+authorization certificate and requires fresh per-policy certificates only
+for the two changed linked bodies. =revokedCertificate= then closes the
+removal revision without a new policy-body certificate.
+
+This model calls =tryRefresh= explicitly when a template changes. Actual
+applications must trigger that update, control template writes, and enforce
+the resulting Cedar decision. The example does not model a Verified
+Permissions service or its control plane.
+
 The application must verify attestation and freshness, authenticate the
 approver, establish subscription state, bind all projected facts to this
 request, and enforce the returned decision. Those actions are external to the

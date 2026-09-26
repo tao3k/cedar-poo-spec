@@ -6,3 +6,4 @@ import CedarPooSpec.Slicing
 import CedarPooSpec.PolicyModules
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
+import CedarPooSpec.TemplateValidation

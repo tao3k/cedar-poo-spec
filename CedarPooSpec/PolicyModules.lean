@@ -15,6 +15,13 @@ inductive Edit where
   | overlay (policy : Policy)
   | remove (policyId : PolicyID)
 
+/-- Lift a generated policy family into explicit POO edits. -/
+def Edit.extendAll (policies : Policies) : List Edit :=
+  policies.map Edit.extend
+
+def Edit.overlayAll (policies : Policies) : List Edit :=
+  policies.map Edit.overlay
+
 structure Module where
   name : String
   parentOrders : List (List String) := []

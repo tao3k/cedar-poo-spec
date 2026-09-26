@@ -17,7 +17,7 @@ check: build check-docs
     just check-policy-reuse
 
 [parallel]
-check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-governance check-reuse-scale
+check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-governance check-ticket-sharing check-reuse-scale
 
 check-evaluation:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Evaluation.lean
@@ -36,6 +36,9 @@ check-health:
 
 check-governance:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/AttestedDataAccess.lean
+
+check-ticket-sharing:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/TicketSharing.lean
 
 check-reuse-scale:
     timeout --signal=TERM --kill-after=3s 30s lake env lean -M 2048 -T 10000000 Examples/ReuseScale.lean
