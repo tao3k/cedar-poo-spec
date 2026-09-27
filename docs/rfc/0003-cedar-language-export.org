@@ -274,9 +274,11 @@ within one manifest call while still checking every request and rejecting a
 changed policy payload under an existing revision name. Before this change,
 the 68-case manifest's =render_artifacts= and =check_manifest= p50 values were
 10.2 and 58.9 milliseconds on this host. After the change, one benchmark run
-measured 0.62 and 11.7 milliseconds respectively. The release benchmark is
-reproducible through =just bench-rust-export=; these numbers describe this
-fixture and host, not a universal latency bound.
+measured p50/p95 of 0.62/4.66 and 11.7/55.0 milliseconds respectively.
+The release benchmark is reproducible through =just bench-rust-export=;
+these numbers describe this fixture and host, not a universal latency bound.
+The full manifest check evaluates every request and is not a sub-millisecond
+operation.
 
 Starting the separately compiled release CLI for each three-policy artifact
 had an 8.4 millisecond median over 100 local invocations. Applications that
