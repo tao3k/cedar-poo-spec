@@ -1,4 +1,5 @@
 import CedarPooSpec.PolicyModules
+import CedarPooSpec.SchemaAdmission
 import Cedar.Spec.Entities
 import Cedar.Spec.Request
 import Cedar.Spec.Authorizer
@@ -350,6 +351,7 @@ structure Publication (model : PolicyModules.Model) (root : String)
     (schema : Cedar.Validation.Schema) where
   policies : Policies
   compiled : model.compile root = .ok policies
+  schemaDefinitionsValid : SchemaAdmission.validateDefinitions schema = .ok ()
   schemaValid : schema.validateWellFormed = .ok ()
   policyValid : Cedar.Validation.validate policies schema = .ok ()
   idsUnique : (policies.map Policy.id).Nodup
@@ -378,9 +380,12 @@ def publish (model : PolicyModules.Model) (root : String)
   match hc : model.compile root with
   | .error error => .error (.composition error)
   | .ok policies =>
-    match hs : schema.validateWellFormed with
+    match ha : SchemaAdmission.validateDefinitions schema with
     | .error error => .error (.schema error)
     | .ok () =>
+      match hs : schema.validateWellFormed with
+      | .error error => .error (.schema error)
+      | .ok () =>
       match hv : Cedar.Validation.validate policies schema with
       | .error error => .error (.policy error)
       | .ok () =>
@@ -388,7 +393,7 @@ def publish (model : PolicyModules.Model) (root : String)
         | .error error => .error (.export error)
         | .ok json =>
           if unique : (policies.map Policy.id).Nodup then
-            .ok ⟨policies, hc, hs, hv, unique, json, hj⟩
+            .ok ⟨policies, hc, ha, hs, hv, unique, json, hj⟩
           else
             .error .duplicatePolicyIds
 

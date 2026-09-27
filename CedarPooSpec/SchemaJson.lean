@@ -1,4 +1,4 @@
-import Cedar.Validation.EnvironmentValidator
+import CedarPooSpec.SchemaAdmission
 import Lean
 
 /-! A bounded projection of Cedar Lean schemas into Cedar's public JSON schema. -/
@@ -67,10 +67,7 @@ private def actionEntry (uid : EntityUID) (entry : ActionSchemaEntry) : Except E
       ("context", ← recordType entry.context)])]
 
 def schema (input : Schema) : Except Error Lean.Json := do
-  let env : TypeEnv := { ets := input.ets, acts := input.acts, reqty := default }
-  if let .error error := input.ets.validateWellFormed env then
-    throw (.invalidSchema (toString error))
-  if let .error error := input.acts.validateWellFormed env then
+  if let .error error := SchemaAdmission.validateDefinitions input then
     throw (.invalidSchema (toString error))
   if let .error error := input.validateWellFormed then
     throw (.invalidSchema (toString error))

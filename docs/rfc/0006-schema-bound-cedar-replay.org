@@ -11,10 +11,13 @@ references, and the four pinned Cedar extension types. It rejects Boolean
 refinements and action type names that the public JSON form cannot represent
 faithfully. The Rust =cedar-runtime= feature parses the result with
 =cedar_policy::Schema::from_json_value=.
-The Lean projection checks entity and action definitions directly, then runs
-=Schema.validateWellFormed= before emitting public JSON. The direct check
-also covers schemas with no action request environments; a dangling entity
-ancestor in such a schema is rejected at the projection boundary.
+The shared =SchemaAdmission.validateDefinitions= API checks entity and action
+definitions before the existing =Schema.validateWellFormed= check. Both
+=SchemaJson.schema= and =PolicyJson.publish= use it. The definition check
+covers schemas with no action request environments: a dangling entity
+ancestor is rejected before JSON projection or publication. A successful
+=Publication= carries the definition-validation premise as well as Cedar's
+request-environment and policy-validation premises.
 
 =ValidatedManifest= carries one schema and a set of Lean-generated cases.
 =replay_validated_manifest= uses Cedar's strict policy validator for each

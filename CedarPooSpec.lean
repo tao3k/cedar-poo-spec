@@ -8,6 +8,7 @@ import CedarPooSpec.CompoundAuthorization
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
 import CedarPooSpec.TemplateValidation
+import CedarPooSpec.SchemaAdmission
 import CedarPooSpec.PolicyJson
 import CedarPooSpec.SchemaJson
 import CedarPooSpec.AuthorizationDelta
