@@ -5,6 +5,7 @@ import Examples.Governance.AttestedDataAccessExport
 import Examples.Governance.AttestedSchemaEvolutionExport
 import Examples.Language.ScopeAndPatternExport
 import Examples.Language.ScopeAndPatternValidatedExport
+import Examples.Language.NamespacedEnumValidatedExport
 import Examples.Governance.TrustedNetworkDataAccessExport
 import Examples.Governance.TrustedNetworkValidatedExport
 import Examples.Governance.CountryApprovalExport
@@ -39,6 +40,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("attested-schema-evolution", fun _ => AttestedSchemaEvolutionExport.bundle),
   ("scope-pattern", fun _ => ScopeAndPatternExport.manifest),
   ("scope-pattern-validated", fun _ => ScopeAndPatternValidatedExport.manifest),
+  ("namespaced-enum-validated", fun _ => NamespacedEnumValidatedExport.manifest),
   ("network", fun _ => TrustedNetworkDataAccessExport.manifest),
   ("network-validated", fun _ => TrustedNetworkValidatedExport.manifest),
   ("country-approval", fun _ => CountryApprovalExport.manifest),

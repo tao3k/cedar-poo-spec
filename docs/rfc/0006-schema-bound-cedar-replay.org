@@ -71,6 +71,11 @@ group and folder ancestry, and five schema-parsed requests. Its companion
 Lean check rejects a schema with a dangling ancestor. This covers nested
 record projection under a real policy overlay rather than only inspecting
 the JSON shape.
+The [[file:../../Examples/Language/NamespacedEnumValidatedExport.lean][namespaced enum exporter]]
+checks four requests across =Org= and =Data= namespaces. Its POO overlay
+narrows a document grant using an enumerated classification entity attribute.
+The official Rust boundary parses the projected namespace map and validates
+the fully qualified cross-namespace references.
 
 The [[file:../../Examples/Enterprise/Agent/DataFlow/ValidatedExport.lean][data-flow exporter]]
 reuses thirty well-formed read and publish layer cases. It checks required

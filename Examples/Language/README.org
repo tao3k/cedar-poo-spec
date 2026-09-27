@@ -30,6 +30,24 @@ case, not a domain policy recommendation. Cedar Lean admits =is= in an action
 scope, while Cedar's concrete grammar does not; the exporter rejects that
 abstract-only form with =unsupportedScope=.
 
+* Namespaced enum composition
+
+[[file:NamespacedEnum.lean][NamespacedEnum.lean]] uses separate =Org= and =Data=
+namespaces. The =Org::Action::"read"= action applies to =Org::User= and
+=Data::Document=. A required document attribute refers to the enumerated
+=Data::Classification= entity type. The =Published= module permits both public
+and restricted documents; the =Scoped= POO overlay narrows the same policy to
+the public classification. Four Lean decisions and policy validations are
+checked, then [[file:NamespacedEnumValidatedExport.lean][the validated exporter]]
+passes the same requests through Cedar's official schema parser, strict
+validator, typed entity parser, and authorizer. This checks fully qualified
+cross-namespace references and enum membership at the adapter boundary.
+The JSON shape follows Cedar's [[https://docs.cedarpolicy.com/schema/json-schema.html][public schema format]].
+
+#+begin_src sh
+just check-schema-bound-scenarios
+#+end_src
+
 * Complete extension boundary
 
 [[file:ExtensionCoverage.lean][ExtensionCoverage.lean]] checks all 22
