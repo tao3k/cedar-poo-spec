@@ -112,10 +112,15 @@ a transcription of a deployed hospital system.
 
 | Source | Published boundary | Model choice |
 |--------+--------------------+--------------|
+| [[https://www.fda.gov/science-research/artificial-intelligence-and-medical-products/fda-digital-health-and-artificial-intelligence-glossary-educational-resource][FDA digital-health and AI glossary]] | Its assistive-AI example includes a wearable monitoring vital signs and alerting a user or provider. | A fictive wearable observation enters an AI analysis step before a clinician releases an alert. The example does not evaluate alert accuracy. |
 | [[https://hl7.org/fhir/us/core/STU7/scopes.html][HL7 US Core SMART scopes]] | Patient, user, and system scopes can limit access to Observation data, including the vital-signs category. | =analyze-vitals= permits only the vital-signs category and treatment purpose. OAuth scope and patient identity validation remain with the host. |
 | [[https://hl7.org/fhir/R4/consent.html][HL7 FHIR R4 Consent]] | Consent provisions can identify actors, purposes, periods, security labels, and controlled data. | =consentActive= is a coarse, trusted projection on one Observation. The example does not parse or enforce a FHIR Consent resource. |
 | [[https://www.fda.gov/medical-devices/safety-communications/cybersecurity-vulnerabilities-certain-patient-monitors-contec-and-epsimed-fda-safety-communication][FDA patient-monitor safety communication]] | Certain connected monitors had vulnerabilities involving unauthorized control and data exfiltration; FDA described local-only monitoring or a patch as responses. | =DeviceSecurity= vetoes untrusted input. =Quarantined= isolates one fictive source while other devices remain usable; =Recovered= removes that policy after an externally verified remediation. |
 | [[https://www.fda.gov/regulatory-information/search-fda-guidance-documents/marketing-submission-recommendations-predetermined-change-control-plan-artificial-intelligence][FDA AI device change-control guidance]] | AI-enabled device software changes require planned evaluation within the guidance's scope. | =ClinicalAI= adds a locally defined =modelApproved= gate. This Boolean is not a claim of FDA approval or regulatory compliance. |
+
+The FDA safety communication concerns specific connected patient monitors,
+not the fictive wearable here. It motivates the incident-response pattern;
+the example does not claim those products or vulnerabilities are identical.
 
 ** POO scenario and checked behavior
 
