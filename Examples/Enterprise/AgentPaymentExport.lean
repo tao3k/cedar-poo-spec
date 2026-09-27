@@ -14,8 +14,3 @@ def manifest : Except String Lean.Json := do
   return Lean.Json.mkObj [("cases", Lean.toJson rows)]
 
 end CedarPooSpec.AgentPaymentExport
-
-def main : IO Unit :=
-  match CedarPooSpec.AgentPaymentExport.manifest with
-  | .ok json => IO.println json.compress
-  | .error message => throw (IO.userError message)

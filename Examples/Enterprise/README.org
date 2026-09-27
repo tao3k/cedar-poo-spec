@@ -186,6 +186,60 @@ just check-agent-delegation
 just check-cedar-language
 #+end_src
 
+* Why POO for three, four, and five authorization layers
+
+The [[https://github.com/aws-samples/sample-cedar-agentic-ai-authorization][AWS reference sample]] defines three kinds of checks: agent-to-tool,
+agent-to-agent delegation, and originating-user authorization. Its
+delegation policy also constrains hop depth and target capabilities. The
+[[file:AgentChain.lean][AgentChain.lean]] example extends that pattern to paths
+with more delegation hops; those longer paths are this project's modeled
+extension, not behavior claimed for the AWS sample.
+
+| Path | Required checks | Result |
+|------+-----------------+--------|
+| Orchestrator to data bot | Tool, one delegation, origin = 3 layers | Admin with MFA can proceed. |
+| Orchestrator to routing bot to data bot | Tool, two delegations, origin = 4 layers | The same delegation root checks both hops. |
+| Orchestrator to routing bot to compliance bot to data bot | Tool, three delegations, origin = 5 layers | The old origin depth limit denies; =ChainGoverned= combines the revised controls. |
+
+POO is useful here because the authorization topology evolves without
+copying a Cedar policy for every chain length. =ChainDelegation= overlays the
+original =DelegationBounded= policy once, generalizing its scope while keeping
+its depth and target-capability check. The same root evaluates each hop.
+=ChainOrigin= overlays only the originating-user policy to admit the third
+hop, retaining Admin role and MFA. =ChainGoverned= uses C4 parent order to
+compose the generic hop and revised origin policies in one root.
+=ChainGovernedRevoked= extends one forbid for the routing-to-compliance edge;
+other edges retain their policies.
+The =delegationEditLocal=, =originEditLocal=, and =revokedEdgeLocal= theorems
+identify exactly one changed policy ID per revision. =unaffectedRootsFully=
+checks that adding the chain modules leaves the existing tool and bounded
+origin roots identical. This is policy-level locality; it does not claim that
+an arbitrary external token chain or proof certificate is reusable.
+
+The shared [[file:../../CedarPooSpec/CompoundAuthorization.lean][authorizeLayers API]] now caches each distinct POO root's
+compilation within one compound request. A five-layer path evaluates three
+delegation requests and one origin request against one compiled C4 root;
+the tool check uses its own root. =compilationRootCountsFully= checks that
+five layers require two distinct compiled roots. Every returned
+layer still carries its own exact Cedar response and compilation equality.
+=layerCountsFully= checks the 3/4/5 shape, =casesExactFully= checks ten chain
+outcomes, and =allValidCasesErrorFreeFully= rejects hidden evaluation errors.
+The [[file:AgentChainExport.lean][exporter]] compares forty valid individual
+requests with the official Rust Cedar authorizer and checks the five
+generated [[file:AgentChainPolicies/chaindelegation.cedar][Cedar policies]].
+
+The host supplies an authenticated, complete delegation path, binds each hop
+to its signed or otherwise verified delegation evidence, and enforces every
+check before tool execution. =validPath= rejects repeated nodes and paths
+outside this example's one-to-three-hop range. The model does not implement
+HMAC, OAuth token exchange, or runtime loop detection across arbitrary
+external agents.
+
+#+begin_src sh
+just check-agent-chain
+just check-cedar-language
+#+end_src
+
 * AI agent payment with per-call value authorization
 
 [[file:AgentPayment.lean][AgentPayment.lean]] extends the agent authorization

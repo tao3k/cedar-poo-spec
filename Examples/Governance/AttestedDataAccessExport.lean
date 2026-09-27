@@ -26,8 +26,3 @@ def manifest : Except String Lean.Json := do
     Lean.toJson (stable.flatten ++ [staleBefore, staleAfter, inherited]))]
 
 end CedarPooSpec.AttestedDataAccessExport
-
-def main : IO Unit :=
-  match CedarPooSpec.AttestedDataAccessExport.manifest with
-  | .ok json => IO.println json.compress
-  | .error message => throw (IO.userError message)

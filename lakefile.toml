@@ -14,3 +14,8 @@ rev = "314c65b"
 
 [[lean_lib]]
 name = "CedarPooSpec"
+
+[[lean_lib]]
+name = "Examples"
+roots = ["Examples"]
+globs = ["Examples.+"]

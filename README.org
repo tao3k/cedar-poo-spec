@@ -49,8 +49,8 @@ Cedar scope and pattern syntax across a POO overlay, plus all pinned Cedar
 extension functions and values. The
 [[file:Examples/Enterprise/README.org][enterprise examples]] cover delegated
 procurement approval, compound payment release, and AI agent delegation,
-payment authorization, and cross-tool data flow across independently
-evolving controls.
+payment authorization, three-to-five-layer delegation, and cross-tool data
+flow across independently evolving controls.
 
 | Feature | Implemented contract |
 |---------+----------------------|
@@ -106,6 +106,7 @@ equality theorem for request-relative entity slices.
 just update
 just check
 #+end_src
+
 
 The Lake manifest pins =cedar-spec= and Lean-POO. This slice does not yet
 provide domain extensions or measure reuse on a large proof corpus.

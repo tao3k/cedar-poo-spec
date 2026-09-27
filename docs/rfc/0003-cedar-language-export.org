@@ -126,6 +126,12 @@ The AI agent delegation case adds thirty-three layer requests across eight
 POO roots. It checks a three-query tool/delegation/origin flow, including a
 runtime error that leaves raw Cedar =Allow= but is rejected by the compound
 consumer because diagnostics are nonempty.
+The chain extension adds forty individual Cedar requests for paths with one,
+two, or three delegation hops. POO overlays the generic hop and origin-depth
+policies independently, composes them with C4, and extends a single-edge
+veto; the Rust boundary checks each layer and five generated policy roots.
+Within one compound request, repeated checks against the same POO root reuse
+its compilation.
 The AI payment case adds twenty-two requests across five POO roots. It
 authorizes both the finance agent's tool call and the concrete transfer,
 then overlays account scope, a positive amount and ceiling, and originating
@@ -156,6 +162,11 @@ boundary checks before the artifact is admitted.
 just export-cedar-language
 just check-cedar-language
 #+end_src
+
+The =Examples= Lake library builds example modules incrementally. The
+[[file:../../Examples/Manifests.lean][manifest entrypoint]] evaluates all
+source-owned exporters in one Lean process for the full gate; named manifest
+selection remains available through the corresponding =prepare-*= recipes.
 
 The top-level =just check= and GitHub CI also run this gate. The Rust crate
 uses [[https://github.com/tao3k/asp-rust][asp-rust]] only as a pinned

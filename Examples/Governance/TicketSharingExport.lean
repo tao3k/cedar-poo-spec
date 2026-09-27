@@ -44,8 +44,3 @@ def manifest : Except String Lean.Json := do
   return Lean.Json.mkObj [("cases", Lean.toJson (baselineCases ++ [newGrant, stillRevoked]))]
 
 end CedarPooSpec.TicketSharingExport
-
-def main : IO Unit :=
-  match CedarPooSpec.TicketSharingExport.manifest with
-  | .ok json => IO.println json.compress
-  | .error message => throw (IO.userError message)

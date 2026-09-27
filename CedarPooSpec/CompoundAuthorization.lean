@@ -49,13 +49,50 @@ def layersAllowed {model : Model} {entities : Entities}
   !receipts.isEmpty && receipts.all fun layer =>
     layer.response.decision == .allow && layer.response.erroringPolicies.isEmpty
 
-/-- Evaluate requests from different POO roots against one supplied entity store. -/
+/-- One exact compilation can serve several requests against the same root. -/
+structure CompiledRoot (model : Model) where
+  root : String
+  policies : Policies
+  compiled : model.compile root = .ok policies
+
+private structure RootCompilation (model : Model) (root : String) where
+  policies : Policies
+  compiled : model.compile root = .ok policies
+
+private def cachedCompilation? (model : Model) (cache : List (CompiledRoot model))
+    (root : String) : Option (RootCompilation model root) :=
+  match cache with
+  | [] => none
+  | entry :: rest =>
+      if h : entry.root = root then
+        some ⟨entry.policies, by cases h; exact entry.compiled⟩
+      else
+        cachedCompilation? model rest root
+
+private def getCompilation (model : Model) (cache : List (CompiledRoot model))
+    (root : String) : Except PolicyModules.Error
+      (RootCompilation model root × List (CompiledRoot model)) :=
+  match cachedCompilation? model cache root with
+  | some result => .ok (result, cache)
+  | none =>
+      match hc : model.compile root with
+      | .error error => .error error
+      | .ok policies =>
+          .ok (⟨policies, hc⟩, ⟨root, policies, hc⟩ :: cache)
+
+/-- Evaluate layers in order; compile each distinct POO root at most once. -/
 def authorizeLayers (model : Model) (checks : List (String × Request))
     (entities : Entities) : Except PolicyModules.Error (List (LayerReceipt model entities)) :=
-  checks.mapM fun (root, request) =>
-    match hc : model.compile root with
-    | .error error => .error error
-    | .ok policies =>
-        .ok ⟨root, request, policies, hc, isAuthorized request entities policies, rfl⟩
+  go checks []
+where
+  go (remaining : List (String × Request)) (cache : List (CompiledRoot model)) :
+      Except PolicyModules.Error (List (LayerReceipt model entities)) := do
+    match remaining with
+    | [] => return []
+    | (root, request) :: rest =>
+        let (⟨policies, hc⟩, updated) ← getCompilation model cache root
+        let tail ← go rest updated
+        return ⟨root, request, policies, hc,
+          isAuthorized request entities policies, rfl⟩ :: tail
 
 end CedarPooSpec.CompoundAuthorization

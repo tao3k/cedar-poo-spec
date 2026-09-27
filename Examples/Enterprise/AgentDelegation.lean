@@ -91,10 +91,12 @@ def toolBody : Expr :=
 def delegationBody : Expr :=
   .and (.binaryApp .lessEq (ctx "depth") (.lit (.int 3)))
     (.binaryApp .containsAll (resourceFact "capabilities") (ctx "requestedCaps"))
+def originRole : Expr :=
+  .binaryApp .mem (ctx "origin") (.lit (.entityUID adminRole))
+def originMfa : Expr := .getAttr (ctx "origin") "mfa"
 def originBody : Expr :=
-  .and (.binaryApp .mem (ctx "origin") (.lit (.entityUID adminRole)))
-    (.and (.getAttr (ctx "origin") "mfa")
-      (.binaryApp .lessEq (ctx "depth") (.lit (.int 2))))
+  .and originRole
+    (.and originMfa (.binaryApp .lessEq (ctx "depth") (.lit (.int 2))))
 
 def policy (id : String) (action : EntityUID) (principal resource : Scope)
     (body : Expr) : Policy :=
