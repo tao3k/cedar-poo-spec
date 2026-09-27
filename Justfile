@@ -278,3 +278,4 @@ bench-rust-export: prepare-cedar-manifest prepare-mission-successor-manifest
     rust/target/release/examples/export_latency .lake/build/mission-integrated-policy.json
     rust/target/release/examples/export_latency .lake/build/expanded-policy.json 32 500
     rust/target/release/examples/export_latency .lake/build/expanded-policy.json 128 200
+    rust/target/release/examples/export_latency --manifest .lake/build/mission-successor-manifest.json 100

@@ -252,6 +252,8 @@ or Cedar's equivalent parser; the JSON bytes alone are not a parsed policy set.
 =just bench-rust-export= builds a release benchmark once, then measures 100
 warm-up calls and repeated operations inside one process. Its real fixtures
 contain three and four policies; scaled fixtures contain 32 and 128 policies.
+It also measures a real 68-case, six-revision manifest through
+=render_artifacts= and =check_manifest=.
 The reported =admit= stage uses Cedar's official JSON parser, =render-loaded=
 renders an already admitted =PolicySet=, and =decode+admit+render= includes
 JSON decoding. File reads, Cargo compilation, and process startup are outside
@@ -266,6 +268,15 @@ artifact had a p50 of 704 microseconds and a p95 of 7.8 milliseconds; the
 policies, =render-loaded= had a p50 of 281 microseconds. These are local
 measurements under shared machine load, not a cross-machine latency guarantee.
 Repeated rendering should retain the admitted =PolicySet=.
+
+Batch rendering and conformance now reuse each revision's admitted policy set
+within one manifest call while still checking every request and rejecting a
+changed policy payload under an existing revision name. Before this change,
+the 68-case manifest's =render_artifacts= and =check_manifest= p50 values were
+10.2 and 58.9 milliseconds on this host. After the change, one benchmark run
+measured 0.62 and 11.7 milliseconds respectively. The release benchmark is
+reproducible through =just bench-rust-export=; these numbers describe this
+fixture and host, not a universal latency bound.
 
 Starting the separately compiled release CLI for each three-policy artifact
 had an 8.4 millisecond median over 100 local invocations. Applications that

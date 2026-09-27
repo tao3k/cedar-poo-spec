@@ -1,7 +1,8 @@
 //! Measure steady-state Cedar artifact admission and rendering in one process.
 
 use cedar_poo_bridge::{
-    CompiledPolicyJson, load_policy_set, render_loaded_policy_set, render_policy_source,
+    CompiledPolicyJson, Manifest, check_manifest, load_policy_set, render_artifacts,
+    render_loaded_policy_set, render_policy_source,
 };
 use std::hint::black_box;
 use std::time::{Duration, Instant};
@@ -33,9 +34,41 @@ fn report(name: &str, samples: &[Duration]) {
 
 fn main() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
-    let path = args
-        .next()
-        .ok_or("usage: export_latency POLICY_SET_JSON [POLICIES] [SAMPLES]")?;
+    let path = args.next().ok_or(
+        "usage: export_latency POLICY_SET_JSON [POLICIES] [SAMPLES] | --manifest PATH [SAMPLES]",
+    )?;
+    if path == "--manifest" {
+        let manifest_path = args.next().ok_or("missing manifest path")?;
+        let samples = args
+            .next()
+            .map(|value| value.parse::<usize>().map_err(|error| error.to_string()))
+            .transpose()?
+            .unwrap_or(DEFAULT_SAMPLES);
+        if samples == 0 {
+            return Err("sample count must be positive".into());
+        }
+        let source = std::fs::read_to_string(&manifest_path).map_err(|error| error.to_string())?;
+        let manifest: Manifest =
+            serde_json::from_str(&source).map_err(|error| error.to_string())?;
+        println!(
+            "manifest={manifest_path} bytes={} cases={} warmup={WARMUP} samples={samples}",
+            source.len(),
+            manifest.cases.len()
+        );
+        report(
+            "render-artifacts",
+            &measure(samples, || {
+                black_box(render_artifacts(black_box(&manifest)).expect("valid manifest"));
+            }),
+        );
+        report(
+            "check-manifest",
+            &measure(samples, || {
+                check_manifest(black_box(&manifest)).expect("valid manifest");
+            }),
+        );
+        return Ok(());
+    }
     let requested_policies = args
         .next()
         .map(|value| value.parse::<usize>().map_err(|error| error.to_string()))

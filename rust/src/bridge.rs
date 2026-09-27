@@ -45,14 +45,45 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
         return Err("manifest has no cases".into());
     }
     let mut names = BTreeSet::new();
+    let mut revisions = BTreeMap::new();
     for case in &manifest.cases {
         if !names.insert(&case.name) {
             return Err(format!("duplicate case name: {}", case.name));
         }
-        check_case(case).map_err(|error| format!("{}: {error}", case.name))?;
+        if !revisions.contains_key(&case.revision) {
+            let checked =
+                CheckedRevision::new(case).map_err(|error| format!("{}: {error}", case.name))?;
+            revisions.insert(case.revision.clone(), checked);
+        }
+        let revision = &revisions[&case.revision];
+        if revision.source != *case.policies.as_value() {
+            return Err(format!("{}: conflicting revision output", case.revision));
+        }
+        check_case(case, &revision.policies, &revision.rendered)
+            .map_err(|error| format!("{}: {error}", case.name))?;
     }
     render_artifacts(manifest)?;
     Ok(())
+}
+
+struct CheckedRevision {
+    source: Value,
+    policies: PolicySet,
+    rendered: PolicySet,
+}
+
+impl CheckedRevision {
+    fn new(case: &Case) -> Result<Self, String> {
+        let policies = load_policy_set(&case.policies)?;
+        let text = render_loaded_policy_set(&policies)?;
+        let rendered = PolicySet::from_str(&text)
+            .map_err(|error| format!("rendered Cedar text parse: {error}"))?;
+        Ok(Self {
+            source: case.policies.as_value().clone(),
+            policies,
+            rendered,
+        })
+    }
 }
 
 /// Replay Lean's requests against independently stored Cedar source files.
@@ -219,7 +250,7 @@ pub fn render_policy_source(json: &CompiledPolicyJson) -> Result<String, String>
 /// Render each revision to Cedar's human-readable policy language.
 /// The original IDs remain in the JSON export; Cedar text cannot encode them.
 pub fn render_artifacts(manifest: &Manifest) -> Result<BTreeMap<String, String>, String> {
-    let mut artifacts = BTreeMap::new();
+    let mut artifacts: BTreeMap<String, (&Value, String)> = BTreeMap::new();
     for case in &manifest.cases {
         if case.revision.is_empty()
             || !case
@@ -229,21 +260,27 @@ pub fn render_artifacts(manifest: &Manifest) -> Result<BTreeMap<String, String>,
         {
             return Err(format!("{}: invalid revision name", case.name));
         }
-        let policies = load_policy_set(&case.policies)?;
-        let artifact = render_loaded_policy_set(&policies)
-            .map_err(|error| format!("{}: {error}", case.name))?;
-        match artifacts.insert(case.revision.clone(), artifact.clone()) {
-            Some(previous) if previous != artifact => {
-                return Err(format!("{}: conflicting revision output", case.revision));
+        match artifacts.entry(case.revision.clone()) {
+            std::collections::btree_map::Entry::Occupied(entry) => {
+                if entry.get().0 != case.policies.as_value() {
+                    return Err(format!("{}: conflicting revision output", case.revision));
+                }
             }
-            _ => {}
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                let policies = load_policy_set(&case.policies)?;
+                let artifact = render_loaded_policy_set(&policies)
+                    .map_err(|error| format!("{}: {error}", case.name))?;
+                entry.insert((case.policies.as_value(), artifact));
+            }
         }
     }
-    Ok(artifacts)
+    Ok(artifacts
+        .into_iter()
+        .map(|(revision, (_, artifact))| (revision, artifact))
+        .collect())
 }
 
-fn check_case(case: &Case) -> Result<(), String> {
-    let policies = load_policy_set(&case.policies)?;
+fn check_case(case: &Case, policies: &PolicySet, rendered: &PolicySet) -> Result<(), String> {
     let expected_ids = case.policy_ids.iter().cloned().collect::<BTreeSet<_>>();
     let loaded_ids = policies
         .policies()
@@ -266,7 +303,7 @@ fn check_case(case: &Case) -> Result<(), String> {
         None,
     )
     .map_err(|error| format!("Cedar request: {error}"))?;
-    let response = Authorizer::new().is_authorized(&request, &policies, &entities);
+    let response = Authorizer::new().is_authorized(&request, policies, &entities);
     let decision = match response.decision() {
         Decision::Allow => "allow",
         Decision::Deny => "deny",
@@ -309,10 +346,7 @@ fn check_case(case: &Case) -> Result<(), String> {
             error_policies
         ));
     }
-    let text = render_loaded_policy_set(&policies)?;
-    let parsed = PolicySet::from_str(&text)
-        .map_err(|error| format!("rendered Cedar text parse: {error}"))?;
-    let reparsed = Authorizer::new().is_authorized(&request, &parsed, &entities);
+    let reparsed = Authorizer::new().is_authorized(&request, rendered, &entities);
     if reparsed.decision() != response.decision()
         || reparsed.diagnostics().errors().count() != error_policies.len()
     {

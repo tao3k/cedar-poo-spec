@@ -128,6 +128,46 @@ fn rejects_conflicting_revision_artifacts() {
 }
 
 #[test]
+fn cached_revision_requires_identical_policy_artifacts() {
+    let first = receipt();
+    let mut second = receipt();
+    second.name = "second request".into();
+    check_manifest(&Manifest {
+        cases: vec![first, second],
+    })
+    .expect("same revision is reusable");
+
+    let first = receipt();
+    let mut second = receipt();
+    second.name = "second request".into();
+    second.expected = "deny".into();
+    assert!(
+        check_manifest(&Manifest {
+            cases: vec![first, second]
+        })
+        .unwrap_err()
+        .contains("expected deny")
+    );
+
+    let first = receipt();
+    let mut changed = receipt();
+    changed.name = "changed body".into();
+    let mut value = changed.policies.as_value().clone();
+    value["staticPolicies"]["base"]["conditions"] = json!([{
+        "kind": "when",
+        "body": { "type": "Boolean", "value": true }
+    }]);
+    changed.policies = serde_json::from_value(value).expect("JSON artifact");
+    assert!(
+        check_manifest(&Manifest {
+            cases: vec![first, changed]
+        })
+        .unwrap_err()
+        .contains("conflicting revision output")
+    );
+}
+
+#[test]
 fn direct_cedar_check_detects_policy_drift() {
     let directory =
         std::env::temp_dir().join(format!("cedar-poo-direct-check-{}", std::process::id()));
