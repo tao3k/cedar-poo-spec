@@ -187,6 +187,15 @@ standalone-snapshot baseline. Cedar templates, code generation, and
 other direct authoring designs could reduce duplication, so this
 experiment does not establish a general authoring or speed advantage.
 
+[[https://docs.cedarpolicy.com/policies/templates.html][Cedar policy templates]] are a stronger direct-authoring alternative to
+independent snapshots: a linked policy follows changes to its shared template.
+A template can parameterize the principal or resource, so a direct Cedar
+implementation could share this fallback policy body and make the controlled
+condition change once. This example has not built or measured that alternative.
+The result demonstrated here is the Lean-POO revision topology and its proved
+certificate impact, alongside parity with the explicitly scoped snapshot
+baseline; it is not a claim that Cedar itself requires six source edits.
+
 | Evidence | Observation | Limit |
 |----------+-------------+-------|
 | Public trace record 1 | Clean/injected predicted paths differ and the independent Waymo future supports an offline reference check. | The post-decision theorem uses hypothetical samples; no measured attacked execution, deployable reference, or proven fallback controller. |
