@@ -118,24 +118,21 @@ def frozenExpense : Policy :=
   veto "expense-incident-freeze" reject
     (.binaryApp .eq (.var .resource) (.lit (.entityUID salesExpense)))
 
-def model : Model := { modules := [
-  { name := "SourceProjection", edits := [.extend exposed] },
-  { name := "Team", parentOrders := [["SourceProjection"]],
-    edits := [.extend crossDepartment] },
-  { name := "ApprovalScope", parentOrders := [["SourceProjection"]],
-    edits := [.extend rejectScope] },
-  { name := "Role", parentOrders := [["SourceProjection"]],
-    edits := [.extend nonApprover] },
-  { name := "Duties", parentOrders := [["SourceProjection"]],
-    edits := [.extend selfRejection] },
-  { name := "State", parentOrders := [["SourceProjection"]],
-    edits := [.extend nonSubmitted] },
-  { name := "Governed", parentOrders :=
-      [["Team", "ApprovalScope", "Role", "Duties", "State"]] },
-  { name := "Incident", parentOrders := [["Governed"]],
-    edits := [.extend frozenExpense] },
-  { name := "Recovered", parentOrders := [["Incident"]],
-    edits := [.remove frozenExpense.id] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let source : Model :=
+    { modules := [{ name := "SourceProjection", edits := [.extend exposed] }] }
+  let team ← source.extend "Team" "SourceProjection" [.extend crossDepartment]
+  let scopeOwner ← team.extend "ApprovalScope" "SourceProjection" [.extend rejectScope]
+  let roles ← scopeOwner.extend "Role" "SourceProjection" [.extend nonApprover]
+  let duties ← roles.extend "Duties" "SourceProjection" [.extend selfRejection]
+  let states ← duties.extend "State" "SourceProjection" [.extend nonSubmitted]
+  let governed ← states.mix "Governed"
+    ["Team", "ApprovalScope", "Role", "Duties", "State"]
+  let incident ← governed.extend "Incident" "Governed" [.extend frozenExpense]
+  incident.extend "Recovered" "Incident" [.remove frozenExpense.id]
+
+/-- The same validated LeanPOO model drives Lean decisions and Cedar export. -/
+def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- The composition is the LeanPOO C4 order, not a handwritten conjunction
     of the five Cedar conditions. Each policy below comes from its own owner. -/

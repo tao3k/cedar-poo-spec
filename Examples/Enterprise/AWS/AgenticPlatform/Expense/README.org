@@ -36,15 +36,15 @@ claims show the changed policy ID is exactly the freeze and the recovered
 policy set equals =Governed=. The owners are independently editable: a new
 department rule need not copy the role, duty, or state policy bodies.
 
-The executable composition is in [[file:Expense.lean][Expense.lean]]: each owner declares one
-=.extend= edit, while =Governed.parentOrders= names the five owners in
-precedence order. =model.compile "Governed"= reaches the Cedar adapter's
-=Model.compilePlan=, which calls =LeanPoo.Object.compile= and resolves the
-policy slots using that C4 plan. Cedar then evaluates the resulting permit
-and forbid policies. =governedComposition= calls the public
-=LeanPoo.C4.linearize= API directly and proves both the exact precedence
-order and the origin of every surviving policy. No combined Cedar condition
-is handwritten for =Governed=.
+The executable construction is =modelResult= in [[file:Expense.lean][Expense.lean]]. It stages
+each owner with =Model.extend=, then calls =Model.mix "Governed"= with the
+five ordered owners. These Cedar adapter operations call LeanPOO's
+=extendSchema= and =mix= APIs. The latter compiles the C4 plan during
+construction; the same resulting =model= drives Lean decisions and Cedar
+export. =Incident= and =Recovered= extend that model without repeating any
+owner policy. =governedComposition= checks the resulting order and the
+origin of every surviving policy. Cedar evaluates the resulting permit and
+forbid policies; no combined Cedar condition is handwritten for =Governed=.
 
 #+begin_src mermaid
 stateDiagram-v2
