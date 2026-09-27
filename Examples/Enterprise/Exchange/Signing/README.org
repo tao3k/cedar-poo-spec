@@ -1,6 +1,17 @@
 #+TITLE: Exchange Transaction Signing Boundary
 #+OPTIONS: toc:nil
 
+* Case layout
+
+The Lean source, replay, and generated Cedar policies are kept in this
+Exchange/Signing Case. =SigningBoundary.lean= owns the POO revisions;
+=SigningBoundaryExport.lean= exports them; =SigningPolicies/*.cedar= is the
+checked-in generated policy set consumed by the Rust Cedar replay. The
+paired Lambda-Episteme Case keeps its TLA+ model under
+=signing-trust-chain/proof/tla/= alongside the Ascent and GQL source. Each
+repository therefore keeps the artifact it builds or investigates inside
+its own Case directory.
+
 * Source and claim boundary
 
 [[https://www.bitget.com/support/articles/12560603896024][Bitget's September 24, 2026 notice]]
@@ -125,6 +136,29 @@ transition before any real effect. The [[https://github.com/tao3k/lambda-epistem
 models backend and interface entry routes with bounded Ascent. Both are
 candidate explanations until their intermediate links have independent
 evidence.
+
+[[file:SignerEffectReplay.lean][The abstract signer-effect replay]] closes the modeled path from Cedar
+decision to signed bytes. With all four claim values copied from the
+backend, =Integrated= returns =Allow= and a weak Host would sign the attacker
+bytes despite the test oracle recording different user intent. A Host that
+requires authenticated witnesses from separate intent, risk, ledger, and
+signer-display owners refuses that same request. The model also checks that
+the freeze prevents a weak signing effect, premature recovery reopens it,
+and a valid request consumes its nonce once. Merely labeling four attacker
+claims as independent owners does not pass the modeled Host if their
+authentication checks fail. A signer-local freeze also stops a request while
+the older =Integrated= policy root still returns =Allow=, representing a
+circuit breaker independent of policy publication latency.
+=SignedTransfer= is a symbolic
+effect record; this is not a cryptographic signature, live broadcast, or a
+proof of the actual Bitget signer architecture. Witness authentication and
+an atomic signer effect remain deployment obligations.
+
+The [[https://github.com/tao3k/lambda-episteme/tree/feat/exchange-signing-reasoning/user-interface/scenarios/exchange/cases/signing-trust-chain/proof/tla][Lambda TLA+ threat model]] places backend and interface contamination
+before the signer. Its =NoUnboundSign= and =SignedNonceConsumed= predicates
+correspond to the finite Lean Host checks above. Gerbil validates its source
+through the parser-owned TLA+ syntax interface; TLC and a formal refinement
+between that temporal model and Lean remain open.
 
 | Root | Live Cedar bodies | New or changed source body against its parent |
 |------+-------------------+-----------------------------------------------|

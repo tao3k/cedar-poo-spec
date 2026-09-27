@@ -3,3 +3,4 @@ set working-directory := '../../../..'
 boundary:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Exchange/Signing/SigningBoundary.lean
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Exchange/Signing/SigningAttackReplay.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Exchange/Signing/SignerEffectReplay.lean
