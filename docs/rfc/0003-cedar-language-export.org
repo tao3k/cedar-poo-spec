@@ -131,6 +131,10 @@ authorizes both the finance agent's tool call and the concrete transfer,
 then overlays account scope, a positive amount and ceiling, and originating
 user role and MFA. Lean checks the compound outcomes; Rust Cedar checks each
 layer receipt and the generated policy artifacts.
+The AI data-flow case adds twenty-six layer requests across seven POO roots.
+It evaluates document read and repository publication separately, then
+checks tenant, classification, independent review, and revocation changes.
+The Rust boundary compares each request and reparses the generated policies.
 The extension coverage case adds eight requests across three extension
 families, including timezone normalization and a negative duration value.
 

@@ -228,3 +228,51 @@ authorization behavior; it does not claim to implement a payment processor.
 just check-agent-payment
 just check-cedar-language
 #+end_src
+
+* Cross-tool data flow for an AI agent
+
+[[file:AgentDataFlow.lean][AgentDataFlow.lean]] models a separate enterprise
+governance boundary: an agent may read an internal document but must not
+thereby gain permission to publish its contents to a public repository.
+The [[https://github.com/OWASP/OWASP-MCP-Governance-and-Risk-Project/blob/main/mcp-governance-risk-framework-v1.0.md][OWASP MCP Governance and Risk Framework]] describes a poisoned internal
+wiki or tool response driving an agent to use another connected service for
+data exfiltration. Cedar's [[https://docs.cedarpolicy.com/bestpractices/bp-authorization-patterns.html][authorization patterns]] explain that moving data
+between containers calls for authorization at both the source and the
+destination. The identities, documents, repository names, tenant, and review
+facts in this example are fictive; the example models the cited failure mode
+and authorization pattern rather than claiming to reproduce an incident.
+
+| POO root | Control change |
+|----------+----------------|
+| =ReadBase= | Legacy agent read permit. |
+| =ReadTenant= | Overlay tenant and originating-user role checks. |
+| =PublishBase= | Legacy agent publication permit. |
+| =PublishScoped= | Overlay source and destination tenant equality. |
+| =PublishClassified= | Overlay a classification rule: internal material may go only to an internal destination. |
+| =PublishReviewed= | Overlay independent Security reviewer, MFA, and approval for public publication. |
+| =PublishRevoked= | Extend a specific source-document publication veto. |
+
+Thirteen operations cover a legacy internal-to-public leak, foreign source
+and destination tenants, an internal document sent to a public repository,
+public material with and without review, a reviewer with the wrong role,
+self approval, an unprivileged originating user, internal publication, and
+revocation. =classifiedLeakBoundaryFully= establishes that the read layer
+allows the internal document while the publication layer denies the public
+destination. =casesErrorFreeFully= checks that none of the well-formed cases
+rely on Cedar policy evaluation errors for their outcomes.
+[[file:AgentDataFlowExport.lean][The exporter]] compares all twenty-six
+individual layer responses with the official Rust Cedar authorizer and
+checks the seven generated [[file:AgentDataFlowPolicies/publishreviewed.cedar][Cedar policies]]. Every root passes Lean Cedar
+schema and policy validation.
+
+The host must authenticate the agent, original user, and reviewer; provide
+authoritative tenant, classification, and approval facts; and bind both
+authorization requests to the exact bytes and destination of one proposed
+publication. It must enforce the combined decision at the write boundary.
+The example does not inspect document contents, prove provenance of these
+facts, or implement an MCP server.
+
+#+begin_src sh
+just check-agent-data-flow
+just check-cedar-language
+#+end_src
