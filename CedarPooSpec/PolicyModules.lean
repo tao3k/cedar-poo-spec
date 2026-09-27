@@ -1,4 +1,5 @@
 import Cedar.Spec.Policy
+import LeanPoo.Object.Builder
 import LeanPoo.Object.Indexed
 
 /-!
@@ -42,12 +43,13 @@ def Model.graph (model : Model) : LeanPoo.C4.Graph :=
     removal writes an explicit tombstone. Edit validation stays Cedar-specific. -/
 private def Module.declaration (module : Module) :
     LeanPoo.Object.Declaration PolicyID (fun _ => Option Policy) :=
-  module.edits.foldl (fun declaration edit =>
-    match edit with
-    | .extend policy | .overlay policy =>
-        declaration.withValue policy.id (some policy)
-    | .remove id => declaration.withValue id none)
-    LeanPoo.Object.Declaration.empty
+  LeanPoo.Object.Declaration.build do
+    for edit in module.edits do
+      match edit with
+      | .extend policy | .overlay policy =>
+          LeanPoo.Object.Declaration.Builder.value policy.id (some policy)
+      | .remove id =>
+          LeanPoo.Object.Declaration.Builder.value id none
 
 private def Model.schema (model : Model) :
     LeanPoo.Object.Schema PolicyID (fun _ => Option Policy) :=
