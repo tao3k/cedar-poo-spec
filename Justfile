@@ -104,6 +104,7 @@ check-mission-maintenance:
 
 check-vehicle-tara:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/TARA/TaraProjection.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/TARA/TaraHandoff.lean
 
 check-extension-coverage:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/ExtensionCoverage.lean

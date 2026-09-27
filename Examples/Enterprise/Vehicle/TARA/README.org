@@ -1,4 +1,4 @@
-#+TITLE: Composable Vehicle TARA Treatment Matrix
+#+TITLE: Vehicle TARA to Executable Treatment Handoff
 #+OPTIONS: toc:nil
 
 * Scope and sources
@@ -20,6 +20,32 @@ or controls prescribed by those sources. A real TARA still needs
 item-specific damage scenarios, attack paths, impact and feasibility
 ratings, risk decisions, and accountable approval.
 
+[[https://www.usenix.org/conference/vehiclesec26/presentation/woo][Woo and Lee's Physical AI TARA study]] combines automotive TARA with
+AI and physical-layer attack taxonomies. [[https://www.iso.org/standard/83303.html][ISO/PAS 8800:2024]] addresses
+vehicle-level safety risks from AI output insufficiencies and errors.
+These are complementary research and safety inputs; neither makes a
+Cedar permit decision an impact rating or a safety assurance claim.
+
+* AI and hardware entry points
+
+The current mission case exercises one VLA-style planner boundary.
+Vehicle TARA must also consider other entry points before claiming
+coverage. The following sources establish distinct interfaces and
+failure mechanisms; they are not all implementations in this repo.
+
+| Entry point | Source-backed problem | Authorization or evidence boundary | Example status |
+|-------------+-----------------------+------------------------------------+----------------|
+| VLA planner | Mission-level unsafe successor despite a locally valid command | Bind command to independently checked successor and later observation | Executable Mission case |
+| Cabin speech and language model | [[https://arxiv.org/abs/2609.19630][Afroze et al.]] report false executes in a vehicle voice-command benchmark; [[https://www.usenix.org/conference/raid2020/presentation/wang-shu][SIEVE]] studies adversarial in-vehicle speech sources | Speaker provenance, role, authentication, vehicle state, available tool, and pre-action decision | TARA review handoff checked; no voice adapter yet |
+| Wearable-to-vehicle automation | [[https://zhiqlin.github.io/file/SP24.pdf][Zhang et al.]] study smart-glasses-triggered vehicle control chains without user verification | Authenticate each cross-device command and bind it to the intended vehicle and action | TARA review handoff checked; no wearable adapter yet |
+| Embedded sensing and CAN AI | [[https://www.usenix.org/conference/atc24/presentation/xu-he][Xu et al.]] implement CAN intrusion detection on embedded hardware; [[https://www.usenix.org/conference/vehiclesec26/presentation/ali][Ali and Malik]] study counterfeit or compromised embedded-device identity | Preserve sensor/device provenance, model revision, timing, and authority across ECU/controller boundaries | TARA review handoff checked; no hardware adapter yet |
+
+The wearable link is a cross-device Vehicle/TARA input. A medical
+wearable's own clinical risks belong in its separate health case. A
+shared POO treatment can be reused across these entry points only
+after its concrete Cedar request schema and authority assumptions are
+checked for each interface.
+
 * Treatment matrix
 
 The same seven axes are used by
@@ -29,7 +55,7 @@ The =clear= row is a positive control, not a threat. These six roots are
 composition stages for one illustrative vehicle policy, not six actual
 vehicle models.
 
-| TARA axis | Asset and damage scenario | Treatment owner | Base | Platform | Mission | Evidence | Integrated | Current |
+| Scenario condition | Illustrative affected asset | Treatment owner | Base | Platform | Mission | Evidence | Integrated | Current |
 |-----------+---------------------------+-----------------+------+----------+---------+----------+------------+---------|
 | Future collision | Vehicle motion; physical harm | Platform | A | D | A | A | D | D |
 | Lost checkpoint | Mission route; task cannot complete | Mission | A | A | D | A | D | D |
@@ -51,27 +77,84 @@ original decisions and 12 changed-case decisions. The
 [[file:../Mission/README.org][mission case]] gives the exact scope and
 limitations of that comparison.
 
-* What this adds to TARA
+* TARA handoff to executable treatment
 
-A TARA work product identifies and rates a risk; it does not itself
-execute a Cedar decision, bind a reference to a command, observe the
-later trajectory, or calculate which proof certificates a policy edit
-invalidates. Lean, Cedar, and Lean-POO add executable treatment,
-checkable decision evidence, and owner-local version composition.
-They do not replace the human risk judgment or establish regulatory
-compliance by themselves. Modular TARA methods already exist: the
+TARA remains the owner of asset and damage analysis, attack feasibility,
+impact, risk acceptance, and approval. Its output can identify a
+treatment objective and an accountable owner. Cedar then enforces a
+specific authorization decision; Lean checks the encoded decision and
+its assumptions; Lean-POO composes the treatment changes and tracks
+affected proof obligations. Runtime reference verification, sensor
+provenance, and actuator effects remain host responsibilities. This is
+an integration boundary, not a claim that TARA is defective.
+
+Modular TARA methods already exist: the
 [[https://saemobilus.sae.org/articles/mosaic-tara-a-comprehensive-tara-methodology-automotive-cybersecurity-2026-26-0609][MOSAIC-TARA study]] explicitly addresses assessment reuse across ECUs
 and vehicle platforms. The comparison here is with a standalone TARA
 matrix and independently maintained Cedar snapshots, not a claim that
 all TARA methods lack reuse.
 
-For VLA-driven vehicles, a useful forward-looking TARA record should
-also name the model and prompt provenance, command and horizon binding,
-reference authority, observation authority, model-update revision, and
-the evidence that a physical fallback was actually applied. The current
-example implements only a small part of that record: ID and tick
-binding, a source-backed offline trajectory comparison, hypothetical
-post-decision observations, and policy-level fallback authorization.
+* Review handoff boundary
+
+The 42 cells count *policy decisions* across seven axes and six
+composition roots. They are not 42 completed risk assessments. A common
+POO treatment owner can produce the same Cedar rule for several vehicle
+contexts while their impact and attack-feasibility judgments differ.
+MOSAIC-TARA explicitly notes that the same component may have different
+damage impact depending on context. Therefore the adapter does not
+decide whether a risk rating is reusable.
+
+[[file:TaraHandoff.lean][TaraHandoff.lean]] accepts a TARA assessment
+reference and an executable treatment publication. Its input key names
+the vehicle item, operating domain, input surface, hardware trust
+boundary, asset, damage scenario, attack path, AI model revision, and
+independent-reference authority. A host-supplied verifier checks the
+external TARA approval. When those inputs change, the adapter emits a
+=taraOwnerReview= obligation; when the treatment publication changes,
+it emits =treatmentOwnerReview=. Both may be emitted together. TARA
+decides the scope and outcome of its review; the treatment owner then
+updates Cedar policies and proof certificates as needed. The Lean
+example uses an assumed verifier solely to exercise this interface.
+
+| Change | TARA owner | Lean-POO / Cedar treatment owner |
+|--------+------------+----------------------------------|
+| Verified assessment reference and matching inputs; unchanged treatment | No new obligation emitted by the adapter | Keep existing publication link |
+| Damage, domain, attack path, model, input surface, hardware, or reference changes | Review impact, feasibility, or approval as appropriate | Keep shared policy only if its assumptions still fit |
+| Treatment revision changes | Review treatment link if required by the TARA process | Recheck policy, affected certificates, and publication |
+| Both sides change | Review assessment inputs and treatment link | Recompose and recheck affected policies |
+
+This gate only routes work. It cannot prove that an external approval is
+authentic, that an unchanged assessment is still current, or that a
+policy is suitable for a new context. The host must supply true input
+identifiers and implement the approval verifier.
+
+| Capability | TARA research | This example |
+|------------+---------------+--------------|
+| Modular risk assessment | MOSAIC-TARA proposes assessment reuse with context-sensitive damage classification | Consumes a TARA reference; does not duplicate ratings |
+| Physical AI threat discovery | Woo and Lee combine automotive, AI, and physical-layer taxonomies | Models one untrusted-planner path; no attack-library completeness claim |
+| Executable authorization composition | Not evaluated against these two studies | Six POO owner edits, six Cedar roots, 42 checked decisions |
+| Change traceability | TARA retains approval authority | Routes changed inputs and publication revisions to the responsible owner |
+| Vehicle safety and regulatory approval | Requires a vehicle-specific assurance process | Not established by this example |
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Linked: verified TARA reference and treatment publication
+    Linked --> Linked: tracked inputs and publication unchanged
+    Linked --> TaraReview: assessment input or approval changes
+    Linked --> TreatmentReview: treatment publication changes
+    Linked --> BothReview: both sides change
+    TaraReview --> Linked: TARA owner supplies reviewed reference
+    TreatmentReview --> Linked: treatment owner republishes
+    BothReview --> Linked: both owners complete their work
+#+end_src
+
+For VLA-driven vehicles, the treatment handoff needs model and prompt
+provenance, command and horizon binding, reference and observation
+authority, model-update revision, and evidence that a physical fallback
+was actually applied. The current example implements only a small part
+of that handoff: ID and tick binding, a source-backed offline trajectory
+comparison, hypothetical post-decision observations, and policy-level
+fallback authorization.
 
 * Decision and observation states
 
