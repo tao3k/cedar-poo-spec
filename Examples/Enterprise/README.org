@@ -188,12 +188,14 @@ just check-cedar-language
 
 * Why POO for three, four, and five authorization layers
 
-The [[https://github.com/aws-samples/sample-cedar-agentic-ai-authorization][AWS reference sample]] defines three kinds of checks: agent-to-tool,
-agent-to-agent delegation, and originating-user authorization. Its
-delegation policy also constrains hop depth and target capabilities. The
-[[file:AgentChain.lean][AgentChain.lean]] example extends that pattern to paths
-with more delegation hops; those longer paths are this project's modeled
-extension, not behavior claimed for the AWS sample.
+This case asks how independently maintained tool, delegation, and origin
+controls evolve when an enterprise adds routing and compliance agents,
+freezes one delegation edge, then restores it. The
+[[file:AgentChain.lean][AgentChain.lean]] model uses POO inheritance and C4 to
+express those changes as small policy revisions shared by different path
+lengths. The [[https://github.com/aws-samples/sample-cedar-agentic-ai-authorization][AWS reference sample]] supplies the three check categories and
+delegation constraints; the longer paths and policy evolution are this
+project's own modeled scenario.
 
 | Path | Required checks | Result |
 |------+-----------------+--------|
@@ -210,8 +212,25 @@ hop, retaining Admin role and MFA. =ChainGoverned= uses C4 parent order to
 compose the generic hop and revised origin policies in one root.
 =ChainGovernedRevoked= extends one forbid for the routing-to-compliance edge;
 other edges retain their policies.
-The =delegationEditLocal=, =originEditLocal=, and =revokedEdgeLocal= theorems
-identify exactly one changed policy ID per revision. =unaffectedRootsFully=
+=ChainGovernedRestored= removes that forbid after the incident without
+editing or copying either inherited permit. The three-hop path becomes
+available again, and its compiled Cedar policy set equals =ChainGoverned=.
+The one- and two-hop paths stay available during the edge-specific freeze.
+
+A second team can independently propose =ChainDepthOnly= from the older
+=DelegationBounded= parent. It relaxes the same delegation policy ID and
+would drop the delegator trust check. =ChainConflicted= deliberately combines
+that sibling with =ChainDelegation=. Compilation rejects their competing
+edits instead of silently choosing one branch. A real rollout must resolve
+this conflict by making the intended override an explicit descendant.
+This is a POO composition problem: copying Cedar policy text into each
+chain length would not expose the shared edit ancestry or this conflict.
+
+The =delegationEditLocal=, =originEditLocal=, =revokedEdgeLocal=, and
+=restoredEdgeLocal= theorems identify exactly one changed policy ID per
+revision. =conflictingDelegationEditsRejected= checks the conflict's policy
+ID, and =restoredPoliciesEqualGoverned= checks exact rollback.
+=unaffectedRootsFully=
 checks that adding the chain modules leaves the existing tool and bounded
 origin roots identical. This is policy-level locality; it does not claim that
 an arbitrary external token chain or proof certificate is reusable.
@@ -222,11 +241,11 @@ delegation requests and one origin request against one compiled C4 root;
 the tool check uses its own root. =compilationRootCountsFully= checks that
 five layers require two distinct compiled roots. Every returned
 layer still carries its own exact Cedar response and compilation equality.
-=layerCountsFully= checks the 3/4/5 shape, =casesExactFully= checks ten chain
+=layerCountsFully= checks the 3/4/5 shape, =casesExactFully= checks thirteen chain
 outcomes, and =allValidCasesErrorFreeFully= rejects hidden evaluation errors.
-The [[file:AgentChainExport.lean][exporter]] compares forty valid individual
-requests with the official Rust Cedar authorizer and checks the five
-generated [[file:AgentChainPolicies/chaindelegation.cedar][Cedar policies]].
+The [[file:AgentChainExport.lean][exporter]] compares fifty-two valid individual
+requests with the official Rust Cedar authorizer and checks six generated
+[[file:AgentChainPolicies/chaindelegation.cedar][Cedar revision artifacts]].
 
 The host supplies an authenticated, complete delegation path, binds each hop
 to its signed or otherwise verified delegation evidence, and enforces every

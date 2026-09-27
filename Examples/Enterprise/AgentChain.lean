@@ -29,6 +29,8 @@ def chainDelegation : Policy :=
     principalScope := .principalScope .any,
     resourceScope := .resourceScope .any,
     condition := [{ kind := .when, body := .and delegationBody delegatorTrusted }] }
+def depthOnlyDelegation : Policy :=
+  { chainDelegation with condition := [{ kind := .when, body := delegationBody }] }
 def chainOrigin : Policy :=
   { originBounded with condition := [
       { kind := .when,
@@ -48,7 +50,12 @@ def chainModel : Model := { modules := model.modules ++ [
     edits := [.overlay chainOrigin] },
   { name := "ChainGoverned", parentOrders := [["ChainDelegation", "ChainOrigin"]] },
   { name := "ChainGovernedRevoked", parentOrders := [["ChainGoverned"]],
-    edits := [.extend revokedEdge] }] }
+    edits := [.extend revokedEdge] },
+  { name := "ChainGovernedRestored", parentOrders := [["ChainGovernedRevoked"]],
+    edits := [.remove revokedEdge.id] },
+  { name := "ChainDepthOnly", parentOrders := [["DelegationBounded"]],
+    edits := [.overlay depthOnlyDelegation] },
+  { name := "ChainConflicted", parentOrders := [["ChainDelegation", "ChainDepthOnly"]] }] }
 
 def requestHop (source target : EntityUID) (depth : Int64) : Request :=
   let requested := if target == dataBot then "delete_records" else "delegate"
@@ -101,7 +108,10 @@ def cases : List (String × String × String × List EntityUID × EntityUID × B
   ("five-layers-support", "ChainGoverned", "ChainGoverned", reviewedPath, support, false),
   ("five-layers-weak-hop", "ChainGoverned", "ChainGoverned", weakPath, admin, false),
   ("five-layers-missing-capability", "ChainGoverned", "ChainGoverned", limitedPath, admin, false),
+  ("three-layers-unaffected-by-edge-revoke", "ChainGovernedRevoked", "ChainGovernedRevoked", shortPath, admin, true),
+  ("four-layers-unaffected-by-edge-revoke", "ChainGovernedRevoked", "ChainGovernedRevoked", routedPath, admin, true),
   ("five-layers-revoked-edge", "ChainGovernedRevoked", "ChainGovernedRevoked", reviewedPath, admin, false),
+  ("five-layers-restored-edge", "ChainGovernedRestored", "ChainGovernedRestored", reviewedPath, admin, true),
   ("five-layers-cyclic-path", "ChainGoverned", "ChainGoverned", cyclicPath, admin, false)]
 
 def casesExact : Bool := cases.all fun (_, delegationRoot, originRoot, path,
@@ -139,7 +149,8 @@ theorem governedPolicyIdsFully : governedPolicyIds = true := by native_decide
 
 def rootsValidated : Bool :=
   ["ToolHardened", "DelegationBounded", "ChainDelegation",
-    "OriginBounded", "ChainOrigin", "ChainGoverned", "ChainGovernedRevoked"].all fun root =>
+    "OriginBounded", "ChainOrigin", "ChainGoverned", "ChainGovernedRevoked",
+    "ChainGovernedRestored"].all fun root =>
       (CedarPooSpec.PolicyJson.publish chainModel root schema).isOk
 theorem rootsValidatedFully : rootsValidated = true := by native_decide
 
@@ -159,5 +170,21 @@ theorem originEditLocal :
 theorem revokedEdgeLocal :
     ((chainModel.compileRevision "ChainGoverned" "ChainGovernedRevoked").toOption.get
       (by native_decide)).changedPolicyIds = ["revoke-routing-to-compliance"] := by native_decide
+
+theorem restoredEdgeLocal :
+    ((chainModel.compileRevision "ChainGovernedRevoked" "ChainGovernedRestored").toOption.get
+      (by native_decide)).changedPolicyIds = ["revoke-routing-to-compliance"] := by native_decide
+
+theorem restoredPoliciesEqualGoverned :
+    (chainModel.compile "ChainGovernedRestored" ==
+      chainModel.compile "ChainGoverned") = true := by
+  native_decide
+
+def conflictingDelegationEdits : Bool :=
+  match chainModel.compile "ChainConflicted" with
+  | .error (.competingEdits id _ _) => id == "agent-delegation"
+  | _ => false
+theorem conflictingDelegationEditsRejected : conflictingDelegationEdits = true := by
+  native_decide
 
 end CedarPooSpec.AgentChainExample
