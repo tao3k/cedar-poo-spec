@@ -7,6 +7,7 @@ use cedar_policy::{
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 use std::str::FromStr;
 
 /// Request fields emitted from the Lean Cedar model.
@@ -51,6 +52,68 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
         check_case(case).map_err(|error| format!("{}: {error}", case.name))?;
     }
     render_artifacts(manifest)?;
+    Ok(())
+}
+
+/// Replay Lean's requests against independently stored Cedar source files.
+/// Cedar assigns source policy IDs, so this compares decisions and evaluation
+/// error counts rather than generated JSON policy IDs.
+pub fn check_direct_sources(manifest: &Manifest, directory: &Path) -> Result<(), String> {
+    if manifest.cases.is_empty() {
+        return Err("manifest has no cases".into());
+    }
+    let mut sources = BTreeMap::new();
+    for case in &manifest.cases {
+        if case.revision.is_empty()
+            || !case
+                .revision
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '-')
+        {
+            return Err(format!("{}: invalid revision name", case.name));
+        }
+        if !sources.contains_key(&case.revision) {
+            let path = directory.join(format!("{}.cedar", case.revision));
+            let text = std::fs::read_to_string(&path)
+                .map_err(|error| format!("{}: {error}", path.display()))?;
+            let policies = PolicySet::from_str(&text)
+                .map_err(|error| format!("{}: {error}", path.display()))?;
+            sources.insert(case.revision.clone(), policies);
+        }
+        let policies = &sources[&case.revision];
+        if policies.policies().count() != case.policy_ids.len() {
+            return Err(format!("{}: direct policy count differs", case.name));
+        }
+        let entities = Entities::from_json_value(case.entities.clone(), None)
+            .map_err(|error| format!("{}: Cedar entities: {error}", case.name))?;
+        let uid = |value: &str| EntityUid::from_str(value).map_err(|error| error.to_string());
+        let context = Context::from_json_value(case.request.context.clone(), None)
+            .map_err(|error| format!("{}: Cedar context: {error}", case.name))?;
+        let request = Request::new(
+            uid(&case.request.principal)?,
+            uid(&case.request.action)?,
+            uid(&case.request.resource)?,
+            context,
+            None,
+        )
+        .map_err(|error| format!("{}: Cedar request: {error}", case.name))?;
+        let response = Authorizer::new().is_authorized(&request, policies, &entities);
+        let decision = match response.decision() {
+            Decision::Allow => "allow",
+            Decision::Deny => "deny",
+        };
+        let errors = response.diagnostics().errors().count();
+        if decision != case.expected || errors != case.expected_error_policies.len() {
+            return Err(format!(
+                "{}: direct Cedar expected {} with {} errors, got {} with {} errors",
+                case.name,
+                case.expected,
+                case.expected_error_policies.len(),
+                decision,
+                errors
+            ));
+        }
+    }
     Ok(())
 }
 

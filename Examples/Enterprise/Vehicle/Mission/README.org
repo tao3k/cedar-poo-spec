@@ -30,8 +30,9 @@ receive the same allow decision while their actual successors differ in
 mission feasibility. This is an illustrative counterexample about the
 interface, not a replay of either paper's attack traces. Binding a
 witness to an ID and timestamp cannot establish that its predictions are
-accurate. A deployment needs independent post-decision observation and
-an enforcement or fallback path; those components are outside this case.
+accurate. A deployment needs an independently justified admissible
+reference, post-decision observation, and an enforcement or fallback
+path; those components are outside this case.
 
 | Published observation | This example's projection | Boundary |
 |-----------------------+---------------------------+----------|
@@ -120,7 +121,58 @@ The [[file:SuccessorBoundaryExport.lean][exporter]] materializes 24
 focused requests, all 42 matrix cells, and two missing-field requests
 for Rust Cedar conformance: 68 decisions in total.
 
+* Offline trajectory replay and direct Cedar comparison
+
+[[https://huggingface.co/datasets/gray311/physical_attack_vla/tree/31d5a2a0fa1dd88c959df0258d098efaaa9b4e6d][Physical Visual-Prompt-Injection Attacks on Driving VLAs]]
+by =gray311= (CC BY 4.0) publishes 16 clean/injected prediction pairs
+and corresponding Waymo
+future waypoints. [[file:TrajectoryReplay.lean][TrajectoryReplay.lean]]
+replays its record 1 (=f8c118db32cc16449b2d9cea9c344df4-149=):
+the clean model predicts about 70.7 m of longitudinal progress; the
+injected model predicts a full stop. The released Waymo future is
+recorded under the original scene, not after executing the injected
+prediction. The example rounds six longitudinal points to centimetres
+using every second recorded Waymo point. It checks a *proposed* 3 m
+longitudinal deviation threshold; lateral deviation is not evaluated.
+It finds no deviation for the clean prediction and requests fallback
+for the injected one *when that independently recorded clean-run path
+is used as a reference*. The theorem
+=selfConsistentAttackEscapesPredictionMonitor= checks the opposing
+case: an attacked execution that follows the injected prediction has
+no prediction-versus-execution deviation. A runtime system therefore
+needs an independent admissible reference or safety envelope, and a
+trusted observation and enforcement path to check the actual motion.
+This is an offline counterfactual comparison, not a closed-loop attack
+replay or evidence that a deployed controller can observe and stop the
+attack. We have not rerun the model or independently audited the
+dataset author's attack labels. The dataset metadata used for extraction has SHA-256
+=5932fd7a7053e5fc5c9ad03ed94e82efa7e152d77793fb69a7980c50fc4a8f4c=.
+
+The [[file:DirectPolicies/][direct Cedar baseline]] stores six
+standalone Cedar policy snapshots without Lean-generated comments.
+The official Rust Cedar engine authorizes all 68 existing requests
+with the same allow/deny decision and error count as Lean. For one
+controlled change, fallback handoff additionally requires
+=routeApproved=. [[file:MaintenanceComparison.lean][Lean]] makes this
+change once in =Base= and proves that all six roots inherit it. Six
+[[file:DirectChangePolicies/][direct Cedar snapshots]] each need the
+same condition edit; official Cedar matches Lean on 12 changed-case
+requests. This change is a maintenance probe, *not* a recommended
+fallback rule for a vehicle. These are literal maintenance occurrences for this
+standalone-snapshot baseline. Cedar templates, code generation, and
+other direct authoring designs could reduce duplication, so this
+experiment does not establish a general authoring or speed advantage.
+
+| Evidence | Observation | Limit |
+|----------+-------------+-------|
+| Public trace record 1 | Clean/injected predicted paths differ and the independent Waymo future supports an offline reference check. | No measured attacked execution, deployable reference, or proven fallback controller. |
+| Direct Cedar baseline | 68/68 decisions and error counts match the Lean export. | The snapshots began as copies of equivalent policy text. |
+| Controlled fallback edit | One =Base= owner edit versus six direct snapshot edits; 12/12 decisions match. | This compares only independently maintained snapshots, not every Cedar authoring workflow. |
+
 #+begin_src sh
 just check-mission-successor
+just check-mission-replay
+just check-mission-maintenance
+just check-mission-comparison
 just check-cedar-language
 #+end_src

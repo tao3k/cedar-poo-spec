@@ -1,0 +1,59 @@
+import Examples.Enterprise.Vehicle.Mission.SuccessorBoundary
+
+/-!
+One controlled maintenance change: a fallback handoff now requires the
+route-approved context fact. The six roots inherit one Base edit. Direct
+Cedar snapshots for the same change live in DirectChangePolicies/.
+-/
+
+namespace CedarPooSpec.MaintenanceComparisonExample
+
+open CedarPooSpec.SuccessorBoundaryExample CedarPooSpec.PolicyModules
+
+def guardedFallback : Cedar.Spec.Policy :=
+  { safeFallback with condition := [
+      { kind := .when, body := ctx "routeApproved" }] }
+
+def changedModel : Model :=
+  { model with modules := model.modules.map fun module =>
+      if module.name == "Base" then
+        { module with edits := [.extend nominal, .extend guardedFallback] }
+      else module }
+
+def deniedFallback : Candidate := { routeApproved := false }
+def roots : List String :=
+  ["Base", "Platform", "Mission", "Evidence", "Integrated", "Current"]
+
+def changedAllows (root : String) (candidate : Candidate) : Bool :=
+  match CedarPooSpec.CompoundAuthorization.authorizeLayers changedModel
+      [(root, request fallback candidate)] entities with
+  | .error _ => false
+  | .ok receipts => CedarPooSpec.CompoundAuthorization.layersAllowed receipts
+
+theorem oneOwnerEditChangesEveryRevision :
+    roots.length = 6 ∧
+    roots.all (fun root =>
+      authorized root fallback deniedFallback &&
+      !changedAllows root deniedFallback &&
+      changedAllows root clear) = true := by
+  native_decide
+
+def manifest : Except String Lean.Json := do
+  let mut rows : List Lean.Json := []
+  for root in roots do
+    let receipt ← CedarPooSpec.PolicyJson.authorizationCase
+      s!"fallback-route-{root.toLower}" root.toLower changedModel root
+      (request fallback deniedFallback) entities
+    rows := rows ++ [receipt]
+    let receipt ← CedarPooSpec.PolicyJson.authorizationCase
+      s!"fallback-clear-{root.toLower}" root.toLower changedModel root
+      (request fallback clear) entities
+    rows := rows ++ [receipt]
+  return Lean.Json.mkObj [("cases", Lean.toJson rows)]
+
+end CedarPooSpec.MaintenanceComparisonExample
+
+def main : IO Unit := do
+  match CedarPooSpec.MaintenanceComparisonExample.manifest with
+  | .ok value => IO.println value.compress
+  | .error error => throw (IO.userError error)

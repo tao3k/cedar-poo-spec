@@ -1,6 +1,9 @@
 //! Stream a Lean manifest through the Rust Cedar conformance checker.
 
-use crate::{CompiledPolicyJson, Manifest, check_manifest, render_artifacts, render_policy_source};
+use crate::{
+    CompiledPolicyJson, Manifest, check_direct_sources, check_manifest, render_artifacts,
+    render_policy_source,
+};
 use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
@@ -30,9 +33,13 @@ pub fn run() -> Result<(), String> {
         [command, directory] if command == "check-artifacts" => {
             check_artifacts(&manifest, Path::new(directory))?;
         }
+        [command, directory] if command == "check-direct" => {
+            check_direct_sources(&manifest, Path::new(directory))?;
+            println!("Direct Cedar parity: {} cases", manifest.cases.len());
+        }
         _ => {
             return Err(
-                "usage: cedar-poo-bridge [render|emit DIRECTORY|check-artifacts DIRECTORY]".into(),
+                "usage: cedar-poo-bridge [render|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
             );
         }
     }

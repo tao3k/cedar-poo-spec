@@ -1,4 +1,6 @@
-use super::{Case, Manifest, check_manifest, load_policy_set, render_artifacts};
+use super::{
+    Case, Manifest, check_direct_sources, check_manifest, load_policy_set, render_artifacts,
+};
 use serde_json::json;
 
 fn receipt() -> Case {
@@ -123,4 +125,24 @@ fn rejects_conflicting_revision_artifacts() {
         .unwrap_err()
         .contains("conflicting revision output")
     );
+}
+
+#[test]
+fn direct_cedar_check_detects_policy_drift() {
+    let directory =
+        std::env::temp_dir().join(format!("cedar-poo-direct-check-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory");
+    let path = directory.join("published.cedar");
+    let manifest = Manifest {
+        cases: vec![receipt()],
+    };
+    std::fs::write(&path, "permit(principal, action, resource);").expect("direct permit");
+    check_direct_sources(&manifest, &directory).expect("matching decision");
+    std::fs::write(&path, "forbid(principal, action, resource);").expect("direct forbid");
+    assert!(
+        check_direct_sources(&manifest, &directory)
+            .unwrap_err()
+            .contains("got deny")
+    );
+    std::fs::remove_dir_all(directory).expect("remove temporary directory");
 }
