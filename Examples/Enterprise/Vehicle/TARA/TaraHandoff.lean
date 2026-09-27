@@ -1,30 +1,20 @@
 import Examples.Enterprise.Vehicle.TARA.TaraProjection
 
 /-!
-TARA owns the risk assessment and its approval. This boundary links an
-externally verified TARA reference to an executable treatment publication,
-and emits review obligations when either side changes. It does not infer a
-risk rating or approve a TARA work product.
+TARA owns the complete assessment and approval. This adapter consumes only
+an externally verified reference to a selected TARA work product and its
+treatment goal. It checks whether a linked executable treatment needs review;
+it neither parses the assessment nor assigns a risk rating.
 -/
 
 namespace CedarPooSpec.TaraHandoffExample
 
-structure AssessmentInputs where
-  vehicleItem : String
-  operatingDomain : String
-  inputSurface : String
-  hardwareBoundary : String
-  asset : String
-  damageScenario : String
-  attackPath : String
-  modelRevision : String
-  referenceAuthority : String
-  deriving DecidableEq, Repr
-
 structure TaraReference where
-  assessmentId : String
-  approvalId : String
-  inputs : AssessmentInputs
+  source : String
+  workProductId : String
+  revision : String
+  approvalRef : String
+  treatmentGoal : String
   deriving DecidableEq, Repr
 
 structure TreatmentPublication where
@@ -42,80 +32,74 @@ inductive ReviewObligation where
   deriving DecidableEq, Repr
 
 def reviewObligations (verifyTara : TaraReference → Bool)
-    (prior : Handoff) (currentInputs : AssessmentInputs)
+    (prior : Handoff) (currentTara : TaraReference)
     (currentTreatment : TreatmentPublication) : List ReviewObligation :=
-  (if verifyTara prior.tara && decide (prior.tara.inputs = currentInputs)
-    then [] else [.taraOwnerReview]) ++
-  (if prior.treatment == currentTreatment
+  (if verifyTara currentTara then [] else [.taraOwnerReview]) ++
+  (if prior.tara == currentTara && prior.treatment == currentTreatment
     then [] else [.treatmentOwnerReview])
 
-def assessedInputs : AssessmentInputs := {
-  vehicleItem := "illustrative-vehicle"
-  operatingDomain := "bounded-route"
-  inputSurface := "planner-output"
-  hardwareBoundary := "vehicle-host"
-  asset := "vehicle-motion"
-  damageScenario := "future-collision"
-  attackPath := "untrusted-planner-command"
-  modelRevision := "model-a"
-  referenceAuthority := "independent-reference-a" }
-
-def currentTreatment : TreatmentPublication :=
-  ⟨"Current", "policy-a"⟩
-
 def prior : Handoff := {
-  tara := ⟨"assessment-7", "approval-4", assessedInputs⟩
-  treatment := currentTreatment }
+  tara := ⟨"example-tara", "case-7", "tara-r1", "approval-a", "command-integrity"⟩
+  treatment := ⟨"Current", "policy-a"⟩ }
 
-/- Only an example verifier. A real host must validate the external approval. -/
+/- Only a test assumption. A host must verify approval and source identity. -/
 def assumedTaraVerified (reference : TaraReference) : Bool :=
-  reference.assessmentId == "assessment-7" &&
-    reference.approvalId == "approval-4"
+  reference.source == "example-tara" &&
+    reference.workProductId == "case-7" &&
+    ((reference.revision == "tara-r1" &&
+        reference.approvalRef == "approval-a" &&
+        reference.treatmentGoal == "command-integrity") ||
+      (reference.revision == "tara-r2" &&
+        reference.approvalRef == "approval-b" &&
+        reference.treatmentGoal == "command-integrity") ||
+      (reference.revision == "tara-r3" &&
+        reference.approvalRef == "approval-c" &&
+        reference.treatmentGoal == "voice-command-integrity"))
 
-def cabinVoice : AssessmentInputs :=
-  { assessedInputs with
-      inputSurface := "cabin-speech"
-      attackPath := "unverified-voice-command" }
+def revisedTara : TaraReference :=
+  { prior.tara with revision := "tara-r2", approvalRef := "approval-b" }
 
-def wearableBridge : AssessmentInputs :=
-  { assessedInputs with
-      inputSurface := "wearable-automation"
-      hardwareBoundary := "paired-device-to-vehicle" }
+def changedGoal : TaraReference :=
+  { prior.tara with
+      revision := "tara-r3", approvalRef := "approval-c",
+      treatmentGoal := "voice-command-integrity" }
 
-def embeddedDetector : AssessmentInputs :=
-  { assessedInputs with
-      inputSurface := "CAN-traffic"
-      hardwareBoundary := "embedded-detector-to-controller" }
+def revokedTara : TaraReference :=
+  { prior.tara with approvalRef := "revoked" }
 
-theorem unchangedVerifiedHandoffNeedsNoReview :
-    reviewObligations assumedTaraVerified prior assessedInputs
-      currentTreatment = [] := by
+def revisedTreatment : TreatmentPublication :=
+  { prior.treatment with revision := "policy-b" }
+
+theorem unchangedVerifiedLinkNeedsNoReview :
+    reviewObligations assumedTaraVerified prior prior.tara prior.treatment = [] := by
   native_decide
 
-theorem newInputOrHardwareBoundaryGoesBackToTaraOwner :
-    reviewObligations assumedTaraVerified prior cabinVoice currentTreatment =
-      [.taraOwnerReview] ∧
-    reviewObligations assumedTaraVerified prior wearableBridge currentTreatment =
-      [.taraOwnerReview] ∧
-    reviewObligations assumedTaraVerified prior embeddedDetector currentTreatment =
-      [.taraOwnerReview] := by
+theorem changedTaraReferenceRechecksTreatmentLink :
+    reviewObligations assumedTaraVerified prior revisedTara prior.treatment =
+      [.treatmentOwnerReview] ∧
+    reviewObligations assumedTaraVerified prior changedGoal prior.treatment =
+      [.treatmentOwnerReview] := by
   native_decide
 
-theorem newPolicyRevisionGoesToTreatmentOwner :
-    reviewObligations assumedTaraVerified prior assessedInputs
-      ⟨"Current", "policy-b"⟩ = [.treatmentOwnerReview] := by
+theorem changedPolicyRechecksTreatment :
+    reviewObligations assumedTaraVerified prior prior.tara revisedTreatment =
+      [.treatmentOwnerReview] := by
   native_decide
 
-theorem simultaneousChangesKeepBothObligations :
-    reviewObligations assumedTaraVerified prior cabinVoice
-      ⟨"Current", "policy-b"⟩ =
+theorem changedBothSidesEmitOneTreatmentObligation :
+    reviewObligations assumedTaraVerified prior revisedTara revisedTreatment =
+      [.treatmentOwnerReview] := by
+  native_decide
+
+theorem unverifiedTaraReferenceRequiresSourceReview :
+    reviewObligations assumedTaraVerified prior revokedTara prior.treatment =
+      [.taraOwnerReview, .treatmentOwnerReview] := by
+  native_decide
+
+theorem approvalCannotBeCarriedAcrossRevision :
+    reviewObligations assumedTaraVerified prior
+      { prior.tara with revision := "tara-r2" } prior.treatment =
         [.taraOwnerReview, .treatmentOwnerReview] := by
-  native_decide
-
-theorem invalidApprovalGoesBackToTaraOwner :
-    reviewObligations assumedTaraVerified
-      { prior with tara := { prior.tara with approvalId := "unknown" } }
-      assessedInputs currentTreatment = [.taraOwnerReview] := by
   native_decide
 
 end CedarPooSpec.TaraHandoffExample

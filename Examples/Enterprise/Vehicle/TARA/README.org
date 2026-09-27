@@ -36,9 +36,9 @@ failure mechanisms; they are not all implementations in this repo.
 | Entry point | Source-backed problem | Authorization or evidence boundary | Example status |
 |-------------+-----------------------+------------------------------------+----------------|
 | VLA planner | Mission-level unsafe successor despite a locally valid command | Bind command to independently checked successor and later observation | Executable Mission case |
-| Cabin speech and language model | [[https://arxiv.org/abs/2609.19630][Afroze et al.]] report false executes in a vehicle voice-command benchmark; [[https://www.usenix.org/conference/raid2020/presentation/wang-shu][SIEVE]] studies adversarial in-vehicle speech sources | Speaker provenance, role, authentication, vehicle state, available tool, and pre-action decision | TARA review handoff checked; no voice adapter yet |
-| Wearable-to-vehicle automation | [[https://zhiqlin.github.io/file/SP24.pdf][Zhang et al.]] study smart-glasses-triggered vehicle control chains without user verification | Authenticate each cross-device command and bind it to the intended vehicle and action | TARA review handoff checked; no wearable adapter yet |
-| Embedded sensing and CAN AI | [[https://www.usenix.org/conference/atc24/presentation/xu-he][Xu et al.]] implement CAN intrusion detection on embedded hardware; [[https://www.usenix.org/conference/vehiclesec26/presentation/ali][Ali and Malik]] study counterfeit or compromised embedded-device identity | Preserve sensor/device provenance, model revision, timing, and authority across ECU/controller boundaries | TARA review handoff checked; no hardware adapter yet |
+| Cabin speech and language model | [[https://arxiv.org/abs/2609.19630][Afroze et al.]] report false executes in a vehicle voice-command benchmark; [[https://www.usenix.org/conference/raid2020/presentation/wang-shu][SIEVE]] studies adversarial in-vehicle speech sources | Speaker provenance, role, authentication, vehicle state, available tool, and pre-action decision | Source-backed research; no voice adapter yet |
+| Wearable-to-vehicle automation | [[https://zhiqlin.github.io/file/SP24.pdf][Zhang et al.]] study smart-glasses-triggered vehicle control chains without user verification | Authenticate each cross-device command and bind it to the intended vehicle and action | Source-backed research; no wearable adapter yet |
+| Embedded sensing and CAN AI | [[https://www.usenix.org/conference/atc24/presentation/xu-he][Xu et al.]] implement CAN intrusion detection on embedded hardware; [[https://www.usenix.org/conference/vehiclesec26/presentation/ali][Ali and Malik]] study counterfeit or compromised embedded-device identity | Preserve sensor/device provenance, model revision, timing, and authority across ECU/controller boundaries | Source-backed research; no hardware adapter yet |
 
 The wearable link is a cross-device Vehicle/TARA input. A medical
 wearable's own clinical risks belong in its separate health case. A
@@ -94,7 +94,7 @@ and vehicle platforms. The comparison here is with a standalone TARA
 matrix and independently maintained Cedar snapshots, not a claim that
 all TARA methods lack reuse.
 
-* Review handoff boundary
+* Minimal review handoff
 
 The 42 cells count *policy decisions* across seven axes and six
 composition roots. They are not 42 completed risk assessments. A common
@@ -104,29 +104,62 @@ MOSAIC-TARA explicitly notes that the same component may have different
 damage impact depending on context. Therefore the adapter does not
 decide whether a risk rating is reusable.
 
-[[file:TaraHandoff.lean][TaraHandoff.lean]] accepts a TARA assessment
-reference and an executable treatment publication. Its input key names
-the vehicle item, operating domain, input surface, hardware trust
-boundary, asset, damage scenario, attack path, AI model revision, and
-independent-reference authority. A host-supplied verifier checks the
-external TARA approval. When those inputs change, the adapter emits a
-=taraOwnerReview= obligation; when the treatment publication changes,
-it emits =treatmentOwnerReview=. Both may be emitted together. TARA
-decides the scope and outcome of its review; the treatment owner then
-updates Cedar policies and proof certificates as needed. The Lean
-example uses an assumed verifier solely to exercise this interface.
+[[file:TaraHandoff.lean][TaraHandoff.lean]] accepts only a source ID,
+work-product ID, revision, approval reference, treatment-goal ID, and
+the linked executable treatment publication. It does not parse the
+asset catalog, attack tree, impact model, risk matrix, or residual-risk
+calculations. A host-supplied verifier checks the external approval.
+An unverified reference produces =taraOwnerReview=. A changed TARA
+reference, goal, or Cedar publication produces =treatmentOwnerReview= so
+the executable link and affected certificates can be checked. Both
+obligations may be emitted together. The example verifier is an
+explicit assumption, not a TARA authority implementation.
 
-| Change | TARA owner | Lean-POO / Cedar treatment owner |
-|--------+------------+----------------------------------|
-| Verified assessment reference and matching inputs; unchanged treatment | No new obligation emitted by the adapter | Keep existing publication link |
-| Damage, domain, attack path, model, input surface, hardware, or reference changes | Review impact, feasibility, or approval as appropriate | Keep shared policy only if its assumptions still fit |
-| Treatment revision changes | Review treatment link if required by the TARA process | Recheck policy, affected certificates, and publication |
-| Both sides change | Review assessment inputs and treatment link | Recompose and recheck affected policies |
+| Event | Source owner | Treatment owner |
+|-------+--------------+-----------------|
+| Verified reference and unchanged publication | Retains TARA authority | No new link review emitted |
+| TARA reference or goal changes, with valid approval | Supplies reviewed work product | Recheck goal-to-policy mapping and affected certificates |
+| TARA reference fails external verification | Re-establish approval and source identity | Hold and recheck the link |
+| Cedar publication changes | Retains TARA authority | Recheck the composed treatment and publication |
 
 This gate only routes work. It cannot prove that an external approval is
 authentic, that an unchanged assessment is still current, or that a
-policy is suitable for a new context. The host must supply true input
-identifiers and implement the approval verifier.
+policy is suitable for a new context. The host must implement approval
+verification and bind the reference revision to the actual source
+work product.
+
+The [[https://github.com/ASRG/openXSAM][ASRG openXSAM repository]] provides
+a public XML exchange model for automotive risk information, including
+risk and control schemas. It is a plausible upstream interchange format,
+but this example neither vendors its GPL-licensed schema nor implements
+an XML importer. [[https://github.com/leonkalema/QuickTARA][QuickTARA]] reports
+JSON among its export formats; its public repository does not establish
+a universal industry output schema. Neither GitHub repository is treated
+as the authority for a real vehicle assessment. The TARA owner supplies
+the small, approved projection above, regardless of its authoring tool.
+
+* Relationship to POO Flow and Lambda Episteme
+
+The candidate path can use the existing POO Flow source-admission and
+Lambda Episteme Case/Scenario machinery without moving TARA semantics
+into Lean-POO. Lambda Episteme can declare the selected external
+reference and evidence source; POO Flow can admit a composed candidate
+and return a typed receipt. Admission is not authorization to execute.
+The Cedar adapter then maps an approved treatment goal to a specific
+Lean-POO policy composition, and the application host verifies the
+external approval before publishing or acting. This cross-repository
+path is a proposed integration; =TaraHandoff.lean= currently checks only
+the local reference-to-publication change boundary.
+
+#+begin_src mermaid
+flowchart LR
+    T["TARA owner: full work product and approval"] --> R["Selected reference and goal"]
+    R --> L["Lambda Episteme: source and Case evidence"]
+    L --> P["POO Flow: candidate admission receipt"]
+    P --> H["Host: approval and effect authorization"]
+    H --> C["Lean-POO + Cedar: composed treatment and decision"]
+    C --> X["Runtime observation and actuator handoff"]
+#+end_src
 
 | Capability | TARA research | This example |
 |------------+---------------+--------------|
@@ -139,11 +172,11 @@ identifiers and implement the approval verifier.
 #+begin_src mermaid
 stateDiagram-v2
     [*] --> Linked: verified TARA reference and treatment publication
-    Linked --> Linked: tracked inputs and publication unchanged
-    Linked --> TaraReview: assessment input or approval changes
-    Linked --> TreatmentReview: treatment publication changes
-    Linked --> BothReview: both sides change
-    TaraReview --> Linked: TARA owner supplies reviewed reference
+    Linked --> Linked: verified reference and publication unchanged
+    Linked --> TaraReview: external reference fails verification
+    Linked --> TreatmentReview: reference, goal, or publication changes
+    Linked --> BothReview: changed reference also fails verification
+    TaraReview --> Linked: TARA owner supplies verified reference
     TreatmentReview --> Linked: treatment owner republishes
     BothReview --> Linked: both owners complete their work
 #+end_src
