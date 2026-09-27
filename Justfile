@@ -101,7 +101,7 @@ check-multi-account-banking: build-examples
 
 check-claim-settlement: build-examples
     lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlement
-    lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlementReuse
+    lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlementRevision
 
 prepare-attested-schema-evolution: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json

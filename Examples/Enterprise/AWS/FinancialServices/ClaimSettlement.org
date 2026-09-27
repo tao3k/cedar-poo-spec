@@ -50,7 +50,7 @@ permit to remove =transfer_funds=. The rest of that owner's tools remain
 available; =TransferResumed= overlays the original permit back. The bank
 revision reports exactly one changed policy ID. In the cross-domain plan,
 the pause blocks settlement while the claims decisions remain the same.
-[[file:ClaimSettlementReuse.lean][ClaimSettlementReuse.lean]] uses the public LeanPOO =ProofObject=,
+[[file:ClaimSettlementRevision.lean][ClaimSettlementRevision.lean]] uses the public LeanPOO =ProofObject=,
 =Patch.set=, =append=, and =reuse= APIs: the bank-key patch invalidates the
 bank obligation, while the insurance obligation's certificate is reused
 because its declared dependency is untouched. This is a concrete proof

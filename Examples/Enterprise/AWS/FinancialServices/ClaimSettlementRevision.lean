@@ -5,7 +5,7 @@ import LeanPoo.Proof.Reuse
 insurance Gateway decision depends on a different key, so its certificate
 can be transported by LeanPOO's public reuse theorem. -/
 
-namespace CedarPooSpec.AWS.ClaimSettlementReuse
+namespace CedarPooSpec.AWS.ClaimSettlementRevision
 
 open LeanPoo.Proof
 
@@ -89,4 +89,4 @@ theorem bankCertificateInvalidated :
     "SourceM2M" "TransferPaused" ≠ true
   native_decide
 
-end CedarPooSpec.AWS.ClaimSettlementReuse
+end CedarPooSpec.AWS.ClaimSettlementRevision
