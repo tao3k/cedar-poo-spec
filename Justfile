@@ -7,6 +7,9 @@ default:
 update:
     lake update
 
+sync: update
+    just check
+
 build:
     lake build CedarPooSpec
 
