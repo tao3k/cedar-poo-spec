@@ -23,6 +23,12 @@ check: build-examples check-docs
     just check-policy-reuse
     just check-cedar-language
     just check-mission-comparison
+    just check-authorization-delta
+
+check-authorization-delta: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
+    jq -e '.posture.status == "no-expansion-in-schema" and .posture.environments_checked == 1 and .new_grant.status == "expanded" and .new_grant.environments_checked == 1 and (.new_grant.counterexamples | length) > 0' .lake/build/authorization-delta.json > /dev/null
+    jq '.manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 [parallel]
 check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-supplier-transition check-vla-command check-mission-successor check-mission-replay check-mission-maintenance check-vehicle-tara check-reuse-scale

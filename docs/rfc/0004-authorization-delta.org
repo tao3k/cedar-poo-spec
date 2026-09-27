@@ -1,0 +1,75 @@
+#+TITLE: RFC 0004: Authorization Delta over Cedar Policy Revisions
+#+OPTIONS: toc:nil
+
+* Contract
+
+[[file:../../CedarPooSpec/AuthorizationDelta.lean][AuthorizationDelta]] asks whether
+a C4-composed Cedar policy revision grants any request that its predecessor
+denied. It uses =Cedar.SymCC.implies? after before=; Cedar owns the symbolic
+compiler, verification condition, and authorization semantics. This adapter
+owns revision compilation, query coverage, provenance, and result admission.
+
+For each request type declared by the supplied schema, the queried property
+is:
+
+#+begin_example
+Allow(after, request, entities) -> Allow(before, request, entities)
+#+end_example
+
+The analysis checks that the schema is well formed and both policy sets pass
+Cedar validation. It calls Cedar's =wellTypedPolicies= in every schema type
+environment, then constructs =SymEnv.ofTypeEnv=. It rejects an empty list of
+environments rather than reporting a vacuous no-expansion result. A solver
+error or unknown result is an error, never a no-expansion result.
+
+An expansion result carries a concrete Cedar request and entity store. The
+adapter replays the original, untransformed policies and requires =Deny=
+before and =Allow= after. It also reports which policy IDs changed according
+to the C4 revision. The no-expansion result is scoped to the request types,
+entities, and context values represented by the schema environments. It is
+not a claim about inputs that violate the schema or host-supplied facts that
+are false.
+
+* Evidence and trust boundary
+
+Cedar's [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/Thm/Verification.lean][verification theorems]] establish the meaning of symbolic implication
+under their well-formedness premises. This repository does not duplicate the
+symbolic compiler or prove an independent authorization semantics. CVC5 is an
+external solver: an unsatisfiable answer is used as analysis evidence, while
+the concrete counterexample is replayed by Cedar Lean and by the official
+Rust =cedar-policy= authorizer. The result is a checked analysis report, not
+a kernel proof of the solver's answer.
+
+The [[file:../../Examples/Governance/AuthorizationDelta.lean][ticket-sharing
+case]] checks two revisions from the same POO graph. A device-posture overlay
+does not expand Allow within the schema. A later ticket grant produces a
+counterexample with =User::"alice"= reading =Ticket::"ticket-b"=: the old
+revision denies and the new revision allows. The generated Rust manifest
+replays both responses, their reason IDs, and their error IDs through the
+official Cedar authorizer.
+
+* API and check
+
+=analyze revision schema= returns a report or a typed error. =analyzeModel=
+first compiles two named POO roots. The report contains the changed policy
+IDs, the number of schema environments checked, and any expansion witnesses.
+Applications decide whether an expansion is authorized; the library exposes
+the change without making that governance decision.
+
+Set =CVC5= to an absolute path to the cvc5 executable and run:
+
+#+begin_src sh
+just check-authorization-delta
+#+end_src
+
+The recipe limits Lean time and memory, checks both expected outcomes, and
+replays the witness through Rust Cedar. =just check= includes this gate. CI
+installs cvc5 and runs the same command. No solver binary is committed.
+
+* Scope
+
+This feature does not authenticate identity, entity facts, or context values;
+those are supplied by the host. It does not make authorization and effect
+commit atomic. It analyzes Cedar's Allow/Deny decision rather than the
+application's extra rule to reject a response containing policy errors.
+Those boundaries remain explicit at the deployment interface.

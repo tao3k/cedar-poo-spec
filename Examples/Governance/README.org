@@ -128,6 +128,13 @@ claim of complete real-world authorization coverage.
 
 * Ticket-sharing template revision
 
+The [[file:AuthorizationDelta.lean][authorization-delta example]] compares two
+revisions of this same C4 graph with upstream Cedar SymCC. The posture overlay
+has no new Allow within the schema; the later ticket grant yields a concrete
+new-Allow/old-Deny witness. The witness is replayed by official Rust Cedar.
+See [[file:../../docs/rfc/0004-authorization-delta.org][RFC 0004]] for the
+analysis scope and solver trust boundary.
+
 [[file:TicketSharing.lean][TicketSharing.lean]] adapts Cedar's published
 [[https://docs.cedarpolicy.com/overview/patterns.html][discretionary ticket-sharing pattern]]: an application links a user and
 an open ticket to a policy template. The
