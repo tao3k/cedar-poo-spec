@@ -9,3 +9,4 @@
 | [[file:Chain/README.org][Chain]] | Variable-depth delegation and edge revocation. |
 | [[file:Payment/README.org][Payment]] | Per-call payment authorization. |
 | [[file:DataFlow/README.org][Data flow]] | Cross-tool read and publication controls. |
+| [[file:Session/README.org][Bounded session]] | Prior actions, delegated intent, export budgets, and incident recovery for AI agents. |
