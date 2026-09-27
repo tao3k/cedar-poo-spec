@@ -99,6 +99,7 @@ jobs:
       - run: just check-exchange-signing-validated
       - run: just check-schema-bound-scenarios
       - run: just check-lakehouse-gateway
+      - run: just check-multi-account-banking
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
 

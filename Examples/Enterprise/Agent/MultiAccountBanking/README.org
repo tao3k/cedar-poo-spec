@@ -1,0 +1,89 @@
+#+TITLE: Multi-Account Banking Agent: Gateway Policy Ownership
+#+OPTIONS: toc:nil
+
+* Source and scope
+
+This example follows the September 2026 AWS [[https://aws.amazon.com/blogs/machine-learning/build-a-multi-account-ai-agent-with-agentcore-gateway-and-mcp/][multi-account banking agent article]]
+and its [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account][sample repository]]. The sample has one platform account, three line-of-business
+(LOB) accounts, and a central AgentCore Gateway. The published demo includes a
+cross-account fund transfer using =transaction-banking___transfer_funds= and
+=retail-banking___update_balance=, a lending knowledge-base lookup, and a
+Gateway denial of =retail-banking___delete_customer=. Its sample policy permits
+authenticated tool calls broadly and forbids customer deletion. The published
+data is synthetic, and the repository describes itself as a proof of concept.
+
+[[file:MultiAccountBanking.lean][MultiAccountBanking.lean]] projects all sixteen named business tools from the three
+published MCP servers, plus =tools/list= and =initialize=. It models
+only the Gateway Cedar decision for an authenticated =OAuthUser=. It does not
+model transfer atomicity, transaction compensation, account ownership, token
+validation, IAM, row-level access, or retrieval contents. The Cedar schema is
+a local projection, not an exported AgentCore Gateway schema.
+
+| Source file | Facts used here |
+|-------------+-----------------|
+| [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/platform-account/gateway/setup_gateway.py][Gateway setup]] | Action-wide authenticated permit, =delete_customer= forbid, ENFORCE mode, outbound M2M target credentials. |
+| [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/lob-accounts/retail-banking/mcp_server/server.py][Retail MCP]] | Six published retail tool names, including balance update and customer deletion. |
+| [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/lob-accounts/transaction-banking/mcp_server/server.py][Transaction MCP]] | Four published transaction tool names, including funds transfer. |
+| [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/lob-accounts/lending-wealth/mcp_server/server.py][Lending MCP]] | Six published lending and knowledge-base tool names. |
+
+#+begin_src mermaid
+flowchart LR
+    U[User JWT] --> A[Platform agent]
+    A --> G[Gateway: Cedar per-user tool decision]
+    G -->|M2M credential| R[Retail MCP: balance update]
+    G -->|M2M credential| T[Transaction MCP: transfer funds]
+    G -->|M2M credential| L[Lending MCP: score and policy search]
+    R --> RD[Retail account data]
+    T --> TD[Transaction account data]
+    L --> LD[Lending account data]
+    P[Lean-POO policy owners] --> G
+#+end_src
+
+The AWS article says the Gateway forwards the user JWT for its Cedar decision,
+then uses outbound OAuth M2M credentials to reach a LOB MCP server. The LOB
+server validates that token itself. Production hardening can also restrict
+the LOB Runtime's workload identity chain to the Gateway. Those are separate
+enforcement points: a Cedar =allow= here does not prove a LOB accepted the
+call or that the entire transfer completed.
+
+* POO leverage and observed decisions
+
+=SampleBroad= captures the sample's action-wide Gateway permission plus the
+global customer-deletion veto. The =Retail=, =Transaction=, and =Lending=
+branches are *our POO rewrite*: each owns only its account's permits. A
+=Protocol= branch owns =tools/list= and =initialize=.
+=OwnerCombined= C4-composes them with the shared deletion veto. This is a
+change in policy construction, not a claim that AWS deployed these owners.
+Lean checks exact decision equality for both roots across all eighteen named
+actions and two authenticated users. The official Cedar Rust parser, validator,
+and authorizer replay the thirty-six corresponding single-user requests. The Just
+recipe also compares the exported [[file:Policies/source-broad.cedar][source-shaped]] and
+[[file:Policies/owner-composed.cedar][owner-composed]] Cedar files against their committed versions.
+
+| Action group | Count | Source broad | POO owner composition |
+|--------------+-------+--------------+-----------------------|
+| Retail tools other than =delete_customer= | 5 | Allow | Allow |
+| =retail-banking___delete_customer= | 1 | Deny | Deny |
+| Transaction tools | 4 | Allow | Allow |
+| Lending tools | 6 | Allow | Allow |
+| Gateway =tools/list= and =initialize= | 2 | Allow | Allow |
+
+The transfer needs two independent tool permissions. =Retail= alone denies
+=transfer_funds=; =Transaction= alone denies =update_balance=; =OwnerCombined=
+allows both. A lending tool remains denied at the =Retail= root and becomes
+available only after =Lending= joins the composition. These checks show why
+the LOB policy ownership matters when a single agent spans accounts. The
+sample's =action= wildcard would also allow a future registered tool unless
+another rule forbids it. The owner rewrite requires an explicit new owner
+permit. That is an *intentional difference outside the eighteen enumerated
+actions*, not a claim of full semantic equivalence for future tools.
+
+The AWS [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-session-based-temporal.html][policy session documentation]] limits automatic multi-hop session and caller
+propagation to one AWS account and Region. This cross-account example does
+not assume that temporal session mechanism works across LOB accounts. The
+article's explicit user-JWT-to-Gateway and M2M-to-LOB chain is the authority
+for the modeled boundary.
+
+#+begin_src sh
+just check-multi-account-banking
+#+end_src

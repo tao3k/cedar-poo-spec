@@ -28,6 +28,7 @@ check: check-tests check-docs
     just check-schema-bound-receipts
     just check-schema-bound-scenarios
     just check-lakehouse-gateway
+    just check-multi-account-banking
     just check-attested-schema-evolution
     just check-authorization-delta
     just check-authorization-delta-proof
@@ -85,6 +86,16 @@ check-lakehouse-gateway: build-examples
     cmp .lake/build/lakehouse-source-combined.cedar Examples/Enterprise/Agent/LakehouseGateway/Policies/source-combined.cedar
     jq '.cases[1].policies' .lake/build/lakehouse-gateway-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/lakehouse-fail-closed.cedar
     cmp .lake/build/lakehouse-fail-closed.cedar Examples/Enterprise/Agent/LakehouseGateway/Policies/fail-closed.cedar
+
+check-multi-account-banking: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean multi-account-banking-validated > .lake/build/multi-account-banking-validated-manifest.json
+    jq -e '.schema.AgentCore.entityTypes.OAuthUser != null and (.schema.AgentCore.actions | length) == 18 and (.cases | length) == 36' .lake/build/multi-account-banking-validated-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/multi-account-banking-validated-manifest.json > .lake/build/multi-account-banking-validated-receipts.json
+    jq -e 'length == 36 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$")) and (.replay.case_name | test("^(source|owners)-")) and .replay.decision == (if (.replay.case_name | endswith("delete-customer")) then "deny" else "allow" end)) and ((group_by(.replay.case_name | sub("^(source|owners)-"; ""))) | length == 18 and all(.[]; length == 2 and (map(.replay.case_name | split("-")[0]) | sort) == ["owners", "source"]))' .lake/build/multi-account-banking-validated-receipts.json > /dev/null
+    jq '.cases[0].policies' .lake/build/multi-account-banking-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/multi-account-banking-source.cedar
+    cmp .lake/build/multi-account-banking-source.cedar Examples/Enterprise/Agent/MultiAccountBanking/Policies/source-broad.cedar
+    jq '.cases[1].policies' .lake/build/multi-account-banking-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/multi-account-banking-owners.cedar
+    cmp .lake/build/multi-account-banking-owners.cedar Examples/Enterprise/Agent/MultiAccountBanking/Policies/owner-composed.cedar
 
 prepare-attested-schema-evolution: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json

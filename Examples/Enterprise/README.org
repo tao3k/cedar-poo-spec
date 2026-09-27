@@ -15,6 +15,7 @@ and source and modeling notes in its own directory.
 | [[file:Agent/Payment/README.org][Agent payment]] | Agent payment value, account, and origin authorization. |
 | [[file:Agent/DataFlow/README.org][Agent data flow]] | Cross-tool read and publish controls with classification and review. |
 | [[file:Agent/LakehouseGateway/README.org][AgentCore lakehouse Gateway]] | Source-backed policyholder and geography restrictions from an AWS insurance data-agent example, with an explicitly proposed fail-closed extension. |
+| [[file:Agent/MultiAccountBanking/README.org][Multi-account banking Gateway]] | Source-backed cross-account banking transfer with independently owned LOB tool policies. |
 | [[file:Agent/Session/README.org][Bounded agent session]] | Stateful authorization of delegated tasks and cross-tool action sequences. |
 | [[file:Agent/Fanout/README.org][Shared agent budget]] | Parent-wide budget across concurrent sub-agents and a visible stale-read race. |
 | [[file:Exchange/README.org][Exchange]] | Independent transaction witnesses, signer byte binding, and scoped incident freeze. |
