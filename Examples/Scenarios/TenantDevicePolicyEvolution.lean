@@ -104,8 +104,9 @@ example : ∀ p ∈ policies,
 /-!
 Policy evolution is the POO use case. A legacy broad permit coexists with a
 tenant permit. Tightening the tenant permit alone cannot revoke the legacy
-permit: Cedar combines all applicable permits. A descendant adds a forbid for
-untrusted devices, then removes the legacy permit. C4 determines which module
+permit: Cedar combines all applicable permits. A sibling adds a forbid for
+untrusted devices. C4 composes both branches; a descendant then removes the
+legacy permit. C4 determines which module
 edits are inherited; Cedar alone computes authorization decisions.
 -/
 
@@ -133,18 +134,20 @@ def untrustedForbid : Policy :=
 
 def baseModule : Module :=
   { name := "Base", edits := [.extend tenantPermit, .extend legacyPermit] }
-def overlayModule : Module :=
-  { name := "Overlay", parentOrders := [["Base"]],
+def tenantModule : Module :=
+  { name := "TenantStrict", parentOrders := [["Base"]],
     edits := [.overlay strictTenantPermit] }
-def extendModule : Module :=
-  { name := "Extend", parentOrders := [["Overlay"]],
+def deviceModule : Module :=
+  { name := "DeviceVeto", parentOrders := [["Base"]],
     edits := [.extend untrustedForbid] }
+def composedModule : Module :=
+  { name := "Composed", parentOrders := [["TenantStrict", "DeviceVeto"]] }
 def removeModule : Module :=
-  { name := "Remove", parentOrders := [["Extend"]],
+  { name := "Remove", parentOrders := [["Composed"]],
     edits := [.remove legacyPermit.id] }
 
 def model : Model :=
-  { modules := [baseModule, overlayModule, extendModule, removeModule] }
+  { modules := [baseModule, tenantModule, deviceModule, composedModule, removeModule] }
 
 def finalPolicies : Policies :=
   (model.compile "Remove").toOption.get (by native_decide)
@@ -153,19 +156,22 @@ def expectedDecisions : List (String × Request × Decision) :=
   [("Base", allowedRequest, .allow),
    ("Base", crossTenantRequest, .allow),
    ("Base", untrustedRequest, .allow),
-   ("Overlay", allowedRequest, .allow),
-   ("Overlay", crossTenantRequest, .allow),
-   ("Overlay", untrustedRequest, .allow),
-   ("Extend", allowedRequest, .allow),
-   ("Extend", crossTenantRequest, .allow),
-   ("Extend", untrustedRequest, .deny),
+   ("TenantStrict", allowedRequest, .allow),
+   ("TenantStrict", crossTenantRequest, .allow),
+   ("TenantStrict", untrustedRequest, .allow),
+   ("DeviceVeto", allowedRequest, .allow),
+   ("DeviceVeto", crossTenantRequest, .allow),
+   ("DeviceVeto", untrustedRequest, .deny),
+   ("Composed", allowedRequest, .allow),
+   ("Composed", crossTenantRequest, .allow),
+   ("Composed", untrustedRequest, .deny),
    ("Remove", allowedRequest, .allow),
    ("Remove", crossTenantRequest, .deny),
    ("Remove", untrustedRequest, .deny)]
 
 def scenarioConforms : Bool :=
   (LeanPoo.C4.linearize model.graph "Remove").toOption ==
-      some ["Remove", "Extend", "Overlay", "Base"] &&
+      some ["Remove", "Composed", "TenantStrict", "DeviceVeto", "Base"] &&
   expectedDecisions.all fun (root, request, expected) =>
     match model.compile root with
     | .error _ => false
@@ -175,6 +181,16 @@ def scenarioConforms : Bool :=
       (isAuthorized request entities policies).erroringPolicies.isEmpty
 
 theorem scenarioConformsFully : scenarioConforms = true := by native_decide
+
+theorem tenantEditLocal :
+    ((model.compileRevision "Base" "TenantStrict").toOption.get
+      (by native_decide)).changedPolicyIds = ["tenant-read"] := by native_decide
+theorem deviceEditLocal :
+    ((model.compileRevision "Base" "DeviceVeto").toOption.get
+      (by native_decide)).changedPolicyIds = ["untrusted-device"] := by native_decide
+theorem legacyRetirementLocal :
+    ((model.compileRevision "Composed" "Remove").toOption.get
+      (by native_decide)).changedPolicyIds = ["legacy-read"] := by native_decide
 
 -- Issue-inspired skip-on-error case: a missing context attribute makes a
 -- forbid error. Cedar excludes that forbid, so the broad permit can allow.

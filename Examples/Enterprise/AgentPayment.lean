@@ -17,6 +17,7 @@ def paymentTool : EntityUID := ⟨toolType, "process-payment"⟩
 def approvedGroup : EntityUID := ⟨accountGroupType, "Approved"⟩
 def externalGroup : EntityUID := ⟨accountGroupType, "External"⟩
 def approvedAccount : EntityUID := ⟨accountType, "approved"⟩
+def reserveAccount : EntityUID := ⟨accountType, "reserve"⟩
 def externalAccount : EntityUID := ⟨accountType, "external"⟩
 def transfer : EntityUID := ⟨actionType, "transfer"⟩
 
@@ -25,6 +26,7 @@ def paymentEntities : Entities := Map.make (entities.toList ++ [
   (paymentTool, emptyData),
   (approvedGroup, emptyData), (externalGroup, emptyData),
   (approvedAccount, { emptyData with ancestors := Set.make [approvedGroup] }),
+  (reserveAccount, { emptyData with ancestors := Set.make [approvedGroup] }),
   (externalAccount, { emptyData with ancestors := Set.make [externalGroup] }),
   (transfer, emptyData)])
 
@@ -61,23 +63,38 @@ def financeToolPolicy : Policy :=
 
 def paymentBase : Policy :=
   policy "agent-payment" transfer (.eq financeBot) .any (.lit (.bool true))
-def paymentScoped : Policy :=
-  { paymentBase with resourceScope := .resourceScope (.mem approvedGroup) }
-def paymentCapped : Policy :=
-  { paymentScoped with condition := [{ kind := .when, body := .and positive withinCeiling }] }
-def paymentHuman : Policy :=
-  { paymentCapped with condition := [
-      { kind := .when, body := .and (.and positive withinCeiling) originAuthorized }] }
+def veto (id : String) (invalid : Expr) : Policy :=
+  { id, effect := .forbid,
+    principalScope := paymentBase.principalScope,
+    actionScope := paymentBase.actionScope,
+    resourceScope := paymentBase.resourceScope,
+    condition := [{ kind := .when, body := invalid }] }
+def accountVeto : Policy :=
+  veto "unapproved-account"
+    (.unaryApp .not (.binaryApp .mem (.var .resource) (.lit (.entityUID approvedGroup))))
+def amountVeto : Policy :=
+  veto "invalid-payment-amount" (.unaryApp .not (.and positive withinCeiling))
+def originVeto : Policy :=
+  veto "unapproved-payment-origin" (.unaryApp .not originAuthorized)
+def frozenAccountVeto : Policy :=
+  veto "frozen-payment-account"
+    (eq (.var .resource) (.lit (.entityUID approvedAccount)))
 
 def paymentModel : Model := { modules := model.modules ++ [
   { name := "FinanceTool", edits := [.extend financeToolPolicy] },
   { name := "PaymentBase", edits := [.extend paymentBase] },
-  { name := "PaymentScoped", parentOrders := [["PaymentBase"]],
-    edits := [.overlay paymentScoped] },
-  { name := "PaymentCapped", parentOrders := [["PaymentScoped"]],
-    edits := [.overlay paymentCapped] },
-  { name := "PaymentHuman", parentOrders := [["PaymentCapped"]],
-    edits := [.overlay paymentHuman] }] }
+  { name := "PaymentAccount", parentOrders := [["PaymentBase"]],
+    edits := [.extend accountVeto] },
+  { name := "PaymentAmount", parentOrders := [["PaymentBase"]],
+    edits := [.extend amountVeto] },
+  { name := "PaymentOrigin", parentOrders := [["PaymentBase"]],
+    edits := [.extend originVeto] },
+  { name := "PaymentGoverned",
+    parentOrders := [["PaymentAccount", "PaymentAmount", "PaymentOrigin"]] },
+  { name := "PaymentFrozen", parentOrders := [["PaymentGoverned"]],
+    edits := [.extend frozenAccountVeto] },
+  { name := "PaymentRestored", parentOrders := [["PaymentFrozen"]],
+    edits := [.remove frozenAccountVeto.id] }] }
 
 def paymentRequest (account origin : EntityUID) (requested : String) : Request :=
   ⟨financeBot, transfer, account, Map.make [
@@ -98,24 +115,86 @@ def authorizePayment (root : String) (account origin : EntityUID)
 
 def cases : List (String × String × EntityUID × EntityUID × String × Bool) := [
   ("base-external-high-support", "PaymentBase", externalAccount, support, "500.0000", true),
-  ("scoped-external", "PaymentScoped", externalAccount, admin, "50.0000", false),
-  ("scoped-high", "PaymentScoped", approvedAccount, admin, "500.0000", true),
-  ("capped-high", "PaymentCapped", approvedAccount, admin, "100.0001", false),
-  ("capped-support", "PaymentCapped", approvedAccount, support, "50.0000", true),
-  ("human-exact-ceiling", "PaymentHuman", approvedAccount, admin, "100.0000", true),
-  ("human-over-ceiling", "PaymentHuman", approvedAccount, admin, "100.0001", false),
-  ("human-zero", "PaymentHuman", approvedAccount, admin, "0.0000", false),
-  ("human-external", "PaymentHuman", externalAccount, admin, "50.0000", false),
-  ("human-support", "PaymentHuman", approvedAccount, support, "50.0000", false),
-  ("human-no-mfa", "PaymentHuman", approvedAccount, adminNoMfa, "50.0000", false)]
+  ("account-external", "PaymentAccount", externalAccount, admin, "50.0000", false),
+  ("account-high", "PaymentAccount", approvedAccount, admin, "500.0000", true),
+  ("amount-high", "PaymentAmount", approvedAccount, admin, "100.0001", false),
+  ("amount-support", "PaymentAmount", approvedAccount, support, "50.0000", true),
+  ("origin-external", "PaymentOrigin", externalAccount, admin, "50.0000", true),
+  ("origin-support", "PaymentOrigin", approvedAccount, support, "50.0000", false),
+  ("governed-exact-ceiling", "PaymentGoverned", approvedAccount, admin, "100.0000", true),
+  ("governed-over-ceiling", "PaymentGoverned", approvedAccount, admin, "100.0001", false),
+  ("governed-zero", "PaymentGoverned", approvedAccount, admin, "0.0000", false),
+  ("governed-external", "PaymentGoverned", externalAccount, admin, "50.0000", false),
+  ("governed-support", "PaymentGoverned", approvedAccount, support, "50.0000", false),
+  ("governed-no-mfa", "PaymentGoverned", approvedAccount, adminNoMfa, "50.0000", false),
+  ("frozen-target", "PaymentFrozen", approvedAccount, admin, "50.0000", false),
+  ("frozen-reserve-unaffected", "PaymentFrozen", reserveAccount, admin, "50.0000", true),
+  ("restored-target", "PaymentRestored", approvedAccount, admin, "50.0000", true)]
 
 def casesExact : Bool := cases.all fun (_, root, account, origin, requested, expected) =>
   authorizePayment root account origin requested == expected
 
 theorem casesExactFully : casesExact = true := by native_decide
 
+def branchesNeedComposition : Bool :=
+  authorizePayment "PaymentAccount" approvedAccount support "500.0000" &&
+  authorizePayment "PaymentAmount" externalAccount admin "50.0000" &&
+  authorizePayment "PaymentOrigin" approvedAccount admin "500.0000" &&
+  !authorizePayment "PaymentGoverned" approvedAccount support "500.0000" &&
+  !authorizePayment "PaymentGoverned" externalAccount admin "50.0000"
+theorem branchesNeedCompositionFully : branchesNeedComposition = true := by
+  native_decide
+
+theorem accountBranchLocal :
+    ((paymentModel.compileRevision "PaymentBase" "PaymentAccount").toOption.get
+      (by native_decide)).changedPolicyIds = ["unapproved-account"] := by native_decide
+theorem amountBranchLocal :
+    ((paymentModel.compileRevision "PaymentBase" "PaymentAmount").toOption.get
+      (by native_decide)).changedPolicyIds = ["invalid-payment-amount"] := by native_decide
+theorem originBranchLocal :
+    ((paymentModel.compileRevision "PaymentBase" "PaymentOrigin").toOption.get
+      (by native_decide)).changedPolicyIds = ["unapproved-payment-origin"] := by native_decide
+def governedPolicyIds : Bool :=
+  match paymentModel.compile "PaymentGoverned" with
+  | .error _ => false
+  | .ok policies =>
+      let ids := policies.map Policy.id
+      ids.length == 4 &&
+      ["agent-payment", "unapproved-account", "invalid-payment-amount",
+        "unapproved-payment-origin"].all ids.contains
+theorem governedPolicyIdsFully : governedPolicyIds = true := by native_decide
+
+theorem freezeEditLocal :
+    ((paymentModel.compileRevision "PaymentGoverned" "PaymentFrozen").toOption.get
+      (by native_decide)).changedPolicyIds = ["frozen-payment-account"] := by native_decide
+theorem restoreEditLocal :
+    ((paymentModel.compileRevision "PaymentFrozen" "PaymentRestored").toOption.get
+      (by native_decide)).changedPolicyIds = ["frozen-payment-account"] := by native_decide
+theorem restoredPoliciesEqualGoverned :
+    (paymentModel.compile "PaymentRestored" ==
+      paymentModel.compile "PaymentGoverned") = true := by native_decide
+
+def malformedOriginRequest : Request :=
+  ⟨financeBot, transfer, approvedAccount, Map.make [
+    ("amount", .ext (.decimal (decimal "50.0000"))),
+    ("origin", .prim (.string "admin"))]⟩
+def malformedChecks : List (String × Request) := [
+  ("FinanceTool", requestTool financeBot paymentTool),
+  ("PaymentGoverned", malformedOriginRequest)]
+def malformedOriginRejected : Bool :=
+  match CedarPooSpec.CompoundAuthorization.authorizeLayers paymentModel
+      malformedChecks paymentEntities with
+  | .ok [toolLayer, paymentLayer] =>
+      paymentLayer.response.decision == .allow &&
+      !paymentLayer.response.erroringPolicies.isEmpty &&
+      !CedarPooSpec.CompoundAuthorization.layersAllowed [toolLayer, paymentLayer]
+  | _ => false
+theorem malformedOriginRejectedFully : malformedOriginRejected = true := by
+  native_decide
+
 def allRootsValidated : Bool :=
-  ["FinanceTool", "PaymentBase", "PaymentScoped", "PaymentCapped", "PaymentHuman"].all
+  ["FinanceTool", "PaymentBase", "PaymentAccount", "PaymentAmount",
+    "PaymentOrigin", "PaymentGoverned", "PaymentFrozen", "PaymentRestored"].all
     fun root => (CedarPooSpec.PolicyJson.publish paymentModel root paymentSchema).isOk
 
 theorem allRootsValidatedFully : allRootsValidated = true := by native_decide

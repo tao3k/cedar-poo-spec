@@ -126,21 +126,23 @@ The AI agent delegation case adds thirty-three layer requests across eight
 POO roots. It checks a three-query tool/delegation/origin flow, including a
 runtime error that leaves raw Cedar =Allow= but is rejected by the compound
 consumer because diagnostics are nonempty.
-The chain extension adds forty individual Cedar requests for paths with one,
+The chain extension adds fifty-two individual Cedar requests for paths with one,
 two, or three delegation hops. POO overlays the generic hop and origin-depth
 policies independently, composes them with C4, and extends a single-edge
-veto; the Rust boundary checks each layer and five generated policy roots.
+veto; the Rust boundary checks each layer and six generated policy roots.
 Within one compound request, repeated checks against the same POO root reuse
 its compilation.
-The AI payment case adds twenty-two requests across five POO roots. It
+The AI payment case adds thirty-four requests across eight POO roots. It
 authorizes both the finance agent's tool call and the concrete transfer,
-then overlays account scope, a positive amount and ceiling, and originating
-user role and MFA. Lean checks the compound outcomes; Rust Cedar checks each
-layer receipt and the generated policy artifacts.
-The AI data-flow case adds twenty-six layer requests across seven POO roots.
+then composes independent account, amount, and originating-user vetoes.
+An account freeze and restoration change only one policy ID. Lean rejects
+an erroring veto even when raw Cedar returns =Allow= for a malformed origin;
+Rust Cedar checks that response and all generated policy artifacts.
+The AI data-flow case adds thirty-two layer requests across nine POO roots.
 It evaluates document read and repository publication separately, then
-checks tenant, classification, independent review, and revocation changes.
-The Rust boundary compares each request and reparses the generated policies.
+composes independent classification and review vetoes. Revocation and
+restoration leave the read root unchanged. The malformed reviewer case also
+checks the raw =Allow= with a policy error against Rust Cedar.
 The extension coverage case adds eight requests across three extension
 families, including timezone normalization and a negative duration value.
 

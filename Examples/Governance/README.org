@@ -224,6 +224,17 @@ classification does not match the principal's clearance. This clearance
 rule is a modeled enterprise requirement, not a claim about the published
 timesheet example.
 
+=sensitive-cross-country= shows that the clearance branch alone still
+inherits the Europe-wide grant; =restricted-before-veto= shows that the
+expansion branch alone still admits a restricted timesheet without clearance.
+The composed root closes both paths. =expansionEditLocal= identifies only the
+UK and Japan policies as new; =sensitiveEditLocal= identifies only the
+clearance veto. =integratedEditLocal= isolates the final removal and veto,
+while =originalCountriesPreservedFully= checks that the France and Germany
+policy bodies are identical before and after composition. This is the
+maintenance claim of the example: a new country and a new sensitivity rule
+do not require rewriting existing country policies.
+
 The scenario checks nested role membership, nested resource containers,
 an action group, a new country, cross-country denial, and the clearance
 veto before and after composition. =incompleteHierarchyRejected= records

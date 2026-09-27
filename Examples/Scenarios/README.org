@@ -21,28 +21,32 @@ policy sets; it does not reproduce that issue's malformed =in= expression.
 | Composed root | Change from parent | Tenant A, trusted | Tenant B, trusted | Tenant A, untrusted |
 |---------------+--------------------+-------------------+-------------------+---------------------|
 | Base | Tenant permit and legacy permit | Allow | Allow | Allow |
-| Overlay | Require trusted device on tenant permit | Allow | Allow | Allow |
-| Extend | Add untrusted-device forbid | Allow | Allow | Deny |
-| Remove | Retire legacy permit | Allow | Deny | Deny |
+| TenantStrict | Overlay device trust on the tenant permit | Allow | Allow | Allow |
+| DeviceVeto | Independently forbid an untrusted device | Allow | Allow | Deny |
+| Composed | C4 joins both sibling controls | Allow | Allow | Deny |
+| Remove | Retire the inherited legacy permit | Allow | Deny | Deny |
 
-The surprising Overlay row is the reason for the composition example. The
-overlay changed exactly one policy ID, but the old independent permit still
-authorizes the request. The Extend and Remove rows record two separate
-policy migration decisions. Cedar evaluates every resulting policy set.
+The surprising =TenantStrict= row is the reason for the composition example.
+Its overlay changes one policy ID, but the old independent permit still
+authorizes the request. =DeviceVeto= closes the untrusted-device path but
+cannot close cross-tenant access. =Composed= inherits both controls, and
+=Remove= retires the remaining broad grant. Cedar evaluates every resulting
+policy set.
 
 * Why POO appears here
 
-The modules declare five edits over four revisions: two initial extends,
-one overlay, one further extend, and one remove. Each revision inherits the
-earlier edits through C4; it does not copy a full policy set. Materializing
-all four revisions independently would repeat nine policy records (2 + 2 +
-3 + 2). The source example instead names the policy changes and lets the
-compiler produce each Cedar policy set. This is a count of authored records
-in this scenario, not a general LOC or maintenance-cost benchmark.
+The modules declare five edits over five roots: two initial extends, an
+independent tenant overlay, an independent device veto, and one final remove.
+C4 composes the sibling branches without copying their full policy sets.
+Materializing all five roots independently would store twelve policy records
+(2 + 2 + 3 + 3 + 2). The source names five edits and lets the compiler produce
+each Cedar policy set. This is a count of authored records in this scenario,
+not a general LOC or maintenance-cost benchmark.
 
 The compiler rejects duplicate IDs, overlays of absent IDs, and ambiguous
 sibling edits. Those failures happen before Cedar evaluation. The example
-checks the C4 order, policy IDs, validator results, authorization decisions,
+checks the C4 order, each branch's single-policy delta, policy IDs, validator
+results, authorization decisions,
 empty runtime-error lists for the final requests, and a Cedar soundness
 theorem carried by a Lean-POO certificate. A policy revision selects the
 policy-validation obligation and leaves the schema, request, and entity
@@ -55,7 +59,22 @@ lake env lean Examples/Scenarios/TenantDevicePolicyEvolution.lean
 just check
 #+end_src
 
-* Industry examples
+* POO composition scenarios
 
-Clinical break-glass, patient preferences, and source-to-model evidence live
-in [[file:../Health/README.org][Examples/Health]].
+The tenant-device example now composes two independent controls before
+retiring a shared legacy grant. The examples below scale that pattern to
+multiple owners, proof reuse, and localized emergency changes.
+
+| Scenario | POO leverage | Evidence |
+|----------+--------------+----------|
+| [[file:../Health/ClinicalBreakGlass.lean][Clinical break-glass]] | Privacy, security, and emergency owners form a diamond; a changed policy reuses unchanged policy certificates. | [[file:../Health/README.org][Health case and sources]] |
+| [[file:../Governance/AttestedDataAccess.lean][Attested data governance]] | Owner, platform, and compliance branches compose; one platform edit identifies affected descendants and reusable proof obligations. | [[file:../Governance/README.org][Governance case and sources]] |
+| [[file:../Governance/TicketSharing.lean][Ticket sharing]] | Template edits become exact POO overlay, remove, and extend revisions with incremental certificates. | [[file:../Governance/README.org][Governance case and sources]] |
+| [[file:../Enterprise/PaymentRelease.lean][Payment release]] | Budget, duties, risk, and legacy retirement branches close holes left by any branch alone. | [[file:../Enterprise/README.org][Enterprise case and sources]] |
+| [[file:../Enterprise/AgentChain.lean][Agent chain]] | One delegation root serves variable hop counts; a one-edge freeze and restoration stay local, and conflicting sibling edits fail. | [[file:../Enterprise/README.org][Enterprise case and sources]] |
+| [[file:../Enterprise/AgentPayment.lean][Agent payment]] | Account, amount, and origin owners compose independent vetoes; an account freeze and restoration affect one policy ID. | [[file:../Enterprise/README.org][Enterprise case and sources]] |
+| [[file:../Enterprise/AgentDataFlow.lean][Agent data flow]] | Data classification and security review branches each leave a distinct leak; C4 closes both without changing the read root. | [[file:../Enterprise/README.org][Enterprise case and sources]] |
+
+[[file:../Language/README.org][Language examples]] check Cedar syntax and export
+coverage. They are adapter conformance cases, not industry composition
+scenarios.

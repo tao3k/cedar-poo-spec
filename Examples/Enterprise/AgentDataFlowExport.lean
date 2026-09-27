@@ -12,6 +12,10 @@ def manifest : Except String Lean.Json := do
       let receipt ← CedarPooSpec.PolicyJson.authorizationCase
         s!"{name}-layer-{index}" root.toLower dataModel root req dataEntities
       rows := rows ++ [receipt]
+  for ((root, req), index) in malformedChecks.zipIdx do
+    let receipt ← CedarPooSpec.PolicyJson.authorizationCase
+      s!"malformed-review-layer-{index}" root.toLower dataModel root req dataEntities
+    rows := rows ++ [receipt]
   return Lean.Json.mkObj [("cases", Lean.toJson rows)]
 
 end CedarPooSpec.AgentDataFlowExport

@@ -275,20 +275,38 @@ of a published financial incident.
 |----------+-------------------------|
 | =FinanceTool= | Check the finance agent's identity, tool UID, trust, namespace, and production stage. |
 | =PaymentBase= | Legacy transfer permit with no account or amount bound. |
-| =PaymentScoped= | Overlay the permit so the receiving account belongs to the approved group. |
-| =PaymentCapped= | Overlay a strictly positive amount at or below =100.0000=. |
-| =PaymentHuman= | Overlay originating-user Admin role and MFA requirements. |
+| =PaymentAccount= | The account owner forbids transfers outside the approved account group. |
+| =PaymentAmount= | Treasury independently forbids zero, negative, or above-ceiling amounts. |
+| =PaymentOrigin= | The identity owner independently forbids callers without Admin role and MFA. |
+| =PaymentGoverned= | C4 composes the three sibling controls and the inherited permit. |
+| =PaymentFrozen= / =PaymentRestored= | Freeze one approved account, then remove that one veto without rewriting any parent. |
 
-Each of eleven operations requires both =FinanceTool= and one payment root
-through =CompoundAuthorization.authorizeLayers=. The cases show that a
-tool-approved agent can still be denied an external destination, excessive
-or zero amount, unprivileged origin, or missing MFA. A base operation with
-an external account and large amount exposes the legacy gap; later roots
-close one dimension at a time. The exact =100.0000= ceiling is allowed and
-=100.0001= is denied. [[file:AgentPaymentExport.lean][The exporter]] sends
-all twenty-two layer requests to the official Cedar Rust authorizer and
-checks the five generated [[file:AgentPaymentPolicies/paymenthuman.cedar][Cedar policies]]. Every POO root also passes
-Lean Cedar schema and policy validation.
+Each of sixteen operations requires both =FinanceTool= and one payment root
+through =CompoundAuthorization.authorizeLayers=. The branch probes expose
+why no one owner can publish the final policy alone: the account branch still
+admits an excessive amount and an unprivileged origin, the amount branch
+still admits an external account, and the origin branch still admits an
+excessive amount. =PaymentGoverned= denies all three. The exact =100.0000=
+ceiling is allowed and =100.0001= is denied. Freezing the approved account
+leaves a second approved reserve account available; removing the freeze
+restores exactly the earlier compiled policy set.
+
+=accountBranchLocal=, =amountBranchLocal=, and =originBranchLocal= identify
+one new policy ID per owner. =governedPolicyIdsFully= checks that C4 emits
+one inherited permit and three independent vetoes. =freezeEditLocal= and
+=restoreEditLocal= isolate the emergency change to one ID;
+=restoredPoliciesEqualGoverned= checks exact rollback. The
+[[file:AgentPaymentExport.lean][exporter]] compares thirty-two well-formed
+layer requests and two malformed-context layer requests with the official
+Cedar Rust authorizer, and checks eight generated
+[[file:AgentPaymentPolicies/paymentgoverned.cedar][Cedar revision artifacts]].
+Every POO root also passes Lean Cedar schema and policy validation.
+=malformedOriginRejectedFully= demonstrates the runtime boundary: Cedar's
+raw transfer response can be =Allow= with an erroring veto if the host sends
+an origin String instead of a User entity. =layersAllowed= rejects the whole
+operation because it checks policy errors as well as the decision.
+A downstream caller using the generated =.cedar= policies must enforce the
+same error check.
 
 The host must authenticate the originating user and agent, obtain account
 group membership from an authoritative source, bind the transfer context to
@@ -321,22 +339,37 @@ and authorization pattern rather than claiming to reproduce an incident.
 | =ReadTenant= | Overlay tenant and originating-user role checks. |
 | =PublishBase= | Legacy agent publication permit. |
 | =PublishScoped= | Overlay source and destination tenant equality. |
-| =PublishClassified= | Overlay a classification rule: internal material may go only to an internal destination. |
-| =PublishReviewed= | Overlay independent Security reviewer, MFA, and approval for public publication. |
-| =PublishRevoked= | Extend a specific source-document publication veto. |
+| =PublishClassified= | Data ownership independently forbids internal material at a public destination. |
+| =PublishReview= | Security independently forbids public publication without an approved, distinct reviewer with MFA. |
+| =PublishGoverned= | C4 composes the sibling controls with the inherited tenant rule. |
+| =PublishRevoked= / =PublishRestored= | Freeze one source document, then remove only that veto. |
 
-Thirteen operations cover a legacy internal-to-public leak, foreign source
+Fifteen operations cover a legacy internal-to-public leak, foreign source
 and destination tenants, an internal document sent to a public repository,
 public material with and without review, a reviewer with the wrong role,
-self approval, an unprivileged originating user, internal publication, and
-revocation. =classifiedLeakBoundaryFully= establishes that the read layer
+self approval, an unprivileged originating user, internal publication,
+revocation, and restoration. The classification branch alone admits public
+material without review; the review branch alone admits an internal document
+to a public repository after approval. =branchesNeedCompositionFully=
+checks that the C4 root closes both gaps. =classifiedLeakBoundaryFully=
+establishes that the read layer
 allows the internal document while the publication layer denies the public
 destination. =casesErrorFreeFully= checks that none of the well-formed cases
 rely on Cedar policy evaluation errors for their outcomes.
-[[file:AgentDataFlowExport.lean][The exporter]] compares all twenty-six
-individual layer responses with the official Rust Cedar authorizer and
-checks the seven generated [[file:AgentDataFlowPolicies/publishreviewed.cedar][Cedar policies]]. Every root passes Lean Cedar
-schema and policy validation.
+=classificationBranchLocal= and =reviewBranchLocal= identify one added
+policy ID per owner. =governedPolicyIdsFully= checks their joint C4 output;
+=revokeEditLocal=, =restoreEditLocal=, and =restoredPoliciesEqualGoverned=
+check the one-ID freeze and exact rollback. =readRootUnchanged= shows the
+read control is unaffected by the publication evolution. The
+[[file:AgentDataFlowExport.lean][exporter]] compares thirty well-formed
+individual layer responses and two malformed-context responses with the
+official Rust Cedar authorizer, and checks nine
+generated [[file:AgentDataFlowPolicies/publishgoverned.cedar][Cedar revision artifacts]].
+Every root passes Lean Cedar schema and policy validation.
+=malformedReviewRejectedFully= shows that a reviewer String can make the
+review veto error while Cedar's broad permit returns raw =Allow=; the
+compound API rejects that operation. A downstream caller using generated
+=.cedar= must likewise reject a response containing policy errors.
 
 The host must authenticate the agent, original user, and reviewer; provide
 authoritative tenant, classification, and approval facts; and bind both

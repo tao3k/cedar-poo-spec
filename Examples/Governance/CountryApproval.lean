@@ -115,6 +115,7 @@ def request (principal action resource : EntityUID) : Request :=
 
 def cases : List (String × String × Request × Decision) := [
   ("legacy-cross-country", "Base", request alice approve germanSheet, .allow),
+  ("sensitive-cross-country", "Sensitive", request alice approve germanSheet, .allow),
   ("integrated-cross-country", "Integrated", request alice approve germanSheet, .deny),
   ("france-nested-role", "Integrated", request alice approve frenchSheet, .allow),
   ("france-review-action", "Integrated", request alice review frenchSheet, .allow),
@@ -135,6 +136,26 @@ def decisionsExact : Bool := cases.all fun (_, root, req, expected) =>
       response.decision == expected && response.erroringPolicies.isEmpty
 
 theorem decisionsExactFully : decisionsExact = true := by native_decide
+
+theorem expansionEditLocal :
+    ((model.compileRevision "Base" "Expansion").toOption.get
+      (by native_decide)).changedPolicyIds = ["uk", "japan"] := by native_decide
+theorem sensitiveEditLocal :
+    ((model.compileRevision "Base" "Sensitive").toOption.get
+      (by native_decide)).changedPolicyIds = ["restricted-clearance"] := by native_decide
+theorem integratedEditLocal :
+    ((model.compileRevision "Expansion" "Integrated").toOption.get
+      (by native_decide)).changedPolicyIds = ["legacy-europe", "restricted-clearance"] := by
+  native_decide
+
+def originalCountriesPreserved : Bool :=
+  let before := (model.compile "Base").toOption.getD []
+  let after := (model.compile "Integrated").toOption.getD []
+  ["france", "germany"].all fun id =>
+    before.find? (fun policy => policy.id == id) ==
+      after.find? (fun policy => policy.id == id)
+theorem originalCountriesPreservedFully : originalCountriesPreserved = true := by
+  native_decide
 
 theorem integratedRemovesBroadGrant :
     ((model.compile "Integrated").toOption.getD []).map Policy.id =

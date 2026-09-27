@@ -25,12 +25,3 @@ forbid(
 ) when {
   (!((resource.visibility) == "internal")) && (!((context.approved) && (((context.reviewer) in Role::"Security") && (((context.reviewer).mfa) && (!((context.reviewer) == (context.origin)))))))
 };
-
-// POO policy ID: revoke-public-document-publication
-forbid(
-  principal == Agent::"knowledge-bot",
-  action == Action::"publish-document",
-  resource
-) when {
-  (context.source) == Document::"public"
-};

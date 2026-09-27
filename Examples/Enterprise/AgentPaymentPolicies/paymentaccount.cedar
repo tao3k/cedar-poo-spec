@@ -3,7 +3,16 @@
 permit(
   principal == Agent::"finance-bot",
   action == Action::"transfer",
-  resource in AccountGroup::"Approved"
+  resource
 ) when {
   true
+};
+
+// POO policy ID: unapproved-account
+forbid(
+  principal == Agent::"finance-bot",
+  action == Action::"transfer",
+  resource
+) when {
+  !(resource in AccountGroup::"Approved")
 };

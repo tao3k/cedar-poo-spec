@@ -76,15 +76,12 @@ def internalDestination : Expr :=
 def publicSource : Expr :=
   eq (sourceFact "classification") (.lit (.string "public"))
 def classificationBoundary : Expr :=
-  .and destinationTenant (.or internalDestination publicSource)
+  .or internalDestination publicSource
 def independentReview : Expr :=
   .and (ctx "approved")
     (.and (.binaryApp .mem (ctx "reviewer") (.lit (.entityUID securityRole)))
       (.and (.getAttr (ctx "reviewer") "mfa")
         (.unaryApp .not (eq (ctx "reviewer") (ctx "origin")))))
-def reviewedBoundary : Expr :=
-  .and classificationBoundary (.or internalDestination independentReview)
-
 def readBase : Policy :=
   policy "agent-document-read" readDocument (.eq knowledgeBot) .any (.lit (.bool true))
 def readTenant : Policy :=
@@ -93,10 +90,18 @@ def publishBase : Policy :=
   policy "agent-document-publish" publishDocument (.eq knowledgeBot) .any (.lit (.bool true))
 def publishScoped : Policy :=
   { publishBase with condition := [{ kind := .when, body := destinationTenant }] }
-def publishClassified : Policy :=
-  { publishScoped with condition := [{ kind := .when, body := classificationBoundary }] }
-def publishReviewed : Policy :=
-  { publishClassified with condition := [{ kind := .when, body := reviewedBoundary }] }
+def publishVeto (id : String) (invalid : Expr) : Policy :=
+  { id, effect := .forbid,
+    principalScope := publishBase.principalScope,
+    actionScope := publishBase.actionScope,
+    resourceScope := publishBase.resourceScope,
+    condition := [{ kind := .when, body := invalid }] }
+def classificationVeto : Policy :=
+  publishVeto "classification-boundary" (.unaryApp .not classificationBoundary)
+def reviewVeto : Policy :=
+  publishVeto "public-review"
+    (.and (.unaryApp .not internalDestination)
+      (.unaryApp .not independentReview))
 def publicDocumentRevoked : Policy :=
   { id := "revoke-public-document-publication", effect := .forbid,
     principalScope := .principalScope (.eq knowledgeBot),
@@ -112,11 +117,15 @@ def dataModel : Model := { modules := [
   { name := "PublishScoped", parentOrders := [["PublishBase"]],
     edits := [.overlay publishScoped] },
   { name := "PublishClassified", parentOrders := [["PublishScoped"]],
-    edits := [.overlay publishClassified] },
-  { name := "PublishReviewed", parentOrders := [["PublishClassified"]],
-    edits := [.overlay publishReviewed] },
-  { name := "PublishRevoked", parentOrders := [["PublishReviewed"]],
-    edits := [.extend publicDocumentRevoked] }] }
+    edits := [.extend classificationVeto] },
+  { name := "PublishReview", parentOrders := [["PublishScoped"]],
+    edits := [.extend reviewVeto] },
+  { name := "PublishGoverned",
+    parentOrders := [["PublishClassified", "PublishReview"]] },
+  { name := "PublishRevoked", parentOrders := [["PublishGoverned"]],
+    edits := [.extend publicDocumentRevoked] },
+  { name := "PublishRestored", parentOrders := [["PublishRevoked"]],
+    edits := [.remove publicDocumentRevoked.id] }] }
 
 def readRequest (source origin : EntityUID) : Request :=
   ⟨knowledgeBot, readDocument, source, Map.make [
@@ -144,14 +153,16 @@ def cases : List (String × String × String × EntityUID × EntityUID × Entity
   ("scoped-internal-to-public", "ReadTenant", "PublishScoped", internalDoc, publicRepo, admin, reviewer, true, true),
   ("classified-internal-to-public", "ReadTenant", "PublishClassified", internalDoc, publicRepo, admin, reviewer, true, false),
   ("classified-public-without-review", "ReadTenant", "PublishClassified", publicDoc, publicRepo, admin, support, false, true),
-  ("reviewed-public", "ReadTenant", "PublishReviewed", publicDoc, publicRepo, admin, reviewer, true, true),
-  ("reviewed-unapproved", "ReadTenant", "PublishReviewed", publicDoc, publicRepo, admin, reviewer, false, false),
-  ("reviewed-wrong-role", "ReadTenant", "PublishReviewed", publicDoc, publicRepo, admin, support, true, false),
-  ("reviewed-self-approval", "ReadTenant", "PublishReviewed", publicDoc, publicRepo, reviewer, reviewer, true, false),
-  ("internal-to-internal", "ReadTenant", "PublishReviewed", internalDoc, internalRepo, admin, support, false, true),
-  ("cross-tenant-publish", "ReadTenant", "PublishReviewed", publicDoc, foreignRepo, admin, reviewer, true, false),
-  ("unprivileged-origin", "ReadTenant", "PublishReviewed", publicDoc, publicRepo, support, reviewer, true, false),
-  ("revoked-public-document", "ReadTenant", "PublishRevoked", publicDoc, publicRepo, admin, reviewer, true, false)]
+  ("review-only-internal-leak", "ReadTenant", "PublishReview", internalDoc, publicRepo, admin, reviewer, true, true),
+  ("reviewed-public", "ReadTenant", "PublishGoverned", publicDoc, publicRepo, admin, reviewer, true, true),
+  ("reviewed-unapproved", "ReadTenant", "PublishGoverned", publicDoc, publicRepo, admin, reviewer, false, false),
+  ("reviewed-wrong-role", "ReadTenant", "PublishGoverned", publicDoc, publicRepo, admin, support, true, false),
+  ("reviewed-self-approval", "ReadTenant", "PublishGoverned", publicDoc, publicRepo, reviewer, reviewer, true, false),
+  ("internal-to-internal", "ReadTenant", "PublishGoverned", internalDoc, internalRepo, admin, support, false, true),
+  ("cross-tenant-publish", "ReadTenant", "PublishGoverned", publicDoc, foreignRepo, admin, reviewer, true, false),
+  ("unprivileged-origin", "ReadTenant", "PublishGoverned", publicDoc, publicRepo, support, reviewer, true, false),
+  ("revoked-public-document", "ReadTenant", "PublishRevoked", publicDoc, publicRepo, admin, reviewer, true, false),
+  ("restored-public-document", "ReadTenant", "PublishRestored", publicDoc, publicRepo, admin, reviewer, true, true)]
 
 def casesExact : Bool := cases.all fun (_, readRoot, publishRoot, source, repo,
     origin, approver, approved, expected) =>
@@ -166,6 +177,71 @@ def casesErrorFree : Bool := cases.all fun (_, readRoot, publishRoot, source, re
   | .ok receipts => receipts.all fun layer => layer.response.erroringPolicies.isEmpty
 theorem casesErrorFreeFully : casesErrorFree = true := by native_decide
 
+def branchesNeedComposition : Bool :=
+  authorizeFlow "ReadTenant" "PublishClassified" publicDoc publicRepo
+      admin support false &&
+  authorizeFlow "ReadTenant" "PublishReview" internalDoc publicRepo
+      admin reviewer true &&
+  !authorizeFlow "ReadTenant" "PublishGoverned" publicDoc publicRepo
+      admin support false &&
+  !authorizeFlow "ReadTenant" "PublishGoverned" internalDoc publicRepo
+      admin reviewer true
+theorem branchesNeedCompositionFully : branchesNeedComposition = true := by
+  native_decide
+
+theorem classificationBranchLocal :
+    ((dataModel.compileRevision "PublishScoped" "PublishClassified").toOption.get
+      (by native_decide)).changedPolicyIds = ["classification-boundary"] := by
+  native_decide
+theorem reviewBranchLocal :
+    ((dataModel.compileRevision "PublishScoped" "PublishReview").toOption.get
+      (by native_decide)).changedPolicyIds = ["public-review"] := by native_decide
+def governedPolicyIds : Bool :=
+  match dataModel.compile "PublishGoverned" with
+  | .error _ => false
+  | .ok policies =>
+      let ids := policies.map Policy.id
+      ids.length == 3 &&
+      ["agent-document-publish", "classification-boundary", "public-review"].all
+        ids.contains
+theorem governedPolicyIdsFully : governedPolicyIds = true := by native_decide
+
+theorem revokeEditLocal :
+    ((dataModel.compileRevision "PublishGoverned" "PublishRevoked").toOption.get
+      (by native_decide)).changedPolicyIds = ["revoke-public-document-publication"] := by
+  native_decide
+theorem restoreEditLocal :
+    ((dataModel.compileRevision "PublishRevoked" "PublishRestored").toOption.get
+      (by native_decide)).changedPolicyIds = ["revoke-public-document-publication"] := by
+  native_decide
+theorem restoredPoliciesEqualGoverned :
+    (dataModel.compile "PublishRestored" ==
+      dataModel.compile "PublishGoverned") = true := by native_decide
+theorem readRootUnchanged :
+    (dataModel.compile "ReadTenant" ==
+      ({ modules := dataModel.modules.take 2 } : Model).compile "ReadTenant") = true := by
+  native_decide
+
+def malformedReviewRequest : Request :=
+  ⟨knowledgeBot, publishDocument, publicRepo, Map.make [
+    ("source", .prim (.entityUID publicDoc)),
+    ("origin", .prim (.entityUID admin)),
+    ("reviewer", .prim (.string "reviewer")),
+    ("approved", .prim (.bool true))]⟩
+def malformedChecks : List (String × Request) := [
+  ("ReadTenant", readRequest publicDoc admin),
+  ("PublishGoverned", malformedReviewRequest)]
+def malformedReviewRejected : Bool :=
+  match CedarPooSpec.CompoundAuthorization.authorizeLayers dataModel
+      malformedChecks dataEntities with
+  | .ok [readLayer, publishLayer] =>
+      publishLayer.response.decision == .allow &&
+      !publishLayer.response.erroringPolicies.isEmpty &&
+      !CedarPooSpec.CompoundAuthorization.layersAllowed [readLayer, publishLayer]
+  | _ => false
+theorem malformedReviewRejectedFully : malformedReviewRejected = true := by
+  native_decide
+
 def classifiedLeakBoundary : Bool :=
   match CedarPooSpec.CompoundAuthorization.authorizeLayers dataModel
       (checks "ReadTenant" "PublishClassified" internalDoc publicRepo admin reviewer true)
@@ -178,7 +254,8 @@ theorem classifiedLeakBoundaryFully : classifiedLeakBoundary = true := by native
 
 def allRootsValidated : Bool :=
   ["ReadBase", "ReadTenant", "PublishBase", "PublishScoped",
-    "PublishClassified", "PublishReviewed", "PublishRevoked"].all fun root =>
+    "PublishClassified", "PublishReview", "PublishGoverned",
+    "PublishRevoked", "PublishRestored"].all fun root =>
       (CedarPooSpec.PolicyJson.publish dataModel root dataSchema).isOk
 theorem allRootsValidatedFully : allRootsValidated = true := by native_decide
 
