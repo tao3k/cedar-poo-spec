@@ -1,0 +1,105 @@
+#+TITLE: Composable Vehicle TARA Treatment Matrix
+#+OPTIONS: toc:nil
+
+* Scope and sources
+
+[[https://www.iso.org/standard/70918.html][ISO/SAE 21434]] defines lifecycle
+cybersecurity risk management for road-vehicle E/E systems; it does not
+prescribe one technology or policy language. [[https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng/pdf][UN R155 Annex 5]]
+provides a baseline of threats and corresponding mitigations to consider
+in vehicle risk assessment. [[https://openstd.samr.gov.cn/bzgk/std/newGbInfo?hcno=2DB552CAA58F589705C3DC7AD47AC2AB][GB 44495-2024]] is the current
+Chinese vehicle-cybersecurity standard. [[https://unece.org/transport/documents/2021/03/standards/un-regulation-no-156-software-update-and-software-update][UN R156]]
+addresses software-update management, a related lifecycle boundary.
+
+The mission failure modes below come from the
+[[https://arxiv.org/abs/2606.06996][mission-level runtime assurance study]];
+[[https://arxiv.org/abs/2605.29114][ReasonBreak]] motivates testing an
+untrusted VLA producer. The concrete risk rows, owner allocation, and
+policy treatments are *this example's projection*, not official ratings
+or controls prescribed by those sources. A real TARA still needs
+item-specific damage scenarios, attack paths, impact and feasibility
+ratings, risk decisions, and accountable approval.
+
+* Treatment matrix
+
+The same seven axes are used by
+[[file:../Mission/SuccessorBoundary.lean][the executable mission matrix]].
+=A= means the named root authorizes the command and =D= means it denies.
+The =clear= row is a positive control, not a threat. These six roots are
+composition stages for one illustrative vehicle policy, not six actual
+vehicle models.
+
+| TARA axis | Asset and damage scenario | Treatment owner | Base | Platform | Mission | Evidence | Integrated | Current |
+|-----------+---------------------------+-----------------+------+----------+---------+----------+------------+---------|
+| Future collision | Vehicle motion; physical harm | Platform | A | D | A | A | D | D |
+| Lost checkpoint | Mission route; task cannot complete | Mission | A | A | D | A | D | D |
+| Restricted region | Operating area; future entry | Mission | A | A | D | A | D | D |
+| Budget exhaustion | Mission reserve; future route infeasible | Mission | A | A | D | A | D | D |
+| Clear command | No modeled damage; positive control | Base | A | A | A | A | A | A |
+| Unbound witness | Decision evidence; wrong proposal accepted | Evidence | A | A | A | D | D | D |
+| Stale horizon | Decision evidence; old prediction reused | Current | A | A | A | A | A | D |
+
+[[file:TaraProjection.lean][TaraProjection.lean]] ties these axes to
+the verified 42-cell matrix. The underlying POO model declares six
+owner edits. Six standalone Cedar revisions materialize 18 policy
+occurrences; those runtime artifacts are *not* compressed away. The
+compression is in the source of change: in the controlled fallback
+maintenance experiment, one =Base= edit propagates through all six
+roots, whereas six independently maintained Cedar snapshots require
+six condition edits. Official Rust Cedar matches Lean on the 68
+original decisions and 12 changed-case decisions. The
+[[file:../Mission/README.org][mission case]] gives the exact scope and
+limitations of that comparison.
+
+* What this adds to TARA
+
+A TARA work product identifies and rates a risk; it does not itself
+execute a Cedar decision, bind a reference to a command, observe the
+later trajectory, or calculate which proof certificates a policy edit
+invalidates. Lean, Cedar, and Lean-POO add executable treatment,
+checkable decision evidence, and owner-local version composition.
+They do not replace the human risk judgment or establish regulatory
+compliance by themselves. Modular TARA methods already exist: the
+[[https://saemobilus.sae.org/articles/mosaic-tara-a-comprehensive-tara-methodology-automotive-cybersecurity-2026-26-0609][MOSAIC-TARA study]] explicitly addresses assessment reuse across ECUs
+and vehicle platforms. The comparison here is with a standalone TARA
+matrix and independently maintained Cedar snapshots, not a claim that
+all TARA methods lack reuse.
+
+For VLA-driven vehicles, a useful forward-looking TARA record should
+also name the model and prompt provenance, command and horizon binding,
+reference authority, observation authority, model-update revision, and
+the evidence that a physical fallback was actually applied. The current
+example implements only a small part of that record: ID and tick
+binding, a source-backed offline trajectory comparison, hypothetical
+post-decision observations, and policy-level fallback authorization.
+
+* Decision and observation states
+
+This diagram shows the intended integration boundary. The host owns
+reference verification, sensor provenance, and physical handoff; the
+example exposes the two Lean checks and Cedar authorization.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Proposed
+    Proposed --> Denied: Cedar denies command
+    Proposed --> ReferenceCheck: Cedar allows command
+    ReferenceCheck --> FallbackRequested: reference invalid or path outside envelope
+    ReferenceCheck --> Executing: independent reference accepted
+    Executing --> Executing: verified observation within envelope
+    Executing --> FallbackRequested: observation invalid, late, or outside envelope
+    FallbackRequested --> HostHandoff: Cedar authorizes fallback request
+    HostHandoff --> [*]: host applies physical controller
+    Denied --> [*]
+#+end_src
+
+The diagram is an interface contract, not a demonstrated physical
+controller. In particular, comparing execution only with the attacked
+VLA's own prediction can miss a self-consistent attack; the
+[[file:../Mission/TrajectoryReplay.lean][Lean replay]] includes that
+counterexample.
+
+#+begin_src sh
+just check-vehicle-tara
+just check-mission-comparison
+#+end_src

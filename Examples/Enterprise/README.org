@@ -16,4 +16,4 @@ and source and modeling notes in its own directory.
 | [[file:Agent/DataFlow/README.org][Agent data flow]] | Cross-tool read and publish controls with classification and review. |
 | [[file:Agent/Session/README.org][Bounded agent session]] | Stateful authorization of delegated tasks and cross-tool action sequences. |
 | [[file:Agent/Fanout/README.org][Shared agent budget]] | Parent-wide budget across concurrent sub-agents and a visible stale-read race. |
-| [[file:Vehicle/README.org][Vehicle]] | AI-mediated command hijacking, successor-safe mission authorization, and Uptane supplier transition. |
+| [[file:Vehicle/README.org][Vehicle]] | AI-mediated command hijacking, successor-safe mission authorization, a composable TARA treatment matrix, and Uptane supplier transition. |
