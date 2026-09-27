@@ -3,6 +3,7 @@
 use crate::{CompiledPolicyJson, TemplateSourceJson};
 use cedar_policy::{
     AuthorizationError, Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request,
+    Schema, ValidationMode, Validator,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -12,7 +13,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 /// Request fields emitted from the Lean Cedar model.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RequestInput {
     pub principal: String,
     pub action: String,
@@ -21,7 +22,7 @@ pub struct RequestInput {
 }
 
 /// One concrete authorization case and its Lean-computed receipt.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Case {
     pub name: String,
     pub revision: String,
@@ -38,6 +39,20 @@ pub struct Case {
 #[derive(Debug, Deserialize)]
 pub struct Manifest {
     pub cases: Vec<Case>,
+}
+
+/// A schema-bearing manifest intended for admission as a deployment candidate.
+#[derive(Debug, Deserialize)]
+pub struct ValidatedManifest {
+    pub schema: Value,
+    pub cases: Vec<Case>,
+}
+
+/// A Cedar replay bound to the exact schema used for strict validation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SchemaBoundReceipt {
+    pub schema_sha256: String,
+    pub replay: ReplayReceipt,
 }
 
 /// A reproducible record of one official Cedar replay, not a Lean proof or a signature.
@@ -60,29 +75,76 @@ pub struct ReplayReceipt {
 
 /// Reject empty bundles, parse every policy set, and compare every decision.
 pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
-    check_manifest_inner(manifest, false).map(|_| ())
+    check_manifest_inner(&manifest.cases, false, None).map(|_| ())
 }
 
 /// Check Lean's manifest against Cedar and return content-bound replay records.
 pub fn replay_manifest(manifest: &Manifest) -> Result<Vec<ReplayReceipt>, String> {
-    check_manifest_inner(manifest, true)
+    check_manifest_inner(&manifest.cases, true, None)
+}
+
+/// Validate policies, entities, context, and request through Cedar's public schema APIs,
+/// then check the Lean authorization receipts and bind the result to the schema digest.
+pub fn replay_validated_manifest(
+    manifest: &ValidatedManifest,
+) -> Result<Vec<SchemaBoundReceipt>, String> {
+    let schema = Schema::from_json_value(manifest.schema.clone())
+        .map_err(|error| format!("Cedar schema: {error}"))?;
+    let validator = Validator::new(schema);
+    let mut revisions = BTreeSet::new();
+    for case in &manifest.cases {
+        if revisions.insert(&case.revision) {
+            let policies = load_policy_set(&case.policies)?;
+            let result = validator.validate(&policies, ValidationMode::Strict);
+            if !result.validation_passed() {
+                return Err(format!(
+                    "{}: Cedar strict policy validation failed: {result:?}",
+                    case.revision
+                ));
+            }
+        }
+    }
+    let schema_sha256 = json_sha256(&manifest.schema)?;
+    check_manifest_inner(&manifest.cases, true, Some(validator.schema())).map(|receipts| {
+        receipts
+            .into_iter()
+            .map(|replay| SchemaBoundReceipt {
+                schema_sha256: schema_sha256.clone(),
+                replay,
+            })
+            .collect()
+    })
+}
+
+/// Recompute schema-bound receipts against the current official Cedar runtime.
+pub fn verify_validated_replay_receipts(
+    manifest: &ValidatedManifest,
+    receipts: &[SchemaBoundReceipt],
+) -> Result<(), String> {
+    if replay_validated_manifest(manifest)? != receipts {
+        return Err(
+            "schema-bound Cedar receipts differ from the current manifest or runtime".into(),
+        );
+    }
+    Ok(())
 }
 
 fn check_manifest_inner(
-    manifest: &Manifest,
+    cases: &[Case],
     collect_receipts: bool,
+    schema: Option<&Schema>,
 ) -> Result<Vec<ReplayReceipt>, String> {
-    if manifest.cases.is_empty() {
+    if cases.is_empty() {
         return Err("manifest has no cases".into());
     }
     let mut names = BTreeSet::new();
     let mut revisions = BTreeMap::new();
     let mut receipts = if collect_receipts {
-        Vec::with_capacity(manifest.cases.len())
+        Vec::with_capacity(cases.len())
     } else {
         Vec::new()
     };
-    for case in &manifest.cases {
+    for case in cases {
         if !valid_revision_name(&case.revision) {
             return Err(format!("{}: invalid revision name", case.name));
         }
@@ -104,6 +166,7 @@ fn check_manifest_inner(
             &revision.rendered,
             &revision.compiled_bodies,
             &revision.rendered_bodies,
+            schema,
         )
         .map_err(|error| format!("{}: {error}", case.name))?;
         if collect_receipts {
@@ -525,6 +588,7 @@ fn check_case(
     rendered: &PolicySet,
     compiled_bodies: &BTreeMap<String, String>,
     rendered_bodies: &BTreeMap<String, String>,
+    schema: Option<&Schema>,
 ) -> Result<ObservedDecision, String> {
     let expected_ids = case.policy_ids.iter().cloned().collect::<BTreeSet<_>>();
     let loaded_ids = policies
@@ -534,20 +598,23 @@ fn check_case(
     if expected_ids.len() != case.policy_ids.len() || expected_ids != loaded_ids {
         return Err("loaded policy IDs differ from the Lean compilation".into());
     }
-    let entities = Entities::from_json_value(case.entities.clone(), None)
-        .map_err(|error| format!("Cedar entity parse: {error}"))?;
+    let entities = Entities::from_json_value(case.entities.clone(), schema)
+        .map_err(|error| format!("Cedar schema entities: {error}"))?;
     let uid = |text: &str| EntityUid::from_str(text).map_err(|error| error.to_string());
     let action = uid(&case.request.action)?;
-    let context = Context::from_json_value(case.request.context.clone(), None)
-        .map_err(|error| format!("Cedar context parse: {error}"))?;
+    let context = Context::from_json_value(
+        case.request.context.clone(),
+        schema.map(|checked| (checked, &action)),
+    )
+    .map_err(|error| format!("Cedar schema context: {error}"))?;
     let request = Request::new(
         uid(&case.request.principal)?,
         action,
         uid(&case.request.resource)?,
         context,
-        None,
+        schema,
     )
-    .map_err(|error| format!("Cedar request: {error}"))?;
+    .map_err(|error| format!("Cedar schema request: {error}"))?;
     let response = Authorizer::new().is_authorized(&request, policies, &entities);
     let decision = match response.decision() {
         Decision::Allow => "allow",

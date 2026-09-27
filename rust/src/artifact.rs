@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::str::FromStr;
 
 /// Materialized Cedar policy set in the public JSON policy-set format.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(transparent)]
 pub struct CompiledPolicyJson(Value);
 

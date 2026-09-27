@@ -24,6 +24,7 @@ check: build-examples check-docs
     just check-cedar-language
     just check-mission-comparison
     just check-replay-receipts
+    just check-schema-bound-receipts
     just check-authorization-delta
     just check-authorization-delta-proof
     just check-payment-delta
@@ -35,6 +36,13 @@ check-delta: check-authorization-delta check-payment-delta
 check-replay-receipts: prepare-agent-payment-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < .lake/build/agent-payment-manifest.json > .lake/build/agent-payment-replay-receipts.json
     jq -e --slurpfile manifest .lake/build/agent-payment-manifest.json 'length == ($manifest[0].cases | length) and all(.[]; .format_version == 1 and .cedar_policy_version == "4.12.0" and .cedar_language_version == "4.5.0" and (.policies_sha256 | test("^[0-9a-f]{64}$")) and (.entities_sha256 | test("^[0-9a-f]{64}$")) and (.request_sha256 | test("^[0-9a-f]{64}$")) and .error_free_allow == (.decision == "allow" and (.error_policy_ids | length) == 0))' .lake/build/agent-payment-replay-receipts.json > /dev/null
+
+prepare-agent-payment-validated-manifest: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-payment-validated > .lake/build/agent-payment-validated-manifest.json
+
+check-schema-bound-receipts: prepare-agent-payment-validated-manifest
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/agent-payment-validated-manifest.json > .lake/build/agent-payment-validated-receipts.json
+    jq -e --slurpfile manifest .lake/build/agent-payment-validated-manifest.json 'length == ($manifest[0].cases | length) and length == 32 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [] and .replay.error_free_allow == (.replay.decision == "allow"))' .lake/build/agent-payment-validated-receipts.json > /dev/null
 
 check-authorization-delta: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json

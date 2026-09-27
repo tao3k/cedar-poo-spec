@@ -1,7 +1,7 @@
 use super::{
-    Case, Manifest, check_direct_sources, check_manifest, check_template_source, json_sha256,
-    load_policy_set, load_template_source, render_artifacts, replay_manifest,
-    verify_replay_receipts,
+    Case, Manifest, ValidatedManifest, check_direct_sources, check_manifest, check_template_source,
+    json_sha256, load_policy_set, load_template_source, render_artifacts, replay_manifest,
+    replay_validated_manifest, verify_replay_receipts, verify_validated_replay_receipts,
 };
 use serde_json::json;
 
@@ -35,6 +35,110 @@ fn receipt() -> Case {
         "expected_error_policies": []
     }))
     .expect("valid local receipt")
+}
+
+fn validated(case: Case) -> ValidatedManifest {
+    ValidatedManifest {
+        schema: json!({"": {
+            "entityTypes": {
+                "User": {"shape": {"type": "Record", "attributes": {}}},
+                "Document": {"shape": {"type": "Record", "attributes": {}}}
+            },
+            "actions": {"view": {"appliesTo": {
+                "principalTypes": ["User"],
+                "resourceTypes": ["Document"],
+                "context": {"type": "Record", "attributes": {}}
+            }}}
+        }}),
+        cases: vec![case],
+    }
+}
+
+#[test]
+fn schema_bound_replay_checks_request_and_binds_schema() {
+    let baseline = validated(receipt());
+    let receipts = replay_validated_manifest(&baseline).expect("official schema validation");
+    assert_eq!(receipts.len(), 1);
+    assert_eq!(receipts[0].schema_sha256.len(), 64);
+    verify_validated_replay_receipts(&baseline, &receipts).expect("same schema and replay");
+
+    let mut changed = validated(receipt());
+    changed.schema[""]["entityTypes"]["Extra"] =
+        json!({"shape": {"type": "Record", "attributes": {}}});
+    let changed_receipts = replay_validated_manifest(&changed).expect("valid changed schema");
+    assert_eq!(
+        changed_receipts[0].replay.decision,
+        receipts[0].replay.decision
+    );
+    assert_ne!(changed_receipts[0].schema_sha256, receipts[0].schema_sha256);
+    assert!(verify_validated_replay_receipts(&changed, &receipts).is_err());
+}
+
+#[test]
+fn schema_bound_replay_rejects_wrong_context_and_request_types() {
+    let mut context = validated(receipt());
+    context.cases[0].request.context = json!({"unlisted": true});
+    assert!(
+        replay_validated_manifest(&context)
+            .unwrap_err()
+            .contains("schema context")
+    );
+
+    let mut principal = validated(receipt());
+    principal.cases[0].request.principal = "Document::\"one\"".into();
+    assert!(
+        replay_validated_manifest(&principal)
+            .unwrap_err()
+            .contains("schema request")
+    );
+}
+
+#[test]
+fn schema_bound_replay_rejects_invalid_policy() {
+    let mut case = receipt();
+    let mut policies = case.policies.as_value().clone();
+    policies["staticPolicies"]["invalid"] = json!({
+        "effect": "permit",
+        "principal": {"op": "All"},
+        "action": {"op": "All"},
+        "resource": {"op": "All"},
+        "conditions": [{"kind": "when", "body": {
+            ".": {"left": {"Var": "principal"}, "attr": "missing"}
+        }}]
+    });
+    case.policies = serde_json::from_value(policies).unwrap();
+    assert!(
+        replay_validated_manifest(&validated(case))
+            .unwrap_err()
+            .contains("strict policy validation")
+    );
+}
+
+#[test]
+fn schema_bound_replay_uses_schema_action_hierarchy_for_authorization() {
+    let mut manifest = validated(receipt());
+    manifest.schema[""]["actions"]["read"] = json!({"appliesTo": {
+        "principalTypes": ["User"],
+        "resourceTypes": ["Document"],
+        "context": {"type": "Record", "attributes": {}}
+    }});
+    manifest.schema[""]["actions"]["view"]["memberOf"] = json!([{"type": "Action", "id": "read"}]);
+    let mut policies = manifest.cases[0].policies.as_value().clone();
+    policies["staticPolicies"]["base"]["action"] =
+        json!({"op": "in", "entity": {"type": "Action", "id": "read"}});
+    manifest.cases[0].policies = serde_json::from_value(policies).unwrap();
+    assert_eq!(
+        replay_validated_manifest(&manifest).unwrap()[0]
+            .replay
+            .decision,
+        "allow"
+    );
+    assert!(
+        check_manifest(&Manifest {
+            cases: manifest.cases.clone()
+        })
+        .is_err()
+    );
 }
 
 #[test]

@@ -1,0 +1,76 @@
+#+TITLE: RFC 0006: Schema-Bound Cedar Replay
+#+OPTIONS: toc:nil
+
+* Contract
+
+The Cedar adapter projects a =Cedar.Validation.Schema= into Cedar's public
+JSON schema format through =CedarPooSpec.SchemaJson.schema=. The projection
+supports entity records and enumerated entities, action applicability and
+membership, required and optional attributes, sets, nested records, entity
+references, and the four pinned Cedar extension types. It rejects Boolean
+refinements and action type names that the public JSON form cannot represent
+faithfully. The Rust =cedar-runtime= feature parses the result with
+=cedar_policy::Schema::from_json_value=.
+
+=ValidatedManifest= carries one schema and a set of Lean-generated cases.
+=replay_validated_manifest= uses Cedar's strict policy validator for each
+revision, parses the entities and action context with that schema, checks
+the request's principal/action/resource types, and then compares Lean's
+decisions and diagnostics with the official authorizer using those same
+schema-parsed inputs. Cedar can supply Action entities and their hierarchy
+from the schema, so a schema-free replay can reach a different decision.
+A successful result
+is a =SchemaBoundReceipt=: the ordinary content-bound =ReplayReceipt= plus
+the SHA-256 digest of canonical schema JSON. =verify_validated_replay_receipts=
+recomputes and compares the whole record. This is a distinct API from the
+schema-free diagnostic replay in RFC 0005.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> LeanExport
+    LeanExport --> CedarSchemaParse
+    CedarSchemaParse --> StrictPolicyValidation
+    StrictPolicyValidation --> TypedEntitiesContextRequest
+    TypedEntitiesContextRequest --> AuthorizationReplay
+    AuthorizationReplay --> SchemaBoundReceipt
+    CedarSchemaParse --> Rejected: invalid schema
+    StrictPolicyValidation --> Rejected: invalid policy
+    TypedEntitiesContextRequest --> Rejected: invalid input
+    AuthorizationReplay --> Rejected: decision or diagnostics drift
+#+end_src
+
+* Agent payment example
+
+[[file:../../Examples/Enterprise/Agent/Payment/ValidatedExport.lean][The validated exporter]]
+uses the payment case's Lean schema and its sixteen concrete operations.
+Each operation has a finance-tool layer and a transfer layer, for thirty-two
+schema-checked requests across the C4 revisions. The separate diagnostic
+manifest retains two intentionally malformed origin requests: those are
+useful to show error behavior, but cannot receive a schema-bound receipt.
+
+#+begin_src sh
+just check-schema-bound-receipts
+#+end_src
+
+The command generates the manifest, runs the official Cedar Rust boundary,
+and checks the receipt count, schema digests, and absence of evaluation
+errors. Rust unit checks reject wrong context fields, a mismatched principal
+type, an invalid policy, and a stored receipt under a changed schema. They
+also show a schema-defined Action hierarchy authorizing a request that
+schema-free entity parsing denies.
+
+* Trust boundary
+
+The schema digest binds a checked projection to the replay. It does not
+authenticate the manifest or prove that host-supplied entity and context
+facts are true. A deployment still needs an authenticated, atomic effect
+boundary. Schema validation also does not establish Lean proof closure;
+those obligations remain in the Lean adapter. The Rust check follows
+Cedar's public API and pinned version, so new upstream syntax requires
+explicit review of the projection and its rejection cases.
+
+* Sources
+
+- [[https://docs.cedarpolicy.com/schema/json-schema.html][Cedar JSON schema format]]
+- [[https://docs.cedarpolicy.com/policies/validation.html][Cedar policy validation]]
+- [[https://github.com/cedar-policy/cedar-spec][Cedar Lean specification]]

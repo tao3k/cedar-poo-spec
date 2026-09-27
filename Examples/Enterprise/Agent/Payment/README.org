@@ -50,6 +50,14 @@ operation because it checks policy errors as well as the decision.
 A downstream caller using the generated =.cedar= policies must enforce the
 same error check.
 
+The [[file:ValidatedExport.lean][schema-bound exporter]] projects the Lean
+payment schema into Cedar's public JSON form and checks all thirty-two
+well-typed layer requests through strict Rust Cedar policy, entity, context,
+and request validation. Its distinct receipts include a schema digest.
+The malformed origin requests remain only in the diagnostic manifest because
+schema validation must reject them. See
+[[file:../../../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
+
 The host must authenticate the originating user and agent, obtain account
 group membership from an authoritative source, bind the transfer context to
 the proposed transaction, enforce the conjunction, and make execution
@@ -70,4 +78,5 @@ The solver boundary is specified in
 just check-agent-payment
 just check-payment-delta
 just check-cedar-language
+just check-schema-bound-receipts
 #+end_src

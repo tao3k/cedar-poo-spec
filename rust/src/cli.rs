@@ -1,8 +1,9 @@
 //! Stream a Lean manifest through the Rust Cedar conformance checker.
 
 use crate::{
-    CompiledPolicyJson, Manifest, TemplateSourceJson, check_direct_sources, check_manifest,
-    check_template_source, render_artifacts, render_policy_source, replay_manifest,
+    CompiledPolicyJson, Manifest, TemplateSourceJson, ValidatedManifest, check_direct_sources,
+    check_manifest, check_template_source, render_artifacts, render_policy_source, replay_manifest,
+    replay_validated_manifest,
 };
 use serde::Deserialize;
 use std::fs;
@@ -36,6 +37,16 @@ pub fn run() -> Result<(), String> {
         println!("Cedar template source matches Lean materialization");
         return Ok(());
     }
+    if args.as_slice() == ["replay-validated-receipts"] {
+        let manifest: ValidatedManifest = serde_json::from_str(&input)
+            .map_err(|error| format!("validated manifest JSON: {error}"))?;
+        let receipts = replay_validated_manifest(&manifest)?;
+        println!(
+            "{}",
+            serde_json::to_string(&receipts).map_err(|error| error.to_string())?
+        );
+        return Ok(());
+    }
     let manifest: Manifest =
         serde_json::from_str(&input).map_err(|error| format!("manifest JSON: {error}"))?;
     if args.as_slice() == ["replay-receipts"] {
@@ -61,7 +72,7 @@ pub fn run() -> Result<(), String> {
         }
         _ => {
             return Err(
-                "usage: cedar-poo-bridge [render|check-template-source|replay-receipts|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
+                "usage: cedar-poo-bridge [render|check-template-source|replay-receipts|replay-validated-receipts|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
             );
         }
     }
