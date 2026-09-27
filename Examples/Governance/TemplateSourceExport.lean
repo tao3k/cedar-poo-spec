@@ -28,6 +28,15 @@ def staticViewer : Cedar.Spec.Policy :=
 def contributorLinks : Cedar.Spec.TemplateLinkedPolicies :=
   links.filter fun link => link.id != "bob-ticket-a"
 
+def contributorTemplates : Cedar.Spec.Templates :=
+  Cedar.Data.Map.make [("contributor", contributorV2)]
+
+theorem unlinkedTemplateRejected :
+    (match CedarPooSpec.PolicyJson.sourceSet [staticViewer] templatesV2 contributorLinks with
+     | .error (.unlinkedTemplateId "viewer") => true
+     | _ => false) = true := by
+  native_decide
+
 theorem staticLinkCollisionRejected :
     (match CedarPooSpec.PolicyJson.sourceSet [staticViewer] templatesV2 links with
      | .error (.duplicatePolicyId "bob-ticket-a") => true
@@ -36,7 +45,7 @@ theorem staticLinkCollisionRejected :
 
 def mixedBundle : Except String Lean.Json := do
   let source ←
-    (CedarPooSpec.PolicyJson.sourceSet [staticViewer] templatesV2 contributorLinks).mapError
+    (CedarPooSpec.PolicyJson.sourceSet [staticViewer] contributorTemplates contributorLinks).mapError
       reprStr
   let materialized ←
     (CedarPooSpec.PolicyJson.policySet revised.validated.policies).mapError reprStr

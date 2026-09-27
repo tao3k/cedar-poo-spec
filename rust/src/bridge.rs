@@ -237,6 +237,18 @@ pub fn check_template_source(
 ) -> Result<(), String> {
     let linked = load_template_source(source)?;
     let expected = load_policy_set(materialized)?;
+    let linked_template_ids = linked
+        .policies()
+        .filter_map(|policy| policy.template_id().map(ToString::to_string))
+        .collect::<BTreeSet<_>>();
+    for template in linked.templates() {
+        if !linked_template_ids.contains(&template.id().to_string()) {
+            return Err(format!(
+                "Cedar template has no linked policy: {}",
+                template.id()
+            ));
+        }
+    }
     let linked_policies = linked
         .policies()
         .map(|policy| -> Result<(String, String), String> {

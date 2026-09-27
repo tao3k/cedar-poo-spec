@@ -164,10 +164,12 @@ fails the boundary check. This lets a downstream application retain the
 template source while using the POO-composed materialized artifact for
 authorization and proof reuse.
 The [[file:TemplateSources/posture-mixed.json][mixed source]] keeps the viewer
-grant static while contributor grants remain template-linked. Its Rust
-comparison reaches the same validated policy set. The Lean exporter rejects
-a static policy ID that collides with a link ID, and the Rust gate catches
-static-body drift.
+grant static while contributor grants remain template-linked. It exports only
+the contributor template, since an unused viewer template has no materialized
+policy body to compare. Its Rust comparison reaches the same validated policy
+set. The Lean exporter rejects unused templates and static/link ID collisions;
+the Rust gate independently rejects unused templates and catches static-body
+drift. A later link requires a new Lean materialization and boundary check.
 
 [[file:TicketSharingExport.lean][TicketSharingExport.lean]] derives nine
 authorization receipts from this Lean model. The

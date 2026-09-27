@@ -1,6 +1,6 @@
 use super::{
     Case, Manifest, check_direct_sources, check_manifest, check_template_source, load_policy_set,
-    render_artifacts,
+    load_template_source, render_artifacts,
 };
 use serde_json::json;
 
@@ -241,6 +241,21 @@ fn template_source_requires_exact_linked_policy_bodies() {
         check_template_source(&typed_changed, &materialized)
             .unwrap_err()
             .contains("template source parse")
+    );
+}
+
+#[test]
+fn template_source_rejects_unlinked_templates() {
+    let (mut source, materialized) = template_source_fixture();
+    source["templates"]["unused"] = source["templates"]["grant"].clone();
+    source["templates"]["unused"]["effect"] = json!("forbid");
+    let source = serde_json::from_value(source).expect("template source JSON");
+    let parsed = load_template_source(&source).expect("Cedar accepts an unused template");
+    assert_eq!(parsed.templates().count(), 2);
+    assert!(
+        check_template_source(&source, &materialized)
+            .unwrap_err()
+            .contains("template has no linked policy: unused")
     );
 }
 

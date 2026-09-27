@@ -25,6 +25,7 @@ inductive Error where
   | duplicateRecordKey (policyId : PolicyID)
   | duplicateEntityAttribute
   | duplicateTemplateId
+  | unlinkedTemplateId (templateId : TemplateID)
   | duplicateTemplateLinkId
   | duplicateSlotBinding
   | invalidTemplateLink (message : String)
@@ -223,8 +224,8 @@ def template (id : TemplateID) (value : Template) : Except Error Lean.Json := do
     ("resource", templateScope resource),
     ("conditions", Lean.toJson (← value.condition.mapM (condition id)))]
 
-/-- Export static policies, editable templates, and links in one Cedar JSON
-    policy set. The caller separately certifies the intended linked result. -/
+/-- Export static policies, active editable templates, and links in one Cedar
+    JSON policy set. The caller separately certifies the linked result. -/
 def sourceSet (staticPolicies : Policies) (templates : Templates)
     (links : TemplateLinkedPolicies) :
     Except Error Lean.Json := do
@@ -234,6 +235,9 @@ def sourceSet (staticPolicies : Policies) (templates : Templates)
     throw .duplicateTemplateId
   if !(decide (links.map TemplateLinkedPolicy.id).Nodup) then
     throw .duplicateTemplateLinkId
+  for (id, _) in templateEntries do
+    if !(links.any fun link => link.templateId == id) then
+      throw (.unlinkedTemplateId id)
   for link in links do
     if static.any (fun entry => entry.1 == link.id) then
       throw (.duplicatePolicyId link.id)
