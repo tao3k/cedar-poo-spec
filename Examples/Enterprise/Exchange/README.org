@@ -1,6 +1,0 @@
-#+TITLE: Exchange Authorization Examples
-#+OPTIONS: toc:nil
-
-| Case | Boundary |
-|------+----------|
-| [[file:Signing/README.org][Transaction signing]] | Bind independent intent, risk, ledger, and signer-side byte evidence before an exchange wallet signs. |

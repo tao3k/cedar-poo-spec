@@ -96,7 +96,6 @@ jobs:
       - run: just check-cedar-artifacts
       - run: just check-replay-receipts
       - run: just check-schema-bound-receipts
-      - run: just check-exchange-signing-validated
       - run: just check-schema-bound-scenarios
       - run: just example aws financial-services lakehouse
       - run: just example aws financial-services multi-account-banking

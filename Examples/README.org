@@ -16,7 +16,7 @@ depend on either verification directory.
 
 | Area | Cases |
 |------+-------|
-| [[file:Enterprise/README.org][Enterprise]] | Procurement, payment, agents, exchange signing, vehicle authorization, and AWS AgentCore reference cases. |
+| [[file:Enterprise/README.org][Enterprise]] | Procurement, payment, agents, vehicle authorization, and AWS AgentCore reference cases. |
 | [[file:Health/README.org][Health]] | Clinical emergency access and wearable triage. |
 | [[file:Governance/README.org][Governance]] | Data access, networks, countries, and ticket sharing. |
 | [[file:Language/README.org][Language]] | Cedar syntax and extension coverage. |
