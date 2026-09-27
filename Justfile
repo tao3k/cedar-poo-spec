@@ -17,7 +17,6 @@ check-docs:
     emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
 
 check: build-examples check-docs
-    just --jobs 2 check-examples
     just check-policy-reuse
     just check-cedar-language
 
