@@ -54,9 +54,12 @@ extension functions and values. The
 procurement approval, compound payment release, and AI agent delegation,
 payment authorization, three-to-five-layer delegation, and cross-tool data
 flow across independently evolving controls. The
+[[file:Examples/Enterprise/Agent/Session/README.org][bounded agent session]]
+case includes a Mermaid state diagram for history-aware admission. The
 [[file:Examples/Enterprise/Vehicle/README.org][vehicle examples]] include
-AI-mediated command hijacking and an Uptane supplier transition. They use
-separate source-grounded cases and keep their assumptions explicit.
+AI-mediated command hijacking, successor-safe mission authorization, and
+an Uptane supplier transition. They use separate source-grounded cases
+and keep their assumptions explicit.
 
 | Feature | Implemented contract |
 |---------+----------------------|

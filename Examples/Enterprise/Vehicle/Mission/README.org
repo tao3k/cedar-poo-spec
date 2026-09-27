@@ -1,0 +1,86 @@
+#+TITLE: Successor-Safe Mission Command Authorization
+#+OPTIONS: toc:nil
+
+* Source, threat, and projection
+
+[[https://arxiv.org/html/2606.06996v1][Tsai and Hariri (2026)]] study a
+high-level autonomy command that can be locally safe while making a
+driving mission infeasible. Their finite-horizon runtime monitor rejects
+successors that violate platform safety or mission feasibility. Their
+fault-injection scenarios include missed checkpoints, restricted regions,
+and insufficient remaining budget. The paper evaluates a rule-based
+mission planner in =highway-env=; it does not report a VLA prompt-injection
+attack. [[https://arxiv.org/abs/2605.29114][ReasonBreak (2026)]] separately
+shows that textual perturbations can alter reasoning and trajectories in
+reasoning-enabled driving VLAs. Applying mission admissibility to an
+untrusted VLA command is *our architectural inference*, not an experiment
+reported by either paper.
+
+| Published observation | This example's projection | Boundary |
+|-----------------------+---------------------------+----------|
+| A collision-free next step can still skip a required checkpoint. | =Platform= and =Mission= are independent POO owners; only their C4 composition rejects both classes. | The modeled successor list is illustrative, not the paper's predictor. |
+| Restricted-region or budget failure can occur later in a finite horizon. | Lean folds every predicted successor into separate platform and mission summaries; Cedar authorizes the command from those summaries. | The host must calculate and authenticate the real predictions and mission state. |
+| A rejected nominal command requires a safe fallback. | The =fallback-handoff= authorization remains available when =proceed= is denied. | This rule does not construct, select, or certify a physical fallback controller. |
+| A stale horizon can make a once-valid result irrelevant. | A local =Current= overlay adds a freshness requirement to the evidence veto. | Freshness and proposal binding must come from an independent host mechanism. |
+
+[[file:SuccessorBoundary.lean][SuccessorBoundary.lean]] represents a
+finite horizon as a nonempty list of predicted successors. An empty list
+fails both summaries. The five facts per successor stand for collision
+clearance, road clearance, checkpoint reachability, restricted-region
+avoidance, and adequate budget. They are not a complete implementation of
+the paper's dynamic model or of its time-to-collision thresholds. The host
+must bind one authenticated prediction horizon to the exact candidate
+command, vehicle state, mission specification, and decision instant.
+The =witnessBound= and =horizonCurrent= flags are supplied by that host;
+the example neither derives nor verifies them. Cedar is a policy gate at
+this interface, not a real-time vehicle safety monitor.
+
+* Decision matrix
+
+=A= is allow and =D= is deny. Unless shown otherwise, the candidate has
+an approved route, a bound and current horizon, and all successor facts
+are clear. All 42 cells are proved in Lean and replayed through the
+official Rust Cedar authorizer.
+
+| POO root | Future collision | Missed checkpoint | Restricted region | Depleted budget | Clear command | Unbound witness | Stale horizon |
+|----------+------------------+-------------------+-------------------+-----------------+---------------+-----------------+---------------|
+| =Base= | A | A | A | A | A | A | A |
+| =Platform= | D | A | A | A | A | A | A |
+| =Mission= | A | D | D | D | A | A | A |
+| =Evidence= | A | A | A | A | A | D | A |
+| =Integrated= | D | D | D | D | A | D | A |
+| =Current= | D | D | D | D | A | D | D |
+
+The source-backed distinction is visible in =Platform=: a missed
+checkpoint is allowed despite local safety. =Mission= leaves the
+collision gap. =Integrated= combines their decisions and the evidence
+owner; =Current= closes the stale-horizon gap discovered while modeling
+the host interface. Additional named requests cover road exit, an empty
+horizon, and fallback handoff. The witness and freshness cases are
+proposed boundary checks, not results measured by the source paper.
+
+* Composition and maintenance matrix
+
+| Root | Owner-local edit | Live Cedar policy bodies | Fresh body work against stated baseline |
+|------+------------------+--------------------------+----------------------------------------|
+| =Base= | Extend nominal route and fallback handoff | 2 | 2 |
+| =Platform= | Overlay nominal route with platform summary | 2 | 1 vs =Base= |
+| =Mission= | Extend mission infeasibility veto | 3 | 1 vs =Base= |
+| =Evidence= | Extend unbound-witness veto | 3 | 1 vs =Base= |
+| =Integrated= | C4-compose three independent owners | 4 | 2 vs =Platform= |
+| =Current= | Overlay evidence veto with horizon freshness | 4 | 1 vs =Integrated= |
+
+Six standalone Cedar revisions contain 18 materialized policy
+occurrences. Lean declares six distinct policy bodies in six POO edits.
+These are source-maintenance counts, not a runtime speedup measurement.
+Lean proves that the =Current= revision changes exactly the evidence
+policy ID and needs one fresh per-policy certificate; the other
+certificates are reused to reclose the authorization certificate.
+Cedar's upstream soundness theorem applies to the resulting snapshot.
+The [[file:SuccessorBoundaryExport.lean][exporter]] materializes 18
+focused requests and all 42 matrix cells for Rust Cedar conformance.
+
+#+begin_src sh
+just check-mission-successor
+just check-cedar-language
+#+end_src

@@ -14,4 +14,4 @@ and source and modeling notes in its own directory.
 | [[file:Agent/Chain/README.org][Agent chain]] | Variable-depth delegation, local edge freeze, and restoration. |
 | [[file:Agent/Payment/README.org][Agent payment]] | Agent payment value, account, and origin authorization. |
 | [[file:Agent/DataFlow/README.org][Agent data flow]] | Cross-tool read and publish controls with classification and review. |
-| [[file:Vehicle/README.org][Vehicle]] | AI-mediated command hijacking and Uptane supplier transition. |
+| [[file:Vehicle/README.org][Vehicle]] | AI-mediated command hijacking, successor-safe mission authorization, and Uptane supplier transition. |

@@ -6,8 +6,11 @@
 | Case | Research question |
 |------+-------------------|
 | [[file:VLA/README.org][VLA command boundary]] | What happens when visual text hijacks a model's high-level driving command, and how can independently supplied authorization evidence evolve across owners? |
+| [[file:Mission/README.org][Successor-safe mission command]] | Why can a collision-free command still destroy mission feasibility, and how can independent platform, mission, and evidence owners compose? |
 | [[file:Uptane/README.org][Uptane supplier transition]] | How do Image and Director repository permissions change together when an OTA supplier leaves? |
 
 Each case directory contains its own Lean model, Cedar export, and source
-and limitation notes. The VLA case is the forward-looking security study;
-Uptane remains a separate software-supply-chain example.
+and limitation notes. The VLA command case studies a published attack; the
+mission case projects a published runtime-assurance result onto the same
+kind of untrusted high-level command interface. Uptane remains a separate
+software-supply-chain example.

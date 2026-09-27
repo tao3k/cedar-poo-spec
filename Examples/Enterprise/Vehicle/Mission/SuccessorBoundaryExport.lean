@@ -1,0 +1,17 @@
+import Examples.Enterprise.Vehicle.Mission.SuccessorBoundary
+
+/-! Export the named successor decisions and their materialized Cedar revisions. -/
+
+namespace CedarPooSpec.SuccessorBoundaryExport
+
+open CedarPooSpec.SuccessorBoundaryExample
+
+def manifest : Except String Lean.Json := do
+  let mut rows : List Lean.Json := []
+  for (name, root, action, candidate, _) in cases ++ matrixCases do
+    let receipt ← CedarPooSpec.PolicyJson.authorizationCase
+      name root.toLower model root (request action candidate) entities
+    rows := rows ++ [receipt]
+  return Lean.Json.mkObj [("cases", Lean.toJson rows)]
+
+end CedarPooSpec.SuccessorBoundaryExport
