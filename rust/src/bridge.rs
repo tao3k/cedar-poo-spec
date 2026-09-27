@@ -4,14 +4,15 @@ use crate::{CompiledPolicyJson, TemplateSourceJson};
 use cedar_policy::{
     AuthorizationError, Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::str::FromStr;
 
 /// Request fields emitted from the Lean Cedar model.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RequestInput {
     pub principal: String,
     pub action: String,
@@ -39,13 +40,37 @@ pub struct Manifest {
     pub cases: Vec<Case>,
 }
 
+/// A reproducible record of one official Cedar replay, not a Lean proof or a signature.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReplayReceipt {
+    pub format_version: u32,
+    pub cedar_policy_version: String,
+    pub cedar_language_version: String,
+    pub case_name: String,
+    pub revision: String,
+    pub policies_sha256: String,
+    pub entities_sha256: String,
+    pub request_sha256: String,
+    pub decision: String,
+    pub reasons: Vec<String>,
+    pub error_policy_ids: Vec<String>,
+    /// Conservative deployment signal; Cedar's decision remains recorded separately.
+    pub error_free_allow: bool,
+}
+
 /// Reject empty bundles, parse every policy set, and compare every decision.
 pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
+    replay_manifest(manifest).map(|_| ())
+}
+
+/// Check Lean's manifest against Cedar and return content-bound replay records.
+pub fn replay_manifest(manifest: &Manifest) -> Result<Vec<ReplayReceipt>, String> {
     if manifest.cases.is_empty() {
         return Err("manifest has no cases".into());
     }
     let mut names = BTreeSet::new();
     let mut revisions = BTreeMap::new();
+    let mut receipts = Vec::with_capacity(manifest.cases.len());
     for case in &manifest.cases {
         if !names.insert(&case.name) {
             return Err(format!("duplicate case name: {}", case.name));
@@ -59,7 +84,7 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
         if revision.source != *case.policies.as_value() {
             return Err(format!("{}: conflicting revision output", case.revision));
         }
-        check_case(
+        let observed = check_case(
             case,
             &revision.policies,
             &revision.rendered,
@@ -67,8 +92,81 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
             &revision.rendered_bodies,
         )
         .map_err(|error| format!("{}: {error}", case.name))?;
+        let error_free_allow = observed.decision == "allow" && observed.error_policy_ids.is_empty();
+        receipts.push(ReplayReceipt {
+            format_version: 1,
+            cedar_policy_version: cedar_policy::get_sdk_version().to_string(),
+            cedar_language_version: cedar_policy::get_lang_version().to_string(),
+            case_name: case.name.clone(),
+            revision: case.revision.clone(),
+            policies_sha256: json_sha256(case.policies.as_value())?,
+            entities_sha256: json_sha256(&case.entities)?,
+            request_sha256: json_sha256(&case.request)?,
+            decision: observed.decision,
+            reasons: observed.reasons,
+            error_policy_ids: observed.error_policy_ids,
+            error_free_allow,
+        });
     }
     render_artifacts(manifest)?;
+    Ok(receipts)
+}
+
+/// Recompute official Cedar decisions and reject any drift from stored records.
+/// The caller must authenticate the stored records separately.
+pub fn verify_replay_receipts(
+    manifest: &Manifest,
+    receipts: &[ReplayReceipt],
+) -> Result<(), String> {
+    if replay_manifest(manifest)? != receipts {
+        return Err("Cedar replay receipts differ from the current manifest or runtime".into());
+    }
+    Ok(())
+}
+
+fn json_sha256(value: &impl Serialize) -> Result<String, String> {
+    let value = serde_json::to_value(value).map_err(|error| error.to_string())?;
+    let mut bytes = Vec::new();
+    write_canonical_json(&value, &mut bytes)?;
+    let digest = Sha256::digest(bytes);
+    Ok(digest.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+fn write_canonical_json(value: &Value, output: &mut Vec<u8>) -> Result<(), String> {
+    match value {
+        Value::Null => output.extend_from_slice(b"null"),
+        Value::Bool(value) => output.extend_from_slice(if *value { b"true" } else { b"false" }),
+        Value::Number(value) => output.extend_from_slice(value.to_string().as_bytes()),
+        Value::String(value) => {
+            output.extend_from_slice(&serde_json::to_vec(value).map_err(|error| error.to_string())?)
+        }
+        Value::Array(values) => {
+            output.push(b'[');
+            for (index, value) in values.iter().enumerate() {
+                if index > 0 {
+                    output.push(b',');
+                }
+                write_canonical_json(value, output)?;
+            }
+            output.push(b']');
+        }
+        Value::Object(values) => {
+            output.push(b'{');
+            let mut entries = values.iter().collect::<Vec<_>>();
+            entries.sort_unstable_by(|left, right| left.0.cmp(right.0));
+            for (index, (key, value)) in entries.into_iter().enumerate() {
+                if index > 0 {
+                    output.push(b',');
+                }
+                output.extend_from_slice(
+                    &serde_json::to_vec(key).map_err(|error| error.to_string())?,
+                );
+                output.push(b':');
+                write_canonical_json(value, output)?;
+            }
+            output.push(b'}');
+        }
+    }
     Ok(())
 }
 
@@ -392,13 +490,19 @@ pub fn render_artifacts(manifest: &Manifest) -> Result<BTreeMap<String, String>,
         .collect())
 }
 
+struct ObservedDecision {
+    decision: String,
+    reasons: Vec<String>,
+    error_policy_ids: Vec<String>,
+}
+
 fn check_case(
     case: &Case,
     policies: &PolicySet,
     rendered: &PolicySet,
     compiled_bodies: &BTreeMap<String, String>,
     rendered_bodies: &BTreeMap<String, String>,
-) -> Result<(), String> {
+) -> Result<ObservedDecision, String> {
     let expected_ids = case.policy_ids.iter().cloned().collect::<BTreeSet<_>>();
     let loaded_ids = policies
         .policies()
@@ -469,21 +573,25 @@ fn check_case(
         reparsed.diagnostics().reason().map(ToString::to_string),
         rendered_bodies,
     )?;
-    let compiled_reasons = diagnostic_body_counts(reasons, compiled_bodies)?;
+    let compiled_reasons = diagnostic_body_counts(reasons.iter().cloned(), compiled_bodies)?;
     let rendered_errors = diagnostic_body_counts(
         reparsed.diagnostics().errors().map(|error| match error {
             AuthorizationError::PolicyEvaluationError(error) => error.policy_id().to_string(),
         }),
         rendered_bodies,
     )?;
-    let compiled_errors = diagnostic_body_counts(error_policies, compiled_bodies)?;
+    let compiled_errors = diagnostic_body_counts(error_policies.iter().cloned(), compiled_bodies)?;
     if reparsed.decision() != response.decision()
         || rendered_reasons != compiled_reasons
         || rendered_errors != compiled_errors
     {
         return Err("rendered Cedar text changed authorization diagnostics".into());
     }
-    Ok(())
+    Ok(ObservedDecision {
+        decision: decision.into(),
+        reasons: reasons.into_iter().collect(),
+        error_policy_ids: error_policies.into_iter().collect(),
+    })
 }
 
 #[cfg(test)]

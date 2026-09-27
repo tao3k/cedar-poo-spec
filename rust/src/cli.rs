@@ -2,7 +2,7 @@
 
 use crate::{
     CompiledPolicyJson, Manifest, TemplateSourceJson, check_direct_sources, check_manifest,
-    check_template_source, render_artifacts, render_policy_source,
+    check_template_source, render_artifacts, render_policy_source, replay_manifest,
 };
 use serde::Deserialize;
 use std::fs;
@@ -38,6 +38,14 @@ pub fn run() -> Result<(), String> {
     }
     let manifest: Manifest =
         serde_json::from_str(&input).map_err(|error| format!("manifest JSON: {error}"))?;
+    if args.as_slice() == ["replay-receipts"] {
+        let receipts = replay_manifest(&manifest)?;
+        println!(
+            "{}",
+            serde_json::to_string(&receipts).map_err(|error| error.to_string())?
+        );
+        return Ok(());
+    }
     check_manifest(&manifest)?;
     match args.as_slice() {
         [] => println!("Cedar conformance: {} cases", manifest.cases.len()),
@@ -53,7 +61,7 @@ pub fn run() -> Result<(), String> {
         }
         _ => {
             return Err(
-                "usage: cedar-poo-bridge [render|check-template-source|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
+                "usage: cedar-poo-bridge [render|check-template-source|replay-receipts|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
             );
         }
     }

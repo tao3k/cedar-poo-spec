@@ -23,6 +23,7 @@ check: build-examples check-docs
     just check-policy-reuse
     just check-cedar-language
     just check-mission-comparison
+    just check-replay-receipts
     just check-authorization-delta
     just check-authorization-delta-proof
     just check-payment-delta
@@ -30,6 +31,10 @@ check: build-examples check-docs
 check-lean: build-examples check-authorization-delta-proof check-policy-reuse
 
 check-delta: check-authorization-delta check-payment-delta
+
+check-replay-receipts: prepare-agent-payment-manifest
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < .lake/build/agent-payment-manifest.json > .lake/build/agent-payment-replay-receipts.json
+    jq -e --slurpfile manifest .lake/build/agent-payment-manifest.json 'length == ($manifest[0].cases | length) and all(.[]; .format_version == 1 and .cedar_policy_version == "4.12.0" and .cedar_language_version == "4.5.0" and (.policies_sha256 | test("^[0-9a-f]{64}$")) and (.entities_sha256 | test("^[0-9a-f]{64}$")) and (.request_sha256 | test("^[0-9a-f]{64}$")) and .error_free_allow == (.decision == "allow" and (.error_policy_ids | length) == 0))' .lake/build/agent-payment-replay-receipts.json > /dev/null
 
 check-authorization-delta: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json

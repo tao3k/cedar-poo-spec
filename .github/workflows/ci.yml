@@ -90,6 +90,7 @@ jobs:
           add-job-id-key: "false"
           workspaces: ". -> rust/target"
       - run: just check-cedar-artifacts
+      - run: just check-replay-receipts
       - run: just check-mission-comparison
 
   authorization-delta:

@@ -1,6 +1,7 @@
 use super::{
-    Case, Manifest, check_direct_sources, check_manifest, check_template_source, load_policy_set,
-    load_template_source, render_artifacts,
+    Case, Manifest, check_direct_sources, check_manifest, check_template_source, json_sha256,
+    load_policy_set, load_template_source, render_artifacts, replay_manifest,
+    verify_replay_receipts,
 };
 use serde_json::json;
 
@@ -42,6 +43,82 @@ fn accepts_materialized_receipt_and_preserves_id() {
     let policies = load_policy_set(&case.policies).expect("materialized policy set");
     assert_eq!(policies.policies().next().unwrap().id().to_string(), "base");
     check_manifest(&Manifest { cases: vec![case] }).expect("same Cedar decision");
+}
+
+#[test]
+fn replay_receipt_binds_request_even_when_decision_is_unchanged() {
+    let baseline = Manifest {
+        cases: vec![receipt()],
+    };
+    let receipts = replay_manifest(&baseline).expect("official Cedar replay");
+    assert_eq!(receipts.len(), 1);
+    assert_eq!(receipts[0].format_version, 1);
+    assert_eq!(receipts[0].cedar_policy_version, "4.12.0");
+    assert_eq!(receipts[0].cedar_language_version, "4.5.0");
+    assert_eq!(receipts[0].policies_sha256.len(), 64);
+    assert_eq!(receipts[0].decision, "allow");
+    assert!(receipts[0].error_free_allow);
+    verify_replay_receipts(&baseline, &receipts).expect("same inputs and runtime");
+
+    let mut changed = receipt();
+    changed.request.principal = "User::\"bob\"".into();
+    let changed_manifest = Manifest {
+        cases: vec![changed],
+    };
+    let changed_receipts = replay_manifest(&changed_manifest).expect("still allowed");
+    assert_eq!(changed_receipts[0].decision, receipts[0].decision);
+    assert_ne!(
+        changed_receipts[0].request_sha256,
+        receipts[0].request_sha256
+    );
+    assert!(verify_replay_receipts(&changed_manifest, &receipts).is_err());
+}
+
+#[test]
+fn replay_hash_ignores_json_object_key_order() {
+    let left: serde_json::Value =
+        serde_json::from_str(r#"{"z":{"two":2,"one":1},"a":[{"y":true,"x":false}]}"#)
+            .expect("JSON");
+    let right: serde_json::Value =
+        serde_json::from_str(r#"{"a":[{"x":false,"y":true}],"z":{"one":1,"two":2}}"#)
+            .expect("JSON");
+    assert_eq!(json_sha256(&left).unwrap(), json_sha256(&right).unwrap());
+}
+
+#[test]
+fn replay_receipt_rejects_diagnostic_and_version_drift() {
+    let manifest = Manifest {
+        cases: vec![receipt()],
+    };
+    let mut receipts = replay_manifest(&manifest).expect("official Cedar replay");
+    receipts[0].reasons.clear();
+    assert!(verify_replay_receipts(&manifest, &receipts).is_err());
+    receipts = replay_manifest(&manifest).expect("official Cedar replay");
+    receipts[0].cedar_policy_version = "0.0.0".into();
+    assert!(verify_replay_receipts(&manifest, &receipts).is_err());
+}
+
+#[test]
+fn replay_receipt_exposes_allow_with_an_erroring_forbid() {
+    let mut case = receipt();
+    let mut policies = case.policies.as_value().clone();
+    policies["staticPolicies"]["error-guard"] = json!({
+        "effect": "forbid",
+        "principal": { "op": "All" },
+        "action": { "op": "All" },
+        "resource": { "op": "All" },
+        "conditions": [{
+            "kind": "when",
+            "body": { ".": { "left": { "Var": "principal" }, "attr": "missing" } }
+        }]
+    });
+    case.policies = serde_json::from_value(policies).expect("two policies");
+    case.policy_ids.push("error-guard".into());
+    case.expected_error_policies = vec!["error-guard".into()];
+    let replayed = replay_manifest(&Manifest { cases: vec![case] }).expect("official Cedar replay");
+    assert_eq!(replayed[0].decision, "allow");
+    assert_eq!(replayed[0].error_policy_ids, ["error-guard"]);
+    assert!(!replayed[0].error_free_allow);
 }
 
 #[test]

@@ -1,0 +1,55 @@
+#+TITLE: RFC 0005: Cedar Runtime Replay Receipts
+#+OPTIONS: toc:nil
+
+* Contract
+
+The optional Rust =cedar-runtime= feature exposes =replay_manifest= and
+=verify_replay_receipts=. They parse the Lean-generated Cedar policy JSON,
+replay every request with the pinned official =cedar-policy= authorizer, and
+compare the decision, reason IDs, and error policy IDs with Lean's manifest.
+Only a successful replay produces a =ReplayReceipt=.
+
+Each receipt records a format version, the SDK and language versions reported
+by the linked Cedar crate, case
+and revision names, SHA-256 digests of the policy JSON, entity JSON, and
+request JSON, plus the observed decision and diagnostics. The derived
+=error_free_allow= field is true only for Allow with no policy evaluation
+errors; it does not change Cedar's decision. The bridge sorts JSON object
+keys recursively before hashing, so input key order does not change a digest.
+The hashes bind the exported
+inputs; they are not hashes of a Lean proof term. A caller can serialize the
+receipt as JSON and later ask =verify_replay_receipts= to replay the same
+manifest and compare the entire record.
+
+The CLI accepts a manifest on standard input:
+
+#+begin_src sh
+cargo run --locked --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < manifest.json
+#+end_src
+
+The output is a JSON array in the manifest case order. The
+=check-replay-receipts= Just recipe exercises the enterprise agent-payment
+manifest, including its multiple independently composed policy revisions.
+
+* Trust boundary
+
+This is a runtime replay record. It detects drift in checked inputs or Cedar
+responses when a stored record is compared with a fresh replay. It does not
+authenticate the record's producer, establish that entity or context facts
+are true, include a schema hash, serialize a Lean certificate, or make
+authorization and business effects atomic. A deployment must authenticate
+stored receipts and bind its schema, policy projection, request, and runtime
+version to the actual execution boundary before making a stronger claim.
+
+* Verification
+
+#+begin_src sh
+just check-rust
+just check-replay-receipts
+#+end_src
+
+Rust regression checks change a principal while preserving the Allow
+decision; the old receipt must fail because the request hash changes. They
+also reject altered diagnostic IDs and a changed Cedar version field. A
+separate case records Cedar Allow with an erroring forbid and checks that
+=error_free_allow= remains false.

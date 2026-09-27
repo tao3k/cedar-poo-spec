@@ -36,6 +36,8 @@ Lean extension and Rust deployment interface.
 [[file:docs/rfc/0004-authorization-delta.org][RFC 0004]] defines an
 authorization-delta analysis over C4 revisions using Cedar's upstream
 symbolic compiler and a concrete counterexample replayed by Rust Cedar.
+[[file:docs/rfc/0005-cedar-replay-receipts.org][RFC 0005]] defines content-bound
+Rust Cedar replay receipts for checked Lean manifests.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.
@@ -92,6 +94,7 @@ Rust, Cedar conformance, and authorization delta separate jobs. The latter
 two start after the Lean and Rust jobs and restore their Lake and Cargo build
 caches. Lake cache identity includes the toolchain, dependency manifest, and
 Lean sources; the Cargo cache includes the Rust compiler and manifests.
+The =check-replay-receipts= entrypoint checks the agent-payment replay output.
 
 * Status
 
