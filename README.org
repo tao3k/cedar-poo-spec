@@ -53,9 +53,10 @@ extension functions and values. The
 [[file:Examples/Enterprise/README.org][enterprise examples]] cover delegated
 procurement approval, compound payment release, and AI agent delegation,
 payment authorization, three-to-five-layer delegation, and cross-tool data
-flow across independently evolving controls. A source-grounded fleet incident
-case composes supplier, OEM security, and fleet update authorization with
-local command freezes and certificate reuse.
+flow across independently evolving controls. The
+[[file:Examples/Enterprise/Vehicle/README.org][Uptane supplier transition]]
+case composes Image and Director repository authority during supplier removal
+and replacement with local certificate reuse.
 
 | Feature | Implemented contract |
 |---------+----------------------|

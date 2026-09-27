@@ -13,7 +13,7 @@ import Examples.Enterprise.Agent.Delegation.AgentDelegationExport
 import Examples.Enterprise.Agent.Chain.AgentChainExport
 import Examples.Enterprise.Agent.Payment.AgentPaymentExport
 import Examples.Enterprise.Agent.DataFlow.AgentDataFlowExport
-import Examples.Enterprise.Vehicle.FleetIncidentExport
+import Examples.Enterprise.Vehicle.SupplierTransitionExport
 import Examples.Language.ExtensionCoverageExport
 
 /-! Evaluate the same pure manifest definitions in one Lean process. -/
@@ -36,7 +36,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("agent-chain", fun _ => AgentChainExport.manifest),
   ("agent-payment", fun _ => AgentPaymentExport.manifest),
   ("agent-data-flow", fun _ => AgentDataFlowExport.manifest),
-  ("fleet-incident", fun _ => FleetIncidentExport.manifest),
+  ("supplier-transition", fun _ => SupplierTransitionExport.manifest),
   ("extension-coverage", fun _ => ExtensionCoverageExport.manifest)]
 
 def evaluate (produce : Unit → Except String Lean.Json) : IO Lean.Json :=

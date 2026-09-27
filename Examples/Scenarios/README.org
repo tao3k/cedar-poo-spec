@@ -74,7 +74,7 @@ multiple owners, proof reuse, and localized emergency changes.
 | [[file:../Enterprise/Agent/Chain/AgentChain.lean][Agent chain]] | One delegation root serves variable hop counts; a one-edge freeze and restoration stay local, and conflicting sibling edits fail. | [[file:../Enterprise/Agent/Chain/README.org][Agent chain case and sources]] |
 | [[file:../Enterprise/Agent/Payment/AgentPayment.lean][Agent payment]] | Account, amount, and origin owners compose independent vetoes; an account freeze and restoration affect one policy ID. | [[file:../Enterprise/Agent/Payment/README.org][Agent payment case and sources]] |
 | [[file:../Enterprise/Agent/DataFlow/AgentDataFlow.lean][Agent data flow]] | Data classification and security review branches each leave a distinct leak; C4 closes both without changing the read root. | [[file:../Enterprise/Agent/DataFlow/README.org][Agent data flow case and sources]] |
-| [[file:../Enterprise/Vehicle/FleetIncident.lean][Vehicle incident]] | Supplier, OEM, and fleet branches compose; a local command freeze preserves update authorization and reuses unchanged certificates. | [[file:../Enterprise/Vehicle/README.org][Vehicle case and sources]] |
+| [[file:../Enterprise/Vehicle/SupplierTransition.lean][Uptane supplier transition]] | Image and Director authority are retired independently, then a new supplier is added; the unchanged manifest certificate is reused. | [[file:../Enterprise/Vehicle/README.org][Vehicle case and sources]] |
 
 [[file:../Language/README.org][Language examples]] check Cedar syntax and export
 coverage. They are adapter conformance cases, not industry composition

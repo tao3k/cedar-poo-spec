@@ -10,7 +10,7 @@ modeling assumptions, Lean claims, and runtime boundary.
 
 | Area | Cases |
 |------+-------|
-| [[file:Enterprise/README.org][Enterprise]] | Procurement, payment, agents, and vehicle incident response. |
+| [[file:Enterprise/README.org][Enterprise]] | Procurement, payment, agents, and Uptane supplier transition. |
 | [[file:Health/README.org][Health]] | Clinical emergency access and wearable triage. |
 | [[file:Governance/README.org][Governance]] | Data access, networks, countries, and ticket sharing. |
 | [[file:Language/README.org][Language]] | Cedar syntax and extension coverage. |
