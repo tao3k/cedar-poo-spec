@@ -10,3 +10,4 @@
 | [[file:Payment/README.org][Payment]] | Per-call payment authorization. |
 | [[file:DataFlow/README.org][Data flow]] | Cross-tool read and publication controls. |
 | [[file:Session/README.org][Bounded session]] | Prior actions, delegated intent, export budgets, and incident recovery for AI agents. |
+| [[file:Fanout/README.org][Shared budget fanout]] | Concurrent sub-agents, parent-wide budget aggregation, and atomic admission boundary. |

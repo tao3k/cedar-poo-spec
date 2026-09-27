@@ -14,6 +14,7 @@ import Examples.Enterprise.Agent.Chain.AgentChainExport
 import Examples.Enterprise.Agent.Payment.AgentPaymentExport
 import Examples.Enterprise.Agent.DataFlow.AgentDataFlowExport
 import Examples.Enterprise.Agent.Session.BoundedSessionExport
+import Examples.Enterprise.Agent.Fanout.SharedBudgetExport
 import Examples.Enterprise.Vehicle.Uptane.SupplierTransitionExport
 import Examples.Enterprise.Vehicle.VLA.CommandBoundaryExport
 import Examples.Enterprise.Vehicle.Mission.SuccessorBoundaryExport
@@ -41,6 +42,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("agent-payment", fun _ => AgentPaymentExport.manifest),
   ("agent-data-flow", fun _ => AgentDataFlowExport.manifest),
   ("bounded-session", fun _ => BoundedSessionExport.manifest),
+  ("shared-budget", fun _ => SharedBudgetExport.manifest),
   ("supplier-transition", fun _ => SupplierTransitionExport.manifest),
   ("vla-command", fun _ => VlaCommandBoundaryExport.manifest),
   ("mission-successor", fun _ => SuccessorBoundaryExport.manifest),
