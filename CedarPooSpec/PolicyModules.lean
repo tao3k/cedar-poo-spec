@@ -1,6 +1,7 @@
 import Cedar.Spec.Policy
 import LeanPoo.Object.Builder
 import LeanPoo.Object.Memo
+import LeanPoo.Compose
 
 /-!
 C4 composes policy-producing modules. Edit intent is explicit; the result is
@@ -35,9 +36,12 @@ def Module.node (module : Module) : LeanPoo.C4.Node :=
 
 structure Model where
   modules : List Module
+  builtSchema : Option (LeanPoo.Object.Schema PolicyID (fun _ => Option Policy)) := none
 
 def Model.graph (model : Model) : LeanPoo.C4.Graph :=
-  { nodes := model.modules.map Module.node }
+  match model.builtSchema with
+  | some schema => schema.graph
+  | none => { nodes := model.modules.map Module.node }
 
 /-- Policy IDs are typed object slots. Each direct edit writes the slot body;
     removal writes an explicit tombstone. Edit validation stays Cedar-specific. -/
@@ -53,10 +57,28 @@ private def Module.declaration (module : Module) :
 
 private def Model.schema (model : Model) :
     LeanPoo.Object.Schema PolicyID (fun _ => Option Policy) :=
-  { graph := model.graph
-    declaration := fun name =>
-      (model.modules.find? (fun module => module.name == name)).map
-        Module.declaration }
+  match model.builtSchema with
+  | some schema => schema
+  | none =>
+      { graph := model.graph
+        declaration := fun name =>
+          (model.modules.find? (fun module => module.name == name)).map
+            Module.declaration }
+
+/-- Stage a single-parent policy owner through LeanPOO's extension API.
+    The final mix or publication compiles the complete C4 topology. -/
+def Model.extend (model : Model) (name parent : String)
+    (edits : List Edit := []) : Except LeanPoo.C4.Error Model := do
+  let module : Module := { name, parentOrders := [[parent]], edits }
+  let schema ← LeanPoo.extendSchema model.schema name parent module.declaration
+  return { modules := model.modules ++ [module], builtSchema := some schema }
+
+/-- Compose ordered policy owners through LeanPOO's C4 mix operation. -/
+def Model.mix (model : Model) (name : String) (supers : List String)
+    (edits : List Edit := []) : Except LeanPoo.C4.Error Model := do
+  let module : Module := { name, parentOrders := if supers.isEmpty then [] else [supers], edits }
+  let plan ← LeanPoo.mix model.schema name supers module.declaration
+  return { modules := model.modules ++ [module], builtSchema := some plan.schema }
 
 /-- Inspect the C4-composed policy slots before Cedar edit validation.
     Publication must still go through `compile` or `compileWithTrace`. -/
