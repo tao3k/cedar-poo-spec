@@ -10,6 +10,14 @@ update:
 sync: update
     just check
 
+# Inspect the public module inventory of the exact LeanPOO revision in Lake.
+lean-poo-api:
+    @rg -n '^import LeanPoo\.' .lake/packages/LeanPoo/LeanPoo.lean
+
+# Search that same revision by declaration name or API term.
+lean-poo-api-find query:
+    @rg -n -i --glob '*.lean' -e {{quote(query)}} .lake/packages/LeanPoo/LeanPoo
+
 build:
     lake build CedarPooSpec
 
@@ -30,6 +38,7 @@ check: check-tests check-docs
     just check-lakehouse-gateway
     just check-multi-account-banking
     just check-claim-settlement
+    just check-reconciliation
     just check-attested-schema-evolution
     just check-authorization-delta
     just check-authorization-delta-proof
@@ -102,6 +111,19 @@ check-multi-account-banking: build-examples
 check-claim-settlement: build-examples
     lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlement
     lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlementRevision
+
+check-reconciliation: build-examples
+    lake build Examples.Enterprise.AWS.FinancialServices.Reconciliation.Workflow
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean reconciliation-validated > .lake/build/reconciliation-validated-manifest.json
+    jq -e '.schema.AgentCore.entityTypes.IamEntity != null and (.schema.AgentCore.actions | length) == 10 and (.cases | length) == 32' .lake/build/reconciliation-validated-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/reconciliation-validated-manifest.json > .lake/build/reconciliation-validated-receipts.json
+    jq -e 'length == 32 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["agent-status-denied","joint-graph-send","joint-worker-85","paused-graph-send","raised-threshold-denies","worker-below-threshold","worker-missing-confidence"]' .lake/build/reconciliation-validated-receipts.json > /dev/null
+    jq '[.cases[] | select(.revision == "source")][0].policies' .lake/build/reconciliation-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/reconciliation-source.cedar
+    cmp .lake/build/reconciliation-source.cedar Examples/Enterprise/AWS/FinancialServices/Reconciliation/Policies/source.cedar
+    jq '[.cases[] | select(.revision == "owners")][0].policies' .lake/build/reconciliation-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/reconciliation-owners.cedar
+    cmp .lake/build/reconciliation-owners.cedar Examples/Enterprise/AWS/FinancialServices/Reconciliation/Policies/owners.cedar
+    jq '[.cases[] | select(.revision == "JointIncident")][0].policies' .lake/build/reconciliation-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/reconciliation-joint-incident.cedar
+    cmp .lake/build/reconciliation-joint-incident.cedar Examples/Enterprise/AWS/FinancialServices/Reconciliation/Policies/joint-incident.cedar
 
 prepare-attested-schema-evolution: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json

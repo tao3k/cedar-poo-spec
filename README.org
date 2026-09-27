@@ -95,6 +95,10 @@ library's semantics.
 
 * Verification
 
+=just lean-poo-api= lists the public modules from the locked LeanPOO
+dependency. =just lean-poo-api-find 'Multimethod.register'= searches its Lean
+declarations and uses the same revision that Lake builds for this project.
+
 =just check= runs the complete local gate. Its smaller entrypoints are
 =check-docs=, =check-lean=, =check-tests=, =check-rust=, =check-cedar-artifacts=,
 =check-mission-comparison=, and =check-delta=. CI gives documentation, Lean,

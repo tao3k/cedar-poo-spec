@@ -101,6 +101,7 @@ jobs:
       - run: just check-lakehouse-gateway
       - run: just check-multi-account-banking
       - run: just check-claim-settlement
+      - run: just check-reconciliation
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
 

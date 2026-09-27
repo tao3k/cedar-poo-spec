@@ -8,6 +8,7 @@
 | [[file:LakehouseGateway/README.org][Insurance lakehouse Gateway]] | [[https://aws.amazon.com/blogs/machine-learning/secure-ai-agents-with-policy-and-lambda-interceptors-in-amazon-bedrock-agentcore-gateway/][AWS lakehouse policy and interceptor example]] | How do independent role and geography restrictions compose at one Gateway? |
 | [[file:MultiAccountBanking/README.org][Multi-account banking]] | [[https://aws.amazon.com/blogs/machine-learning/build-a-multi-account-ai-agent-with-agentcore-gateway-and-mcp/][AWS banking AgentCore example]] | How do Gateway policy owners and cross-account identity relations compose over a multi-LOB call path? |
 | [[file:ClaimSettlement.org][Cross-domain claim settlement]] | [[https://aws.amazon.com/blogs/industries/agentic-ai-in-financial-services-choosing-the-right-pattern-for-multi-agent-systems/][AWS claims adjudication workflow]] combined with the two reference cases above | What happens when claim-data access, identity handoff, and multi-account payment calls form one authorization plan? |
+| [[file:Reconciliation/README.org][Reconciliation agent]] | [[https://github.com/aws-samples/sample-reconciliation-agent][AWS reconciliation-agent sample]] | How do Cedar Gateway policy, persisted evidence, case transition, and Graph email compose across owners and incidents? |
 
 Gateway Cedar decisions are one stage. JWT validation, outbound credentials,
 LOB Runtime admission, and data-plane effects retain separate owners and
