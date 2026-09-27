@@ -75,6 +75,15 @@ prove that Cedar typechecking needs no fresh body check. Nevertheless,
 authorization proof object's ordered policy list must be patched. This keeps
 the state truthful while reusing the validation proofs.
 
+The =OwnerSplit= variant exercises Lean-POO's optional C4 suffix constraint
+through =PolicyModules.Module.suffix=. It places an independent compliance
+branch between =DataOwner= and its inherited =Base=. Ordinary C4 accepts the
+ordering (=ordinaryOrderAcceptsInterleaving=). Marking the owner chain as a
+suffix rejects that same order with =suffixOrderViolation=
+(=ownerSuffixRejectsInterleavingExact=). The main governed policy modules keep
+their existing order and decisions; the variant shows where an enterprise
+owner can require its inherited baseline to remain contiguous.
+
 =schemaV2= adds an optional dataset classification attribute as an explicit
 model evolution, without claiming that any cited service made this change.
 =schemaChanged= proves that the attribute projection differs from the old

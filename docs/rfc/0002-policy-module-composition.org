@@ -5,7 +5,8 @@
 
 =PolicyModules.Model.compile= turns a C4 hierarchy of policy modules into
 an ordinary Cedar =Policies= value. A module has a name, ordered parents,
-and explicit edits. The edits are =extend=, =overlay=, and =remove=.
+an optional C4 =suffix= constraint, and explicit edits. The edits are
+=extend=, =overlay=, and =remove=.
 
 Compilation linearizes the requested root with Lean-POO C4, applies the
 base modules first, and applies descendant edits last. =extend= introduces
@@ -18,6 +19,10 @@ ID on extend, an absent ID on overlay or remove, or competing sibling edits
 to the same ID. A descendant may change an ancestor's policy. A sibling may
 not silently replace another sibling's edit, even when C4 gives a linear
 order; the conflicting parent modules must be reconciled before compilation.
+When an owner chain declares =suffix := true=, Lean-POO also rejects a local
+parent order that interleaves another branch into that inherited suffix.
+This is an opt-in ordering constraint; it does not change Cedar policy
+evaluation or grant an owner authority over another branch's edits.
 
 The output is passed to Cedar's own validator and authorizer. This feature
 does not reinterpret Cedar's permit/forbid rules, policy errors, or schema.

@@ -25,10 +25,12 @@ def Edit.overlayAll (policies : Policies) : List Edit :=
 structure Module where
   name : String
   parentOrders : List (List String) := []
+  suffix : Bool := false
   edits : List Edit := []
 
 def Module.node (module : Module) : LeanPoo.C4.Node :=
-  { name := module.name, parentOrders := module.parentOrders }
+  { name := module.name, parentOrders := module.parentOrders,
+    suffix := module.suffix }
 
 structure Model where
   modules : List Module

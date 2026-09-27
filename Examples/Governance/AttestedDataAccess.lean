@@ -132,7 +132,8 @@ def regionVeto : Policy :=
   queryPolicy "region-boundary" .forbid (.unaryApp .not regionMatches)
 
 def base : Module :=
-  { name := "Base", edits := [.extend projectPermit, .extend legacyPermit] }
+  { name := "Base", suffix := true,
+    edits := [.extend projectPermit, .extend legacyPermit] }
 def dataOwner : Module :=
   { name := "DataOwner", parentOrders := [["Base"]],
     edits := [.extend ownerVeto] }
@@ -162,6 +163,24 @@ def auditView : Module :=
 def model : Model :=
   { modules := [base, dataOwner, platform, platformV2, compliance,
       governed, governedV2, governedV2Reordered, sandbox, auditView] }
+/-- An owner chain can opt into C4's indivisible inherited suffix. -/
+def strictOwner : Module := { dataOwner with suffix := true }
+def independentCompliance : Module :=
+  { name := "IndependentCompliance", edits := [.extend regionVeto] }
+def ownerSuffixModel (strict : Bool) : Model :=
+  { modules := [base, { strictOwner with suffix := strict }, independentCompliance,
+      { name := "OwnerSplit",
+        parentOrders := [["DataOwner", "IndependentCompliance", "Base"]] }] }
+def ownerSuffixRejectsInterleaving : Bool :=
+  match (ownerSuffixModel true).compile "OwnerSplit" with
+  | .error (.c4 .suffixOrderViolation) => true
+  | _ => false
+theorem ownerSuffixRejectsInterleavingExact :
+    ownerSuffixRejectsInterleaving = true := by
+  native_decide
+theorem ordinaryOrderAcceptsInterleaving :
+    ((ownerSuffixModel false).compile "OwnerSplit").isOk = true := by
+  native_decide
 def revision : Revision :=
   (model.compileRevision "Governed" "GovernedV2").toOption.get (by native_decide)
 def compilation : Compilation :=
