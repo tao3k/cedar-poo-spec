@@ -54,8 +54,16 @@ obligations untouched. Cedar remains authoritative for
 validation, permit/forbid aggregation, and soundness; POO owns inheritance,
 edit intent, conflict detection, and proof-object dependency management.
 
+[[file:TenantDevicePolicyEvolutionExport.lean][The manifest exporter]] sends all
+fifteen root/request decisions to the official Cedar Rust authorizer. It
+also checks the five generated [[file:TenantDevicePolicies/remove.cedar][policy
+revisions]] after Cedar reparses them. This closes the concrete-language
+boundary for the existing POO edit sequence; the malformed-policy diagnostic
+remains a Lean-only negative case because its policy set fails validation.
+
 #+begin_src sh
 lake env lean Examples/Scenarios/TenantDevicePolicyEvolution.lean
+just prepare-tenant-device-manifest
 just check
 #+end_src
 
