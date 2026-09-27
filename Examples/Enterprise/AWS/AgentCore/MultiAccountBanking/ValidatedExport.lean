@@ -1,4 +1,4 @@
-import Examples.Enterprise.Agent.MultiAccountBanking.MultiAccountBanking
+import Examples.Enterprise.AWS.AgentCore.MultiAccountBanking.MultiAccountBanking
 import CedarPooSpec.SchemaJson
 
 namespace CedarPooSpec.MultiAccountBankingValidatedExport

@@ -2,8 +2,8 @@ import CedarPooSpec.PolicyJson
 
 /-! Projection of the Gateway Cedar boundary in the AWS multi-account banking
 sample. LOB JWT authorization, M2M exchange, IAM, and data access remain outside
-this model. The owner-composed policy is an equivalent rewrite over the six
-named tools below, not a claim about the sample's deployed policy structure. -/
+this model. The owner-composed policy is an equivalent rewrite over the eighteen
+named actions below, not a claim about the sample's deployed policy structure. -/
 
 namespace CedarPooSpec.MultiAccountBankingExample
 

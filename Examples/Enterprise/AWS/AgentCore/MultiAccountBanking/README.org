@@ -23,8 +23,9 @@ a local projection, not an exported AgentCore Gateway schema.
 |-------------+-----------------|
 | [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/platform-account/gateway/setup_gateway.py][Gateway setup]] | Action-wide authenticated permit, =delete_customer= forbid, ENFORCE mode, outbound M2M target credentials. |
 | [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/lob-accounts/retail-banking/mcp_server/server.py][Retail MCP]] | Six published retail tool names, including balance update and customer deletion. |
-| [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/lob-accounts/transaction-banking/mcp_server/server.py][Transaction MCP]] | Four published transaction tool names, including funds transfer. |
+| [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/lob-accounts/transaction-banking/mcp_server/server.py][Transaction MCP]] | Four published transaction tool names; =transfer_funds= records a Completed payment and requests subsequent balance updates. |
 | [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/lob-accounts/lending-wealth/mcp_server/server.py][Lending MCP]] | Six published lending and knowledge-base tool names. |
+| [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/platform-account/agent/agent.py][Platform agent]] | The system prompt requests a balance check, transfer, source debit, and destination credit; the user's JWT is forwarded to the Gateway. |
 
 #+begin_src mermaid
 flowchart LR
@@ -45,6 +46,57 @@ server validates that token itself. Production hardening can also restrict
 the LOB Runtime's workload identity chain to the Gateway. Those are separate
 enforcement points: a Cedar =allow= here does not prove a LOB accepted the
 call or that the entire transfer completed.
+
+* Mixed route and identity lineage
+
+The sample's =transfer_funds= tool writes a payment record with status
+=Completed=, then returns an instruction for the agent to call =update_balance=
+twice. The [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/platform-account/agent/agent.py][agent prompt]] asks for a prior balance check and subsequent source debit
+and destination credit. Those are four distinct Gateway authorizations across
+two LOB accounts. The sample does not implement one atomic cross-account
+transaction across those calls. An interrupted later step can therefore leave
+the recorded payment and account balances out of sync; this is an inference
+from the published tool code, not an observed production incident.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> BalanceChecked: Retail get_balance
+    BalanceChecked --> PaymentRecorded: Transaction transfer_funds
+    PaymentRecorded --> SourceDebited: Retail update_balance debit
+    SourceDebited --> DestinationCredited: Retail update_balance credit
+    PaymentRecorded --> Incomplete: later call fails or is omitted
+    SourceDebited --> Incomplete: credit fails or is omitted
+    DestinationCredited --> [*]
+#+end_src
+
+[[file:Lineage.lean][Lineage.lean]] makes the route a first-class relation of origin user, phase,
+Gateway action, and owning LOB. It uses =LeanPoo.C4= graphs on two axes:
+credential mode and LOB owner. A =LeanPoo.Object.Multimethod= combines the
+checks contributed by both axes without restating the identity chain for
+each LOB. =SourceM2M= requires the user JWT at the Gateway, a Cedar decision,
+outbound M2M, and LOB JWT validation. =GatewayBoundM2M= adds the Gateway
+workload-chain condition recommended by the AWS article. =OBO= is the
+[[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/on-behalf-of-token-exchange.html][AWS-documented alternative]] that can carry user identity to the LOB; the
+sample itself uses M2M. These are obligation plans, not receipts from an AWS
+deployment. Lean verifies that the transfer route is owned by the stated
+LOBs, shares one modeled user origin, and that each Gateway call is allowed
+only after the relevant POO policy owners are composed. The public
+=plannedRoute= result keeps the origin, action, LOB, POO-generated relation
+requirements, and Cedar decision together for each of the four steps. Its
+=allowed= result means the *plan's Gateway decisions* allow; it does not
+assert that the required relations were observed at runtime.
+The =isolatedTransferIsAuthorized= theorem also shows that the Gateway
+permits the Transaction call by itself. A complete route plan is a useful
+review artifact, but the published Cedar policy does not enforce its sequence.
+
+Gateway policy can constrain each =context.input= according to the
+[[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-schema-constraints.html][AgentCore schema rules]], but a per-call Cedar permit does not bind the four
+effects into one transaction. Account ownership, amount and account binding
+between calls, idempotency, compensation, and final settlement require
+separate LOB or workflow evidence. The current sample uses M2M downstream,
+so the LOB JWT check authenticates the Gateway's service credential, not the
+original end user. No statement here assumes cross-account temporal policy
+session propagation.
 
 * POO leverage and observed decisions
 

@@ -20,8 +20,8 @@ import Examples.Enterprise.Agent.Payment.AgentPaymentExport
 import Examples.Enterprise.Agent.Payment.ValidatedExport
 import Examples.Enterprise.Agent.DataFlow.AgentDataFlowExport
 import Examples.Enterprise.Agent.DataFlow.ValidatedExport
-import Examples.Enterprise.Agent.LakehouseGateway.ValidatedExport
-import Examples.Enterprise.Agent.MultiAccountBanking.ValidatedExport
+import Examples.Enterprise.AWS.AgentCore.LakehouseGateway.ValidatedExport
+import Examples.Enterprise.AWS.AgentCore.MultiAccountBanking.ValidatedExport
 import Examples.Enterprise.Agent.Session.BoundedSessionExport
 import Examples.Enterprise.Agent.Fanout.SharedBudgetExport
 import Examples.Enterprise.Exchange.Signing.SigningBoundaryExport

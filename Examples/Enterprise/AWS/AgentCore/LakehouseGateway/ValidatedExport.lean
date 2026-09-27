@@ -1,4 +1,4 @@
-import Examples.Enterprise.Agent.LakehouseGateway.LakehouseGateway
+import Examples.Enterprise.AWS.AgentCore.LakehouseGateway.LakehouseGateway
 import CedarPooSpec.SchemaJson
 
 namespace CedarPooSpec.LakehouseGatewayValidatedExport
