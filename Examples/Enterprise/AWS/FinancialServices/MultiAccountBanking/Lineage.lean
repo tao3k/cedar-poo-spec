@@ -124,14 +124,23 @@ structure PlannedCall where
   required : List Requirement
   gatewayDecision : Cedar.Spec.Decision
 
+def plannedCalls (mode root : String) (calls : List RouteCall) :
+    Option (List PlannedCall) := do
+  if !calls.all (fun call => belongsTo call.lob call.action) then none else do
+    let receipt ← (CedarPooSpec.CompoundAuthorization.authorizeAll model root
+      (calls.map fun call => request call.origin call.action) entities).toOption
+    if calls.length != receipt.responses.length then none else
+      (calls.zip receipt.responses).mapM fun (call, response) => do
+        if !response.erroringPolicies.isEmpty then none else do
+          let required ← requirements mode call.lob
+          return ⟨call, required, response.decision⟩
+
 def plannedCall (mode root : String) (call : RouteCall) : Option PlannedCall := do
-  if !belongsTo call.lob call.action then none else do
-    let required ← requirements mode call.lob
-    let gatewayDecision ← decideAt root (request call.origin call.action)
-    return ⟨call, required, gatewayDecision⟩
+  let calls ← plannedCalls mode root [call]
+  calls.head?
 
 def plannedRoute (mode root : String) : Option (List PlannedCall) :=
-  transferRoute.mapM (plannedCall mode root)
+  plannedCalls mode root transferRoute
 
 def plannedRouteAllowed (mode root : String) : Bool :=
   match plannedRoute mode root with

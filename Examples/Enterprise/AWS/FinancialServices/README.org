@@ -21,7 +21,10 @@ both case models through their actual Lean modules and reuses banking's
 C4/multimethod lineage; imports are acyclic. A direct import from one
 business model into the other would make its local Cedar policy depend on
 unrelated business rules. The composite workflow is the point where the
-different owners meet.
+different owners meet. Its two claims calls share one compiled claims root;
+its four bank calls share one compiled bank root. Each batch binds its Cedar
+decisions to that root, while the banking multimethod supplies the distinct
+LOB requirements for each call.
 
 #+begin_src mermaid
 flowchart TB

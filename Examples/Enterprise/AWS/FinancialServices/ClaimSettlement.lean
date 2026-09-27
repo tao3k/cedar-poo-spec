@@ -1,5 +1,6 @@
 import Examples.Enterprise.AWS.FinancialServices.LakehouseGateway.LakehouseGateway
 import Examples.Enterprise.AWS.FinancialServices.MultiAccountBanking.Lineage
+import CedarPooSpec.CompoundAuthorization
 
 /-! Proposed cross-organization claim-settlement plan. The lakehouse and
 banking modules model separate published AWS examples; this composition is an
@@ -31,14 +32,22 @@ structure Plan where
 
 def planned (claimsRoot bankRoot mode : String) (actors : Actors)
     (geography : Option String) : Option Plan := do
-  let claimsQuery ← CedarPooSpec.LakehouseGatewayExample.decideAt claimsRoot
-    (CedarPooSpec.LakehouseGatewayExample.request actors.adjuster CedarPooSpec.LakehouseGatewayExample.queryClaims geography)
-  let claimDetails ← CedarPooSpec.LakehouseGatewayExample.decideAt claimsRoot
-    (CedarPooSpec.LakehouseGatewayExample.request actors.adjuster CedarPooSpec.LakehouseGatewayExample.claimDetails geography)
-  let bankCalls ← CedarPooSpec.MultiAccountBankingLineage.transferRoute.mapM fun call =>
-    CedarPooSpec.MultiAccountBankingLineage.plannedCall mode bankRoot
+  let claimsRequests :=
+    [CedarPooSpec.LakehouseGatewayExample.queryClaims,
+      CedarPooSpec.LakehouseGatewayExample.claimDetails].map fun action =>
+        CedarPooSpec.LakehouseGatewayExample.request actors.adjuster action geography
+  let claims ← (CedarPooSpec.CompoundAuthorization.authorizeAll
+    CedarPooSpec.LakehouseGatewayExample.model claimsRoot claimsRequests
+    CedarPooSpec.LakehouseGatewayExample.entities).toOption
+  let [claimsQuery, claimDetails] := claims.responses | none
+  if !claimsQuery.erroringPolicies.isEmpty || !claimDetails.erroringPolicies.isEmpty then
+    none
+  else do
+    let calls := CedarPooSpec.MultiAccountBankingLineage.transferRoute.map fun call =>
       { call with origin := actors.bankOperator }
-  return ⟨actors, claimsQuery, claimDetails, bankCalls⟩
+    let bankCalls ← CedarPooSpec.MultiAccountBankingLineage.plannedCalls
+      mode bankRoot calls
+    return ⟨actors, claimsQuery.decision, claimDetails.decision, bankCalls⟩
 
 /-- Only Gateway decisions and POO-derived obligation plans are evaluated.
     The verified inter-organization handoff remains an external requirement. -/
