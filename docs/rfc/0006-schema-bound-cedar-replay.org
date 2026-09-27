@@ -18,6 +18,11 @@ covers schemas with no action request environments: a dangling entity
 ancestor is rejected before JSON projection or publication. A successful
 =Publication= carries the definition-validation premise as well as Cedar's
 request-environment and policy-validation premises.
+The shared admission API also rejects non-injective namespace and qualified
+entity-type names before projection or publication. Distinct Lean path lists
+can otherwise serialize to the same =::=-joined name and silently replace a
+JSON entry. The Rust parser remains responsible for Cedar's lexical name
+rules.
 
 =ValidatedManifest= carries one schema and a set of Lean-generated cases.
 =replay_validated_manifest= uses Cedar's strict policy validator for each
