@@ -75,13 +75,13 @@ cross-domain route rather than just a single policy decision.
 | Transaction transfer paused by an incident overlay | Settlement route fails while claims and bank read calls remain available | Transaction owner revision and fresh bank evidence |
 | Policyholder reads a claim then initiates an unrelated payment | Gateway decisions can still allow the plan | Claim ownership, case binding, trusted actor handoff |
 | Agent omits debit or credit after transfer | Per-call Gateway authorization does not detect completion | Bank workflow atomicity, idempotency, compensation |
-| Forged or stale cross-organization delegation | The plan only marks handoff as required | Independent identity and case-bound delegation receipt |
+| Forged or stale cross-organization delegation | The Gateway plan cannot establish a trusted handoff | Independent identity and case-bound delegation receipt |
 
 The =policyholderToolAccessIsNotClaimProvenance= Lean result deliberately
 exposes an insufficiency: Cedar tool permission is not proof that the
 returned claim belongs to the bank payment case. The plan keeps adjuster
-and bank operator as distinct principals and marks their handoff as an
-external requirement. None of the Lean theorems claims AWS runtime
+and bank operator as distinct principals. Their handoff is an external
+requirement. None of the Lean theorems claims AWS runtime
 execution, data lineage, or settlement completion.
 
 #+begin_src sh

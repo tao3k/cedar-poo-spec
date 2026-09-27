@@ -28,7 +28,6 @@ structure Plan where
   claimsQuery : Decision
   claimDetails : Decision
   bankCalls : List CedarPooSpec.MultiAccountBankingLineage.PlannedCall
-  requiresVerifiedHandoff : Bool
 
 def planned (claimsRoot bankRoot mode : String) (actors : Actors)
     (geography : Option String) : Option Plan := do
@@ -39,7 +38,7 @@ def planned (claimsRoot bankRoot mode : String) (actors : Actors)
   let bankCalls ← CedarPooSpec.MultiAccountBankingLineage.transferRoute.mapM fun call =>
     CedarPooSpec.MultiAccountBankingLineage.plannedCall mode bankRoot
       { call with origin := actors.bankOperator }
-  return ⟨actors, claimsQuery, claimDetails, bankCalls, true⟩
+  return ⟨actors, claimsQuery, claimDetails, bankCalls⟩
 
 /-- Only Gateway decisions and POO-derived obligation plans are evaluated.
     The verified inter-organization handoff remains an external requirement. -/
@@ -104,13 +103,10 @@ theorem policyholderToolAccessIsNotClaimProvenance :
       (some "US") = true := by
   native_decide
 
-/-- The plan carries two distinct actors and a required handoff; it does not
-    equate the insurance user with the banking user. -/
+/-- The modeled insurance and banking principals are distinct. Their
+    trusted handoff has to be established outside these Gateway decisions. -/
 theorem actorsStayDistinct :
-    sampleActors.adjuster != sampleActors.bankOperator ∧
-    (planned "FailClosed" "OwnerCombined" "SourceM2M"
-      sampleActors (some "US")).toList.all
-        (fun plan => plan.requiresVerifiedHandoff) = true := by
+    sampleActors.adjuster != sampleActors.bankOperator := by
   native_decide
 
 end CedarPooSpec.AWS.ClaimSettlement
