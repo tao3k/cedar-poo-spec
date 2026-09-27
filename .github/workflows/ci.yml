@@ -2,10 +2,14 @@ name: Cedar POO CI
 
 on:
   push:
-    branches: [main, feat/cedar-evaluation-adapter]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
