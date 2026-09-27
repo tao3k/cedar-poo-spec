@@ -4,6 +4,7 @@ import Cedar.Spec.Request
 import Cedar.Spec.Authorizer
 import Cedar.Validation.Validator
 import Cedar.Validation.EnvironmentValidator
+import Cedar.Thm.Authorization
 import Lean
 
 /-!
@@ -268,6 +269,7 @@ inductive PublicationError where
   | schema (error : Cedar.Validation.EnvironmentValidationError)
   | policy (error : Cedar.Validation.ValidationError)
   | export (error : Error)
+  | duplicatePolicyIds
 
 /-- A publication carries the exact compiled set and Cedar validation premises. -/
 structure Publication (model : PolicyModules.Model) (root : String)
@@ -276,10 +278,26 @@ structure Publication (model : PolicyModules.Model) (root : String)
   compiled : model.compile root = .ok policies
   schemaValid : schema.validateWellFormed = .ok ()
   policyValid : Cedar.Validation.validate policies schema = .ok ()
+  idsUnique : (policies.map Policy.id).Nodup
   json : Lean.Json
   serialized : policySet policies = .ok json
 
-/-- Produce a deployable policy artifact only after Cedar schema and policy validation. -/
+private theorem policyIdsUniqueOfNodup (policies : Policies)
+    (unique : (policies.map Policy.id).Nodup) :
+    Cedar.Thm.PolicyIdsUnique policies := by
+  induction policies with
+  | nil => simp [Cedar.Thm.PolicyIdsUnique]
+  | cons head tail inductionHypothesis =>
+      simp only [List.map_cons, List.nodup_cons] at unique
+      grind [Cedar.Thm.PolicyIdsUnique]
+
+/-- Publication discharges Cedar's unique-ID premise for response soundness. -/
+theorem Publication.policyIdsUnique (publication : Publication model root schema) :
+    Cedar.Thm.PolicyIdsUnique publication.policies :=
+  policyIdsUniqueOfNodup publication.policies publication.idsUnique
+
+/-- Produce a Lean-validated artifact. The Rust consumer must still admit the
+    JSON through Cedar's official policy-set parser before deployment. -/
 def publish (model : PolicyModules.Model) (root : String)
     (schema : Cedar.Validation.Schema) :
     Except PublicationError (Publication model root schema) :=
@@ -294,7 +312,11 @@ def publish (model : PolicyModules.Model) (root : String)
       | .ok () =>
         match hj : policySet policies with
         | .error error => .error (.export error)
-        | .ok json => .ok ⟨policies, hc, hs, hv, json, hj⟩
+        | .ok json =>
+          if unique : (policies.map Policy.id).Nodup then
+            .ok ⟨policies, hc, hs, hv, unique, json, hj⟩
+          else
+            .error .duplicatePolicyIds
 
 /-- A concrete Cedar authorization receipt for a compiled POO root. -/
 def authorizationCase (name revision : String) (model : PolicyModules.Model)

@@ -153,6 +153,9 @@ Rust decisions, determining policy IDs, and erroring policy IDs for each named r
 reject changed IDs, changed decisions, duplicate case names, unmaterialized
 template payloads, and conflicting revision artifacts. Cedar owns JSON and
 policy-language parsing; these checks target our translation boundary.
+For the independently maintained Vehicle =.cedar= baselines, the direct-source
+gate also compares the multiset of canonical policy bodies after official
+Cedar parsing. A matching decision with a changed policy body is rejected.
 
 The finite request tables establish conformance for their named requests.
 They are not a universal proof that every abstract Lean policy has identical
@@ -205,13 +208,16 @@ as a Git dependency. Its default library exposes =CompiledPolicyJson= and
 =to_json_string= for passing or storing a compiled artifact. The
 =publish= API carries proofs that the chosen root compiled, the schema is well
 formed, Cedar validated the policy set against it, and serialization
-succeeded. =compiled= remains a lower-level unvalidated export. The proof is
+succeeded. It also carries the unique-policy-ID premise required by Cedar's
+response-level soundness theorem. =compiled= remains a lower-level unvalidated export. The proof is
 checked during Lean compilation; Rust receives the JSON artifact, not a
 transferable proof certificate. Downstream Rust code
 that already uses =cedar-policy= may parse this JSON through its own Cedar
 dependency. It does not need to depend on this bridge merely to load the
 artifact. The optional =cedar-runtime= feature exposes =load_policy_set= and
-=render_policy_source=, and builds a CLI that reads one compiled policy set
+=render_loaded_policy_set= for a policy set admitted once and reused in a Rust
+process. =render_policy_source= combines admission and rendering for a single
+artifact. The package also builds a CLI that reads one compiled policy set
 from standard input and writes Cedar source to standard output:
 
 #+begin_src toml
@@ -237,6 +243,35 @@ needs stable policy IDs. It can load =production.cedar= with Cedar's text
 parser when policy IDs are not part of its interface. POO composition and
 proof checking happen in the Lean build step; a running Rust service consumes
 the resulting policy artifact through Cedar's ordinary authorizer API.
+The Lean =Publication= certifies Lean-side compilation and validation. Runtime
+admission occurs when the Rust consumer successfully calls =load_policy_set=
+or Cedar's equivalent parser; the JSON bytes alone are not a parsed policy set.
+
+* Rust export latency
+
+=just bench-rust-export= builds a release benchmark once, then measures 100
+warm-up calls and repeated operations inside one process. Its real fixtures
+contain three and four policies; scaled fixtures contain 32 and 128 policies.
+The reported =admit= stage uses Cedar's official JSON parser, =render-loaded=
+renders an already admitted =PolicySet=, and =decode+admit+render= includes
+JSON decoding. File reads, Cargo compilation, and process startup are outside
+the timed operations.
+
+On an Apple arm64 development host on 2026-09-27, one =just
+bench-rust-export= run measured =decode+admit+render= at p50/p95 of 66/253
+microseconds for three policies (1,273 bytes) and 103/684 microseconds for
+four policies (1,793 bytes), each across 2,000 calls. The 32-policy scaled
+artifact had a p50 of 704 microseconds and a p95 of 7.8 milliseconds; the
+128-policy artifact (52,480 bytes) had a p50 of 4.9 milliseconds. For 128
+policies, =render-loaded= had a p50 of 281 microseconds. These are local
+measurements under shared machine load, not a cross-machine latency guarantee.
+Repeated rendering should retain the admitted =PolicySet=.
+
+Starting the separately compiled release CLI for each three-policy artifact
+had an 8.4 millisecond median over 100 local invocations. Applications that
+need sub-millisecond per-artifact latency should call the Rust library in a
+persistent process. The first Cargo release build took about three minutes
+and is a build cost, not a per-artifact export cost.
 
 * Source authority
 

@@ -11,7 +11,7 @@ pub mod cli;
 #[cfg(feature = "cedar-runtime")]
 pub use bridge::{
     Case, Manifest, RequestInput, check_direct_sources, check_manifest, load_policy_set,
-    render_artifacts, render_policy_source,
+    render_artifacts, render_loaded_policy_set, render_policy_source,
 };
 
 #[cfg(test)]

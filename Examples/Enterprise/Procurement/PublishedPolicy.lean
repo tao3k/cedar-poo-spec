@@ -11,3 +11,4 @@ def main : IO Unit :=
   | .error (.schema _) => throw (IO.userError "Cedar schema is invalid")
   | .error (.policy _) => throw (IO.userError "Cedar policy validation failed")
   | .error (.export _) => throw (IO.userError "Cedar export failed")
+  | .error .duplicatePolicyIds => throw (IO.userError "Cedar policy IDs are not unique")

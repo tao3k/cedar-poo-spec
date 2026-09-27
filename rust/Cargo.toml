@@ -19,5 +19,10 @@ name = "cedar-poo-bridge"
 path = "src/main.rs"
 required-features = ["cedar-runtime"]
 
+[[example]]
+name = "export_latency"
+path = "examples/export_latency.rs"
+required-features = ["cedar-runtime"]
+
 [dev-dependencies]
 asp-rust = { git = "https://github.com/tao3k/asp-rust", rev = "9b95fd6744a89f3f38e87f9bda33ea762f1f65e1", default-features = false }

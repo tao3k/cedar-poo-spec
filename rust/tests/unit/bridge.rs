@@ -138,11 +138,18 @@ fn direct_cedar_check_detects_policy_drift() {
     };
     std::fs::write(&path, "permit(principal, action, resource);").expect("direct permit");
     check_direct_sources(&manifest, &directory).expect("matching decision");
+    std::fs::write(&path, "permit(principal, action, resource) when { true };")
+        .expect("different body with the same decision");
+    assert!(
+        check_direct_sources(&manifest, &directory)
+            .unwrap_err()
+            .contains("direct policy bodies differ")
+    );
     std::fs::write(&path, "forbid(principal, action, resource);").expect("direct forbid");
     assert!(
         check_direct_sources(&manifest, &directory)
             .unwrap_err()
-            .contains("got deny")
+            .contains("direct policy bodies differ")
     );
     std::fs::remove_dir_all(directory).expect("remove temporary directory");
 }
