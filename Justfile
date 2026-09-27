@@ -211,6 +211,7 @@ check-agent-fanout:
 
 check-exchange-signing:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Exchange/Signing/SigningBoundary.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Exchange/Signing/SigningAttackReplay.lean
 
 check-supplier-transition:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Uptane/SupplierTransition.lean
@@ -304,7 +305,8 @@ prepare-exchange-signing-validated-manifest: build-examples
 
 check-exchange-signing-validated: prepare-exchange-signing-validated-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/exchange-signing-validated-manifest.json > .lake/build/exchange-signing-validated-receipts.json
-    jq -e 'length == 16 and all(.[]; .replay.error_policy_ids == [] and .replay.error_free_allow == (.replay.decision == "allow"))' .lake/build/exchange-signing-validated-receipts.json > /dev/null
+    jq -e 'length == 18 and all(.[]; .replay.error_policy_ids == [] and .replay.error_free_allow == (.replay.decision == "allow"))' .lake/build/exchange-signing-validated-receipts.json > /dev/null
+    jq -e '([.[] | {key:.replay.case_name,value:.replay.decision}] | from_entries) as $d | [$d["legacy-backend-forgery"],$d["integrated-backend-forgery"],$d["all-claims-from-one-source-still-allow"],$d["incident-freeze-blocks-single-source-forgery"],$d["premature-recovery-reopens-single-source-forgery"]] == ["allow","deny","allow","deny","allow"]' .lake/build/exchange-signing-validated-receipts.json > /dev/null
 
 prepare-supplier-transition-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean supplier-transition > .lake/build/supplier-transition-manifest.json

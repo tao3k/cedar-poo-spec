@@ -166,6 +166,10 @@ def cases : List (String × String × EntityUID × Facts × Bool) := [
   ("incident-keeps-other-wallet", "Incident", otherWallet, {}, true),
   ("recovery-restores-affected-wallet", "Recovered", hotWallet, {}, true),
   ("all-claims-from-one-source-still-allow", "Integrated", hotWallet,
+    singleSourceForgery, true),
+  ("incident-freeze-blocks-single-source-forgery", "Incident", hotWallet,
+    singleSourceForgery, false),
+  ("premature-recovery-reopens-single-source-forgery", "Recovered", hotWallet,
     singleSourceForgery, true)]
 
 def casesExact : Bool := cases.all fun (_, root, wallet, facts, expected) =>
@@ -179,6 +183,10 @@ theorem interfaceSwapBlockedBySignerBranch :
     authorized "Integrated" hotWallet interfaceSwap = false := by native_decide
 theorem commonSourceForgeryStillAllows :
     authorized "Integrated" hotWallet singleSourceForgery = true := by native_decide
+theorem incidentFreezeBlocksCommonSourceForgery :
+    authorized "Incident" hotWallet singleSourceForgery = false := by native_decide
+theorem prematureRecoveryReopensCommonSourceForgery :
+    authorized "Recovered" hotWallet singleSourceForgery = true := by native_decide
 
 def rootsValidated : Bool :=
   ["Backend", "Intent", "Risk", "Ledger", "Signer", "Integrated",

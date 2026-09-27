@@ -85,13 +85,13 @@ policy-model recovery, not a claim that a compromised wallet is safe again.
 | =Incident= | Deny | Deny | Allow for unaffected wallet only | Deny | Allow |
 
 The table describes the illustrative facts encoded in the Lean cases. The
-sixteenth case deliberately makes *all* claim digests match an attacker
+common-source case deliberately makes *all* claim digests match an attacker
 transaction and observes =Allow= at =Integrated=. That counterexample is the
 central limit: agreement without independent provenance cannot establish
 intent. Missing or malformed inputs and a Cedar policy error must fail at
 the Host boundary; [[https://docs.cedarpolicy.com/auth/authorization.html][Cedar's skip-on-error rule]] does not itself guarantee this.
 
-The example proves all sixteen named decisions, validation of all eight
+The example proves all eighteen named decisions, validation of all eight
 POO roots, the one-policy freeze footprint, and exact policy restoration
 after removal. [[file:SigningBoundaryExport.lean][The exporter]] supplies the same cases and policies to the
 official Rust Cedar authorizer. The schema-bound manifest also validates
@@ -100,6 +100,31 @@ every request and entity before replay and requires empty policy-error lists.
 standalone Cedar revisions; a signer would deploy only an admitted revision,
 not all eight simultaneously. These are executable decision and composition
 claims, not evidence that a real transaction was blocked.
+
+* Synthetic attack-chain replay
+
+[[file:SigningAttackReplay.lean][The Lean replay]] orders the decisions for one synthetic candidate transfer.
+It reuses the same POO roots and facts exported to official Cedar Rust replay;
+the order is a model of control transitions, not a reconstructed Bitget log.
+
+| Phase | Active POO root | Supplied claim state | Cedar decision |
+|-------+-----------------+----------------------+----------------|
+| Legitimate transfer | =Integrated= | Independent witnesses agree | Allow |
+| Backend-only substitution | =Backend= | Candidate bytes replaced | Allow: legacy weakness |
+| Independent controls | =Integrated= | Candidate differs from intent, risk and ledger | Deny |
+| Interface substitution | =Integrated= | Intent, risk and ledger match but signer display differs | Deny |
+| Shared-source contamination | =Integrated= | All digest claims copied from the attacker candidate | Allow: provenance weakness |
+| Incident freeze | =Incident= | Same contaminated claims, affected wallet | Deny |
+| Premature recovery | =Recovered= | Same contaminated claims, freeze removed | Allow again |
+
+The final row is a warning about removing a veto before witness provenance
+has been restored. It is not a recommendation to recover that wallet. The
+model cannot verify source independence by comparing string digests; a Host
+must authenticate the witness producers and enforce the one-use signing
+transition before any real effect. The [[https://github.com/tao3k/lambda-episteme/tree/feat/exchange-signing-reasoning/user-interface/scenarios/exchange/cases/signing-trust-chain][Lambda Exchange Case]] separately
+models backend and interface entry routes with bounded Ascent. Both are
+candidate explanations until their intermediate links have independent
+evidence.
 
 | Root | Live Cedar bodies | New or changed source body against its parent |
 |------+-------------------+-----------------------------------------------|
