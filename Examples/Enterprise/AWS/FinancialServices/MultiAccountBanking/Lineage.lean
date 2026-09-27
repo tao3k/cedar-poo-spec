@@ -1,4 +1,5 @@
 import Examples.Enterprise.AWS.FinancialServices.MultiAccountBanking.MultiAccountBanking
+import CedarPooSpec.CompoundAuthorization
 import LeanPoo.C4.Linearize
 import LeanPoo.Object.Multimethod
 
@@ -101,9 +102,12 @@ def routeWellRelated : Bool :=
     call.origin == banker && belongsTo call.lob call.action
 
 def gatewayAllowsCalls (root : String) (calls : List RouteCall) : Bool :=
-  !calls.isEmpty && calls.all fun call =>
-    belongsTo call.lob call.action &&
-      decideAt root (request call.origin call.action) == some .allow
+  if !calls.all (fun call => belongsTo call.lob call.action) then false
+  else
+    match CedarPooSpec.CompoundAuthorization.authorizeAll model root
+        (calls.map fun call => request call.origin call.action) entities with
+    | .error _ => false
+    | .ok receipt => receipt.allowed
 
 def gatewayAllowsRoute (root : String) : Bool :=
   gatewayAllowsCalls root transferRoute

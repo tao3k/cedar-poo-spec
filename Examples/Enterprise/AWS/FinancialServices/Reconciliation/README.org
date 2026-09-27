@@ -61,8 +61,10 @@ select the wrong ledger record. [[file:Workflow.lean][Workflow.lean]] therefore 
 Gateway confidence decision separate from the interceptor's persisted
 reference and evidence-quality verdict. It also models the distinct
 confirmation, draft revision, exact content, and active-contact checks for
-Graph send. The model is a pure admission plan over supplied host facts; it
-does not authenticate those facts or execute AWS services.
+Graph send. The six Cedar calls use one =CompoundAuthorization.authorizeAll=
+receipt, which binds every decision to a single C4-compiled policy set.
+The model is a pure admission plan over supplied host facts; it does not
+authenticate those facts or execute AWS services.
 
 The source permits Graph send at the Gateway because the OpenAPI operation
 has no confidence input. The interceptor blocks unconfirmed or unapproved

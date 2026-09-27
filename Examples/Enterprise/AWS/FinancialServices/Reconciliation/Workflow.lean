@@ -1,4 +1,5 @@
 import Examples.Enterprise.AWS.FinancialServices.Reconciliation.Reconciliation
+import CedarPooSpec.CompoundAuthorization
 
 /-! A reviewable plan across the sample's ledger, notice, knowledge, Graph,
 and write targets. Host facts stand for values the published REQUEST interceptor
@@ -34,28 +35,30 @@ def investigationActions : List EntityUID :=
   [searchLedger, searchNotices, retrieve, searchCorrespondence]
 
 def investigationAllowed (root : String) : Bool :=
-  investigationActions.all fun tool =>
-    decideAt root (readRequest agent tool) == some .allow
+  match CedarPooSpec.CompoundAuthorization.authorizeAll model root
+      (investigationActions.map (readRequest agent)) entities with
+  | .error _ => false
+  | .ok receipt => receipt.allowed
+
+private def writeProvenanceAllowed (requestedReference : String)
+    (caseRecord : Option CaseRecord) : Bool :=
+  match caseRecord with
+  | none => false
+  | some record =>
+      record.evidenceClean &&
+        !record.proposedReference.isEmpty &&
+        requestedReference == record.proposedReference
 
 /-- Cedar evaluates confidence; the interceptor separately checks reference
 and the stored evidence verdict. The caller must supply trusted host facts. -/
 def autonomousWriteAllowed (root : String) (confidence : Option String)
     (requestedReference : String) (caseRecord : Option CaseRecord) : Bool :=
   decideAt root (writeRequest worker confidence) == some .allow &&
-    match caseRecord with
-    | none => false
-    | some record =>
-        record.evidenceClean &&
-          !record.proposedReference.isEmpty &&
-          requestedReference == record.proposedReference
+    writeProvenanceAllowed requestedReference caseRecord
 
-/-- Gateway policy alone allows this Graph action. The separate interceptor
-requires verified confirmation, the approved revision, byte-exact text, and
-an active recipient. -/
-def mailAllowed (root : String) (call : MailCall)
+private def approvedMailAllowed (call : MailCall)
     (draft : Option ApprovedDraft) : Bool :=
-  decideAt root (readRequest platform graphSend) == some .allow &&
-    call.confirmationVerified &&
+  call.confirmationVerified &&
     match draft with
     | none => false
     | some approved =>
@@ -65,14 +68,30 @@ def mailAllowed (root : String) (call : MailCall)
           call.subject == approved.subject &&
           call.body == approved.body
 
+/-- Gateway policy alone allows this Graph action. The separate interceptor
+requires verified confirmation, the approved revision, byte-exact text, and
+an active recipient. -/
+def mailAllowed (root : String) (call : MailCall)
+    (draft : Option ApprovedDraft) : Bool :=
+  decideAt root (readRequest platform graphSend) == some .allow &&
+    approvedMailAllowed call draft
+
+def routeRequests (confidence : Option String) : List Request :=
+  investigationActions.map (readRequest agent) ++
+    [writeRequest worker confidence, readRequest platform graphSend]
+
 /-- A planned route crosses four read targets, a guarded ledger write, and
 an approved Graph send. This Boolean represents admission checks only. -/
 def routeAllowed (root : String) (confidence : Option String)
     (requestedReference : String) (caseRecord : Option CaseRecord)
     (mail : MailCall) (draft : Option ApprovedDraft) : Bool :=
-  investigationAllowed root &&
-    autonomousWriteAllowed root confidence requestedReference caseRecord &&
-    mailAllowed root mail draft
+  match CedarPooSpec.CompoundAuthorization.authorizeAll model root
+      (routeRequests confidence) entities with
+  | .error _ => false
+  | .ok receipt =>
+      receipt.allowed &&
+        writeProvenanceAllowed requestedReference caseRecord &&
+        approvedMailAllowed mail draft
 
 def cleanCase : CaseRecord := ⟨"draw-001", true⟩
 def cleanDraft : ApprovedDraft :=
