@@ -8,6 +8,8 @@ The optional Rust =cedar-runtime= feature exposes =replay_manifest= and
 replay every request with the pinned official =cedar-policy= authorizer, and
 compare the decision, reason IDs, and error policy IDs with Lean's manifest.
 Only a successful replay produces a =ReplayReceipt=.
+The existing =check_manifest= path runs the same Cedar comparison without
+computing receipt digests.
 
 Each receipt records a format version, the SDK and language versions reported
 by the linked Cedar crate, case
@@ -47,6 +49,19 @@ version to the actual execution boundary before making a stronger claim.
 just check-rust
 just check-replay-receipts
 #+end_src
+
+The Rust =export_latency --manifest= probe reports =check-manifest= and
+=replay-receipts= separately; it does not treat process startup or Lean
+manifest generation as part of either steady-state measurement.
+
+On an Apple arm64 development host on 2026-09-27, a release build measured
+the real 34-case, eight-revision agent-payment manifest (121,632 bytes) with
+100 warm-up calls and 200 samples: =render-artifacts= p50/p95 was 495/589
+microseconds, =check-manifest= was 8.31/8.81 milliseconds, and
+=replay-receipts= was 9.61/10.00 milliseconds. The replay path hashes each
+distinct policy revision once and each case's entities and request once.
+These local figures are workload and host specific; the complete manifest
+replays 34 Cedar decisions and is not a sub-millisecond operation.
 
 Rust regression checks change a principal while preserving the Allow
 decision; the old receipt must fail because the request hash changes. They

@@ -60,24 +60,38 @@ pub struct ReplayReceipt {
 
 /// Reject empty bundles, parse every policy set, and compare every decision.
 pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
-    replay_manifest(manifest).map(|_| ())
+    check_manifest_inner(manifest, false).map(|_| ())
 }
 
 /// Check Lean's manifest against Cedar and return content-bound replay records.
 pub fn replay_manifest(manifest: &Manifest) -> Result<Vec<ReplayReceipt>, String> {
+    check_manifest_inner(manifest, true)
+}
+
+fn check_manifest_inner(
+    manifest: &Manifest,
+    collect_receipts: bool,
+) -> Result<Vec<ReplayReceipt>, String> {
     if manifest.cases.is_empty() {
         return Err("manifest has no cases".into());
     }
     let mut names = BTreeSet::new();
     let mut revisions = BTreeMap::new();
-    let mut receipts = Vec::with_capacity(manifest.cases.len());
+    let mut receipts = if collect_receipts {
+        Vec::with_capacity(manifest.cases.len())
+    } else {
+        Vec::new()
+    };
     for case in &manifest.cases {
+        if !valid_revision_name(&case.revision) {
+            return Err(format!("{}: invalid revision name", case.name));
+        }
         if !names.insert(&case.name) {
             return Err(format!("duplicate case name: {}", case.name));
         }
         if !revisions.contains_key(&case.revision) {
-            let checked =
-                CheckedRevision::new(case).map_err(|error| format!("{}: {error}", case.name))?;
+            let checked = CheckedRevision::new(case, collect_receipts)
+                .map_err(|error| format!("{}: {error}", case.name))?;
             revisions.insert(case.revision.clone(), checked);
         }
         let revision = &revisions[&case.revision];
@@ -92,24 +106,37 @@ pub fn replay_manifest(manifest: &Manifest) -> Result<Vec<ReplayReceipt>, String
             &revision.rendered_bodies,
         )
         .map_err(|error| format!("{}: {error}", case.name))?;
-        let error_free_allow = observed.decision == "allow" && observed.error_policy_ids.is_empty();
-        receipts.push(ReplayReceipt {
-            format_version: 1,
-            cedar_policy_version: cedar_policy::get_sdk_version().to_string(),
-            cedar_language_version: cedar_policy::get_lang_version().to_string(),
-            case_name: case.name.clone(),
-            revision: case.revision.clone(),
-            policies_sha256: json_sha256(case.policies.as_value())?,
-            entities_sha256: json_sha256(&case.entities)?,
-            request_sha256: json_sha256(&case.request)?,
-            decision: observed.decision,
-            reasons: observed.reasons,
-            error_policy_ids: observed.error_policy_ids,
-            error_free_allow,
-        });
+        if collect_receipts {
+            let error_free_allow =
+                observed.decision == "allow" && observed.error_policy_ids.is_empty();
+            receipts.push(ReplayReceipt {
+                format_version: 1,
+                cedar_policy_version: cedar_policy::get_sdk_version().to_string(),
+                cedar_language_version: cedar_policy::get_lang_version().to_string(),
+                case_name: case.name.clone(),
+                revision: case.revision.clone(),
+                policies_sha256: revision
+                    .policy_sha256
+                    .as_ref()
+                    .ok_or("missing policy digest for replay receipt")?
+                    .clone(),
+                entities_sha256: json_sha256(&case.entities)?,
+                request_sha256: json_sha256(&case.request)?,
+                decision: observed.decision,
+                reasons: observed.reasons,
+                error_policy_ids: observed.error_policy_ids,
+                error_free_allow,
+            });
+        }
     }
-    render_artifacts(manifest)?;
     Ok(receipts)
+}
+
+fn valid_revision_name(revision: &str) -> bool {
+    !revision.is_empty()
+        && revision
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-')
 }
 
 /// Recompute official Cedar decisions and reject any drift from stored records.
@@ -172,6 +199,7 @@ fn write_canonical_json(value: &Value, output: &mut Vec<u8>) -> Result<(), Strin
 
 struct CheckedRevision {
     source: Value,
+    policy_sha256: Option<String>,
     policies: PolicySet,
     rendered: PolicySet,
     compiled_bodies: BTreeMap<String, String>,
@@ -179,7 +207,7 @@ struct CheckedRevision {
 }
 
 impl CheckedRevision {
-    fn new(case: &Case) -> Result<Self, String> {
+    fn new(case: &Case, hash_for_receipt: bool) -> Result<Self, String> {
         let policies = load_policy_set(&case.policies)?;
         let text = render_loaded_policy_set(&policies)?;
         let rendered = PolicySet::from_str(&text)
@@ -191,6 +219,11 @@ impl CheckedRevision {
         }
         Ok(Self {
             source: case.policies.as_value().clone(),
+            policy_sha256: if hash_for_receipt {
+                Some(json_sha256(case.policies.as_value())?)
+            } else {
+                None
+            },
             policies,
             rendered,
             compiled_bodies,
@@ -219,12 +252,7 @@ fn direct_source<'a>(
     directory: &Path,
     case: &Case,
 ) -> Result<&'a PolicySet, String> {
-    if case.revision.is_empty()
-        || !case
-            .revision
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '-')
-    {
+    if !valid_revision_name(&case.revision) {
         return Err(format!("{}: invalid revision name", case.name));
     }
     if !sources.contains_key(&case.revision) {
@@ -462,12 +490,7 @@ pub fn render_policy_source(json: &CompiledPolicyJson) -> Result<String, String>
 pub fn render_artifacts(manifest: &Manifest) -> Result<BTreeMap<String, String>, String> {
     let mut artifacts: BTreeMap<String, (&Value, String)> = BTreeMap::new();
     for case in &manifest.cases {
-        if case.revision.is_empty()
-            || !case
-                .revision
-                .chars()
-                .all(|character| character.is_ascii_alphanumeric() || character == '-')
-        {
+        if !valid_revision_name(&case.revision) {
             return Err(format!("{}: invalid revision name", case.name));
         }
         match artifacts.entry(case.revision.clone()) {

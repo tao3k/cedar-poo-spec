@@ -280,7 +280,7 @@ or Cedar's equivalent parser; the JSON bytes alone are not a parsed policy set.
 warm-up calls and repeated operations inside one process. Its real fixtures
 contain three and four policies; scaled fixtures contain 32 and 128 policies.
 It also measures a real 68-case, six-revision manifest through
-=render_artifacts= and =check_manifest=.
+=render_artifacts=, =check_manifest=, and =replay_manifest=.
 The reported =admit= stage uses Cedar's official JSON parser, =render-loaded=
 renders an already admitted =PolicySet=, and =decode+admit+render= includes
 JSON decoding. File reads, Cargo compilation, and process startup are outside

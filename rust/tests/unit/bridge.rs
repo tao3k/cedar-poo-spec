@@ -154,6 +154,17 @@ fn rejects_policy_id_drift_from_lean_receipt() {
 }
 
 #[test]
+fn rejects_unsafe_revision_names_before_artifact_generation() {
+    let mut case = receipt();
+    case.revision = "../escape".into();
+    assert!(
+        check_manifest(&Manifest { cases: vec![case] })
+            .unwrap_err()
+            .contains("invalid revision name")
+    );
+}
+
+#[test]
 fn rejects_reason_drift_with_unchanged_decision() {
     let mut case = receipt();
     case.expected_reasons.clear();

@@ -2,7 +2,7 @@
 
 use cedar_poo_bridge::{
     CompiledPolicyJson, Manifest, check_manifest, load_policy_set, render_artifacts,
-    render_loaded_policy_set, render_policy_source,
+    render_loaded_policy_set, render_policy_source, replay_manifest,
 };
 use std::hint::black_box;
 use std::time::{Duration, Instant};
@@ -65,6 +65,12 @@ fn main() -> Result<(), String> {
             "check-manifest",
             &measure(samples, || {
                 check_manifest(black_box(&manifest)).expect("valid manifest");
+            }),
+        );
+        report(
+            "replay-receipts",
+            &measure(samples, || {
+                black_box(replay_manifest(black_box(&manifest)).expect("valid manifest"));
             }),
         );
         return Ok(());
