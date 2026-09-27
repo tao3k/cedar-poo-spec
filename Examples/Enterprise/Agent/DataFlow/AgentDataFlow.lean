@@ -1,4 +1,5 @@
 import Examples.Enterprise.Agent.Delegation.AgentDelegation
+import LeanPoo.Object.Multimethod
 
 /-!
 An agent's right to read a document does not imply a right to publish its
@@ -110,6 +111,64 @@ def publicDocumentRevoked : Policy :=
     condition := [
       { kind := .when, body := eq (ctx "source") (.lit (.entityUID publicDoc)) }] }
 
+/- Policy construction has two independent extension axes. The generic
+   selects owner contributions; Cedar still evaluates the resulting policies
+   against every request. A restricted source inherits both Internal and
+   Regulated through C4, while a partner-public sink inherits Public. -/
+def sourceClasses : LeanPoo.C4.Graph := { nodes := [
+  { name := "Source" },
+  { name := "Internal", parentOrders := [["Source"]] },
+  { name := "Regulated", parentOrders := [["Source"]] },
+  { name := "Restricted", parentOrders := [["Internal", "Regulated"]] },
+  { name := "Public", parentOrders := [["Source"]] }] }
+
+def destinationClasses : LeanPoo.C4.Graph := { nodes := [
+  { name := "Destination" },
+  { name := "Internal", parentOrders := [["Destination"]] },
+  { name := "Public", parentOrders := [["Destination"]] },
+  { name := "PartnerPublic", parentOrders := [["Public"]] }] }
+
+private abbrev ControlShape := List String × List String
+
+private def controlGeneric :
+    LeanPoo.Object.Multimethod ControlShape Edit (List Edit) :=
+  { arity := 2
+    precedence := fun shape => [shape.1, shape.2]
+    combine := fun methods _ => methods.toList }
+
+private def registeredControls : Except LeanPoo.Object.MultimethodError
+    (LeanPoo.Object.Multimethod ControlShape Edit (List Edit)) := do
+  let sourceOwner ← controlGeneric.register
+    [.prototype "Internal", .any] (.extend classificationVeto)
+  sourceOwner.register [.any, .prototype "Public"] (.extend reviewVeto)
+
+/-- Keep profile-graph and method-arity errors visible to policy authors. -/
+inductive ControlError where
+  | sourceProfile (error : LeanPoo.C4.Error)
+  | destinationProfile (error : LeanPoo.C4.Error)
+  | method (error : LeanPoo.Object.MultimethodError)
+  deriving Repr
+
+/-- Build the Cedar policy edits for a pair of C4 profile classes. No request
+    is authorized by this dispatch; it only constructs policy modules. -/
+def controlEdits (source destination : String) : Except ControlError (List Edit) := do
+  let sourceOrder ← (LeanPoo.C4.linearize sourceClasses source).mapError .sourceProfile
+  let destinationOrder ←
+    (LeanPoo.C4.linearize destinationClasses destination).mapError .destinationProfile
+  let generic ← registeredControls.mapError .method
+  let (edits, _) ← (generic.call (sourceOrder, destinationOrder)).mapError .method
+  return edits
+
+private theorem classifiedEditsExist :
+    (controlEdits "Internal" "Destination").toOption.isSome = true := by native_decide
+private theorem reviewEditsExist :
+    (controlEdits "Source" "Public").toOption.isSome = true := by native_decide
+
+def classifiedEdits : List Edit :=
+  (controlEdits "Internal" "Destination").toOption.get classifiedEditsExist
+def reviewEdits : List Edit :=
+  (controlEdits "Source" "Public").toOption.get reviewEditsExist
+
 def dataModel : Model := { modules := [
   { name := "ReadBase", edits := [.extend readBase] },
   { name := "ReadTenant", parentOrders := [["ReadBase"]], edits := [.overlay readTenant] },
@@ -117,9 +176,9 @@ def dataModel : Model := { modules := [
   { name := "PublishScoped", parentOrders := [["PublishBase"]],
     edits := [.overlay publishScoped] },
   { name := "PublishClassified", parentOrders := [["PublishScoped"]],
-    edits := [.extend classificationVeto] },
+    edits := classifiedEdits },
   { name := "PublishReview", parentOrders := [["PublishScoped"]],
-    edits := [.extend reviewVeto] },
+    edits := reviewEdits },
   { name := "PublishGoverned",
     parentOrders := [["PublishClassified", "PublishReview"]] },
   { name := "PublishRevoked", parentOrders := [["PublishGoverned"]],

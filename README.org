@@ -41,6 +41,9 @@ Rust Cedar replay receipts for checked Lean manifests.
 [[file:docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]] adds an explicit
 Lean-to-Cedar schema projection, schema-bound replay API, and a schema-only
 evolution receipt for unchanged concrete authorization inputs.
+[[file:docs/rfc/0007-poo-dispatch-boundary.org][RFC 0007]] defines the
+construction-time boundary for Lean-POO multiple dispatch across independently
+extensible policy profiles.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.

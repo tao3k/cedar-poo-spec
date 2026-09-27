@@ -25,6 +25,45 @@ and authorization pattern rather than claiming to reproduce an incident.
 | =PublishGoverned= | C4 composes the sibling controls with the inherited tenant rule. |
 | =PublishRevoked= / =PublishRestored= | Freeze one source document, then remove only that veto. |
 
+* Two-axis POO policy construction
+
+The classification and review owners extend different aspects of one
+publication decision. =sourceClasses= and =destinationClasses= are small C4
+profile graphs. =controlEdits= uses Lean-POO's sparse two-argument
+multimethod to select their policy edits:
+
+| Source profile | Destination profile | Selected edit |
+|----------------+---------------------+---------------|
+| =Internal= | =Destination= (root) | Classification veto. |
+| =Source= (root) | =Public= | Review veto. |
+| =Restricted= | =PartnerPublic= | Both vetoes, through inherited C4 profiles. |
+
+The first two calls construct the existing =PublishClassified= and
+=PublishReview= branches. =PublishGoverned= then C4-composes those branches.
+The third call shows that a new profile can inherit both methods without
+copying either policy body. The
+[[file:../../../../Tests/Enterprise/Agent/DataFlow/Dispatch.lean][dispatch regression]] checks the selected edits and the resulting Cedar
+decision matrix. Invalid profiles return typed C4 errors rather than an
+empty control list. These profiles describe *policy construction*, not the
+classification of an incoming request. The emitted Cedar predicates still
+inspect the actual document, repository, and review facts for every request.
+No dispatch result is used as an authorization decision.
+
+#+begin_src mermaid
+flowchart LR
+    S[Source C4 profile] --> M[Two-argument method selection]
+    D[Destination C4 profile] --> M
+    M --> E[Owner policy edits]
+    E --> C[Policy-module C4 composition]
+    C --> P[Published Cedar policies]
+    P --> A[Cedar request authorization]
+#+end_src
+
+The two-method example establishes composition and extension behavior; it
+does not claim a measured reduction in source lines or runtime cost. The
+[[file:../../../../docs/rfc/0007-poo-dispatch-boundary.org][dispatch boundary RFC]] records where other complex cases do and do not
+benefit from the same abstraction.
+
 Fifteen operations cover a legacy internal-to-public leak, foreign source
 and destination tenants, an internal document sent to a public repository,
 public material with and without review, a reviewer with the wrong role,

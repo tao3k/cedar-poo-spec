@@ -1,0 +1,53 @@
+#+TITLE: RFC 0007: POO Dispatch at the Cedar Construction Boundary
+#+OPTIONS: toc:nil
+
+* Contract
+
+Lean-POO C4 resolves ordered policy modules. Its multimethod resolves
+construction methods from the C4 profiles of *all* dispatch arguments. The
+method result is a =PolicyModules.Edit=, which is compiled into an ordinary
+Cedar policy set. Cedar's validator and authorizer remain the authorities
+for each published policy and request. The distinction matters because Cedar
+combines matching =permit= and =forbid= policies itself; choosing a method
+must never replace Cedar's decision or silently omit a required check.
+
+The implemented [[file:../../Examples/Enterprise/Agent/DataFlow/README.org][Data Flow case]] has two independently extensible axes:
+source profile and destination profile. The classification owner registers
+a source-specialized policy edit. The review owner registers a
+destination-specialized policy edit. A derived profile pair selects both
+contributions in sparse lexicographic C4 order. The existing publication
+module hierarchy then merges the owner branches. Its exported Cedar
+policies and the Lean/Rust request receipts remain the observable contract.
+
+* Audit of current complex examples
+
+| Case | Current POO work | Additional dispatch fit |
+|------+------------------+-------------------------|
+| [[file:../../Examples/Enterprise/Agent/DataFlow/README.org][Agent Data Flow]] | Two owner branches and source/destination policy profiles. | Implemented two-argument construction dispatch. |
+| [[file:../../Examples/Enterprise/Agent/Payment/README.org][Agent Payment]] | Account, amount, and origin vetoes merge through C4. | A future policy family with independently extensible account and transfer profiles could use dispatch; the present three fixed vetoes do not require it. |
+| [[file:../../Examples/Enterprise/Agent/Chain/README.org][Agent Chain]] | Three-to-five request layers and competing policy edits. | Path validation and Cedar authorization are request-time checks; selecting fewer layers by method dispatch would change the security contract. |
+| [[file:../../Examples/Enterprise/Vehicle/Mission/README.org][Mission successor]] | Platform, mission, and evidence owners merge through C4. | The fixed proceed/fallback actions need no generic method ecosystem. A separately validated family of vehicle and mission profiles would be a construction-time candidate. |
+| [[file:../../Examples/Health/README.org][Wearable triage]] | Privacy, device security, and clinical AI branches merge through C4. | Its current fixed controls benefit from C4; dispatch becomes useful only if independent device and clinical workflow families are added. |
+| [[file:../../Examples/Governance/README.org][Governance]] | Owner, platform, and compliance policies and revisions merge through C4. | Existing Cedar data predicates remain in Cedar; no request-time POO dispatch is needed. |
+
+This audit distinguishes an actual open extension axis from a long list of
+fixed rules. Adding =DispatchTable=, =InlineDispatch=, or =StaticDispatch=
+without several independent generic operations or a measured repeated-call
+cost would add machinery without simplifying the current cases.
+
+* Verification
+
+[[file:../../Tests/Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]]
+checks both owner-local selections, inherited two-axis selection, and an
+unknown profile. =just check-tests= compiles those claims. The existing
+=just check-cedar-artifacts= compares the emitted policy revisions with the
+committed Cedar source. =just check-schema-bound-scenarios= replays the
+Data Flow requests through the official Cedar Rust parser, validator, and
+authorizer. These gates check behavioral preservation; they do not establish
+a dispatch performance improvement.
+
+* Sources
+
+- [[https://github.com/metareflection/poof][Faré et al., Prototypes: Object Orientation, Functionally]] provides the prototype-oriented semantic foundation.
+- [[https://docs.cedarpolicy.com/policies/syntax-policy.html][Cedar policy syntax and effect semantics]] defines Cedar's permit/forbid combination.
+- [[https://docs.cedarpolicy.com/auth/authorization.html][Cedar authorization]] explains default deny, forbid precedence, and policy-error behavior.

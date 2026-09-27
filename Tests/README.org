@@ -13,6 +13,9 @@ sibling vetoes, and the difference between an absent policy slot and an
 explicit removal tombstone. [[file:Language/SchemaProjection.lean][SchemaProjection.lean]] checks invalid schema
 admission. [[file:ReuseScale.lean][ReuseScale.lean]] checks proof dependency
 impact at scale.
+[[file:Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]] checks two-axis
+C4 method selection for the Data Flow policy builder and ties the generated
+branches back to its Cedar decision matrix.
 
 #+begin_src sh
 just check-tests
