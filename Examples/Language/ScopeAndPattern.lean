@@ -7,7 +7,7 @@ Concrete Cedar syntax probe based on the documented `is`, `is ... in`,
 
 namespace CedarPooSpec.ScopeAndPatternExample
 
-open Cedar.Spec Cedar.Data CedarPooSpec.PolicyModules
+open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
 
 def userType : EntityType := ⟨"User", []⟩
 def groupType : EntityType := ⟨"Group", []⟩
@@ -22,6 +22,18 @@ def publicFolder : EntityUID := ⟨folderType, "public"⟩
 def publicDocument : EntityUID := ⟨documentType, "public"⟩
 def privateDocument : EntityUID := ⟨documentType, "private"⟩
 def viewAction : EntityUID := ⟨actionType, "view"⟩
+
+def schema : Schema :=
+  ⟨Map.make [
+    (userType, .standard ⟨Set.make [groupType],
+      Map.make [("email", .required .string)], none⟩),
+    (groupType, .standard ⟨Set.empty, Map.empty, none⟩),
+    (documentType, .standard ⟨Set.make [folderType],
+      Map.make [("meta", .required (.record
+        (Map.make [("tag", .required .string)])))], none⟩),
+    (folderType, .standard ⟨Set.empty, Map.empty, none⟩)],
+   Map.make [(viewAction, ⟨Set.make [userType],
+     Set.make [documentType], Set.empty, Map.empty⟩)]⟩
 
 def entityData (attrs : Map String Value) (ancestors : Set EntityUID := Set.empty) :
     EntityData :=
@@ -94,5 +106,14 @@ def decisionsExact : Bool := cases.all fun (_, root, req, expected) =>
       response.decision == expected && response.erroringPolicies.isEmpty
 
 theorem decisionsExactFully : decisionsExact = true := by native_decide
+
+def schemaValidationExact : Bool :=
+  schema.validateWellFormed.isOk &&
+  ["Published", "Scoped"].all fun root =>
+    match model.compile root with
+    | .error _ => false
+    | .ok policies => (validate policies schema).isOk
+
+theorem schemaValidationFully : schemaValidationExact = true := by native_decide
 
 end CedarPooSpec.ScopeAndPatternExample

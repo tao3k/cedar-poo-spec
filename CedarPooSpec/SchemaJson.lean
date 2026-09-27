@@ -8,6 +8,7 @@ namespace CedarPooSpec.SchemaJson
 open Cedar.Spec Cedar.Validation Cedar.Data
 
 inductive Error where
+  | invalidSchema (message : String)
   | unsupportedBooleanRefinement
   | unsupportedActionType (action : EntityUID)
   | typeDepthExceeded
@@ -66,6 +67,13 @@ private def actionEntry (uid : EntityUID) (entry : ActionSchemaEntry) : Except E
       ("context", ← recordType entry.context)])]
 
 def schema (input : Schema) : Except Error Lean.Json := do
+  let env : TypeEnv := { ets := input.ets, acts := input.acts, reqty := default }
+  if let .error error := input.ets.validateWellFormed env then
+    throw (.invalidSchema (toString error))
+  if let .error error := input.acts.validateWellFormed env then
+    throw (.invalidSchema (toString error))
+  if let .error error := input.validateWellFormed then
+    throw (.invalidSchema (toString error))
   let paths := ((input.ets.toList.map fun (pair : EntityType × EntitySchemaEntry) => pair.1.path) ++
     (input.acts.toList.map fun (pair : EntityUID × ActionSchemaEntry) => pair.1.ty.path)).eraseDups
   let entries ← paths.mapM fun path => do

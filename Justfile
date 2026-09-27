@@ -47,17 +47,21 @@ check-schema-bound-receipts: prepare-agent-payment-validated-manifest
     jq -e --slurpfile manifest .lake/build/agent-payment-validated-manifest.json 'length == ($manifest[0].cases | length) and length == 32 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [] and .replay.error_free_allow == (.replay.decision == "allow"))' .lake/build/agent-payment-validated-receipts.json > /dev/null
 
 prepare-schema-bound-scenarios: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean scope-pattern-validated > .lake/build/scope-pattern-validated-manifest.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-data-flow-validated > .lake/build/agent-data-flow-validated-manifest.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean network-validated > .lake/build/network-validated-manifest.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean country-approval-validated > .lake/build/country-approval-validated-manifest.json
 
 check-schema-bound-scenarios: prepare-schema-bound-scenarios
+    jq -e '.schema[""].entityTypes.Document.shape.attributes.meta == {"type":"Record","attributes":{"tag":{"type":"String"}}} and (.cases | length) == 5' .lake/build/scope-pattern-validated-manifest.json > /dev/null
     jq -e '.schema[""].actions["publish-document"].appliesTo.context.attributes.source == {"type":"Entity","name":"Document"} and .schema[""].actions["publish-document"].appliesTo.context.attributes.reviewer == {"type":"Entity","name":"User"} and (.cases | length) == 30' .lake/build/agent-data-flow-validated-manifest.json > /dev/null
     jq -e '.schema[""].actions.query.appliesTo.context.attributes.sourceIp == {"type":"Extension","name":"ipaddr"} and (.cases | length) == 9' .lake/build/network-validated-manifest.json > /dev/null
     jq -e '.schema[""].entityTypes.User.tags == {"type":"String"} and .schema[""].entityTypes.Timesheet.tags == {"type":"String"} and .schema[""].actions.approve.memberOf == [{"type":"Action","id":"ApproverActions"}] and (.cases | length) == 13' .lake/build/country-approval-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/agent-data-flow-validated-manifest.json > .lake/build/agent-data-flow-validated-receipts.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/network-validated-manifest.json > .lake/build/network-validated-receipts.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/country-approval-validated-manifest.json > .lake/build/country-approval-validated-receipts.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/scope-pattern-validated-manifest.json > .lake/build/scope-pattern-validated-receipts.json
+    jq -e 'length == 5 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/scope-pattern-validated-receipts.json > /dev/null
     jq -e 'length == 30 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/agent-data-flow-validated-receipts.json > /dev/null
     jq -e 'length == 9 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/network-validated-receipts.json > /dev/null
     jq -e 'length == 13 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/country-approval-validated-receipts.json > /dev/null
@@ -173,6 +177,7 @@ check-ticket-sharing:
 
 check-language:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/ScopeAndPattern.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/SchemaProjection.lean
 
 prepare-cedar-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean ticket-sharing > .lake/build/ticket-sharing-manifest.json

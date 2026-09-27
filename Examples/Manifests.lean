@@ -4,6 +4,7 @@ import Examples.Health.WearableTriageExport
 import Examples.Governance.AttestedDataAccessExport
 import Examples.Governance.AttestedSchemaEvolutionExport
 import Examples.Language.ScopeAndPatternExport
+import Examples.Language.ScopeAndPatternValidatedExport
 import Examples.Governance.TrustedNetworkDataAccessExport
 import Examples.Governance.TrustedNetworkValidatedExport
 import Examples.Governance.CountryApprovalExport
@@ -37,6 +38,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("attested", fun _ => AttestedDataAccessExport.manifest),
   ("attested-schema-evolution", fun _ => AttestedSchemaEvolutionExport.bundle),
   ("scope-pattern", fun _ => ScopeAndPatternExport.manifest),
+  ("scope-pattern-validated", fun _ => ScopeAndPatternValidatedExport.manifest),
   ("network", fun _ => TrustedNetworkDataAccessExport.manifest),
   ("network-validated", fun _ => TrustedNetworkValidatedExport.manifest),
   ("country-approval", fun _ => CountryApprovalExport.manifest),

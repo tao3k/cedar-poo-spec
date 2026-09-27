@@ -11,6 +11,10 @@ references, and the four pinned Cedar extension types. It rejects Boolean
 refinements and action type names that the public JSON form cannot represent
 faithfully. The Rust =cedar-runtime= feature parses the result with
 =cedar_policy::Schema::from_json_value=.
+The Lean projection checks entity and action definitions directly, then runs
+=Schema.validateWellFormed= before emitting public JSON. The direct check
+also covers schemas with no action request environments; a dangling entity
+ancestor in such a schema is rejected at the projection boundary.
 
 =ValidatedManifest= carries one schema and a set of Lean-generated cases.
 =replay_validated_manifest= uses Cedar's strict policy validator for each
@@ -60,6 +64,13 @@ also show a schema-defined Action hierarchy authorizing a request that
 schema-free entity parsing denies.
 
 * Cross-tool, network, and country coverage
+
+The [[file:../../Examples/Language/ScopeAndPatternValidatedExport.lean][scope and pattern exporter]]
+also validates both POO roots with a nested =Document.meta.tag= record,
+group and folder ancestry, and five schema-parsed requests. Its companion
+Lean check rejects a schema with a dangling ancestor. This covers nested
+record projection under a real policy overlay rather than only inspecting
+the JSON shape.
 
 The [[file:../../Examples/Enterprise/Agent/DataFlow/ValidatedExport.lean][data-flow exporter]]
 reuses thirty well-formed read and publish layer cases. It checks required

@@ -17,6 +17,14 @@ reparses the generated [[file:Policies/scoped.cedar][Cedar source]]. The
 =just check-language= and =just check-cedar-language= commands keep the Lean
 and concrete-language boundaries independently inspectable.
 
+The same POO roots now have a Lean schema for the =User= and =Document=
+attributes, their group and folder ancestry, and action applicability. The
+schema projection carries =Document.meta.tag= as a nested required record.
+=just check-schema-bound-scenarios= also passes all five requests through
+official Cedar strict policy validation and schema-parsed entity and request
+replay. [[file:SchemaProjection.lean][SchemaProjection.lean]] checks that the
+public projection rejects a dangling entity ancestor before Rust replay.
+
 These identifiers are fictive. This is a syntax and authorization conformance
 case, not a domain policy recommendation. Cedar Lean admits =is= in an action
 scope, while Cedar's concrete grammar does not; the exporter rejects that
