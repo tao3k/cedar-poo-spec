@@ -15,8 +15,10 @@ theorem duplicateLinkIdsRejected :
   native_decide
 
 def bundle : Except String Lean.Json := do
-  let source ← (CedarPooSpec.PolicyJson.templateSet templatesV2 links).mapError reprStr
-  let materialized ← (CedarPooSpec.PolicyJson.policySet policiesV2).mapError reprStr
+  let source ←
+    (CedarPooSpec.PolicyJson.templateSet revised.templates revised.links).mapError reprStr
+  let materialized ←
+    (CedarPooSpec.PolicyJson.policySet revised.validated.policies).mapError reprStr
   return Lean.Json.mkObj [("source", source), ("materialized", materialized)]
 
 end CedarPooSpec.TemplateSourceExport

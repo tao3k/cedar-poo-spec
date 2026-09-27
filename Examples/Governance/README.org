@@ -158,7 +158,8 @@ removal revision without a new policy-body certificate.
 editable revised templates and three slot bindings in
 [[file:TemplateSources/posture.json][posture.json]]. Rust Cedar parses that
 source and compares the linked policy IDs and canonical bodies with Lean's
-separately materialized policies. A template-body change or missing binding
+separately materialized policies. Both exports come from the same validated
+=LinkedSet=. A template-body change or missing binding
 fails the boundary check. This lets a downstream application retain the
 template source while using the POO-composed materialized artifact for
 authorization and proof reuse.
