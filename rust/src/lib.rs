@@ -1,7 +1,7 @@
 //! Cedar policy language conformance boundary for Lean-POO exports.
 
 mod artifact;
-pub use artifact::CompiledPolicyJson;
+pub use artifact::{CompiledPolicyJson, TemplateSourceJson};
 
 #[cfg(feature = "cedar-runtime")]
 mod bridge;
@@ -10,8 +10,9 @@ pub mod cli;
 
 #[cfg(feature = "cedar-runtime")]
 pub use bridge::{
-    Case, Manifest, RequestInput, check_direct_sources, check_manifest, load_policy_set,
-    render_artifacts, render_loaded_policy_set, render_policy_source,
+    Case, Manifest, RequestInput, check_direct_sources, check_manifest, check_template_source,
+    load_policy_set, load_template_source, render_artifacts, render_loaded_policy_set,
+    render_policy_source,
 };
 
 #[cfg(test)]

@@ -2,6 +2,7 @@ import CedarPooSpec.PolicyModules
 import Cedar.Spec.Entities
 import Cedar.Spec.Request
 import Cedar.Spec.Authorizer
+import Cedar.Spec.Template
 import Cedar.Validation.Validator
 import Cedar.Validation.EnvironmentValidator
 import Cedar.Thm.Authorization
@@ -23,6 +24,10 @@ inductive Error where
   | duplicatePolicyId (policyId : PolicyID)
   | duplicateRecordKey (policyId : PolicyID)
   | duplicateEntityAttribute
+  | duplicateTemplateId
+  | duplicateTemplateLinkId
+  | duplicateSlotBinding
+  | invalidTemplateLink (message : String)
   | incompleteEntityAncestors (uid : EntityUID)
   | unsupportedValue
   | valueDepthExceeded
@@ -185,6 +190,56 @@ def policySet (policies : Policies) : Except Error Lean.Json := do
     ("staticPolicies", obj entries),
     ("templates", obj []),
     ("templateLinks", Lean.toJson (#[] : Array Lean.Json))]
+
+private def entityOrSlot : EntityUIDOrSlot → String × Lean.Json
+  | .entityUID uid => ("entity", entity uid)
+  | .slot id => ("slot", Lean.toJson id)
+
+private def templateScope : ScopeTemplate → Lean.Json
+  | .any => obj [("op", Lean.toJson "All")]
+  | .eq value => obj [("op", Lean.toJson "=="), entityOrSlot value]
+  | .mem value => obj [("op", Lean.toJson "in"), entityOrSlot value]
+  | .is ty => obj [("op", Lean.toJson "is"),
+      ("entity_type", Lean.toJson (toString ty))]
+  | .isMem ty value => obj [("op", Lean.toJson "is"),
+      ("entity_type", Lean.toJson (toString ty)),
+      ("in", obj [entityOrSlot value])]
+
+/-- Serialize a Cedar template while retaining its unbound slots. -/
+def template (id : TemplateID) (value : Template) : Except Error Lean.Json := do
+  let .principalScope principal := value.principalScope
+  let .resourceScope resource := value.resourceScope
+  return obj [
+    ("effect", Lean.toJson (match value.effect with
+      | .permit => "permit"
+      | .forbid => "forbid")),
+    ("principal", templateScope principal),
+    ("action", ← actionScope id value.actionScope),
+    ("resource", templateScope resource),
+    ("conditions", Lean.toJson (← value.condition.mapM (condition id)))]
+
+/-- Export editable Cedar templates and their links using the public JSON
+    policy-set format. The materialized result remains available via policySet. -/
+def templateSet (templates : Templates) (links : TemplateLinkedPolicies) :
+    Except Error Lean.Json := do
+  let templateEntries := Cedar.Data.Map.toList templates
+  if !(decide (templateEntries.map Prod.fst).Nodup) then
+    throw .duplicateTemplateId
+  if !(decide (links.map TemplateLinkedPolicy.id).Nodup) then
+    throw .duplicateTemplateLinkId
+  let _ ← (Cedar.Spec.link? templates links).mapError .invalidTemplateLink
+  let exportedTemplates ← templateEntries.mapM fun (id, value) => do
+    return (id, ← template id value)
+  let exportedLinks ← links.mapM fun link => do
+    let slots := Cedar.Data.Map.toList link.slotEnv
+    if !(decide (slots.map Prod.fst).Nodup) then
+      throw .duplicateSlotBinding
+    return obj [("newId", Lean.toJson link.id),
+      ("templateId", Lean.toJson link.templateId),
+      ("values", obj (slots.map fun (id, uid) => (id, entity uid)))]
+  return obj [("staticPolicies", obj []),
+    ("templates", obj exportedTemplates),
+    ("templateLinks", Lean.toJson exportedLinks)]
 
 private def valueFuel : Nat → Value → Except Error Lean.Json
   | 0, _ => .error .valueDepthExceeded

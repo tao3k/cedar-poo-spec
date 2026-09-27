@@ -1,6 +1,6 @@
 //! Parse official Cedar JSON and compare Rust authorization to Lean receipts.
 
-use crate::CompiledPolicyJson;
+use crate::{CompiledPolicyJson, TemplateSourceJson};
 use cedar_policy::{
     AuthorizationError, Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request,
 };
@@ -167,19 +167,22 @@ fn same_policy_bodies_ignoring_ids(left: &PolicySet, right: &PolicySet) -> Resul
     let body_counts = |policies: &PolicySet| -> Result<BTreeMap<String, usize>, String> {
         let mut counts = BTreeMap::new();
         for policy in policies.policies() {
-            let json = policy
-                .to_json()
-                .map_err(|error| format!("Cedar policy JSON: {error}"))?;
-            let normalized = cedar_policy::Policy::from_json(None, json)
-                .map_err(|error| format!("Cedar policy normalization: {error}"))?;
-            let body = normalized
-                .to_cedar()
-                .ok_or("normalized Cedar policy has no source")?;
-            *counts.entry(body).or_insert(0) += 1;
+            *counts.entry(canonical_policy_body(policy)?).or_insert(0) += 1;
         }
         Ok(counts)
     };
     Ok(body_counts(left)? == body_counts(right)?)
+}
+
+fn canonical_policy_body(policy: &cedar_policy::Policy) -> Result<String, String> {
+    let json = policy
+        .to_json()
+        .map_err(|error| format!("Cedar policy JSON: {error}"))?;
+    let normalized = cedar_policy::Policy::from_json(None, json)
+        .map_err(|error| format!("Cedar policy normalization: {error}"))?;
+    normalized
+        .to_cedar()
+        .ok_or_else(|| "normalized Cedar policy has no source".into())
 }
 
 /// Load a Lean-POO compiled policy set through Cedar's public JSON parser.
@@ -214,6 +217,45 @@ pub fn load_policy_set(json: &CompiledPolicyJson) -> Result<PolicySet, String> {
         return Err("Cedar loaded a different policy ID set".into());
     }
     Ok(policies)
+}
+
+/// Load editable templates and links through Cedar's official parser.
+pub fn load_template_source(source: &TemplateSourceJson) -> Result<PolicySet, String> {
+    let linked = PolicySet::from_json_value(source.as_value().clone())
+        .map_err(|error| format!("Cedar template source parse: {error}"))?;
+    if linked.templates().next().is_none() {
+        return Err("source has no Cedar templates".into());
+    }
+    Ok(linked)
+}
+
+/// Compare the linked Cedar source with Lean's separately exported
+/// materialized policy set, preserving policy IDs.
+pub fn check_template_source(
+    source: &TemplateSourceJson,
+    materialized: &CompiledPolicyJson,
+) -> Result<(), String> {
+    let linked = load_template_source(source)?;
+    let expected = load_policy_set(materialized)?;
+    let linked_policies = linked
+        .policies()
+        .map(|policy| -> Result<(String, String), String> {
+            Ok((policy.id().to_string(), canonical_policy_body(policy)?))
+        })
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    let expected_policies = expected
+        .policies()
+        .map(|policy| -> Result<(String, String), String> {
+            Ok((policy.id().to_string(), canonical_policy_body(policy)?))
+        })
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    if linked_policies.len() != linked.policies().count()
+        || expected_policies.len() != expected.policies().count()
+        || linked_policies != expected_policies
+    {
+        return Err("Cedar template links differ from Lean materialization".into());
+    }
+    Ok(())
 }
 
 /// Render an already admitted Cedar policy set without parsing JSON again.

@@ -1,5 +1,6 @@
 use super::{
-    Case, Manifest, check_direct_sources, check_manifest, load_policy_set, render_artifacts,
+    Case, Manifest, check_direct_sources, check_manifest, check_template_source, load_policy_set,
+    render_artifacts,
 };
 use serde_json::json;
 
@@ -192,4 +193,48 @@ fn direct_cedar_check_detects_policy_drift() {
             .contains("direct policy bodies differ")
     );
     std::fs::remove_dir_all(directory).expect("remove temporary directory");
+}
+
+#[test]
+fn template_source_requires_exact_linked_policy_bodies() {
+    let source = json!({
+        "staticPolicies": {},
+        "templates": {
+            "grant": {
+                "effect": "permit",
+                "principal": { "op": "==", "slot": "?principal" },
+                "action": { "op": "All" },
+                "resource": { "op": "All" },
+                "conditions": []
+            }
+        },
+        "templateLinks": [{
+            "templateId": "grant",
+            "newId": "base",
+            "values": { "?principal": { "type": "User", "id": "alice" } }
+        }]
+    });
+    let mut materialized = receipt().policies.as_value().clone();
+    materialized["staticPolicies"]["base"]["principal"] =
+        json!({ "op": "==", "entity": { "type": "User", "id": "alice" } });
+    let materialized = serde_json::from_value(materialized).expect("policy set JSON");
+    let typed_source = serde_json::from_value(source.clone()).expect("template source JSON");
+    check_template_source(&typed_source, &materialized).expect("matching linked policy");
+
+    let mut changed = source.clone();
+    changed["templates"]["grant"]["effect"] = json!("forbid");
+    let typed_changed = serde_json::from_value(changed).expect("changed template source JSON");
+    assert!(
+        check_template_source(&typed_changed, &materialized)
+            .unwrap_err()
+            .contains("differ from Lean materialization")
+    );
+    let mut changed = source;
+    changed["templateLinks"][0]["values"] = json!({});
+    let typed_changed = serde_json::from_value(changed).expect("incomplete template source JSON");
+    assert!(
+        check_template_source(&typed_changed, &materialized)
+            .unwrap_err()
+            .contains("template source parse")
+    );
 }

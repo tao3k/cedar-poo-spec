@@ -1,12 +1,19 @@
 //! Stream a Lean manifest through the Rust Cedar conformance checker.
 
 use crate::{
-    CompiledPolicyJson, Manifest, check_direct_sources, check_manifest, render_artifacts,
-    render_policy_source,
+    CompiledPolicyJson, Manifest, TemplateSourceJson, check_direct_sources, check_manifest,
+    check_template_source, render_artifacts, render_policy_source,
 };
+use serde::Deserialize;
 use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
+
+#[derive(Deserialize)]
+struct TemplateSourceBundle {
+    source: TemplateSourceJson,
+    materialized: CompiledPolicyJson,
+}
 
 /// Read one JSON manifest from standard input and check all cases.
 pub fn run() -> Result<(), String> {
@@ -20,6 +27,13 @@ pub fn run() -> Result<(), String> {
             .parse()
             .map_err(|error| format!("Cedar policy JSON: {error}"))?;
         print!("{}", render_policy_source(&policies)?);
+        return Ok(());
+    }
+    if args.len() == 1 && args[0] == "check-template-source" {
+        let bundle: TemplateSourceBundle = serde_json::from_str(&input)
+            .map_err(|error| format!("template source bundle JSON: {error}"))?;
+        check_template_source(&bundle.source, &bundle.materialized)?;
+        println!("Cedar template source matches Lean materialization");
         return Ok(());
     }
     let manifest: Manifest =
@@ -39,7 +53,7 @@ pub fn run() -> Result<(), String> {
         }
         _ => {
             return Err(
-                "usage: cedar-poo-bridge [render|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
+                "usage: cedar-poo-bridge [render|check-template-source|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
             );
         }
     }

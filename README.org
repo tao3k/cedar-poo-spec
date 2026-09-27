@@ -73,7 +73,7 @@ and keep their assumptions explicit.
 | Policy revision | Compare compiled policy bodies by ID; compose per-policy proof objects for fresh bodies and reuse unchanged bodies under the same schema. Reclose all dependent premises after schema changes. |
 | Runtime validation cache | Reuse any identical policy body in a Cedar-validated baseline, including after reordering; prove the incremental result equals Cedar's full validation result. |
 | Template revisions | Re-link through upstream Cedar, validate only changed materialized bodies, and distinguish link errors from policy validation errors. |
-| Cedar language export | Convert supported materialized Cedar policies, entities, and requests to the public JSON formats; reject unsupported abstract syntax; compare Lean authorization receipts with the Rust Cedar engine. |
+| Cedar language export | Convert supported materialized Cedar policies, editable templates and links, entities, and requests to public JSON formats; reject unsupported abstract syntax; compare Lean authorization receipts and linked template bodies with the Rust Cedar engine. |
 | Reuse probe | Check dependency selection across 10,000 indexed evaluator obligations. |
 
 Enterprise agent authorization, device trust, temporal authorization, and
