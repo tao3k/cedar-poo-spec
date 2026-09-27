@@ -24,11 +24,25 @@ check: build-examples check-docs
     just check-cedar-language
     just check-mission-comparison
     just check-authorization-delta
+    just check-authorization-delta-proof
+    just check-payment-delta
+
+check-lean: build-examples check-authorization-delta-proof check-policy-reuse
+
+check-delta: check-authorization-delta check-payment-delta
 
 check-authorization-delta: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
     jq -e '.posture.status == "no-expansion-in-schema" and .posture.environments_checked == 1 and .new_grant.status == "expanded" and .new_grant.environments_checked == 1 and (.new_grant.counterexamples | length) > 0' .lake/build/authorization-delta.json > /dev/null
     jq '.manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
+
+check-authorization-delta-proof:
+    lake build CedarPooSpec.AuthorizationDeltaProof
+
+check-payment-delta: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean > .lake/build/payment-delta.json
+    jq -e '.freeze.status == "no-expansion-in-schema" and .freeze.environments_checked == 4 and .restore.status == "expanded" and .restore.environments_checked == 4 and (.restore.counterexamples | length) > 0' .lake/build/payment-delta.json > /dev/null
+    jq '.manifest' .lake/build/payment-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 [parallel]
 check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-supplier-transition check-vla-command check-mission-successor check-mission-replay check-mission-maintenance check-vehicle-tara check-reuse-scale
@@ -228,7 +242,8 @@ export-cedar-language: prepare-all-manifests
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Scenarios/TenantDevicePolicies < .lake/build/tenant-device-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render < .lake/build/expanded-policy.json > Examples/Governance/Policies/expanded.cedar
 
-check-cedar-language: prepare-all-manifests
+check-rust:
+    mkdir -p .lake/build
     cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features -e normal -p cedar-poo-bridge > .lake/build/bridge-default-tree.txt
     ! rg -q 'cedar-policy' .lake/build/bridge-default-tree.txt
     cargo fmt --manifest-path rust/Cargo.toml --check
@@ -236,6 +251,10 @@ check-cedar-language: prepare-all-manifests
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features cedar-runtime -- -D warnings
     cargo test --locked --manifest-path rust/Cargo.toml --no-default-features
     cargo test --locked --manifest-path rust/Cargo.toml --features cedar-runtime
+
+check-cedar-language: check-rust check-cedar-artifacts
+
+check-cedar-artifacts: prepare-all-manifests
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-template-source < .lake/build/template-source-bundle.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-template-source < .lake/build/mixed-template-source-bundle.json
     jq -S .source .lake/build/template-source-bundle.json > .lake/build/template-source.sorted.json

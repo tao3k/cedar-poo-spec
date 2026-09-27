@@ -1,5 +1,4 @@
-import CedarPooSpec.AuthorizationDelta
-import CedarPooSpec.PolicyJson
+import CedarPooSpec.AuthorizationDeltaJson
 import Examples.Governance.TicketSharing
 
 /-!
@@ -13,34 +12,6 @@ namespace CedarPooSpec.TicketSharingDelta
 open CedarPooSpec.TicketSharingExample
 open CedarPooSpec.AuthorizationDelta
 
-private def renderExpansion (expansion : Expansion) : Except String Lean.Json := do
-  let request ← CedarPooSpec.PolicyJson.request expansion.witness.request |>.mapError reprStr
-  let entities ← CedarPooSpec.PolicyJson.entities expansion.witness.entities |>.mapError reprStr
-  return Lean.Json.mkObj [
-    ("request", request),
-    ("entities", entities),
-    ("before_decision", Lean.toJson expansion.beforeResponse.decision),
-    ("after_decision", Lean.toJson expansion.afterResponse.decision),
-    ("before_reasons", Lean.toJson expansion.beforeResponse.determiningPolicies.toList),
-    ("after_reasons", Lean.toJson expansion.afterResponse.determiningPolicies.toList)]
-
-private def renderReport (report : Report) : Except String Lean.Json := do
-  let expansions ← report.expansions.mapM renderExpansion
-  return Lean.Json.mkObj [
-    ("status", Lean.toJson (if report.noExpansion then "no-expansion-in-schema" else "expanded")),
-    ("changed_policy_ids", Lean.toJson report.changedPolicyIds),
-    ("environments_checked", Lean.toJson report.environmentsChecked),
-    ("counterexamples", Lean.toJson expansions)]
-
-private def renderWitnessCases (report : Report) : Except String Lean.Json := do
-  let cases ← report.expansions.zipIdx.mapM fun (expansion, index) => do
-    let before ← CedarPooSpec.PolicyJson.authorizationCase s!"delta-before-{index}"
-      "revoked" expandedModel "Revoked" expansion.witness.request expansion.witness.entities
-    let after ← CedarPooSpec.PolicyJson.authorizationCase s!"delta-after-{index}"
-      "expanded" expandedModel "Expanded" expansion.witness.request expansion.witness.entities
-    return [before, after]
-  return Lean.Json.mkObj [("cases", Lean.toJson cases.flatten)]
-
 def run : IO Lean.Json := do
   let narrowed ← match ← analyzeModel model "Published" "Posture" schema with
     | .ok report => pure report
@@ -52,11 +23,12 @@ def run : IO Lean.Json := do
     | .error error => throw (IO.userError s!"grant analysis: {reprStr error}")
   if expanded.noExpansion then
     throw (IO.userError "new ticket grant has no expansion witness")
-  let .ok narrowJson := renderReport narrowed
+  let .ok narrowJson := CedarPooSpec.AuthorizationDeltaJson.report narrowed
     | throw (IO.userError "could not render posture report")
-  let .ok expandedJson := renderReport expanded
+  let .ok expandedJson := CedarPooSpec.AuthorizationDeltaJson.report expanded
     | throw (IO.userError "could not render grant counterexample")
-  let .ok manifest := renderWitnessCases expanded
+  let .ok manifest := CedarPooSpec.AuthorizationDeltaJson.witnessCases expanded
+    expandedModel "Revoked" "Expanded"
     | throw (IO.userError "could not render Cedar witness cases")
   return Lean.Json.mkObj [("posture", narrowJson), ("new_grant", expandedJson),
     ("manifest", manifest)]

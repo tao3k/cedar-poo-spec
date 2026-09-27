@@ -40,6 +40,14 @@ the concrete counterexample is replayed by Cedar Lean and by the official
 Rust =cedar-policy= authorizer. The result is a checked analysis report, not
 a kernel proof of the solver's answer.
 
+[[file:../../CedarPooSpec/AuthorizationDeltaProof.lean][AuthorizationDeltaProof]]
+connects one POO revision to Cedar's =verifyImplies_is_ok_and_sound= theorem.
+Its conclusion applies to the original before and after policy sets, under
+the theorem's well-formedness premises, if Lean receives a proof that the
+generated assertions are unsatisfiable. The current external solver does not
+produce such a Lean proof. The executable report and the theorem therefore
+remain distinct evidence types.
+
 The [[file:../../Examples/Governance/AuthorizationDelta.lean][ticket-sharing
 case]] checks two revisions from the same POO graph. A device-posture overlay
 does not expand Allow within the schema. A later ticket grant produces a
@@ -47,6 +55,10 @@ counterexample with =User::"alice"= reading =Ticket::"ticket-b"=: the old
 revision denies and the new revision allows. The generated Rust manifest
 replays both responses, their reason IDs, and their error IDs through the
 official Cedar authorizer.
+
+The [[file:../../Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean][finance-agent payment case]] checks an emergency account freeze and its
+removal over four schema request types. The freeze has no new Allow; removing
+it produces a payment authorization witness that is also replayed in Rust.
 
 * API and check
 
@@ -64,7 +76,9 @@ just check-authorization-delta
 
 The recipe limits Lean time and memory, checks both expected outcomes, and
 replays the witness through Rust Cedar. =just check= includes this gate. CI
-installs cvc5 and runs the same command. No solver binary is committed.
+downloads CVC5 1.4.0, checks its SHA-256 digest, and runs the same command.
+No solver binary is committed.
+The payment case has its own =just check-payment-delta= gate.
 
 * Scope
 

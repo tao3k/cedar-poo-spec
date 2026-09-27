@@ -83,6 +83,16 @@ Enterprise agent authorization, device trust, temporal authorization, and
 healthcare policy remain downstream studies. They do not define this
 library's semantics.
 
+* Verification
+
+=just check= runs the complete local gate. Its smaller entrypoints are
+=check-docs=, =check-lean=, =check-rust=, =check-cedar-artifacts=,
+=check-mission-comparison=, and =check-delta=. CI gives documentation, Lean,
+Rust, Cedar conformance, and authorization delta separate jobs. The latter
+two start after the Lean and Rust jobs and restore their Lake and Cargo build
+caches. Lake cache identity includes the toolchain, dependency manifest, and
+Lean sources; the Cargo cache includes the Rust compiler and manifests.
+
 * Status
 
 The executable adapters are in

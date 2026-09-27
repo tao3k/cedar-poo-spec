@@ -76,6 +76,10 @@ def analyze (revision : Revision) (schema : Schema) : IO (Except Error Report) :
     | .error error => return .error error
     | .ok none => pure ()
     | .ok (some witness) =>
+      if let .error _ := Cedar.Validation.validateRequest schema witness.request then
+        return .error .invalidWitness
+      if let .error _ := Cedar.Validation.validateEntities schema witness.entities then
+        return .error .invalidWitness
       let beforeResponse := Cedar.Spec.isAuthorized witness.request witness.entities before
       let afterResponse := Cedar.Spec.isAuthorized witness.request witness.entities after
       if beforeResponse.decision != .deny || afterResponse.decision != .allow then

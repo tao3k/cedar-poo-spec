@@ -57,7 +57,17 @@ atomic. Idempotency, replay prevention, human approval workflow, and the
 integrity of those inputs remain host responsibilities. The case checks
 authorization behavior; it does not claim to implement a payment processor.
 
+The [[file:AuthorizationDelta.lean][authorization-delta example]] also checks
+the entire schema-defined authorization space for two changes. Adding the
+emergency freeze produces no new Allow across four request types. Removing
+that freeze produces a concrete new-Allow/old-Deny witness, which the official
+Rust Cedar authorizer replays. This verifies the global direction of each
+policy revision within the schema, beyond the sixteen fixed operations above.
+The solver boundary is specified in
+[[file:../../../../docs/rfc/0004-authorization-delta.org][RFC 0004]].
+
 #+begin_src sh
 just check-agent-payment
+just check-payment-delta
 just check-cedar-language
 #+end_src

@@ -1,4 +1,4 @@
-name: Lean CI
+name: Cedar POO CI
 
 on:
   push:
@@ -11,7 +11,57 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@just
+      - run: sudo apt-get update && sudo apt-get install -y emacs-nox
+      - run: just check-docs
+
+  lean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+      - uses: taiki-e/install-action@just
+      - name: Restore Lean and Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/packages
+            .lake/build
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('CedarPooSpec.lean', 'CedarPooSpec/**/*.lean', 'Examples/**/*.lean') }}
+          restore-keys: |
+            lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
+      - run: just check-lean
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: taiki-e/install-action@just
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        with:
+          shared-key: cedar-poo-bridge
+          add-job-id-key: "false"
+          workspaces: ". -> rust/target"
+      - run: just check-rust
+
+  cedar-conformance:
+    needs: [lean, rust]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -23,12 +73,60 @@ jobs:
           test: false
           lint: false
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
       - uses: taiki-e/install-action@just
-      - name: Install Org parser
-        run: sudo apt-get update && sudo apt-get install -y emacs-nox cvc5
-      - name: Build adapters and evaluate examples
-        env:
-          CVC5: /usr/bin/cvc5
-        run: just check
+      - name: Restore Lean and Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/packages
+            .lake/build
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('CedarPooSpec.lean', 'CedarPooSpec/**/*.lean', 'Examples/**/*.lean') }}
+          restore-keys: |
+            lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        with:
+          shared-key: cedar-poo-bridge
+          add-job-id-key: "false"
+          workspaces: ". -> rust/target"
+      - run: just check-cedar-artifacts
+      - run: just check-mission-comparison
+
+  authorization-delta:
+    needs: [lean, rust]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@just
+      - name: Restore Lean and Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/packages
+            .lake/build
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('CedarPooSpec.lean', 'CedarPooSpec/**/*.lean', 'Examples/**/*.lean') }}
+          restore-keys: |
+            lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        with:
+          shared-key: cedar-poo-bridge
+          add-job-id-key: "false"
+          workspaces: ". -> rust/target"
+      - name: Install pinned CVC5
+        run: |
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/cvc5/cvc5/releases/download/cvc5-1.4.0/cvc5-Linux-x86_64-static.zip \
+            --output "$RUNNER_TEMP/cvc5.zip"
+          echo "61d13483ec9c4e8d05c7f3d532225255b2183a0c03b161d37d942d1ba089ec6d  $RUNNER_TEMP/cvc5.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/cvc5.zip" -d "$RUNNER_TEMP"
+          echo "CVC5=$RUNNER_TEMP/cvc5-Linux-x86_64-static/bin/cvc5" >> "$GITHUB_ENV"
+      - run: just check-delta

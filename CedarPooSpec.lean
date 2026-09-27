@@ -10,3 +10,4 @@ import CedarPooSpec.PolicyValidation
 import CedarPooSpec.TemplateValidation
 import CedarPooSpec.PolicyJson
 import CedarPooSpec.AuthorizationDelta
+import CedarPooSpec.AuthorizationDeltaJson
