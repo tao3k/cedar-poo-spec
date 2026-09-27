@@ -17,4 +17,5 @@ and source and modeling notes in its own directory.
 | [[file:Agent/LakehouseGateway/README.org][AgentCore lakehouse Gateway]] | Source-backed policyholder and geography restrictions from an AWS insurance data-agent example, with an explicitly proposed fail-closed extension. |
 | [[file:Agent/Session/README.org][Bounded agent session]] | Stateful authorization of delegated tasks and cross-tool action sequences. |
 | [[file:Agent/Fanout/README.org][Shared agent budget]] | Parent-wide budget across concurrent sub-agents and a visible stale-read race. |
+| [[file:Exchange/README.org][Exchange]] | Independent transaction witnesses, signer byte binding, and scoped incident freeze. |
 | [[file:Vehicle/README.org][Vehicle]] | AI-mediated command hijacking, successor-safe mission authorization, a composable TARA treatment matrix, and Uptane supplier transition. |

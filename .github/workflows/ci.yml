@@ -96,6 +96,7 @@ jobs:
       - run: just check-cedar-artifacts
       - run: just check-replay-receipts
       - run: just check-schema-bound-receipts
+      - run: just check-exchange-signing-validated
       - run: just check-schema-bound-scenarios
       - run: just check-lakehouse-gateway
       - run: just check-attested-schema-evolution

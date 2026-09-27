@@ -24,6 +24,7 @@ check: check-tests check-docs
     just check-cedar-language
     just check-mission-comparison
     just check-replay-receipts
+    just check-exchange-signing-validated
     just check-schema-bound-receipts
     just check-schema-bound-scenarios
     just check-lakehouse-gateway
@@ -107,7 +108,7 @@ check-payment-delta: build-examples
     jq '.manifest' .lake/build/payment-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 [parallel]
-check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-supplier-transition check-vla-command check-mission-successor check-mission-replay check-mission-maintenance check-vehicle-tara
+check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-exchange-signing check-supplier-transition check-vla-command check-mission-successor check-mission-replay check-mission-maintenance check-vehicle-tara
 
 check-evaluation:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Evaluation.lean
@@ -168,6 +169,9 @@ check-agent-session:
 
 check-agent-fanout:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Fanout/SharedBudget.lean
+
+check-exchange-signing:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Exchange/Signing/SigningBoundary.lean
 
 check-supplier-transition:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Uptane/SupplierTransition.lean
@@ -250,6 +254,19 @@ prepare-bounded-session-manifest: build-examples
 prepare-shared-budget-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean shared-budget > .lake/build/shared-budget-manifest.json
 
+prepare-exchange-signing-manifest: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean exchange-signing > .lake/build/exchange-signing-manifest.json
+
+check-exchange-signing-replay: prepare-exchange-signing-manifest
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml < .lake/build/exchange-signing-manifest.json
+
+prepare-exchange-signing-validated-manifest: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean exchange-signing-validated > .lake/build/exchange-signing-validated-manifest.json
+
+check-exchange-signing-validated: prepare-exchange-signing-validated-manifest
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/exchange-signing-validated-manifest.json > .lake/build/exchange-signing-validated-receipts.json
+    jq -e 'length == 16 and all(.[]; .replay.error_policy_ids == [] and .replay.error_free_allow == (.replay.decision == "allow"))' .lake/build/exchange-signing-validated-receipts.json > /dev/null
+
 prepare-supplier-transition-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean supplier-transition > .lake/build/supplier-transition-manifest.json
 
@@ -298,6 +315,7 @@ export-cedar-language: prepare-all-manifests
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Agent/DataFlow/AgentDataFlowPolicies < .lake/build/agent-data-flow-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Agent/Session/SessionPolicies < .lake/build/bounded-session-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Agent/Fanout/FanoutPolicies < .lake/build/shared-budget-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Exchange/Signing/SigningPolicies < .lake/build/exchange-signing-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Vehicle/Uptane/SupplierTransitionPolicies < .lake/build/supplier-transition-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Vehicle/VLA/CommandPolicies < .lake/build/vla-command-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Enterprise/Vehicle/Mission/MissionPolicies < .lake/build/mission-successor-manifest.json
@@ -341,6 +359,7 @@ check-cedar-artifacts: prepare-all-manifests
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Agent/DataFlow/AgentDataFlowPolicies < .lake/build/agent-data-flow-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Agent/Session/SessionPolicies < .lake/build/bounded-session-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Agent/Fanout/FanoutPolicies < .lake/build/shared-budget-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Exchange/Signing/SigningPolicies < .lake/build/exchange-signing-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Vehicle/Uptane/SupplierTransitionPolicies < .lake/build/supplier-transition-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Vehicle/VLA/CommandPolicies < .lake/build/vla-command-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Enterprise/Vehicle/Mission/MissionPolicies < .lake/build/mission-successor-manifest.json
