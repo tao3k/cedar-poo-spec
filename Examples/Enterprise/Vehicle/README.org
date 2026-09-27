@@ -1,0 +1,62 @@
+#+TITLE: Vehicle Incident and OTA Authorization
+#+OPTIONS: toc:nil
+
+* Fleet backend incident and staged update authorization
+
+[[file:FleetIncident.lean][FleetIncident.lean]] is a source-grounded, fictive
+enterprise response to a connected-vehicle backend incident. It models
+authorization for fleet commands and for a two-decision software-update
+workflow: OEM security approval followed by fleet deployment. The case is
+about policy composition and authorization; it does not implement MQTT,
+cryptography, OTA delivery, vehicle firmware, or physical rollback.
+
+** Sources and modeling boundary
+
+| Source | Reported fact or guidance | Lean/Cedar projection |
+|--------+---------------------------+-----------------------|
+| [[https://www.gogobyte.com/collaborates-with-asrg-china-community-to-assist-in-fixing-critical-vulnerabilities-zh/][GoGoByte and ASRG incident account]] | CVE-2023-3028 involved insufficient authentication at a fleet MQTT backend, exposing telemetry and command data across vehicles using a particular T-Box. Multiple organizations coordinated the response. | =commandAuthenticated= requires a trusted channel fact; =Incident= freezes commands for one affected batch. The model uses invented identities and batches. |
+| [[https://asrg.io/security-advisories][ASRG security advisories]] | ASRG lists CVE-2023-3028 as an improper backend communication issue affecting HQT401. | The case retains the fleet-wide rather than single-vehicle blast-radius concern. |
+| [[https://unece.org/transport/documents/2021/03/standards/un-regulation-no-156-software-update-and-software-update][UNECE Regulation 156]] | Software-update management and safe execution require controlled processes. | OEM review and fleet deployment are distinct authorization decisions. |
+| [[https://www.nhtsa.gov/document/cybersecurity-best-practices-2020-update][NHTSA vehicle cybersecurity practices]] | OTA update distribution should protect update integrity and consider compromised servers. | Supplier package, compatibility, approval, and safe-state facts are explicit host-projected inputs. |
+
+Neither the GoGoByte report nor the cited guidance says that this incident
+was remediated through the example's pilot OTA campaign. The staged campaign
+is our response design for testing independently changing authorization
+policies. A real OTA controller must establish every input and perform the
+actual update safely.
+
+** Why Lean, Lean-POO, and Cedar together
+
+Lean-POO gives each owner a module. =Supplier= narrows deployment to signed,
+compatible packages; =Security= narrows OEM approval to tested, released
+updates; =Fleet= requires an authenticated command channel. =Integrated=
+combines these sibling revisions with C4 and adds a pilot-only deployment
+rule. =Incident= adds one forbid for affected-batch commands while still
+allowing a separately authorized pilot repair. =Expanded= overlays just the
+deployment policy to admit a broader compatible cohort after the pilot.
+=Recovered= removes the command forbid after externally verified remediation.
+An unaffected batch keeps its command path during the freeze.
+
+Lean checks twenty named outcomes, validates every POO root, and proves
+that the incident adds exactly one policy ID. Its authorization certificate
+reuses the Integrated baseline and checks only the new forbid body. The
+recovery revision removes one policy ID and has *zero* fresh policy bodies;
+its certificate is reclosed without a new per-policy validation proof.
+Both revised certificates feed Cedar's existing authorization soundness
+theorem. These are concrete proof-object reuse receipts, not a claim that a
+real server or vehicle executed the update.
+
+Cedar alone can express and evaluate the final permit and forbid rules, but
+Cedar policy text does not retain this C4 edit ancestry or the certificate
+reuse argument. Lean-POO alone does not deploy or evaluate a Cedar policy.
+The [[file:FleetIncidentExport.lean][exporter]] materializes five
+[[file:FleetIncidentPolicies/incident.cedar][Cedar revisions]] from Lean and
+compares thirty-three individual decisions with the official Rust Cedar
+authorizer. The application must authenticate MQTT clients and operators,
+verify update evidence, bind both update decisions to the same package and
+batch, enforce the result, and record the incident and rollout actions.
+
+#+begin_src sh
+just check-fleet-incident
+just check-cedar-language
+#+end_src

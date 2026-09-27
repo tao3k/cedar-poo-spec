@@ -1,4 +1,4 @@
-import Examples.Enterprise.AgentDelegation
+import Examples.Enterprise.Agent.Delegation.AgentDelegation
 
 /-!
 The same POO delegation policy is evaluated once per hop. A path with one,

@@ -1,4 +1,4 @@
-import Examples.Enterprise.AgentDelegation
+import Examples.Enterprise.Agent.Delegation.AgentDelegation
 
 /-!
 An agent's right to read a document does not imply a right to publish its

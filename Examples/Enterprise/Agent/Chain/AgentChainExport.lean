@@ -1,4 +1,4 @@
-import Examples.Enterprise.AgentChain
+import Examples.Enterprise.Agent.Chain.AgentChain
 
 namespace CedarPooSpec.AgentChainExport
 

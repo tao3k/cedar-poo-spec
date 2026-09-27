@@ -1,4 +1,4 @@
-import Examples.Enterprise.PurchaseApproval
+import Examples.Enterprise.Procurement.PurchaseApproval
 
 namespace CedarPooSpec.PurchaseApprovalExport
 

@@ -1,4 +1,4 @@
-import Examples.Enterprise.AgentDelegation
+import Examples.Enterprise.Agent.Delegation.AgentDelegation
 
 namespace CedarPooSpec.AgentDelegationExport
 

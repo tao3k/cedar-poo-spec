@@ -1,4 +1,4 @@
-import Examples.Enterprise.DelegatedApproval
+import Examples.Enterprise.Procurement.DelegatedApproval
 
 /-!
 A finite cross-product checks the independent procurement rule and the

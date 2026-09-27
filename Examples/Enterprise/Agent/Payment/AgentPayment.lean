@@ -1,4 +1,4 @@
-import Examples.Enterprise.AgentDelegation
+import Examples.Enterprise.Agent.Delegation.AgentDelegation
 
 /-!
 Per-call value authorization for an AI agent's payment tool request. The

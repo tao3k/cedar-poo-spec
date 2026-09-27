@@ -1,0 +1,51 @@
+#+TITLE: Agent Delegation
+#+OPTIONS: toc:nil
+
+* AI agent delegation across three authorization layers
+
+[[file:AgentDelegation.lean][AgentDelegation.lean]] adapts the three checks in
+[[https://github.com/aws-samples/sample-cedar-agentic-ai-authorization][AWS's published Cedar agent delegation sample]]: agent-to-tool,
+agent-to-agent delegation, and originating-user authorization. The sample
+notes that agent attributes and user claims need an authoritative source.
+This example keeps agent attributes in Cedar entities and takes the original
+user as a context entity reference; it does not implement the sample's HMAC
+or OAuth token exchange.
+
+| Evidence | Local contract |
+|----------+----------------|
+| [[https://arxiv.org/abs/2606.28679][ScopeGate preprint]]: tool exposure does not by itself authorize concrete tool calls. | =ToolHardened= checks the actual agent and tool UID, trust score, namespace, and deployment stage for each request. The wrong-tool case is denied. |
+| [[https://github.com/aws-samples/sample-cedar-agentic-ai-authorization][AWS agent sample]]: tool, delegation, and originating-user checks all contribute to a decision. | =authorizeFlow= constructs all three requests; =authorizeLayers= preserves each POO root, response, and policy evaluation errors. |
+| [[https://github.com/cedar-policy/cedar/issues/2428][Cedar issue #2428]]: an erroring forbid can be skipped while another permit still allows. | =OriginUnsafe= reproduces an =Allow= with an error on malformed runtime context; =layersAllowed= rejects the compound flow. |
+
+=ToolBase=, =DelegationBase=, and =OriginBase= intentionally allow a
+support user's deletion request. Each hardened root overlays one policy:
+=ToolHardened= checks the invoking agent, =DelegationBounded= checks depth
+and requested capabilities against the target agent, and =OriginBounded=
+checks the user role, MFA, and depth. =OriginRevoked= adds an explicit user
+revocation veto. Ten flow cases separate the effect of user role, MFA,
+delegation depth, capability, agent state, target tool, missing user, and
+revocation. [[file:AgentDelegationExport.lean][AgentDelegationExport.lean]] sends
+thirty-three individual layer requests to the official Cedar Rust
+authorizer and checks the generated
+[[file:AgentPolicies/originbounded.cedar][Cedar policies]]. Every POO root
+also passes Lean Cedar schema and policy validation.
+
+=OriginUnsafe= is a diagnostic counterexample, not a deployment revision.
+Its policy is valid against a schema where =context.origin= is a User entity.
+A caller that instead supplies a String at runtime causes the forbid to
+error; Cedar's documented skip-on-error behavior leaves the broad permit in
+effect. =malformedRawAllowsWithError= checks that raw result, while
+=malformedFlowRejectedFully= checks that the compound API declines it.
+This demonstrates why an =Allow= decision alone is insufficient when the
+response also reports policy evaluation errors.
+
+The host must authenticate the origin, verify delegation integrity, bind
+capabilities and tool arguments to the proposed call, and reauthorize at
+execution time. Cedar cannot verify a self-asserted context entity or
+perform the tool call. The preprint's money ceiling and idempotency stages
+are outside this deletion scenario.
+
+#+begin_src sh
+just check-agent-delegation
+just check-cedar-language
+#+end_src

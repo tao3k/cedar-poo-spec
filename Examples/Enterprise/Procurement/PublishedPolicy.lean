@@ -1,11 +1,11 @@
-import Examples.Enterprise.PaymentRelease
+import Examples.Enterprise.Procurement.DelegatedApproval
 
-/-! Emit the integrated payment policy set after Lean Cedar validation. -/
+/-! A policy artifact is emitted only after schema and policy validation. -/
 
 def main : IO Unit :=
   match CedarPooSpec.PolicyJson.publish
-      CedarPooSpec.PaymentReleaseExample.model "Integrated"
-      CedarPooSpec.PaymentReleaseExample.schema with
+      CedarPooSpec.DelegatedApprovalExample.delegatedModel "Delegated"
+      CedarPooSpec.DelegatedApprovalExample.delegatedSchema with
   | .ok publication => IO.println publication.json.compress
   | .error (.composition _) => throw (IO.userError "POO composition failed")
   | .error (.schema _) => throw (IO.userError "Cedar schema is invalid")

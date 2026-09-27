@@ -1,4 +1,4 @@
-import Examples.Enterprise.DelegatedApproval
+import Examples.Enterprise.Procurement.DelegatedApproval
 
 namespace CedarPooSpec.DelegatedApprovalExport
 

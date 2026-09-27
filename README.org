@@ -36,7 +36,8 @@ Lean extension and Rust deployment interface.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.
-The [[file:Examples/Health/README.org][health example]] connects a clinical
+The [[file:Examples/README.org][examples index]] links each case and its
+source and modeling notes. The [[file:Examples/Health/README.org][health example]] connects a clinical
 emergency-access diamond to published EHR studies and HL7 guidance. It also
 composes consent, monitor quarantine, AI model eligibility, and clinician review
 for a remote-monitoring alert workflow.
@@ -52,7 +53,9 @@ extension functions and values. The
 [[file:Examples/Enterprise/README.org][enterprise examples]] cover delegated
 procurement approval, compound payment release, and AI agent delegation,
 payment authorization, three-to-five-layer delegation, and cross-tool data
-flow across independently evolving controls.
+flow across independently evolving controls. A source-grounded fleet incident
+case composes supplier, OEM security, and fleet update authorization with
+local command freezes and certificate reuse.
 
 | Feature | Implemented contract |
 |---------+----------------------|

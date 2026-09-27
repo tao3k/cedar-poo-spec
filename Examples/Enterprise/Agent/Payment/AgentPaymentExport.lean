@@ -1,4 +1,4 @@
-import Examples.Enterprise.AgentPayment
+import Examples.Enterprise.Agent.Payment.AgentPayment
 
 namespace CedarPooSpec.AgentPaymentExport
 

@@ -1,4 +1,4 @@
-import Examples.Enterprise.PurchaseApproval
+import Examples.Enterprise.Procurement.PurchaseApproval
 
 /-!
 Delegated procurement approval. The user remains the principal and the agent

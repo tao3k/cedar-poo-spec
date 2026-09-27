@@ -1,4 +1,4 @@
-import Examples.Enterprise.AgentDataFlow
+import Examples.Enterprise.Agent.DataFlow.AgentDataFlow
 
 namespace CedarPooSpec.AgentDataFlowExport
 

@@ -106,7 +106,7 @@ The [[file:../../Examples/Governance/CountryApproval.lean][country approver
 revision]] checks twelve requests with role, action, and resource groups,
 entity tags, country expansion, and removal of a broad legacy grant. It
 also checks the negative incomplete-ancestry export path.
-The [[file:../../Examples/Enterprise/PurchaseApproval.lean][procurement
+The [[file:../../Examples/Enterprise/Procurement/PurchaseApproval.lean][procurement
 revision]] checks nine requests across base, budget, duties, and integrated
 roots, including a four-decimal-place amount boundary, a positive amount
 requirement, and a self-approval veto. The delegated procurement case adds ten

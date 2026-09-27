@@ -1,0 +1,19 @@
+#+TITLE: Examples
+#+OPTIONS: toc:nil
+
+* Overview
+
+These examples exercise Cedar's upstream Lean specification through
+Lean-POO composition and, where applicable, compare exported policies with
+the official Cedar Rust authorizer. Each case README states its sources,
+modeling assumptions, Lean claims, and runtime boundary.
+
+| Area | Cases |
+|------+-------|
+| [[file:Enterprise/README.org][Enterprise]] | Procurement, payment, agents, and vehicle incident response. |
+| [[file:Health/README.org][Health]] | Clinical emergency access and wearable triage. |
+| [[file:Governance/README.org][Governance]] | Data access, networks, countries, and ticket sharing. |
+| [[file:Language/README.org][Language]] | Cedar syntax and extension coverage. |
+| [[file:Scenarios/README.org][Scenarios]] | POO edit patterns and cross-case navigation. |
+
+The focused checks and export commands are in the root =Justfile=.

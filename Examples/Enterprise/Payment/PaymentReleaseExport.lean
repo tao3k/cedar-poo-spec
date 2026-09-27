@@ -1,4 +1,4 @@
-import Examples.Enterprise.PaymentRelease
+import Examples.Enterprise.Payment.PaymentRelease
 
 namespace CedarPooSpec.PaymentReleaseExport
 
