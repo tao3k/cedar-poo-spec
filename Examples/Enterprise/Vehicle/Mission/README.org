@@ -16,12 +16,20 @@ reasoning-enabled driving VLAs. Applying mission admissibility to an
 untrusted VLA command is *our architectural inference*, not an experiment
 reported by either paper.
 
+[[https://arxiv.org/abs/2606.12978][Puthumanaillam et al. (2026)]]
+demonstrate command-preserving trajectory redirection in robotic
+manipulation: a near-benign instruction can lead to a different physical
+outcome in a closed-loop VLA rollout. That is *not* an automotive result.
+It motivates the example's distinct successor evidence for two candidates
+with the same nominal command ID; the Lean theorem checks that a changed
+successor can change authorization without changing the command ID.
+
 | Published observation | This example's projection | Boundary |
 |-----------------------+---------------------------+----------|
 | A collision-free next step can still skip a required checkpoint. | =Platform= and =Mission= are independent POO owners; only their C4 composition rejects both classes. | The modeled successor list is illustrative, not the paper's predictor. |
 | Restricted-region or budget failure can occur later in a finite horizon. | Lean folds every predicted successor into separate platform and mission summaries; Cedar authorizes the command from those summaries. | The host must calculate and authenticate the real predictions and mission state. |
 | A rejected nominal command requires a safe fallback. | The =fallback-handoff= authorization remains available when =proceed= is denied. | This rule does not construct, select, or certify a physical fallback controller. |
-| A stale horizon can make a once-valid result irrelevant. | A local =Current= overlay adds a freshness requirement to the evidence veto. | Freshness and proposal binding must come from an independent host mechanism. |
+| A stale horizon can make a once-valid result irrelevant. | =Current= overlays the nominal permit with a Cedar check of raw observation and decision ticks; =Evidence= checks raw proposal, mission, and vehicle-state IDs. | The host must authenticate the witness and clock. |
 
 [[file:SuccessorBoundary.lean][SuccessorBoundary.lean]] represents a
 finite horizon as a nonempty list of predicted successors. An empty list
@@ -31,9 +39,25 @@ avoidance, and adequate budget. They are not a complete implementation of
 the paper's dynamic model or of its time-to-collision thresholds. The host
 must bind one authenticated prediction horizon to the exact candidate
 command, vehicle state, mission specification, and decision instant.
-The =witnessBound= and =horizonCurrent= flags are supplied by that host;
-the example neither derives nor verifies them. Cedar is a policy gate at
-this interface, not a real-time vehicle safety monitor.
+The Lean adapter sends raw proposal, mission, and vehicle-state IDs plus
+observation and decision ticks into the Cedar request. Cedar itself checks
+equality of the IDs and accepts a nonnegative observation at most two
+illustrative ticks old. It calculates the age by subtraction after
+checking order. The final =Current= nominal =permit= requires platform
+safety, mission feasibility, binding, and freshness. If a required
+attribute is absent, this permit cannot grant the command even when
+the separate evidence =forbid= encounters an evaluation error.
+Separate requests show that a witness for another command, a changed
+mission version or vehicle state, a replayed stale witness, a negative
+observation, and a future-dated witness all fail in =Current=. A near
+=Int64= limit request confirms that the bounded subtraction remains
+evaluable there. Two deliberately incomplete Cedar requests omit the
+mission summary or witness proposal ID and are denied by both Lean and
+Rust Cedar. The host must authenticate these inputs; matching
+integers alone do not establish authenticity. Rust Cedar replay checks
+the raw-field policy decision, while prediction correctness and clock
+authenticity remain outside this example. This is a policy gate at the
+command interface, not a real-time vehicle safety monitor.
 
 * Decision matrix
 
@@ -56,7 +80,9 @@ checkpoint is allowed despite local safety. =Mission= leaves the
 collision gap. =Integrated= combines their decisions and the evidence
 owner; =Current= closes the stale-horizon gap discovered while modeling
 the host interface. Additional named requests cover road exit, an empty
-horizon, and fallback handoff. The witness and freshness cases are
+horizon, wrong proposal ID, changed mission version or vehicle state,
+future-dated or negative observation, near-limit arithmetic, and fallback
+handoff. The witness and freshness cases are
 proposed boundary checks, not results measured by the source paper.
 
 * Composition and maintenance matrix
@@ -68,17 +94,18 @@ proposed boundary checks, not results measured by the source paper.
 | =Mission= | Extend mission infeasibility veto | 3 | 1 vs =Base= |
 | =Evidence= | Extend unbound-witness veto | 3 | 1 vs =Base= |
 | =Integrated= | C4-compose three independent owners | 4 | 2 vs =Platform= |
-| =Current= | Overlay evidence veto with horizon freshness | 4 | 1 vs =Integrated= |
+| =Current= | Overlay nominal permit with binding and horizon freshness | 4 | 1 vs =Integrated= |
 
 Six standalone Cedar revisions contain 18 materialized policy
 occurrences. Lean declares six distinct policy bodies in six POO edits.
 These are source-maintenance counts, not a runtime speedup measurement.
-Lean proves that the =Current= revision changes exactly the evidence
+Lean proves that the =Current= revision changes exactly the nominal
 policy ID and needs one fresh per-policy certificate; the other
 certificates are reused to reclose the authorization certificate.
 Cedar's upstream soundness theorem applies to the resulting snapshot.
-The [[file:SuccessorBoundaryExport.lean][exporter]] materializes 18
-focused requests and all 42 matrix cells for Rust Cedar conformance.
+The [[file:SuccessorBoundaryExport.lean][exporter]] materializes 24
+focused requests, all 42 matrix cells, and two missing-field requests
+for Rust Cedar conformance: 68 decisions in total.
 
 #+begin_src sh
 just check-mission-successor

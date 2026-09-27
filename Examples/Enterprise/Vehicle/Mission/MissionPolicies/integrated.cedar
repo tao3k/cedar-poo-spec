@@ -32,5 +32,5 @@ forbid(
   action == Action::"proceed",
   resource
 ) when {
-  !(context.witnessBound)
+  !(((context.proposalId) == (context.witnessProposalId)) && (((context.missionVersion) == (context.witnessMissionVersion)) && ((context.vehicleStateId) == (context.witnessVehicleStateId))))
 };

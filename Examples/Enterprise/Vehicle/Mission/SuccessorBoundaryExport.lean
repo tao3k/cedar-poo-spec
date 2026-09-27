@@ -12,6 +12,12 @@ def manifest : Except String Lean.Json := do
     let receipt ← CedarPooSpec.PolicyJson.authorizationCase
       name root.toLower model root (request action candidate) entities
     rows := rows ++ [receipt]
+  for (name, req) in [
+      ("current-missing-mission-summary", missingMissionSummary),
+      ("current-missing-witness-id", missingWitnessId)] do
+    let receipt ← CedarPooSpec.PolicyJson.authorizationCase
+      name "current" model "Current" req entities
+    rows := rows ++ [receipt]
   return Lean.Json.mkObj [("cases", Lean.toJson rows)]
 
 end CedarPooSpec.SuccessorBoundaryExport
