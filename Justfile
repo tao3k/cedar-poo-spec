@@ -19,9 +19,10 @@ check-docs:
 check: build-examples check-docs
     just check-policy-reuse
     just check-cedar-language
+    just check-mission-comparison
 
 [parallel]
-check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-supplier-transition check-vla-command check-mission-successor check-reuse-scale
+check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-supplier-transition check-vla-command check-mission-successor check-mission-replay check-mission-maintenance check-reuse-scale
 
 check-evaluation:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Evaluation.lean
@@ -92,6 +93,12 @@ check-vla-command:
 check-mission-successor:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Mission/SuccessorBoundary.lean
 
+check-mission-replay:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Mission/TrajectoryReplay.lean
+
+check-mission-maintenance:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Mission/MaintenanceComparison.lean
+
 check-extension-coverage:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/ExtensionCoverage.lean
 
@@ -161,6 +168,11 @@ prepare-vla-command-manifest: build-examples
 
 prepare-mission-successor-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean mission-successor > .lake/build/mission-successor-manifest.json
+
+check-mission-comparison: prepare-mission-successor-manifest
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Vehicle/Mission/MaintenanceComparison.lean > .lake/build/mission-maintenance-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-direct Examples/Enterprise/Vehicle/Mission/DirectPolicies < .lake/build/mission-successor-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-direct Examples/Enterprise/Vehicle/Mission/DirectChangePolicies < .lake/build/mission-maintenance-manifest.json
 
 prepare-extension-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean extension-coverage > .lake/build/extension-coverage-manifest.json

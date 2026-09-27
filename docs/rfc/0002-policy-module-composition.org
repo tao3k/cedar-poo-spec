@@ -8,11 +8,14 @@ an ordinary Cedar =Policies= value. A module has a name, ordered parents,
 an optional C4 =suffix= constraint, and explicit edits. The edits are
 =extend=, =overlay=, and =remove=.
 
-Compilation linearizes the requested root with Lean-POO C4, applies the
-base modules first, and applies descendant edits last. =extend= introduces
-a new policy ID. =overlay= replaces an inherited policy with the same ID.
-=remove= retires an inherited policy ID. An ID may be reintroduced later by
-an explicit =extend=. The compiler preserves a deterministic policy order.
+Compilation creates a Lean-POO Object schema from the C4 graph and maps each
+policy ID to a typed slot. =extend= and =overlay= write a policy body; =remove=
+writes a tombstone. The upstream =Object.Plan.index= resolver selects the
+surviving body in C4 order. Cedar's edit fold separately checks intent and
+records policy order and provenance; it does not select policy bodies.
+=extend= introduces a new policy ID. =overlay= replaces an inherited policy
+with the same ID. =remove= retires an inherited policy ID. An ID may be
+reintroduced later by an explicit =extend=.
 
 Compilation returns a typed error for an inconsistent C4 graph, a duplicate
 ID on extend, an absent ID on overlay or remove, or competing sibling edits

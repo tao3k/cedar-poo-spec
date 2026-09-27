@@ -114,12 +114,13 @@ with Cedar's level validation and transports the upstream response
 equality theorem for request-relative entity slices.
 
 #+begin_src sh
-just update
-just check
+just sync
 #+end_src
 
-
-The Lake manifest pins =cedar-spec= and Lean-POO. This slice does not yet
+The Lake manifest pins =cedar-spec= and Lean-POO. After deliberately changing
+a pinned revision in =lakefile.toml=, =just sync= refreshes the lockfile and
+runs the complete checks. It does not select an upstream revision on its own.
+This slice does not yet
 provide domain extensions or measure reuse on a large proof corpus.
 
 * Credits and license

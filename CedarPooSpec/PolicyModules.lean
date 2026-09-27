@@ -1,5 +1,5 @@
 import Cedar.Spec.Policy
-import LeanPoo.C4.Linearize
+import LeanPoo.Object.Indexed
 
 /-!
 C4 composes policy-producing modules. Edit intent is explicit; the result is
@@ -38,12 +38,31 @@ structure Model where
 def Model.graph (model : Model) : LeanPoo.C4.Graph :=
   { nodes := model.modules.map Module.node }
 
+/-- Policy IDs are typed object slots. Each direct edit writes the slot body;
+    removal writes an explicit tombstone. Edit validation stays Cedar-specific. -/
+private def Module.declaration (module : Module) :
+    LeanPoo.Object.Declaration PolicyID (fun _ => Option Policy) :=
+  module.edits.foldl (fun declaration edit =>
+    match edit with
+    | .extend policy | .overlay policy =>
+        declaration.withValue policy.id (some policy)
+    | .remove id => declaration.withValue id none)
+    LeanPoo.Object.Declaration.empty
+
+private def Model.schema (model : Model) :
+    LeanPoo.Object.Schema PolicyID (fun _ => Option Policy) :=
+  { graph := model.graph
+    declaration := fun name =>
+      (model.modules.find? (fun module => module.name == name)).map
+        Module.declaration }
+
 inductive Error where
   | c4 (error : LeanPoo.C4.Error)
   | missingModule (name : String)
   | policyAlreadyExists (id : PolicyID)
   | missingPolicy (id : PolicyID)
   | competingEdits (id previousOwner currentOwner : String)
+  | inconsistentResolution (id : PolicyID)
   | duplicateInputIds (side : String)
   | unrepresentableOrder
   deriving Repr, BEq
@@ -62,41 +81,58 @@ structure Compilation where
   policies : List CompiledPolicy
   applied : List AppliedEdit
 
+private structure PolicyOrigin where
+  id : PolicyID
+  introducedBy : String
+  lastEditedBy : String
+
 private def applyEdit (owner : String) (ancestors : List String)
-    (current : List CompiledPolicy) : Edit → Except Error (List CompiledPolicy)
+    (current : List PolicyOrigin) : Edit → Except Error (List PolicyOrigin)
   | .extend policy =>
-      if current.any (fun entry => entry.policy.id == policy.id) then
+      if current.any (fun entry => entry.id == policy.id) then
         .error (.policyAlreadyExists policy.id)
-      else .ok (current ++ [{ policy, introducedBy := owner, lastEditedBy := owner }])
+      else
+        let entry : PolicyOrigin :=
+          { id := policy.id, introducedBy := owner, lastEditedBy := owner }
+        .ok (current ++ [entry])
   | .overlay policy => do
-      let some previous := current.find? (fun entry => entry.policy.id == policy.id)
+      let some previous := current.find? (fun entry => entry.id == policy.id)
         | throw (.missingPolicy policy.id)
       if !ancestors.contains previous.lastEditedBy then
         throw (.competingEdits policy.id previous.lastEditedBy owner)
       return current.map fun entry =>
-        if entry.policy.id == policy.id then
-          { entry with policy := policy, lastEditedBy := owner }
+        if entry.id == policy.id then
+          { entry with lastEditedBy := owner }
         else entry
   | .remove id => do
-      let some previous := current.find? (fun entry => entry.policy.id == id)
+      let some previous := current.find? (fun entry => entry.id == id)
         | throw (.missingPolicy id)
       if !ancestors.contains previous.lastEditedBy then
         throw (.competingEdits id previous.lastEditedBy owner)
-      return current.filter (fun entry => entry.policy.id != id)
+      return current.filter (fun entry => entry.id != id)
 
-/-- Apply inherited modules base first, retaining surviving policies and edits. -/
+/-- C4 and indexed object slots choose policy bodies. The Cedar-specific fold
+    checks edit intent, keeps policy order, and records provenance only. -/
 def Model.compileWithTrace (model : Model) (root : String) :
     Except Error Compilation := do
-  let order ← (LeanPoo.C4.linearize model.graph root).mapError .c4
-  let reversed ← order.reverse.foldlM (fun current name => do
+  let plan ← (LeanPoo.Object.compile model.schema root).mapError .c4
+  let indexed := plan.index
+  let reversed ← plan.precedence.reverse.foldlM (fun current name => do
     let some module := model.modules.find? (fun item => item.name == name)
       | throw (.missingModule name)
     let ancestors ← (LeanPoo.C4.linearize model.graph name).mapError .c4
     module.edits.foldlM (fun state edit => do
-      let policies ← applyEdit name ancestors state.policies edit
-      return { policies, applied := { moduleName := name, edit } :: state.applied })
-      current) ({ policies := [], applied := [] } : Compilation)
-  return { reversed with applied := reversed.applied.reverse }
+      let origins ← applyEdit name ancestors state.1 edit
+      return (origins, { moduleName := name, edit } :: state.2))
+      current) (([], []) : List PolicyOrigin × List AppliedEdit)
+  let policies ← reversed.1.mapM fun origin => do
+    let some (some policy) := indexed.resolve origin.id (fun _ => none)
+      | throw (.inconsistentResolution origin.id)
+    let compiled : CompiledPolicy :=
+      { policy := policy, introducedBy := origin.introducedBy,
+        lastEditedBy := origin.lastEditedBy }
+    return compiled
+  return { policies, applied := reversed.2.reverse }
 
 def Model.compileWithProvenance (model : Model) (root : String) :
     Except Error (List CompiledPolicy) :=
