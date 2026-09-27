@@ -111,7 +111,7 @@ checks that a new cache is issued only after success.
 =invalidSameIdRejected= changes a policy body without changing its ID and
 checks that the indexed cache still calls Cedar and rejects the invalid body.
 
-[[file:../Benchmarks/PolicyReuse.lean][PolicyReuse.lean]] measures a generated 1,000-policy set for a single
+[[file:../../Benchmarks/PolicyReuse.lean][PolicyReuse.lean]] measures a generated 1,000-policy set for a single
 changed body and a runtime-chosen reorder. It warms both paths and prints
 three full and incremental durations in nanoseconds for each scenario. This
 is a local timing probe, not a performance guarantee for other policy shapes,

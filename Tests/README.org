@@ -1,0 +1,19 @@
+#+TITLE: Tests
+#+OPTIONS: toc:nil
+
+* Boundary
+
+Tests assert exact results, rejection paths, and regression contracts for the
+public adapter and the executable scenarios. They import examples when a
+realistic model is needed; examples never import tests. Test-only malformed
+inputs and scale probes live here, not under =Examples=.
+
+[[file:Enterprise/Agent/Payment/CompiledPlan.lean][CompiledPlan.lean]] checks the inherited permit, three independent
+sibling vetoes, and the difference between an absent policy slot and an
+explicit removal tombstone. [[file:Language/SchemaProjection.lean][SchemaProjection.lean]] checks invalid schema
+admission. [[file:ReuseScale.lean][ReuseScale.lean]] checks proof dependency
+impact at scale.
+
+#+begin_src sh
+just check-tests
+#+end_src

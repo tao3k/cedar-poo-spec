@@ -1,6 +1,6 @@
 import Cedar.Spec.Policy
 import LeanPoo.Object.Builder
-import LeanPoo.Object.Indexed
+import LeanPoo.Object.Memo
 
 /-!
 C4 composes policy-producing modules. Edit intent is explicit; the result is
@@ -58,6 +58,14 @@ private def Model.schema (model : Model) :
       (model.modules.find? (fun module => module.name == name)).map
         Module.declaration }
 
+/-- Inspect the C4-composed policy slots before Cedar edit validation.
+    Publication must still go through `compile` or `compileWithTrace`. -/
+def Model.compilePlan (model : Model) (root : String) :
+    Except LeanPoo.C4.Error
+      (LeanPoo.Object.CompiledPlan PolicyID (fun _ => Option Policy)) := do
+  let plan ← LeanPoo.Object.compile model.schema root
+  return plan.compileMemo
+
 inductive Error where
   | c4 (error : LeanPoo.C4.Error)
   | missingModule (name : String)
@@ -113,13 +121,12 @@ private def applyEdit (owner : String) (ancestors : List String)
         throw (.competingEdits id previous.lastEditedBy owner)
       return current.filter (fun entry => entry.id != id)
 
-/-- C4 and indexed object slots choose policy bodies. The Cedar-specific fold
+/-- C4 and compiled object slots choose policy bodies. The Cedar-specific fold
     checks edit intent, keeps policy order, and records provenance only. -/
 def Model.compileWithTrace (model : Model) (root : String) :
     Except Error Compilation := do
-  let plan ← (LeanPoo.Object.compile model.schema root).mapError .c4
-  let indexed := plan.index
-  let reversed ← plan.precedence.reverse.foldlM (fun current name => do
+  let compiled ← (model.compilePlan root).mapError .c4
+  let reversed ← compiled.plan.precedence.reverse.foldlM (fun current name => do
     let some module := model.modules.find? (fun item => item.name == name)
       | throw (.missingModule name)
     let ancestors ← (LeanPoo.C4.linearize model.graph name).mapError .c4
@@ -128,7 +135,7 @@ def Model.compileWithTrace (model : Model) (root : String) :
       return (origins, { moduleName := name, edit } :: state.2))
       current) (([], []) : List PolicyOrigin × List AppliedEdit)
   let policies ← reversed.1.mapM fun origin => do
-    let some (some policy) := indexed.resolve origin.id (fun _ => none)
+    let some (some policy) := compiled.resolve origin.id (fun _ => none)
       | throw (.inconsistentResolution origin.id)
     let compiled : CompiledPolicy :=
       { policy := policy, introducedBy := origin.introducedBy,

@@ -1,7 +1,7 @@
 import CedarPooSpec.Evaluation
 import LeanPoo.Object.Debug
 
-namespace CedarPooSpec.ReuseScaleExample
+namespace CedarPooSpec.ReuseScaleTest
 
 open LeanPoo.Proof
 open LeanPoo.Proof.Debug
@@ -44,4 +44,4 @@ def impactCounts (count changed : Nat) : Nat × Nat := Id.run do
 #guard impactCounts 10000 10001 == (10000, 0)
 #eval impactCounts 10000 7
 
-end CedarPooSpec.ReuseScaleExample
+end CedarPooSpec.ReuseScaleTest

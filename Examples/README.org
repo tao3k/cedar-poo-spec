@@ -8,6 +8,12 @@ Lean-POO composition and, where applicable, compare exported policies with
 the official Cedar Rust authorizer. Each case README states its sources,
 modeling assumptions, Lean claims, and runtime boundary.
 
+Examples define readable policy models, revision flows, and exportable Cedar
+scenarios. Exact regressions, invalid inputs, and scale checks belong in
+[[file:../Tests/README.org][Tests]]; timing probes belong in
+[[file:../Benchmarks/README.org][Benchmarks]]. The example modules do not
+depend on either verification directory.
+
 | Area | Cases |
 |------+-------|
 | [[file:Enterprise/README.org][Enterprise]] | Procurement, payment, agents, and vehicle command and mission authorization. |

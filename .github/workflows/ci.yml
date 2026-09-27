@@ -42,7 +42,7 @@ jobs:
           path: |
             .lake/packages
             .lake/build
-          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('CedarPooSpec.lean', 'CedarPooSpec/**/*.lean', 'Examples/**/*.lean') }}
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('CedarPooSpec.lean', 'CedarPooSpec/**/*.lean', 'Examples/**/*.lean', 'Tests/**/*.lean', 'Benchmarks/**/*.lean') }}
           restore-keys: |
             lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
       - run: just check-lean
@@ -84,7 +84,7 @@ jobs:
           path: |
             .lake/packages
             .lake/build
-          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('CedarPooSpec.lean', 'CedarPooSpec/**/*.lean', 'Examples/**/*.lean') }}
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('CedarPooSpec.lean', 'CedarPooSpec/**/*.lean', 'Examples/**/*.lean', 'Tests/**/*.lean', 'Benchmarks/**/*.lean') }}
           restore-keys: |
             lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
       - name: Restore Cargo cache

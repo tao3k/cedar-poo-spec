@@ -96,6 +96,17 @@ def paymentModel : Model := { modules := model.modules ++ [
   { name := "PaymentRestored", parentOrders := [["PaymentFrozen"]],
     edits := [.remove frozenAccountVeto.id] }] }
 
+/-- Inspect the compiled C4 slot at a revision boundary. `some none` is the
+    explicit removal tombstone; Cedar publication still validates edit intent. -/
+def policySlot (root : String) (id : PolicyID) : Option (Option Policy) :=
+  (paymentModel.compilePlan root).toOption.bind fun plan =>
+    plan.resolve id (fun _ => none)
+
+/-- The same policy ID is absent, added by freeze, then explicitly removed. -/
+def freezeSlotEvolution : List (Option (Option Policy)) :=
+  ["PaymentGoverned", "PaymentFrozen", "PaymentRestored"].map fun root =>
+    policySlot root frozenAccountVeto.id
+
 def paymentRequest (account origin : EntityUID) (requested : String) : Request :=
   ⟨financeBot, transfer, account, Map.make [
     ("amount", .ext (.decimal (decimal requested))),

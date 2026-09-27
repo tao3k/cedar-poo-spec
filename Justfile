@@ -17,9 +17,9 @@ build-examples: build
     lake build Examples
 
 check-docs:
-    emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
+    emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$") (directory-files-recursively "Tests" "\\.org$") (directory-files-recursively "Benchmarks" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
 
-check: build-examples check-docs
+check: check-tests check-docs
     just check-policy-reuse
     just check-cedar-language
     just check-mission-comparison
@@ -31,7 +31,10 @@ check: build-examples check-docs
     just check-authorization-delta-proof
     just check-payment-delta
 
-check-lean: build-examples check-authorization-delta-proof check-policy-reuse
+check-lean: check-tests check-authorization-delta-proof check-policy-reuse
+
+check-tests: build-examples
+    lake build Tests
 
 check-delta: check-authorization-delta check-payment-delta
 
@@ -92,7 +95,7 @@ check-payment-delta: build-examples
     jq '.manifest' .lake/build/payment-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 [parallel]
-check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-supplier-transition check-vla-command check-mission-successor check-mission-replay check-mission-maintenance check-vehicle-tara check-reuse-scale
+check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-supplier-transition check-vla-command check-mission-successor check-mission-replay check-mission-maintenance check-vehicle-tara
 
 check-evaluation:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Evaluation.lean
@@ -182,7 +185,6 @@ check-ticket-sharing:
 check-language:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/ScopeAndPattern.lean
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/NamespacedEnum.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/SchemaProjection.lean
 
 prepare-cedar-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean ticket-sharing > .lake/build/ticket-sharing-manifest.json
@@ -345,16 +347,13 @@ check-cedar-artifacts: prepare-all-manifests
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render < .lake/build/expanded-policy.json > .lake/build/expanded.cedar
     cmp .lake/build/expanded.cedar Examples/Governance/Policies/expanded.cedar
 
-check-reuse-scale:
-    timeout --signal=TERM --kill-after=3s 30s lake env lean -M 2048 -T 10000000 Examples/ReuseScale.lean
-
 check-policy-reuse: build
     mkdir -p .lake/build/lib/lean/Examples/Governance
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Governance/AttestedDataAccess.olean Examples/Governance/AttestedDataAccess.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Benchmarks/PolicyReuse.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Benchmarks/PolicyReuse.lean
 
 bench-policy-reuse: check-policy-reuse
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Benchmarks/PolicyReuse.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Benchmarks/PolicyReuse.lean
 
 bench-rust-export: prepare-cedar-manifest prepare-mission-successor-manifest
     cargo build --release --locked --features cedar-runtime --manifest-path rust/Cargo.toml --example export_latency

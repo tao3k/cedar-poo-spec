@@ -1,7 +1,7 @@
 import CedarPooSpec.SchemaJson
 import Examples.Language.ScopeAndPattern
 
-namespace CedarPooSpec.SchemaProjectionExample
+namespace CedarPooSpec.SchemaProjectionTest
 
 open Cedar.Spec Cedar.Data CedarPooSpec.ScopeAndPatternExample
 
@@ -73,4 +73,4 @@ def rejectsTypeCollisionPublication : Bool :=
 theorem rejectsTypeCollisionPublicationFully :
     rejectsTypeCollisionPublication = true := by native_decide
 
-end CedarPooSpec.SchemaProjectionExample
+end CedarPooSpec.SchemaProjectionTest

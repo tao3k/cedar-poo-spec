@@ -45,7 +45,9 @@ The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.
 The [[file:Examples/README.org][examples index]] links each case and its
-source and modeling notes. The [[file:Examples/Health/README.org][health example]] connects a clinical
+source and modeling notes. [[file:Tests/README.org][Tests]] hold exact regressions
+and rejection paths; [[file:Benchmarks/README.org][Benchmarks]] hold timing
+probes. The [[file:Examples/Health/README.org][health example]] connects a clinical
 emergency-access diamond to published EHR studies and HL7 guidance. It also
 composes consent, monitor quarantine, AI model eligibility, and clinician review
 for a remote-monitoring alert workflow.
@@ -91,7 +93,7 @@ library's semantics.
 * Verification
 
 =just check= runs the complete local gate. Its smaller entrypoints are
-=check-docs=, =check-lean=, =check-rust=, =check-cedar-artifacts=,
+=check-docs=, =check-lean=, =check-tests=, =check-rust=, =check-cedar-artifacts=,
 =check-mission-comparison=, and =check-delta=. CI gives documentation, Lean,
 Rust, Cedar conformance, and authorization delta separate jobs. The latter
 two start after the Lean and Rust jobs and restore their Lake and Cargo build

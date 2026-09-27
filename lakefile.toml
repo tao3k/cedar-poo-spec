@@ -19,3 +19,8 @@ name = "CedarPooSpec"
 name = "Examples"
 roots = ["Examples"]
 globs = ["Examples.+"]
+
+[[lean_lib]]
+name = "Tests"
+roots = ["Tests"]
+globs = ["Tests.+"]

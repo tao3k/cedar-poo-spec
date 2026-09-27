@@ -22,7 +22,7 @@ attributes, their group and folder ancestry, and action applicability. The
 schema projection carries =Document.meta.tag= as a nested required record.
 =just check-schema-bound-scenarios= also passes all five requests through
 official Cedar strict policy validation and schema-parsed entity and request
-replay. [[file:SchemaProjection.lean][SchemaProjection.lean]] checks that the
+replay. [[file:../../Tests/Language/SchemaProjection.lean][SchemaProjection.lean]] checks that the
 shared schema admission API rejects a dangling entity ancestor for both
 public projection and publication, even when no action exists.
 

@@ -33,6 +33,14 @@ ceiling is allowed and =100.0001= is denied. Freezing the approved account
 leaves a second approved reserve account available; removing the freeze
 restores exactly the earlier compiled policy set.
 
+The example's =policySlot= and =freezeSlotEvolution= inspect Lean-POO's
+public compiled C4 plan before publication. They show the inherited permit,
+all three sibling vetoes, the new freeze veto, and the =some none= tombstone
+that masks that veto at =PaymentRestored=. The
+[[file:../../../../Tests/Enterprise/Agent/Payment/CompiledPlan.lean][separate regression file]] checks those exact slot values. The normal
+=Model.compile= path still validates edit intent and sends the resulting
+policy list to Cedar; raw slot inspection does not authorize a request.
+
 =accountBranchLocal=, =amountBranchLocal=, and =originBranchLocal= identify
 one new policy ID per owner. =governedPolicyIdsFully= checks that C4 emits
 one inherited permit and three independent vetoes. =freezeEditLocal= and

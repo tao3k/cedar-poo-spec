@@ -1,0 +1,13 @@
+#+TITLE: Benchmarks
+#+OPTIONS: toc:nil
+
+* Scope
+
+Benchmarks measure cost without defining the public scenario or a correctness
+contract. [[file:PolicyReuse.lean][PolicyReuse.lean]] compares full and incremental Cedar
+validation for a generated policy set; its static proof claims are checked by
+=just check-policy-reuse=.
+
+#+begin_src sh
+just bench-policy-reuse
+#+end_src
