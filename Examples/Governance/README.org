@@ -163,6 +163,11 @@ separately materialized policies. Both exports come from the same validated
 fails the boundary check. This lets a downstream application retain the
 template source while using the POO-composed materialized artifact for
 authorization and proof reuse.
+The [[file:TemplateSources/posture-mixed.json][mixed source]] keeps the viewer
+grant static while contributor grants remain template-linked. Its Rust
+comparison reaches the same validated policy set. The Lean exporter rejects
+a static policy ID that collides with a link ID, and the Rust gate catches
+static-body drift.
 
 [[file:TicketSharingExport.lean][TicketSharingExport.lean]] derives nine
 authorization receipts from this Lean model. The

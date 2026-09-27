@@ -193,10 +193,12 @@ prepare-all-manifests: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Procurement/PublishedPolicy.lean > .lake/build/delegated-published.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Payment/PublishedPayment.lean > .lake/build/payment-published.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/TemplateSourceExport.lean > .lake/build/template-source-bundle.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/TemplateSourceExport.lean mixed > .lake/build/mixed-template-source-bundle.json
 
 export-cedar-language: prepare-all-manifests
     mkdir -p Examples/Governance/TemplateSources
     jq -S .source .lake/build/template-source-bundle.json > Examples/Governance/TemplateSources/posture.json
+    jq -S .source .lake/build/mixed-template-source-bundle.json > Examples/Governance/TemplateSources/posture-mixed.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/Policies < .lake/build/ticket-sharing-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/AttestedPolicies < .lake/build/attested-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Health/Policies < .lake/build/clinical-manifest.json
@@ -229,8 +231,11 @@ check-cedar-language: prepare-all-manifests
     cargo test --locked --manifest-path rust/Cargo.toml --no-default-features
     cargo test --locked --manifest-path rust/Cargo.toml --features cedar-runtime
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-template-source < .lake/build/template-source-bundle.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-template-source < .lake/build/mixed-template-source-bundle.json
     jq -S .source .lake/build/template-source-bundle.json > .lake/build/template-source.sorted.json
     cmp .lake/build/template-source.sorted.json Examples/Governance/TemplateSources/posture.json
+    jq -S .source .lake/build/mixed-template-source-bundle.json > .lake/build/mixed-template-source.sorted.json
+    cmp .lake/build/mixed-template-source.sorted.json Examples/Governance/TemplateSources/posture-mixed.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/Policies < .lake/build/ticket-sharing-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/AttestedPolicies < .lake/build/attested-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Health/Policies < .lake/build/clinical-manifest.json

@@ -9,7 +9,7 @@ use std::str::FromStr;
 #[serde(transparent)]
 pub struct CompiledPolicyJson(Value);
 
-/// Editable Cedar templates and links in the public JSON policy-set format.
+/// Cedar source with static policies, editable templates, and links.
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
 pub struct TemplateSourceJson(Value);
@@ -43,7 +43,7 @@ impl FromStr for TemplateSourceJson {
 }
 
 impl TemplateSourceJson {
-    /// Serialize editable Cedar source for storage or a Cedar parser.
+    /// Serialize Cedar source for storage or a Cedar parser.
     pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(&self.0)
     }

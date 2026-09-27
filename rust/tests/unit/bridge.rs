@@ -195,8 +195,7 @@ fn direct_cedar_check_detects_policy_drift() {
     std::fs::remove_dir_all(directory).expect("remove temporary directory");
 }
 
-#[test]
-fn template_source_requires_exact_linked_policy_bodies() {
+fn template_source_fixture() -> (serde_json::Value, super::CompiledPolicyJson) {
     let source = json!({
         "staticPolicies": {},
         "templates": {
@@ -218,6 +217,12 @@ fn template_source_requires_exact_linked_policy_bodies() {
     materialized["staticPolicies"]["base"]["principal"] =
         json!({ "op": "==", "entity": { "type": "User", "id": "alice" } });
     let materialized = serde_json::from_value(materialized).expect("policy set JSON");
+    (source, materialized)
+}
+
+#[test]
+fn template_source_requires_exact_linked_policy_bodies() {
+    let (source, materialized) = template_source_fixture();
     let typed_source = serde_json::from_value(source.clone()).expect("template source JSON");
     check_template_source(&typed_source, &materialized).expect("matching linked policy");
 
@@ -234,6 +239,41 @@ fn template_source_requires_exact_linked_policy_bodies() {
     let typed_changed = serde_json::from_value(changed).expect("incomplete template source JSON");
     assert!(
         check_template_source(&typed_changed, &materialized)
+            .unwrap_err()
+            .contains("template source parse")
+    );
+}
+
+#[test]
+fn mixed_template_source_checks_static_bodies_and_id_collisions() {
+    let (mut source, materialized) = template_source_fixture();
+    let static_body = json!({
+        "effect": "forbid",
+        "principal": { "op": "All" },
+        "action": { "op": "All" },
+        "resource": { "op": "All" },
+        "conditions": []
+    });
+    source["staticPolicies"]["static-veto"] = static_body.clone();
+    let mut expected = materialized.as_value().clone();
+    expected["staticPolicies"]["static-veto"] = static_body;
+    let expected = serde_json::from_value(expected).expect("mixed materialized JSON");
+    let typed_source = serde_json::from_value(source.clone()).expect("mixed source JSON");
+    check_template_source(&typed_source, &expected).expect("mixed source matches");
+
+    let mut changed = source.clone();
+    changed["staticPolicies"]["static-veto"]["effect"] = json!("permit");
+    let changed = serde_json::from_value(changed).expect("changed mixed source JSON");
+    assert!(
+        check_template_source(&changed, &expected)
+            .unwrap_err()
+            .contains("differ from Lean materialization")
+    );
+
+    source["staticPolicies"]["base"] = source["staticPolicies"]["static-veto"].clone();
+    let collision = serde_json::from_value(source).expect("collision source JSON");
+    assert!(
+        check_template_source(&collision, &expected)
             .unwrap_err()
             .contains("template source parse")
     );

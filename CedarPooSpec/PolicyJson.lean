@@ -179,13 +179,18 @@ def policy (value : Policy) : Except Error Lean.Json := do
     ("resource", ← scope value.resourceScope.scope),
     ("conditions", Lean.toJson (← value.condition.mapM (condition value.id)))]
 
-/-- A materialized policy set with no templates or links. -/
-def policySet (policies : Policies) : Except Error Lean.Json := do
+private def staticEntries (policies : Policies) :
+    Except Error (List (String × Lean.Json)) := do
   let mut entries : List (String × Lean.Json) := []
   for value in policies do
     if entries.any (fun entry => entry.1 == value.id) then
       throw (.duplicatePolicyId value.id)
     entries := entries ++ [(value.id, ← policy value)]
+  return entries
+
+/-- A materialized policy set with no templates or links. -/
+def policySet (policies : Policies) : Except Error Lean.Json := do
+  let entries ← staticEntries policies
   return obj [
     ("staticPolicies", obj entries),
     ("templates", obj []),
@@ -218,15 +223,20 @@ def template (id : TemplateID) (value : Template) : Except Error Lean.Json := do
     ("resource", templateScope resource),
     ("conditions", Lean.toJson (← value.condition.mapM (condition id)))]
 
-/-- Export editable Cedar templates and their links using the public JSON
-    policy-set format. The materialized result remains available via policySet. -/
-def templateSet (templates : Templates) (links : TemplateLinkedPolicies) :
+/-- Export static policies, editable templates, and links in one Cedar JSON
+    policy set. The caller separately certifies the intended linked result. -/
+def sourceSet (staticPolicies : Policies) (templates : Templates)
+    (links : TemplateLinkedPolicies) :
     Except Error Lean.Json := do
+  let static ← staticEntries staticPolicies
   let templateEntries := Cedar.Data.Map.toList templates
   if !(decide (templateEntries.map Prod.fst).Nodup) then
     throw .duplicateTemplateId
   if !(decide (links.map TemplateLinkedPolicy.id).Nodup) then
     throw .duplicateTemplateLinkId
+  for link in links do
+    if static.any (fun entry => entry.1 == link.id) then
+      throw (.duplicatePolicyId link.id)
   let _ ← (Cedar.Spec.link? templates links).mapError .invalidTemplateLink
   let exportedTemplates ← templateEntries.mapM fun (id, value) => do
     return (id, ← template id value)
@@ -237,9 +247,14 @@ def templateSet (templates : Templates) (links : TemplateLinkedPolicies) :
     return obj [("newId", Lean.toJson link.id),
       ("templateId", Lean.toJson link.templateId),
       ("values", obj (slots.map fun (id, uid) => (id, entity uid)))]
-  return obj [("staticPolicies", obj []),
+  return obj [("staticPolicies", obj static),
     ("templates", obj exportedTemplates),
     ("templateLinks", Lean.toJson exportedLinks)]
+
+/-- Export an entirely template-linked source set. -/
+def templateSet (templates : Templates) (links : TemplateLinkedPolicies) :
+    Except Error Lean.Json :=
+  sourceSet [] templates links
 
 private def valueFuel : Nat → Value → Except Error Lean.Json
   | 0, _ => .error .valueDepthExceeded

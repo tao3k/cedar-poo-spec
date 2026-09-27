@@ -21,9 +21,34 @@ def bundle : Except String Lean.Json := do
     (CedarPooSpec.PolicyJson.policySet revised.validated.policies).mapError reprStr
   return Lean.Json.mkObj [("source", source), ("materialized", materialized)]
 
+/-- Keep the viewer grant static while contributor grants remain linked. -/
+def staticViewer : Cedar.Spec.Policy :=
+  (viewer.link? "bob-ticket-a" (slotEnv bob ticketA)).toOption.get (by native_decide)
+
+def contributorLinks : Cedar.Spec.TemplateLinkedPolicies :=
+  links.filter fun link => link.id != "bob-ticket-a"
+
+theorem staticLinkCollisionRejected :
+    (match CedarPooSpec.PolicyJson.sourceSet [staticViewer] templatesV2 links with
+     | .error (.duplicatePolicyId "bob-ticket-a") => true
+     | _ => false) = true := by
+  native_decide
+
+def mixedBundle : Except String Lean.Json := do
+  let source ←
+    (CedarPooSpec.PolicyJson.sourceSet [staticViewer] templatesV2 contributorLinks).mapError
+      reprStr
+  let materialized ←
+    (CedarPooSpec.PolicyJson.policySet revised.validated.policies).mapError reprStr
+  return Lean.Json.mkObj [("source", source), ("materialized", materialized)]
+
 end CedarPooSpec.TemplateSourceExport
 
-def main : IO Unit :=
-  match CedarPooSpec.TemplateSourceExport.bundle with
+def main (args : List String) : IO Unit := do
+  let result ← match args with
+    | [] => pure CedarPooSpec.TemplateSourceExport.bundle
+    | ["mixed"] => pure CedarPooSpec.TemplateSourceExport.mixedBundle
+    | _ => throw (IO.userError "usage: TemplateSourceExport [mixed]")
+  match result with
   | .ok json => IO.println json.compress
   | .error error => throw (IO.userError error)
