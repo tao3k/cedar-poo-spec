@@ -125,14 +125,17 @@ for Rust Cedar conformance: 68 decisions in total.
 
 [[https://huggingface.co/datasets/gray311/physical_attack_vla/tree/31d5a2a0fa1dd88c959df0258d098efaaa9b4e6d][Physical Visual-Prompt-Injection Attacks on Driving VLAs]]
 by =gray311= (CC BY 4.0) publishes 16 clean/injected prediction pairs
-and corresponding Waymo
-future waypoints. [[file:TrajectoryReplay.lean][TrajectoryReplay.lean]]
+and corresponding future waypoints attributed to the
+[[https://github.com/waymo-research/waymo-open-dataset][Waymo Open Dataset End-to-End Driving data]].
+[[file:TrajectoryReplay.lean][TrajectoryReplay.lean]]
 replays its record 1 (=f8c118db32cc16449b2d9cea9c344df4-149=):
 the clean model predicts about 70.7 m of longitudinal progress; the
 injected model predicts a full stop. The released Waymo future is
 recorded under the original scene, not after executing the injected
 prediction. The example rounds six longitudinal points to centimetres
-using every second recorded Waymo point. It checks a *proposed* 3 m
+and pairs them with recorded Waymo waypoint indices 1, 3, ..., 11.
+That alignment is an illustrative adapter choice; a downstream user
+must establish the actual timebase. It checks a *proposed* 3 m
 longitudinal deviation threshold; lateral deviation is not evaluated.
 It finds no deviation for the clean prediction and requests fallback
 for the injected one *when that independently recorded clean-run path
@@ -142,6 +145,25 @@ case: an attacked execution that follows the injected prediction has
 no prediction-versus-execution deviation. A runtime system therefore
 needs an independent admissible reference or safety envelope, and a
 trusted observation and enforcement path to check the actual motion.
+The example exposes these as two separate interfaces:
+
+- =preDecisionHandoff verifyReference candidate proposedPath reference=
+  checks a command before execution. The host verifies that the reference
+  came from an authority independent of the untrusted VLA output. Lean
+  checks its proposal, vehicle-state, and decision-tick binding.
+- =postDecisionHandoff verifyReference verifyObservation candidate
+  approvedReference observation= checks a later observation. The host
+  verifies both origins. Lean checks the same reference binding,
+  observation proposal and vehicle-state IDs, tick order, bounded age,
+  sample presence, and longitudinal deviation.
+
+The later clean and attack observations in the Lean theorem are
+*hypothetical interface examples*. The always-true demo verifiers are
+explicit assumptions, not attestation. A downstream adapter must align
+the coordinate frame, waypoint timestamps, and sampling interval before
+calling either interface, then implement the physical fallback handoff.
+A real data source can replace the reference and observed path without
+changing Cedar policy composition.
 This is an offline counterfactual comparison, not a closed-loop attack
 replay or evidence that a deployed controller can observe and stop the
 attack. We have not rerun the model or independently audited the
@@ -165,7 +187,7 @@ experiment does not establish a general authoring or speed advantage.
 
 | Evidence | Observation | Limit |
 |----------+-------------+-------|
-| Public trace record 1 | Clean/injected predicted paths differ and the independent Waymo future supports an offline reference check. | No measured attacked execution, deployable reference, or proven fallback controller. |
+| Public trace record 1 | Clean/injected predicted paths differ and the independent Waymo future supports an offline reference check. | The post-decision theorem uses hypothetical samples; no measured attacked execution, deployable reference, or proven fallback controller. |
 | Direct Cedar baseline | 68/68 decisions and error counts match the Lean export. | The snapshots began as copies of equivalent policy text. |
 | Controlled fallback edit | One =Base= owner edit versus six direct snapshot edits; 12/12 decisions match. | This compares only independently maintained snapshots, not every Cedar authoring workflow. |
 
