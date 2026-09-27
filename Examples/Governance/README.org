@@ -94,6 +94,13 @@ every Cedar authorization premise and each per-policy validation obligation.
 =schemaV2PatchedCertificate= closes the combined Lean-POO patch, and
 =schemaV2Certificate= transports that result to the exact updated snapshot.
 No old-schema policy certificate is reused for this transition.
+The [[file:AttestedSchemaEvolutionExport.lean][schema-evolution exporter]]
+replays six identical requests under both schemas through the official Rust
+Cedar validator and authorizer. =just check-attested-schema-evolution=
+requires different schema digests and identical policy, entity, request,
+decision, and diagnostic receipts. This concrete check complements the Lean
+proof-obligation reclosure; it covers the exported requests only. See
+[[file:../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
 
 ** Runtime validation probe
 

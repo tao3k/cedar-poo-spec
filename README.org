@@ -39,7 +39,8 @@ symbolic compiler and a concrete counterexample replayed by Rust Cedar.
 [[file:docs/rfc/0005-cedar-replay-receipts.org][RFC 0005]] defines content-bound
 Rust Cedar replay receipts for checked Lean manifests.
 [[file:docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]] adds an explicit
-Lean-to-Cedar schema projection and a separate schema-bound replay API.
+Lean-to-Cedar schema projection, schema-bound replay API, and a schema-only
+evolution receipt for unchanged concrete authorization inputs.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.

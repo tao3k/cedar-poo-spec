@@ -59,6 +59,31 @@ type, an invalid policy, and a stored receipt under a changed schema. They
 also show a schema-defined Action hierarchy authorizing a request that
 schema-free entity parsing denies.
 
+* Schema-only evolution
+
+=SchemaEvolutionBundle= carries two =ValidatedManifest= values. The public
+=replay_schema_only_revision= API first performs strict Cedar replay under
+each schema. It then requires different schema digests and equal ordered
+=ReplayReceipt= values. Equality covers policy, entity, and request digests,
+runtime versions, decisions, reasons, and evaluation errors. This is a
+finite-case observation, not a theorem that the schemas are equivalent for
+all requests. It intentionally rejects a policy or request edit even when
+the observed decision remains unchanged. =verify_schema_only_revision=
+recomputes the receipt before accepting a stored copy.
+
+The [[file:../../Examples/Governance/AttestedSchemaEvolutionExport.lean][attested governance exporter]]
+uses the same =GovernedV2= POO root, policies, entities, and six requests
+under =schema= and =schemaV2=. The new schema adds an optional dataset
+=classification= attribute. Lean-POO's
+=schemaChangeFootprintExact= and =schemaV2PatchedCertificate= establish that
+schema-dependent proof obligations are invalidated and reclosed. The Rust
+receipt shows that these six official Cedar observations remain equal after
+that reclosure.
+
+#+begin_src sh
+just check-attested-schema-evolution
+#+end_src
+
 * Trust boundary
 
 The schema digest binds a checked projection to the replay. It does not

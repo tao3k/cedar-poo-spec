@@ -1,7 +1,11 @@
 use super::{
-    Case, Manifest, ValidatedManifest, check_direct_sources, check_manifest, check_template_source,
-    json_sha256, load_policy_set, load_template_source, render_artifacts, replay_manifest,
-    replay_validated_manifest, verify_replay_receipts, verify_validated_replay_receipts,
+    Case, Manifest, check_direct_sources, check_manifest, check_template_source, json_sha256,
+    load_policy_set, load_template_source, render_artifacts, replay_manifest,
+    verify_replay_receipts,
+};
+use crate::schema::{
+    SchemaEvolutionBundle, ValidatedManifest, replay_schema_only_revision,
+    replay_validated_manifest, verify_schema_only_revision, verify_validated_replay_receipts,
 };
 use serde_json::json;
 
@@ -138,6 +142,48 @@ fn schema_bound_replay_uses_schema_action_hierarchy_for_authorization() {
             cases: manifest.cases.clone()
         })
         .is_err()
+    );
+}
+
+fn optional_attribute_revision() -> SchemaEvolutionBundle {
+    let before = validated(receipt());
+    let mut after = validated(receipt());
+    after.schema[""]["entityTypes"]["Document"]["shape"]["attributes"]["classification"] =
+        json!({"type": "String", "required": false});
+    SchemaEvolutionBundle { before, after }
+}
+
+#[test]
+fn schema_only_revision_preserves_observed_inputs_and_decision() {
+    let bundle = optional_attribute_revision();
+    let result = replay_schema_only_revision(&bundle).unwrap();
+    assert_ne!(result.before_schema_sha256, result.after_schema_sha256);
+    assert_eq!(result.replay.len(), 1);
+    assert_eq!(result.replay[0].decision, "allow");
+    verify_schema_only_revision(&bundle, &result).unwrap();
+    let mut changed = result.clone();
+    changed.replay[0].decision = "deny".into();
+    assert!(verify_schema_only_revision(&bundle, &changed).is_err());
+}
+
+#[test]
+fn schema_only_revision_rejects_unchanged_schema_and_input_drift() {
+    let same = SchemaEvolutionBundle {
+        before: validated(receipt()),
+        after: validated(receipt()),
+    };
+    assert!(
+        replay_schema_only_revision(&same)
+            .unwrap_err()
+            .contains("changed schema")
+    );
+
+    let mut drift = optional_attribute_revision();
+    drift.after.cases[0].request.principal = "User::\"bob\"".into();
+    assert!(
+        replay_schema_only_revision(&drift)
+            .unwrap_err()
+            .contains("artifacts")
     );
 }
 

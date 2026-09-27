@@ -3,7 +3,7 @@
 use crate::{CompiledPolicyJson, TemplateSourceJson};
 use cedar_policy::{
     AuthorizationError, Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request,
-    Schema, ValidationMode, Validator,
+    Schema,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -41,20 +41,6 @@ pub struct Manifest {
     pub cases: Vec<Case>,
 }
 
-/// A schema-bearing manifest intended for admission as a deployment candidate.
-#[derive(Debug, Deserialize)]
-pub struct ValidatedManifest {
-    pub schema: Value,
-    pub cases: Vec<Case>,
-}
-
-/// A Cedar replay bound to the exact schema used for strict validation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SchemaBoundReceipt {
-    pub schema_sha256: String,
-    pub replay: ReplayReceipt,
-}
-
 /// A reproducible record of one official Cedar replay, not a Lean proof or a signature.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReplayReceipt {
@@ -83,53 +69,7 @@ pub fn replay_manifest(manifest: &Manifest) -> Result<Vec<ReplayReceipt>, String
     check_manifest_inner(&manifest.cases, true, None)
 }
 
-/// Validate policies, entities, context, and request through Cedar's public schema APIs,
-/// then check the Lean authorization receipts and bind the result to the schema digest.
-pub fn replay_validated_manifest(
-    manifest: &ValidatedManifest,
-) -> Result<Vec<SchemaBoundReceipt>, String> {
-    let schema = Schema::from_json_value(manifest.schema.clone())
-        .map_err(|error| format!("Cedar schema: {error}"))?;
-    let validator = Validator::new(schema);
-    let mut revisions = BTreeSet::new();
-    for case in &manifest.cases {
-        if revisions.insert(&case.revision) {
-            let policies = load_policy_set(&case.policies)?;
-            let result = validator.validate(&policies, ValidationMode::Strict);
-            if !result.validation_passed() {
-                return Err(format!(
-                    "{}: Cedar strict policy validation failed: {result:?}",
-                    case.revision
-                ));
-            }
-        }
-    }
-    let schema_sha256 = json_sha256(&manifest.schema)?;
-    check_manifest_inner(&manifest.cases, true, Some(validator.schema())).map(|receipts| {
-        receipts
-            .into_iter()
-            .map(|replay| SchemaBoundReceipt {
-                schema_sha256: schema_sha256.clone(),
-                replay,
-            })
-            .collect()
-    })
-}
-
-/// Recompute schema-bound receipts against the current official Cedar runtime.
-pub fn verify_validated_replay_receipts(
-    manifest: &ValidatedManifest,
-    receipts: &[SchemaBoundReceipt],
-) -> Result<(), String> {
-    if replay_validated_manifest(manifest)? != receipts {
-        return Err(
-            "schema-bound Cedar receipts differ from the current manifest or runtime".into(),
-        );
-    }
-    Ok(())
-}
-
-fn check_manifest_inner(
+pub(crate) fn check_manifest_inner(
     cases: &[Case],
     collect_receipts: bool,
     schema: Option<&Schema>,
@@ -214,7 +154,7 @@ pub fn verify_replay_receipts(
     Ok(())
 }
 
-fn json_sha256(value: &impl Serialize) -> Result<String, String> {
+pub(crate) fn json_sha256(value: &impl Serialize) -> Result<String, String> {
     let value = serde_json::to_value(value).map_err(|error| error.to_string())?;
     let mut bytes = Vec::new();
     write_canonical_json(&value, &mut bytes)?;

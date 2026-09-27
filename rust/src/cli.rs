@@ -1,9 +1,9 @@
 //! Stream a Lean manifest through the Rust Cedar conformance checker.
 
 use crate::{
-    CompiledPolicyJson, Manifest, TemplateSourceJson, ValidatedManifest, check_direct_sources,
-    check_manifest, check_template_source, render_artifacts, render_policy_source, replay_manifest,
-    replay_validated_manifest,
+    CompiledPolicyJson, Manifest, SchemaEvolutionBundle, TemplateSourceJson, ValidatedManifest,
+    check_direct_sources, check_manifest, check_template_source, render_artifacts,
+    render_policy_source, replay_manifest, replay_schema_only_revision, replay_validated_manifest,
 };
 use serde::Deserialize;
 use std::fs;
@@ -23,6 +23,10 @@ pub fn run() -> Result<(), String> {
         .read_to_string(&mut input)
         .map_err(|error| error.to_string())?;
     let args: Vec<String> = std::env::args().skip(1).collect();
+    dispatch(&input, &args)
+}
+
+fn dispatch(input: &str, args: &[String]) -> Result<(), String> {
     if args.len() == 1 && args[0] == "render" {
         let policies: CompiledPolicyJson = input
             .parse()
@@ -31,14 +35,14 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
     if args.len() == 1 && args[0] == "check-template-source" {
-        let bundle: TemplateSourceBundle = serde_json::from_str(&input)
+        let bundle: TemplateSourceBundle = serde_json::from_str(input)
             .map_err(|error| format!("template source bundle JSON: {error}"))?;
         check_template_source(&bundle.source, &bundle.materialized)?;
         println!("Cedar template source matches Lean materialization");
         return Ok(());
     }
-    if args.as_slice() == ["replay-validated-receipts"] {
-        let manifest: ValidatedManifest = serde_json::from_str(&input)
+    if args == ["replay-validated-receipts"] {
+        let manifest: ValidatedManifest = serde_json::from_str(input)
             .map_err(|error| format!("validated manifest JSON: {error}"))?;
         let receipts = replay_validated_manifest(&manifest)?;
         println!(
@@ -47,32 +51,46 @@ pub fn run() -> Result<(), String> {
         );
         return Ok(());
     }
+    if args == ["replay-schema-only-revision"] {
+        let bundle: SchemaEvolutionBundle = serde_json::from_str(input)
+            .map_err(|error| format!("schema evolution bundle JSON: {error}"))?;
+        let receipt = replay_schema_only_revision(&bundle)?;
+        println!(
+            "{}",
+            serde_json::to_string(&receipt).map_err(|error| error.to_string())?
+        );
+        return Ok(());
+    }
     let manifest: Manifest =
-        serde_json::from_str(&input).map_err(|error| format!("manifest JSON: {error}"))?;
-    if args.as_slice() == ["replay-receipts"] {
-        let receipts = replay_manifest(&manifest)?;
+        serde_json::from_str(input).map_err(|error| format!("manifest JSON: {error}"))?;
+    run_manifest_command(&manifest, args)
+}
+
+fn run_manifest_command(manifest: &Manifest, args: &[String]) -> Result<(), String> {
+    if args == ["replay-receipts"] {
+        let receipts = replay_manifest(manifest)?;
         println!(
             "{}",
             serde_json::to_string(&receipts).map_err(|error| error.to_string())?
         );
         return Ok(());
     }
-    check_manifest(&manifest)?;
-    match args.as_slice() {
+    check_manifest(manifest)?;
+    match args {
         [] => println!("Cedar conformance: {} cases", manifest.cases.len()),
         [command, directory] if command == "emit" => {
-            emit(&manifest, Path::new(directory))?;
+            emit(manifest, Path::new(directory))?;
         }
         [command, directory] if command == "check-artifacts" => {
-            check_artifacts(&manifest, Path::new(directory))?;
+            check_artifacts(manifest, Path::new(directory))?;
         }
         [command, directory] if command == "check-direct" => {
-            check_direct_sources(&manifest, Path::new(directory))?;
+            check_direct_sources(manifest, Path::new(directory))?;
             println!("Direct Cedar parity: {} cases", manifest.cases.len());
         }
         _ => {
             return Err(
-                "usage: cedar-poo-bridge [render|check-template-source|replay-receipts|replay-validated-receipts|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
+                "usage: cedar-poo-bridge [render|check-template-source|replay-receipts|replay-validated-receipts|replay-schema-only-revision|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
             );
         }
     }
