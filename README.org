@@ -37,7 +37,9 @@ The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.
 The [[file:Examples/Health/README.org][health example]] connects a clinical
-emergency-access diamond to published EHR studies and HL7 guidance.
+emergency-access diamond to published EHR studies and HL7 guidance. It also
+composes consent, monitor quarantine, AI model eligibility, and clinician review
+for a remote-monitoring alert workflow.
 The [[file:Examples/Governance/README.org][governance example]] uses a
 source-grounded attestation revision to show policy provenance, local
 invalidation, and certificate reuse across C4 composition. It also includes

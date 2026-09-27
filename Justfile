@@ -21,7 +21,7 @@ check: build-examples check-docs
     just check-cedar-language
 
 [parallel]
-check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-reuse-scale
+check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-reuse-scale
 
 check-evaluation:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Evaluation.lean
@@ -37,6 +37,9 @@ check-scenarios:
 
 check-health:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/ClinicalBreakGlass.lean
+
+check-wearable-triage:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/WearableTriage.lean
 
 check-governance:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/AttestedDataAccess.lean
@@ -91,6 +94,9 @@ prepare-source-case-manifests: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean clinical > .lake/build/clinical-manifest.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested > .lake/build/attested-manifest.json
 
+prepare-wearable-triage-manifest: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean wearable-triage > .lake/build/wearable-triage-manifest.json
+
 prepare-language-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean scope-pattern > .lake/build/scope-pattern-manifest.json
 
@@ -139,6 +145,7 @@ export-cedar-language: prepare-all-manifests
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/Policies < .lake/build/ticket-sharing-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/AttestedPolicies < .lake/build/attested-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Health/Policies < .lake/build/clinical-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Health/WearablePolicies < .lake/build/wearable-triage-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Language/Policies < .lake/build/scope-pattern-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/NetworkPolicies < .lake/build/network-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- emit Examples/Governance/CountryPolicies < .lake/build/country-approval-manifest.json
@@ -163,6 +170,7 @@ check-cedar-language: prepare-all-manifests
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/Policies < .lake/build/ticket-sharing-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/AttestedPolicies < .lake/build/attested-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Health/Policies < .lake/build/clinical-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Health/WearablePolicies < .lake/build/wearable-triage-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Language/Policies < .lake/build/scope-pattern-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/NetworkPolicies < .lake/build/network-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-artifacts Examples/Governance/CountryPolicies < .lake/build/country-approval-manifest.json
