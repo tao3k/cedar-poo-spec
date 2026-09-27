@@ -14,8 +14,9 @@ explicit removal tombstone. [[file:Language/SchemaProjection.lean][SchemaProject
 admission. [[file:ReuseScale.lean][ReuseScale.lean]] checks proof dependency
 impact at scale.
 [[file:Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]] checks two-axis
-C4 method selection for the Data Flow policy builder and ties the generated
-branches back to its Cedar decision matrix.
+C4 method selection for the Data Flow policy builder, proves exact ordered
+policy equality with the owner-composed root, and ties both paths to Cedar's
+decision matrix.
 
 #+begin_src sh
 just check-tests

@@ -20,9 +20,9 @@ def reviewBranchExact : Bool :=
 
 def inheritedPairExact : Bool :=
   match controlEdits "Restricted" "PartnerPublic" with
-  | .ok [.extend classified, .extend reviewed] =>
-      decide (classified = classificationVeto) &&
-      decide (reviewed = reviewVeto)
+  | .ok [.extend reviewed, .extend classified] =>
+      decide (reviewed = reviewVeto) &&
+      decide (classified = classificationVeto)
   | _ => false
 
 def inheritedPrecedenceExact : Bool :=
@@ -47,5 +47,28 @@ theorem exactDispatch :
 theorem generatedBranchesRemainCedarPolicies :
     governedPolicyIds = true ∧ casesExact = true ∧ casesErrorFree = true := by
   exact ⟨governedPolicyIdsFully, casesExactFully, casesErrorFreeFully⟩
+
+/-- Equality below is not vacuous: both roots compile successfully. -/
+theorem bothConstructionRootsCompile :
+    (dataModel.compile "PublishDispatched").isOk = true ∧
+      (dataModel.compile "PublishGoverned").isOk = true := by
+  native_decide
+
+/-- Two POO construction routes produce the same ordered Cedar policy list,
+    which is stronger than equal decisions on the current request corpus. -/
+theorem orderedPoliciesEqual :
+    (dataModel.compile "PublishDispatched").toOption =
+      (dataModel.compile "PublishGoverned").toOption := by
+  native_decide
+
+def sameDecisions : Bool := cases.all fun (_, readRoot, _, source, repo,
+    origin, approver, approved, _) =>
+  authorizeFlow readRoot "PublishDispatched" source repo origin approver approved ==
+    authorizeFlow readRoot "PublishGoverned" source repo origin approver approved
+
+theorem dispatchedDecisionsExact : sameDecisions = true := by native_decide
+
+theorem dispatchedRootValidated : allRootsValidated = true :=
+  allRootsValidatedFully
 
 end CedarPooSpec.AgentDataFlowDispatchTest

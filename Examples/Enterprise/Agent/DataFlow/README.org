@@ -23,6 +23,7 @@ and authorization pattern rather than claiming to reproduce an incident.
 | =PublishClassified= | Data ownership independently forbids internal material at a public destination. |
 | =PublishReview= | Security independently forbids public publication without an approved, distinct reviewer with MFA. |
 | =PublishGoverned= | C4 composes the sibling controls with the inherited tenant rule. |
+| =PublishDispatched= | The derived source/destination profile selects both edits through one multimethod call. |
 | =PublishRevoked= / =PublishRestored= | Freeze one source document, then remove only that veto. |
 
 * Two-axis POO policy construction
@@ -38,12 +39,14 @@ multimethod to select their policy edits:
 | =Source= (root) | =Public= | Review veto. |
 | =Restricted= | =PartnerPublic= | Both vetoes, through inherited C4 profiles. |
 
-The first two calls construct the existing =PublishClassified= and
-=PublishReview= branches. =PublishGoverned= then C4-composes those branches.
-The third call shows that a new profile can inherit both methods without
-copying either policy body. The
-[[file:../../../../Tests/Enterprise/Agent/DataFlow/Dispatch.lean][dispatch regression]] checks the selected edits and the resulting Cedar
-decision matrix. Invalid profiles return typed C4 errors rather than an
+The first two calls construct the =PublishClassified= and =PublishReview=
+branches. =PublishGoverned= C4-composes those branches. The derived
+=Restricted × PartnerPublic= call constructs =PublishDispatched= with both
+edits and no duplicated policy body. Destination precedence comes first to
+preserve the existing ordered policy list: the
+[[file:../../../../Tests/Enterprise/Agent/DataFlow/Dispatch.lean][Lean proof]] establishes exact ordered-list equality between
+=PublishDispatched= and =PublishGoverned=, as well as equal decisions on
+the fifteen scenario inputs. Invalid profiles return typed C4 errors rather than an
 empty control list. These profiles describe *policy construction*, not the
 classification of an incoming request. The emitted Cedar predicates still
 inspect the actual document, repository, and review facts for every request.
@@ -90,9 +93,11 @@ Every root passes Lean Cedar schema and policy validation.
 review veto error while Cedar's broad permit returns raw =Allow=; the
 compound API rejects that operation. A downstream caller using generated
 =.cedar= must likewise reject a response containing policy errors.
-The [[file:ValidatedExport.lean][schema-bound exporter]] additionally checks
-all thirty well-formed read and publish layer requests through Cedar's
-strict policy, entity, context, and request validation. The malformed
+The [[file:ValidatedExport.lean][schema-bound exporter]] checks the original
+thirty well-formed read and publish layer requests, plus two allow and two
+deny comparisons between the C4 and multimethod roots, through Cedar's
+strict policy, entity, context, and request validation. The Rust receipts
+confirm identical policy digests and decisions for each paired request. The malformed
 reviewer requests remain in the diagnostic manifest. Run
 =just check-schema-bound-scenarios=; the boundary is defined in
 [[file:../../../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].

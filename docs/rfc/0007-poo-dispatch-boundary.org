@@ -16,8 +16,13 @@ source profile and destination profile. The classification owner registers
 a source-specialized policy edit. The review owner registers a
 destination-specialized policy edit. A derived profile pair selects both
 contributions in sparse lexicographic C4 order. The existing publication
-module hierarchy then merges the owner branches. Its exported Cedar
-policies and the Lean/Rust request receipts remain the observable contract.
+module hierarchy merges the owner branches into =PublishGoverned=; the
+derived profile builds =PublishDispatched= directly from the same edits.
+The destination axis is first in multimethod precedence so both paths emit
+the *same ordered policy list*. That exact equality matters to the current
+proof-reuse and JSON-export contracts even though Cedar decisions alone are
+insensitive to policy order. Rust Cedar receives paired allow and deny
+requests and checks equal policy digests and decisions.
 
 * Audit of current complex examples
 
@@ -35,11 +40,36 @@ fixed rules. Adding =DispatchTable=, =InlineDispatch=, or =StaticDispatch=
 without several independent generic operations or a measured repeated-call
 cost would add machinery without simplifying the current cases.
 
+* Public API audit and scenario admission
+
+[[https://github.com/tao3k/lean-poo/blob/main/LeanPoo.lean][LeanPoo.lean]] is the public import inventory. This audit covers its
+families, including APIs that this adapter does not yet need. The admission
+question is which variation the application owns and what observation would
+detect an incorrect composition.
+
+| Public family | Admit when | Cedar scenario and evidence |
+|---------------+------------+-----------------------------|
+| =C4=; =Compose=; =Slots=; =Object.Resolve=, =Builder=, =Indexed=, =Instance= | Independent owners contribute ordered, keyed policy edits. | Agent Payment merges account, amount, and origin vetoes; Data Flow merges classification and review. =PolicyModules= uses typed slots, C4 resolution, and the declaration builder. The payment compiled-plan claims cover sibling vetoes and freeze/remove/restore. |
+| =Object.Ranked=, =Incremental=, =Lazy=, =Memo=, =Prepare=, =Cache= | A dependency graph or repeated slot reads make incremental compilation or cache reuse observable. | =PolicyModules.compilePlan= uses =compileMemo=. Proof dependency tests measure affected keys; the current Cedar exporter has no demonstrated benefit from lazy or ranked object instantiation. |
+| =Object.Generic=, =MethodDictionary=, =QualifiedMethods=, =MethodCombination= | A policy *construction* operation has open receiver-specific methods or explicit method qualifiers. | No current Cedar case requires multiple generic operations or around methods. Around methods can skip a continuation, so mandatory veto preservation would require a proof before admission. |
+| =Object.Multimethod=, =MultimethodCombination=, =Subjective=, =DispatchTable= | Independent profile axes select policy construction contributions, or several generic operations share an extension lifecycle. | Agent Data Flow uses a two-argument multimethod. Its derived profile and C4 owner hierarchy produce exactly equal ordered policy lists. One generic does not justify a dispatch table. |
+| =Object.StaticDispatch=, =InlineDispatch=, =PreparedMultimethod=, =ShapeCache= | Repeated construction calls on stable shapes have measured resolution cost. | Current examples compile policy families per export; no speedup is claimed. These caches do not replace Cedar's request-time authorizer. |
+| =Prototype.*=, =Object.Prototype=, =Object.Class=, =Initialization=, =Layout=, =Lens=, =Mutable= | The application has an actual first-class object, typed class lifecycle, focused update, or changing layout. | Cedar schema owns request and entity shapes. =PolicyModules.Edit= already expresses policy changes; introducing a second class or layout model here would duplicate that authority. A future plugin object model would need its own case and schema alignment proof. |
+| =Proof.Object=, =Revision=, =Runtime=, =Batch=, =Product=; =Object.Debug= | A policy revision must identify touched dependencies, reused obligations, invalidated proofs, and reclosure. | =Composition= and =Slicing= use proof objects and product composition; revision and reuse tests cover the generic mechanics. Data Flow's ordered-policy equality is an artifact-preservation fact, not a claim that every downstream certificate was reused. |
+
+The table separates a public Lean-POO capability from evidence of its use in
+Cedar. For Data Flow, an incorrect combination could drop, duplicate, or
+reorder a veto. Exact ordered-policy equality detects all three; fifteen
+Lean request decisions and four strict Rust Cedar replay rows additionally
+check the authorizer boundary. Other API families need equally specific
+cases before adding them to the adapter.
+
 * Verification
 
 [[file:../../Tests/Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]]
-checks both owner-local selections, inherited two-axis selection, and an
-unknown profile. =just check-tests= compiles those claims. The existing
+checks both owner-local selections, inherited two-axis selection, an
+unknown profile, exact compiled-policy equality, and the existing decision
+matrix. =just check-tests= compiles those claims. The existing
 =just check-cedar-artifacts= compares the emitted policy revisions with the
 committed Cedar source. =just check-schema-bound-scenarios= replays the
 Data Flow requests through the official Cedar Rust parser, validator, and

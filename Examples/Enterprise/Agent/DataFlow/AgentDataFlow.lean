@@ -133,14 +133,16 @@ private abbrev ControlShape := List String × List String
 private def controlGeneric :
     LeanPoo.Object.Multimethod ControlShape Edit (List Edit) :=
   { arity := 2
-    precedence := fun shape => [shape.1, shape.2]
+    -- The published C4 root visits Review before Classified. Keep that
+    -- policy order so proof reuse and JSON export see identical lists.
+    precedence := fun shape => [shape.2, shape.1]
     combine := fun methods _ => methods.toList }
 
 private def registeredControls : Except LeanPoo.Object.MultimethodError
     (LeanPoo.Object.Multimethod ControlShape Edit (List Edit)) := do
   let sourceOwner ← controlGeneric.register
-    [.prototype "Internal", .any] (.extend classificationVeto)
-  sourceOwner.register [.any, .prototype "Public"] (.extend reviewVeto)
+    [.any, .prototype "Internal"] (.extend classificationVeto)
+  sourceOwner.register [.prototype "Public", .any] (.extend reviewVeto)
 
 /-- Keep profile-graph and method-arity errors visible to policy authors. -/
 inductive ControlError where
@@ -163,11 +165,16 @@ private theorem classifiedEditsExist :
     (controlEdits "Internal" "Destination").toOption.isSome = true := by native_decide
 private theorem reviewEditsExist :
     (controlEdits "Source" "Public").toOption.isSome = true := by native_decide
+private theorem combinedEditsExist :
+    (controlEdits "Restricted" "PartnerPublic").toOption.isSome = true := by
+  native_decide
 
 def classifiedEdits : List Edit :=
   (controlEdits "Internal" "Destination").toOption.get classifiedEditsExist
 def reviewEdits : List Edit :=
   (controlEdits "Source" "Public").toOption.get reviewEditsExist
+def combinedEdits : List Edit :=
+  (controlEdits "Restricted" "PartnerPublic").toOption.get combinedEditsExist
 
 def dataModel : Model := { modules := [
   { name := "ReadBase", edits := [.extend readBase] },
@@ -181,6 +188,8 @@ def dataModel : Model := { modules := [
     edits := reviewEdits },
   { name := "PublishGoverned",
     parentOrders := [["PublishClassified", "PublishReview"]] },
+  { name := "PublishDispatched", parentOrders := [["PublishScoped"]],
+    edits := combinedEdits },
   { name := "PublishRevoked", parentOrders := [["PublishGoverned"]],
     edits := [.extend publicDocumentRevoked] },
   { name := "PublishRestored", parentOrders := [["PublishRevoked"]],
@@ -313,7 +322,7 @@ theorem classifiedLeakBoundaryFully : classifiedLeakBoundary = true := by native
 
 def allRootsValidated : Bool :=
   ["ReadBase", "ReadTenant", "PublishBase", "PublishScoped",
-    "PublishClassified", "PublishReview", "PublishGoverned",
+    "PublishClassified", "PublishReview", "PublishGoverned", "PublishDispatched",
     "PublishRevoked", "PublishRestored"].all fun root =>
       (CedarPooSpec.PolicyJson.publish dataModel root dataSchema).isOk
 theorem allRootsValidatedFully : allRootsValidated = true := by native_decide
