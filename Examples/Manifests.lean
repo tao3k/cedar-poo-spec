@@ -20,6 +20,7 @@ import Examples.Enterprise.Agent.Payment.AgentPaymentExport
 import Examples.Enterprise.Agent.Payment.ValidatedExport
 import Examples.Enterprise.Agent.DataFlow.AgentDataFlowExport
 import Examples.Enterprise.Agent.DataFlow.ValidatedExport
+import Examples.Enterprise.Agent.LakehouseGateway.ValidatedExport
 import Examples.Enterprise.Agent.Session.BoundedSessionExport
 import Examples.Enterprise.Agent.Fanout.SharedBudgetExport
 import Examples.Enterprise.Vehicle.Uptane.SupplierTransitionExport
@@ -55,6 +56,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("agent-payment-validated", fun _ => AgentPaymentValidatedExport.manifest),
   ("agent-data-flow", fun _ => AgentDataFlowExport.manifest),
   ("agent-data-flow-validated", fun _ => AgentDataFlowValidatedExport.manifest),
+  ("lakehouse-gateway-validated", fun _ => LakehouseGatewayValidatedExport.manifest),
   ("bounded-session", fun _ => BoundedSessionExport.manifest),
   ("shared-budget", fun _ => SharedBudgetExport.manifest),
   ("supplier-transition", fun _ => SupplierTransitionExport.manifest),

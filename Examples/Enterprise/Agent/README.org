@@ -9,5 +9,6 @@
 | [[file:Chain/README.org][Chain]] | Variable-depth delegation and edge revocation. |
 | [[file:Payment/README.org][Payment]] | Per-call payment authorization. |
 | [[file:DataFlow/README.org][Data flow]] | Cross-tool read and publication controls. |
+| [[file:LakehouseGateway/README.org][AgentCore lakehouse Gateway]] | AWS source-backed role and geography restrictions composed across policy owners. |
 | [[file:Session/README.org][Bounded session]] | Prior actions, delegated intent, export budgets, and incident recovery for AI agents. |
 | [[file:Fanout/README.org][Shared budget fanout]] | Concurrent sub-agents, parent-wide budget aggregation, and atomic admission boundary. |

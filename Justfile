@@ -26,6 +26,7 @@ check: check-tests check-docs
     just check-replay-receipts
     just check-schema-bound-receipts
     just check-schema-bound-scenarios
+    just check-lakehouse-gateway
     just check-attested-schema-evolution
     just check-authorization-delta
     just check-authorization-delta-proof
@@ -73,6 +74,16 @@ check-schema-bound-scenarios: prepare-schema-bound-scenarios
     jq -e '[.[] | select(.replay.case_name | startswith("dispatch-"))] | (map(.replay.case_name) | sort) == ["dispatch-allow-publishdispatched", "dispatch-allow-publishgoverned", "dispatch-deny-publishdispatched", "dispatch-deny-publishgoverned"] and (map(.replay.decision) | unique) == ["allow", "deny"] and (group_by(.replay.request_sha256) | length == 2 and all(.[]; length == 2 and (map(.replay.policies_sha256) | unique | length) == 1 and (map(.replay.decision) | unique | length) == 1))' .lake/build/agent-data-flow-validated-receipts.json > /dev/null
     jq -e 'length == 9 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/network-validated-receipts.json > /dev/null
     jq -e 'length == 13 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/country-approval-validated-receipts.json > /dev/null
+
+check-lakehouse-gateway: build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean lakehouse-gateway-validated > .lake/build/lakehouse-gateway-validated-manifest.json
+    jq -e '.schema.AgentCore.entityTypes.OAuthUser.tags == {"type":"String"} and .schema.AgentCore.actions["lakehouse-mcp-target___query_claims"].appliesTo.context.attributes.input.attributes.geography == {"required":false,"type":"String"} and (.cases | length) == 16' .lake/build/lakehouse-gateway-validated-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/lakehouse-gateway-validated-manifest.json > .lake/build/lakehouse-gateway-validated-receipts.json
+    jq -e 'length == 16 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | {key:.replay.case_name,value:.replay.decision}] | from_entries) == {"policyholder-us-query":"allow","hardened-policyholder-us-query":"allow","policyholder-eu-query":"deny","hardened-policyholder-eu-query":"deny","policyholder-eu-summary":"deny","hardened-policyholder-eu-summary":"deny","adjuster-us-summary":"allow","hardened-adjuster-us-summary":"allow","adjuster-eu-details":"deny","hardened-adjuster-eu-details":"deny","restricted-tool":"deny","hardened-restricted-tool":"deny","sourcecombined-missing-geography":"allow","failclosed-missing-geography":"deny","sourcecombined-unknown-geography":"allow","failclosed-unknown-geography":"deny"}' .lake/build/lakehouse-gateway-validated-receipts.json > /dev/null
+    jq '.cases[0].policies' .lake/build/lakehouse-gateway-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/lakehouse-source-combined.cedar
+    cmp .lake/build/lakehouse-source-combined.cedar Examples/Enterprise/Agent/LakehouseGateway/Policies/source-combined.cedar
+    jq '.cases[1].policies' .lake/build/lakehouse-gateway-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/lakehouse-fail-closed.cedar
+    cmp .lake/build/lakehouse-fail-closed.cedar Examples/Enterprise/Agent/LakehouseGateway/Policies/fail-closed.cedar
 
 prepare-attested-schema-evolution: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json
