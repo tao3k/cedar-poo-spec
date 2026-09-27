@@ -1,4 +1,4 @@
-import Examples.Enterprise.AWS.AgentCore.MultiAccountBanking.MultiAccountBanking
+import Examples.Enterprise.AWS.FinancialServices.MultiAccountBanking.MultiAccountBanking
 import CedarPooSpec.SchemaJson
 
 namespace CedarPooSpec.MultiAccountBankingValidatedExport
@@ -23,6 +23,16 @@ def manifest : Except String Lean.Json := do
         s!"{variant}-{label}" variant model root
         (request banker action) entities
       rows := rows ++ [row]
+  for (root, variant, label, action) in [
+    ("TransferPaused", "paused", "transfer", transfer),
+    ("TransferPaused", "paused", "payments", payments),
+    ("TransferPaused", "paused", "balance", balance),
+    ("TransferPaused", "paused", "delete-customer", deleteCustomer),
+    ("TransferResumed", "resumed", "transfer", transfer)] do
+    let row ← CedarPooSpec.PolicyJson.authorizationCase
+      s!"{variant}-{label}" variant model root
+      (request banker action) entities
+    rows := rows ++ [row]
   CedarPooSpec.SchemaJson.validatedManifest schema rows
 
 end CedarPooSpec.MultiAccountBankingValidatedExport

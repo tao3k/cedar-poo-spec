@@ -106,9 +106,16 @@ branches are *our POO rewrite*: each owns only its account's permits. A
 =Protocol= branch owns =tools/list= and =initialize=.
 =OwnerCombined= C4-composes them with the shared deletion veto. This is a
 change in policy construction, not a claim that AWS deployed these owners.
+An incident response extension =TransferPaused= overlays only the
+Transaction owner's permit, temporarily excluding =transfer_funds=;
+=TransferResumed= restores that same policy ID. The Lean revision reports
+only the Transaction policy body as changed, while Retail, Lending, Protocol,
+and the deletion veto remain identical. These branches are proposed POO
+operations, not source-deployed AWS rules.
 Lean checks exact decision equality for both roots across all eighteen named
 actions and two authenticated users. The official Cedar Rust parser, validator,
-and authorizer replay the thirty-six corresponding single-user requests. The Just
+and authorizer replay the thirty-six corresponding single-user requests plus
+five paused/resumed incident rows. The Just
 recipe also compares the exported [[file:Policies/source-broad.cedar][source-shaped]] and
 [[file:Policies/owner-composed.cedar][owner-composed]] Cedar files against their committed versions.
 

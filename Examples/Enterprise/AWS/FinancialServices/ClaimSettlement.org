@@ -1,0 +1,89 @@
+#+TITLE: Cross-Domain Claim Settlement Authorization Plan
+#+OPTIONS: toc:nil
+
+* Evidence and composition boundary
+
+The [[https://aws.amazon.com/blogs/industries/agentic-ai-in-financial-services-choosing-the-right-pattern-for-multi-agent-systems/][AWS financial-services workflow article]] describes autonomous claims
+adjudication with separate notice, appraisal, and settlement phases. The
+[[https://aws.amazon.com/blogs/industries/zero-touch-claims-how-pc-insurers-can-optimize-claims-processing-using-aws-ai-ml-services/][AWS claims-settlement discussion]] says settlement can require sending
+payments to customers or repairers and updating the claims system of record.
+That is the business reason for linking claim data to a payment owner. The
+[[https://aws.amazon.com/blogs/machine-learning/secure-ai-agents-with-policy-and-lambda-interceptors-in-amazon-bedrock-agentcore-gateway/][AWS lakehouse example]] supplies actual claim-data Gateway tools and role/
+geography Cedar restrictions. The [[https://aws.amazon.com/blogs/machine-learning/build-a-multi-account-ai-agent-with-agentcore-gateway-and-mcp/][AWS multi-account banking example]] supplies
+actual Retail and Transaction MCP tools plus a four-call transfer route.
+[[https://aws.amazon.com/blogs/architecture/modernizing-kyc-with-aws-serverless-solutions-and-agentic-ai-for-financial-services/][AWS's agentic KYC architecture]] also shows why an enterprise authorization
+workflow crosses document analysis, risk and compliance, transaction
+monitoring, and core banking systems rather than ending at one Gateway.
+
+[[file:ClaimSettlement.lean][ClaimSettlement.lean]] composes the two published *examples* into a proposed
+insurance-to-bank settlement authorization plan. AWS does not claim these
+two samples are one deployed product. The composite does not invent an AWS
+settlement API: its banking segment uses the published =get_balance=,
+=transfer_funds=, and two =update_balance= calls. The insurance segment
+uses the published =query_claims= and =get_claim_details= calls.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> ClaimQueried: insurance query_claims
+    ClaimQueried --> DetailRead: insurance get_claim_details
+    DetailRead --> HandoffRequired: verified case and actor handoff
+    HandoffRequired --> BalanceChecked: Retail get_balance
+    BalanceChecked --> TransferRecorded: Transaction transfer_funds
+    TransferRecorded --> Debited: Retail update_balance
+    Debited --> Credited: Retail update_balance
+    Credited --> [*]
+#+end_src
+
+* Where POO provides leverage
+
+Both Cedar models import [[file:../AgentCore/Gateway.lean][Gateway.lean]] for AgentCore entity types, schema
+entry, and scoped policy construction. The insurance model C4-composes
+Role, EU, and Restricted owner branches, then extends them with a
+=FailClosed= veto.
+The banking model C4-composes Retail, Transaction, Lending, and Protocol
+owner branches. Its [[file:MultiAccountBanking/Lineage.lean][lineage]] dispatches over credential mode and LOB
+owner to reuse shared identity requirements. The composite imports those
+modules; it does not copy their policies or credential rules.
+
+An incident branch =TransferPaused= overlays only the Transaction owner's
+permit to remove =transfer_funds=. The rest of that owner's tools remain
+available; =TransferResumed= overlays the original permit back. The bank
+revision reports exactly one changed policy ID. In the cross-domain plan,
+the pause blocks settlement while the claims decisions remain the same.
+[[file:ClaimSettlementReuse.lean][ClaimSettlementReuse.lean]] uses the public LeanPOO =ProofObject=,
+=Patch.set=, =append=, and =reuse= APIs: the bank-key patch invalidates the
+bank obligation, while the insurance obligation's certificate is reused
+because its declared dependency is untouched. This is a concrete proof
+reuse boundary over the two Gateway decisions, not a claim that an
+authorization result survives a change to its own policy.
+
+The Lean result is a *Gateway authorization plan*. For a US adjuster and
+banking operator, both insurance calls and the composed banking route are
+allowed. Either Retail or Transaction alone breaks the route. EU geography
+or absent/unknown geography under =FailClosed= stops the insurance segment,
+even when banking locally permits its calls. The source-shaped insurance
+root still allows absent geography; this is why the extension matters to a
+cross-domain route rather than just a single policy decision.
+
+* Threats and missing evidence
+
+| Threat or failure | Observable result in this model | Required external authority |
+|-------------------+---------------------------------+-----------------------------|
+| Geography missing or =UNKNOWN= | =FailClosed= denies the claims calls | Trusted interceptor value and deployment evidence |
+| EU claim-data request | Insurance owner veto denies the plan | Geography mapping and Lake Formation data access |
+| Only one bank LOB owner installed | The four-call bank route fails | Published owner policy set at the Gateway |
+| Transaction transfer paused by an incident overlay | Settlement route fails while claims and bank read calls remain available | Transaction owner revision and fresh bank evidence |
+| Policyholder reads a claim then initiates an unrelated payment | Gateway decisions can still allow the plan | Claim ownership, case binding, trusted actor handoff |
+| Agent omits debit or credit after transfer | Per-call Gateway authorization does not detect completion | Bank workflow atomicity, idempotency, compensation |
+| Forged or stale cross-organization delegation | The plan only marks handoff as required | Independent identity and case-bound delegation receipt |
+
+The =policyholderToolAccessIsNotClaimProvenance= Lean result deliberately
+exposes an insufficiency: Cedar tool permission is not proof that the
+returned claim belongs to the bank payment case. The plan keeps adjuster
+and bank operator as distinct principals and marks their handoff as an
+external requirement. None of the Lean theorems claims AWS runtime
+execution, data lineage, or settlement completion.
+
+#+begin_src sh
+just check-claim-settlement
+#+end_src

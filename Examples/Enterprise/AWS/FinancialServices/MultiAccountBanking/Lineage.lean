@@ -1,4 +1,4 @@
-import Examples.Enterprise.AWS.AgentCore.MultiAccountBanking.MultiAccountBanking
+import Examples.Enterprise.AWS.FinancialServices.MultiAccountBanking.MultiAccountBanking
 import LeanPoo.C4.Linearize
 import LeanPoo.Object.Multimethod
 

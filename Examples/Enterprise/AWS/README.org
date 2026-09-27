@@ -11,4 +11,5 @@ source, or product documentation that supports its claims.
 
 | Platform | Cases |
 |----------+-------|
-| [[file:AgentCore/README.org][AgentCore]] | Gateway policy composition and cross-account agent lineage. |
+| [[file:AgentCore/README.org][AgentCore]] | Shared Gateway projection used by business domains. |
+| [[file:FinancialServices/README.org][Financial services]] | Insurance claims data, banking LOB authorization, and a cross-domain settlement plan. |

@@ -1,4 +1,4 @@
-import CedarPooSpec.PolicyJson
+import Examples.Enterprise.AWS.AgentCore.Gateway
 
 /-! Projection of the Gateway Cedar boundary in the AWS multi-account banking
 sample. LOB JWT authorization, M2M exchange, IAM, and data access remain outside
@@ -8,14 +8,11 @@ named actions below, not a claim about the sample's deployed policy structure. -
 namespace CedarPooSpec.MultiAccountBankingExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
+open CedarPooSpec.AWS.AgentCore
 
-def userType : EntityType := ⟨"OAuthUser", ["AgentCore"]⟩
-def gatewayType : EntityType := ⟨"Gateway", ["AgentCore"]⟩
-def actionType : EntityType := ⟨"Action", ["AgentCore"]⟩
-
-def banker : EntityUID := ⟨userType, "relationship-manager"⟩
-def colleague : EntityUID := ⟨userType, "colleague"⟩
-def gateway : EntityUID := ⟨gatewayType, "lobfederation-gateway"⟩
+def banker : EntityUID := user "relationship-manager"
+def colleague : EntityUID := user "colleague"
+def gateway : EntityUID := CedarPooSpec.AWS.AgentCore.gateway "lobfederation-gateway"
 def customer : EntityUID := ⟨actionType, "retail-banking___get_customer"⟩
 def accounts : EntityUID := ⟨actionType, "retail-banking___get_accounts"⟩
 def balance : EntityUID := ⟨actionType, "retail-banking___get_balance"⟩
@@ -46,15 +43,14 @@ def namedActions : List EntityUID :=
   retailTools ++ transactionTools ++ lendingTools ++ protocolActions
 
 def actionEntry : ActionSchemaEntry :=
-  ⟨Set.make [userType], Set.make [gatewayType], Set.empty, Map.empty⟩
+  CedarPooSpec.AWS.AgentCore.actionEntry Map.empty
 def schema : Schema :=
   ⟨Map.make [
     (userType, .standard ⟨Set.empty, Map.empty, none⟩),
     (gatewayType, .standard ⟨Set.empty, Map.empty, none⟩)],
     Map.make (namedActions.map (·, actionEntry))⟩
 
-def emptyData : EntityData :=
-  { attrs := Map.empty, ancestors := Set.empty, tags := Map.empty }
+def emptyData : EntityData := entityData
 def entities : Entities := Map.make (
   [(banker, emptyData), (colleague, emptyData), (gateway, emptyData)] ++
     namedActions.map (·, emptyData))
@@ -62,16 +58,16 @@ def request (user action : EntityUID) : Request :=
   ⟨user, action, gateway, Map.empty⟩
 
 def permitActions (id : String) (actions : List EntityUID) : Policy :=
-  { id, effect := .permit,
-    principalScope := .principalScope (.is userType),
-    actionScope := .actionInAny actions,
-    resourceScope := .resourceScope (.eq gateway),
-    condition := [] }
+  scopedPolicy id .permit gateway (.actionInAny actions)
 
 def retailPermit : Policy :=
   permitActions "retail-owned-tools" (retailTools.filter (· != deleteCustomer))
 def transactionPermit : Policy :=
   permitActions "transaction-owned-tools" transactionTools
+/-- A proposed incident overlay pauses only transfer while preserving the
+    Transaction owner's read and scheduling tools. -/
+def pausedTransactionPermit : Policy :=
+  permitActions transactionPermit.id (transactionTools.filter (· != transfer))
 def lendingPermit : Policy :=
   permitActions "lending-owned-tools" lendingTools
 def protocolPermit : Policy :=
@@ -80,11 +76,8 @@ def broadPermit : Policy :=
   { permitActions "sample-broad-permit" namedActions with
     actionScope := .actionScope .any }
 def deleteVeto : Policy :=
-  { id := "sample-delete-customer-veto", effect := .forbid,
-    principalScope := .principalScope (.is userType),
-    actionScope := .actionScope (.eq deleteCustomer),
-    resourceScope := .resourceScope (.eq gateway),
-    condition := [] }
+  scopedPolicy "sample-delete-customer-veto" .forbid gateway
+    (.actionScope (.eq deleteCustomer))
 
 /-- The sample's broad grant and delete veto are compared with a POO rewrite
     that assigns all sixteen published tools to independent LOB owners. -/
@@ -100,7 +93,11 @@ def model : Model := { modules := [
     edits := [.extend transactionPermit] },
   { name := "Lending", parentOrders := [["Gateway"]],
     edits := [.extend lendingPermit] },
-  { name := "OwnerCombined", parentOrders := [["Retail", "Transaction", "Lending", "Protocol"]] }] }
+  { name := "OwnerCombined", parentOrders := [["Retail", "Transaction", "Lending", "Protocol"]] },
+  { name := "TransferPaused", parentOrders := [["OwnerCombined"]],
+    edits := [.overlay pausedTransactionPermit] },
+  { name := "TransferResumed", parentOrders := [["TransferPaused"]],
+    edits := [.overlay transactionPermit] }] }
 
 def decideAt (root : String) (req : Request) : Option Decision := do
   let policies ← (model.compile root).toOption
@@ -140,9 +137,23 @@ theorem lendingNeedsItsOwner :
     decideAt "OwnerCombined" (request banker lendingPolicy) = some .allow := by
   native_decide
 
+theorem transferOverlayIsLocal :
+    decideAt "TransferPaused" (request banker transfer) = some .deny ∧
+    decideAt "TransferPaused" (request banker balance) = some .allow ∧
+    decideAt "TransferPaused" (request banker payments) = some .allow ∧
+    decideAt "TransferResumed" (request banker transfer) = some .allow := by
+  native_decide
+
+/-- The override invalidates exactly one owner policy body. All other
+    Gateway policy bodies are candidates for reuse by revision consumers. -/
+theorem pausedRevisionTouchesOnlyTransaction :
+    ((model.compileRevision "OwnerCombined" "TransferPaused").toOption.get
+      (by native_decide)).changedPolicyIds = [transactionPermit.id] := by
+  native_decide
+
 theorem allRootsValidated :
     ["Gateway", "SampleBroad", "Protocol", "Retail", "Transaction", "Lending",
-      "OwnerCombined"].all (fun root =>
+      "OwnerCombined", "TransferPaused", "TransferResumed"].all (fun root =>
         (CedarPooSpec.PolicyJson.publish model root schema).isOk) = true := by
   native_decide
 

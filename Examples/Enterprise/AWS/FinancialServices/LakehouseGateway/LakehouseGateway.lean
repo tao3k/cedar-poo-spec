@@ -1,4 +1,4 @@
-import CedarPooSpec.PolicyJson
+import Examples.Enterprise.AWS.AgentCore.Gateway
 import CedarPooSpec.Revision
 
 /-! A Cedar projection of the AWS AgentCore lakehouse Policy + Interceptor
@@ -9,42 +9,38 @@ forbids; the final unresolved-geography veto is a locally proposed hardening. -/
 namespace CedarPooSpec.LakehouseGatewayExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
+open CedarPooSpec.AWS.AgentCore
 
-def userType : EntityType := ⟨"OAuthUser", ["AgentCore"]⟩
-def gatewayType : EntityType := ⟨"Gateway", ["AgentCore"]⟩
-def actionType : EntityType := ⟨"Action", ["AgentCore"]⟩
-
-def policyholderUS : EntityUID := ⟨userType, "policyholder001"⟩
-def policyholderEU : EntityUID := ⟨userType, "policyholder002"⟩
-def adjusterUS : EntityUID := ⟨userType, "adjuster001"⟩
-def adjusterEU : EntityUID := ⟨userType, "adjuster002"⟩
-def gateway : EntityUID := ⟨gatewayType, "lakehouse-gateway"⟩
+def policyholderUS : EntityUID := user "policyholder001"
+def policyholderEU : EntityUID := user "policyholder002"
+def adjusterUS : EntityUID := user "adjuster001"
+def adjusterEU : EntityUID := user "adjuster002"
+def gateway : EntityUID := CedarPooSpec.AWS.AgentCore.gateway "lakehouse-gateway"
 def queryClaims : EntityUID :=
-  ⟨actionType, "lakehouse-mcp-target___query_claims"⟩
+  action "lakehouse-mcp-target___query_claims"
 def claimDetails : EntityUID :=
-  ⟨actionType, "lakehouse-mcp-target___get_claim_details"⟩
+  action "lakehouse-mcp-target___get_claim_details"
 def claimsSummary : EntityUID :=
-  ⟨actionType, "lakehouse-mcp-target___get_claims_summary"⟩
+  action "lakehouse-mcp-target___get_claims_summary"
 def loginAudit : EntityUID :=
-  ⟨actionType, "lakehouse-mcp-target___query_login_audit"⟩
+  action "lakehouse-mcp-target___query_login_audit"
 def textToSql : EntityUID :=
-  ⟨actionType, "lakehouse-mcp-target___text_to_sql"⟩
+  action "lakehouse-mcp-target___text_to_sql"
 
 def tools : List EntityUID :=
   [queryClaims, claimDetails, claimsSummary, loginAudit, textToSql]
 
 def inputType : RecordType := Map.make [("geography", .optional .string)]
 def actionEntry : ActionSchemaEntry :=
-  ⟨Set.make [userType], Set.make [gatewayType], Set.empty,
-    Map.make [("input", .required (.record inputType))]⟩
+  CedarPooSpec.AWS.AgentCore.actionEntry
+    (Map.make [("input", .required (.record inputType))])
 def schema : Schema :=
   ⟨Map.make [
     (userType, .standard ⟨Set.empty, Map.empty, some .string⟩),
     (gatewayType, .standard ⟨Set.empty, Map.empty, none⟩)],
     Map.make (tools.map (·, actionEntry))⟩
 
-def data (tags : List (String × Value) := []) : EntityData :=
-  { attrs := Map.empty, ancestors := Set.empty, tags := Map.make tags }
+def data (tags : List (String × Value) := []) : EntityData := entityData tags
 def entities : Entities := Map.make (
   [(policyholderUS, data [("cognito:groups", .prim (.string "policyholders"))]),
    (policyholderEU, data [("cognito:groups", .prim (.string "policyholders"))]),
@@ -76,40 +72,25 @@ def isPolicyholder : Expr :=
   .and hasGroups (.unaryApp (.like policyholderPattern) groups)
 
 def baselinePermit : Policy :=
-  { id := "gateway-baseline", effect := .permit,
-    principalScope := .principalScope (.is userType),
-    actionScope := .actionScope .any,
-    resourceScope := .resourceScope (.eq gateway),
-    condition := [] }
+  scopedPolicy "gateway-baseline" .permit gateway (.actionScope .any)
 def roleVeto : Policy :=
-  { id := "policyholder-summary", effect := .forbid,
-    principalScope := .principalScope (.is userType),
-    actionScope := .actionScope (.eq claimsSummary),
-    resourceScope := .resourceScope (.eq gateway),
-    condition := [{ kind := .when, body := isPolicyholder }] }
+  scopedPolicy "policyholder-summary" .forbid gateway
+    (.actionScope (.eq claimsSummary)) [{ kind := .when, body := isPolicyholder }]
 def euVeto : Policy :=
-  { id := "eu-individual-claims", effect := .forbid,
-    principalScope := .principalScope (.is userType),
-    actionScope := .actionInAny [queryClaims, claimDetails],
-    resourceScope := .resourceScope (.eq gateway),
-    condition := [{ kind := .when, body := locationIs "EU" }] }
+  scopedPolicy "eu-individual-claims" .forbid gateway
+    (.actionInAny [queryClaims, claimDetails])
+    [{ kind := .when, body := locationIs "EU" }]
 def restrictedVeto : Policy :=
-  { id := "restricted-geography", effect := .forbid,
-    principalScope := .principalScope (.is userType),
-    actionScope := .actionInAny tools,
-    resourceScope := .resourceScope (.eq gateway),
-    condition := [{ kind := .when, body := locationIs "RESTRICTED" }] }
+  scopedPolicy "restricted-geography" .forbid gateway
+    (.actionInAny tools) [{ kind := .when, body := locationIs "RESTRICTED" }]
 
 /-- A proposed extension: deny calls when geography is absent or the sample
     interceptor's `UNKNOWN` fallback is used. Neither matches the source's
     EU or RESTRICTED rules. -/
 def unresolvedGeographyVeto : Policy :=
-  { id := "unresolved-geography", effect := .forbid,
-    principalScope := .principalScope (.is userType),
-    actionScope := .actionInAny tools,
-    resourceScope := .resourceScope (.eq gateway),
-    condition := [{ kind := .when, body :=
-      (.or (.unaryApp .not hasGeography) (locationIs "UNKNOWN")) }] }
+  scopedPolicy "unresolved-geography" .forbid gateway (.actionInAny tools)
+    [{ kind := .when, body :=
+      (.or (.unaryApp .not hasGeography) (locationIs "UNKNOWN")) }]
 
 def model : Model := { modules := [
   { name := "GatewayBase", edits := [.extend baselinePermit] },

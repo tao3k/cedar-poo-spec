@@ -29,6 +29,7 @@ check: check-tests check-docs
     just check-schema-bound-scenarios
     just check-lakehouse-gateway
     just check-multi-account-banking
+    just check-claim-settlement
     just check-attested-schema-evolution
     just check-authorization-delta
     just check-authorization-delta-proof
@@ -83,20 +84,24 @@ check-lakehouse-gateway: build-examples
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/lakehouse-gateway-validated-manifest.json > .lake/build/lakehouse-gateway-validated-receipts.json
     jq -e 'length == 16 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | {key:.replay.case_name,value:.replay.decision}] | from_entries) == {"policyholder-us-query":"allow","hardened-policyholder-us-query":"allow","policyholder-eu-query":"deny","hardened-policyholder-eu-query":"deny","policyholder-eu-summary":"deny","hardened-policyholder-eu-summary":"deny","adjuster-us-summary":"allow","hardened-adjuster-us-summary":"allow","adjuster-eu-details":"deny","hardened-adjuster-eu-details":"deny","restricted-tool":"deny","hardened-restricted-tool":"deny","sourcecombined-missing-geography":"allow","failclosed-missing-geography":"deny","sourcecombined-unknown-geography":"allow","failclosed-unknown-geography":"deny"}' .lake/build/lakehouse-gateway-validated-receipts.json > /dev/null
     jq '.cases[0].policies' .lake/build/lakehouse-gateway-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/lakehouse-source-combined.cedar
-    cmp .lake/build/lakehouse-source-combined.cedar Examples/Enterprise/AWS/AgentCore/LakehouseGateway/Policies/source-combined.cedar
+    cmp .lake/build/lakehouse-source-combined.cedar Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/Policies/source-combined.cedar
     jq '.cases[1].policies' .lake/build/lakehouse-gateway-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/lakehouse-fail-closed.cedar
-    cmp .lake/build/lakehouse-fail-closed.cedar Examples/Enterprise/AWS/AgentCore/LakehouseGateway/Policies/fail-closed.cedar
+    cmp .lake/build/lakehouse-fail-closed.cedar Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/Policies/fail-closed.cedar
 
 check-multi-account-banking: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean multi-account-banking-validated > .lake/build/multi-account-banking-validated-manifest.json
-    jq -e '.schema.AgentCore.entityTypes.OAuthUser != null and (.schema.AgentCore.actions | length) == 18 and (.cases | length) == 36' .lake/build/multi-account-banking-validated-manifest.json > /dev/null
+    jq -e '.schema.AgentCore.entityTypes.OAuthUser != null and (.schema.AgentCore.actions | length) == 18 and (.cases | length) == 41' .lake/build/multi-account-banking-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/multi-account-banking-validated-manifest.json > .lake/build/multi-account-banking-validated-receipts.json
-    jq -e 'length == 36 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$")) and (.replay.case_name | test("^(source|owners)-")) and .replay.decision == (if (.replay.case_name | endswith("delete-customer")) then "deny" else "allow" end)) and ((group_by(.replay.case_name | sub("^(source|owners)-"; ""))) | length == 18 and all(.[]; length == 2 and (map(.replay.case_name | split("-")[0]) | sort) == ["owners", "source"]))' .lake/build/multi-account-banking-validated-receipts.json > /dev/null
+    jq -e 'length == 41 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$")) and (.replay.case_name | test("^(source|owners|paused|resumed)-")) and .replay.decision == (if (.replay.case_name | endswith("delete-customer")) or .replay.case_name == "paused-transfer" then "deny" else "allow" end)) and ([.[] | select(.replay.case_name | test("^(source|owners)-"))] | group_by(.replay.case_name | sub("^(source|owners)-"; "")) | length == 18 and all(.[]; length == 2 and (map(.replay.case_name | split("-")[0]) | sort) == ["owners", "source"])) and ([.[] | select(.replay.case_name | test("^(paused|resumed)-"))] | map(.replay.case_name) | sort) == ["paused-balance","paused-delete-customer","paused-payments","paused-transfer","resumed-transfer"]' .lake/build/multi-account-banking-validated-receipts.json > /dev/null
     jq '.cases[0].policies' .lake/build/multi-account-banking-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/multi-account-banking-source.cedar
-    cmp .lake/build/multi-account-banking-source.cedar Examples/Enterprise/AWS/AgentCore/MultiAccountBanking/Policies/source-broad.cedar
+    cmp .lake/build/multi-account-banking-source.cedar Examples/Enterprise/AWS/FinancialServices/MultiAccountBanking/Policies/source-broad.cedar
     jq '.cases[1].policies' .lake/build/multi-account-banking-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/multi-account-banking-owners.cedar
-    cmp .lake/build/multi-account-banking-owners.cedar Examples/Enterprise/AWS/AgentCore/MultiAccountBanking/Policies/owner-composed.cedar
-    lake build Examples.Enterprise.AWS.AgentCore.MultiAccountBanking.Lineage
+    cmp .lake/build/multi-account-banking-owners.cedar Examples/Enterprise/AWS/FinancialServices/MultiAccountBanking/Policies/owner-composed.cedar
+    lake build Examples.Enterprise.AWS.FinancialServices.MultiAccountBanking.Lineage
+
+check-claim-settlement: build-examples
+    lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlement
+    lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlementReuse
 
 prepare-attested-schema-evolution: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json
