@@ -134,16 +134,19 @@ def originGuard : Policy :=
     resourceScope := .resourceScope (.eq deleteRecords),
     condition := [{ kind := .when, body := originGuardBody }] }
 
-def model : Model := { modules := [
-  { name := "ToolBase", edits := [.extend toolBase] },
-  { name := "ToolHardened", parentOrders := [["ToolBase"]], edits := [.overlay toolHardened] },
-  { name := "DelegationBase", edits := [.extend delegationBase] },
-  { name := "DelegationBounded", parentOrders := [["DelegationBase"]],
-    edits := [.overlay delegationBounded] },
-  { name := "OriginBase", edits := [.extend originBase] },
-  { name := "OriginBounded", parentOrders := [["OriginBase"]], edits := [.overlay originBounded] },
-  { name := "OriginRevoked", parentOrders := [["OriginBounded"]], edits := [.extend originRevoked] },
-  { name := "OriginUnsafe", parentOrders := [["OriginBase"]], edits := [.extend originGuard] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let tool : Model := { modules := [{ name := "ToolBase", edits := [.extend toolBase] }] }
+  let hardened ← tool.extend "ToolHardened" "ToolBase" [.overlay toolHardened]
+  let delegation ← hardened.mix "DelegationBase" [] [.extend delegationBase]
+  let bounded ← delegation.extend "DelegationBounded" "DelegationBase"
+    [.overlay delegationBounded]
+  let origin ← bounded.mix "OriginBase" [] [.extend originBase]
+  let originBound ← origin.extend "OriginBounded" "OriginBase" [.overlay originBounded]
+  let revoked ← originBound.extend "OriginRevoked" "OriginBounded"
+    [.extend originRevoked]
+  revoked.extend "OriginUnsafe" "OriginBase" [.extend originGuard]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def requestTool (agent tool : EntityUID) : Request :=
   ⟨agent, invoke, tool, Map.empty⟩

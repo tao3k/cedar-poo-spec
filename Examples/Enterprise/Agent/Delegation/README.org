@@ -30,6 +30,11 @@ authorizer and checks the generated
 [[file:AgentPolicies/originbounded.cedar][Cedar policies]]. Every POO root
 also passes Lean Cedar schema and policy validation.
 
+The module topology is constructed through =Model.mix= for independent
+tool, delegation, and origin roots and =Model.extend= for each local
+hardening or revocation. Downstream chain examples extend this model
+without copying its Cedar policy bodies or parent graph.
+
 =OriginUnsafe= is a diagnostic counterexample, not a deployment revision.
 Its policy is valid against a schema where =context.origin= is a User entity.
 A caller that instead supplies a String at runtime causes the forbid to

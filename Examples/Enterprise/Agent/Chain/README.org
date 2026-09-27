@@ -32,6 +32,11 @@ editing or copying either inherited permit. The three-hop path becomes
 available again, and its compiled Cedar policy set equals =ChainGoverned=.
 The one- and two-hop paths stay available during the edge-specific freeze.
 
+The executable =chainModelResult= stages these revisions with
+=Model.extend= and constructs =ChainGoverned= through =Model.mix=. It extends
+the Delegation example's built model, retaining the three base check
+families without copying them into each chain revision.
+
 A second team can independently propose =ChainDepthOnly= from the older
 =DelegationBounded= parent. It relaxes the same delegation policy ID and
 would drop the delegator trust check. =ChainConflicted= deliberately combines

@@ -88,6 +88,7 @@ structure State where
   bSeen : Bool := false
   sharedSeen : Bool := false
   delegated : String := "report"
+  epoch : Nat := 0
   deriving BEq, Repr
 
 structure Attempt where
@@ -95,6 +96,7 @@ structure Attempt where
   action : EntityUID
   resource : EntityUID
   intent : String := "report"
+  deriving BEq
 
 def readSecretA : Attempt := ⟨workerA, readAction, secretDoc, "report"⟩
 def readPublicA : Attempt := ⟨workerA, readAction, publicDoc, "report"⟩
@@ -143,7 +145,39 @@ def advance (state : State) (attempt : Attempt) : State :=
 def admit (root : String) (view : LedgerView) (state : State)
     (attempt : Attempt) : Bool × State :=
   let allowed := authorized root view state attempt
-  (allowed, if allowed then advance state attempt else state)
+  let next := advance state attempt
+  (allowed, if allowed then { next with epoch := state.epoch + 1 } else state)
+
+/-- The host binds a checked request to the exact proposed tool effect. The
+    digest and ticket must come from authenticated host state in deployment. -/
+structure BoundEffect where
+  attempt : Attempt
+  payloadDigest : String
+  deriving BEq
+
+structure AdmissionTicket where
+  root : String
+  view : LedgerView
+  epoch : Nat
+  effect : BoundEffect
+  deriving BEq
+
+def prepare (root : String) (view : LedgerView) (state : State)
+    (effect : BoundEffect) : Option AdmissionTicket :=
+  if authorized root view state effect.attempt then
+    some ⟨root, view, state.epoch, effect⟩
+  else none
+
+/-- A compare-and-swap admission contract. A real host must persist the
+    ledger and execute this check and reservation atomically. -/
+def commit (root : String) (view : LedgerView) (state : State)
+    (ticket : AdmissionTicket) (effect : BoundEffect) : Option State :=
+  if ticket.root == root && ticket.view == view &&
+      ticket.epoch == state.epoch && ticket.effect == effect &&
+      authorized root view state effect.attempt then
+    let next := advance state effect.attempt
+    some { next with epoch := state.epoch + 1 }
+  else none
 
 def replay (root : String) (view : LedgerView) (initial : State)
     (attempts : List Attempt) : List (Request × Bool) × State :=
@@ -198,6 +232,48 @@ theorem survivingOwners :
     (model.compileWithProvenance "CrossAgentGoverned").toOption.map
       (·.map (fun p => p.introducedBy)) =
       some ["Base", "Shared", "Local", "Read", "Intent", "History"] := by
+  native_decide
+
+def publicSendA : BoundEffect := ⟨sendA, "payload-a"⟩
+def publicSendB : BoundEffect := ⟨sendB, "payload-b"⟩
+def secretReadA : BoundEffect := ⟨readSecretA, "document-version-1"⟩
+
+private theorem firstTicketExists :
+    (prepare "CrossAgentGoverned" .delegationShared {} publicSendA).isSome = true := by
+  native_decide
+private theorem secondTicketExists :
+    (prepare "CrossAgentGoverned" .delegationShared {} publicSendB).isSome = true := by
+  native_decide
+private theorem readTicketExists :
+    (prepare "CrossAgentGoverned" .delegationShared {} secretReadA).isSome = true := by
+  native_decide
+
+/-- Two tickets prepared on one budget snapshot cannot both commit. -/
+theorem staleFanoutTicketRejected :
+    let root := "CrossAgentGoverned"
+    let first := (prepare root .delegationShared {} publicSendA).get firstTicketExists
+    let second := (prepare root .delegationShared {} publicSendB).get secondTicketExists
+    ((commit root .delegationShared {} first publicSendA).bind fun state =>
+      commit root .delegationShared state second publicSendB) = none := by
+  native_decide
+
+/-- A checked call cannot be exchanged for different tool payload bytes. -/
+theorem substitutedPayloadRejected :
+    let root := "CrossAgentGoverned"
+    let ticket := (prepare root .delegationShared {} publicSendA).get firstTicketExists
+    commit root .delegationShared {} ticket ⟨sendA, "substituted-payload"⟩ = none := by
+  native_decide
+
+/-- A sensitive read invalidates an earlier send ticket. Rechecking against
+    shared history then refuses a new send ticket. -/
+theorem sensitiveReadInvalidatesPreparedSend :
+    let root := "CrossAgentGoverned"
+    let sendTicket := (prepare root .delegationShared {} publicSendB).get secondTicketExists
+    let readTicket := (prepare root .delegationShared {} secretReadA).get readTicketExists
+    (((commit root .delegationShared {} readTicket secretReadA).map fun state =>
+      (commit root .delegationShared state sendTicket publicSendB,
+       prepare root .delegationShared state publicSendB)) ==
+      some (none, none)) = true := by
   native_decide
 
 theorem allRootsValidate :

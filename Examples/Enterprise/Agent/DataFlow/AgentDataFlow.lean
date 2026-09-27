@@ -176,24 +176,21 @@ def reviewEdits : List Edit :=
 def combinedEdits : List Edit :=
   (controlEdits "Restricted" "PartnerPublic").toOption.get combinedEditsExist
 
-def dataModel : Model := { modules := [
-  { name := "ReadBase", edits := [.extend readBase] },
-  { name := "ReadTenant", parentOrders := [["ReadBase"]], edits := [.overlay readTenant] },
-  { name := "PublishBase", edits := [.extend publishBase] },
-  { name := "PublishScoped", parentOrders := [["PublishBase"]],
-    edits := [.overlay publishScoped] },
-  { name := "PublishClassified", parentOrders := [["PublishScoped"]],
-    edits := classifiedEdits },
-  { name := "PublishReview", parentOrders := [["PublishScoped"]],
-    edits := reviewEdits },
-  { name := "PublishGoverned",
-    parentOrders := [["PublishClassified", "PublishReview"]] },
-  { name := "PublishDispatched", parentOrders := [["PublishScoped"]],
-    edits := combinedEdits },
-  { name := "PublishRevoked", parentOrders := [["PublishGoverned"]],
-    edits := [.extend publicDocumentRevoked] },
-  { name := "PublishRestored", parentOrders := [["PublishRevoked"]],
-    edits := [.remove publicDocumentRevoked.id] }] }
+def dataModelResult : Except LeanPoo.C4.Error Model := do
+  let read : Model := { modules := [{ name := "ReadBase", edits := [.extend readBase] }] }
+  let tenant ← read.extend "ReadTenant" "ReadBase" [.overlay readTenant]
+  let publish ← tenant.mix "PublishBase" [] [.extend publishBase]
+  let scopedModel ← publish.extend "PublishScoped" "PublishBase" [.overlay publishScoped]
+  let classified ← scopedModel.extend "PublishClassified" "PublishScoped" classifiedEdits
+  let review ← classified.extend "PublishReview" "PublishScoped" reviewEdits
+  let governed ← review.mix "PublishGoverned" ["PublishClassified", "PublishReview"]
+  let dispatched ← governed.extend "PublishDispatched" "PublishScoped" combinedEdits
+  let revoked ← dispatched.extend "PublishRevoked" "PublishGoverned"
+    [.extend publicDocumentRevoked]
+  revoked.extend "PublishRestored" "PublishRevoked"
+    [.remove publicDocumentRevoked.id]
+
+def dataModel : Model := dataModelResult.toOption.get (by native_decide)
 
 def readRequest (source origin : EntityUID) : Request :=
   ⟨knowledgeBot, readDocument, source, Map.make [

@@ -52,6 +52,11 @@ classification of an incoming request. The emitted Cedar predicates still
 inspect the actual document, repository, and review facts for every request.
 No dispatch result is used as an authorization decision.
 
+=dataModelResult= connects the selected edits to the policy model through
+=Model.extend=. =Model.mix= combines the independent classification and
+review branches into =PublishGoverned=; the dispatched branch receives the
+multimethod output without copying the policy bodies.
+
 #+begin_src mermaid
 flowchart LR
     S[Source C4 profile] --> M[Two-argument method selection]

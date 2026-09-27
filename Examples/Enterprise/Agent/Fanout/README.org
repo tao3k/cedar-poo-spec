@@ -153,6 +153,18 @@ reads, bind the checked output to the actual tool effect, and serialize
 admission with durable state. Neither Cedar nor LeanPOO supplies that host
 transaction automatically.
 
+=prepare= and =commit= specify the host-facing boundary more precisely. A
+ticket binds the C4 root, ledger view, state epoch, proposed call, and
+payload digest. =commit= checks those fields, reauthorizes against the
+current state, and advances the epoch on success. Lean checks three failure
+paths: two sends prepared on one budget snapshot cannot both commit; changing
+the payload after approval fails; and a sensitive read invalidates a
+previously prepared send before a refreshed send is denied by shared
+history. The digest and ticket in this model are values supplied by the
+host, not cryptographic credentials. A deployment must derive the digest
+from the exact tool-call bytes, protect ticket provenance, persist the
+ledger, and make compare-and-swap plus effect reservation atomic.
+
 #+begin_src mermaid
 stateDiagram-v2
     [*] --> Clean

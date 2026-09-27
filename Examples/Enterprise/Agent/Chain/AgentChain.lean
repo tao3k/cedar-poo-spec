@@ -43,19 +43,20 @@ def revokedEdge : Policy :=
     resourceScope := .resourceScope (.eq complianceBot),
     condition := [{ kind := .when, body := .lit (.bool true) }] }
 
-def chainModel : Model := { modules := model.modules ++ [
-  { name := "ChainDelegation", parentOrders := [["DelegationBounded"]],
-    edits := [.overlay chainDelegation] },
-  { name := "ChainOrigin", parentOrders := [["OriginBounded"]],
-    edits := [.overlay chainOrigin] },
-  { name := "ChainGoverned", parentOrders := [["ChainDelegation", "ChainOrigin"]] },
-  { name := "ChainGovernedRevoked", parentOrders := [["ChainGoverned"]],
-    edits := [.extend revokedEdge] },
-  { name := "ChainGovernedRestored", parentOrders := [["ChainGovernedRevoked"]],
-    edits := [.remove revokedEdge.id] },
-  { name := "ChainDepthOnly", parentOrders := [["DelegationBounded"]],
-    edits := [.overlay depthOnlyDelegation] },
-  { name := "ChainConflicted", parentOrders := [["ChainDelegation", "ChainDepthOnly"]] }] }
+def chainModelResult : Except LeanPoo.C4.Error Model := do
+  let delegation ← model.extend "ChainDelegation" "DelegationBounded"
+    [.overlay chainDelegation]
+  let origin ← delegation.extend "ChainOrigin" "OriginBounded" [.overlay chainOrigin]
+  let governed ← origin.mix "ChainGoverned" ["ChainDelegation", "ChainOrigin"]
+  let revoked ← governed.extend "ChainGovernedRevoked" "ChainGoverned"
+    [.extend revokedEdge]
+  let restored ← revoked.extend "ChainGovernedRestored" "ChainGovernedRevoked"
+    [.remove revokedEdge.id]
+  let depthOnly ← restored.extend "ChainDepthOnly" "DelegationBounded"
+    [.overlay depthOnlyDelegation]
+  depthOnly.mix "ChainConflicted" ["ChainDelegation", "ChainDepthOnly"]
+
+def chainModel : Model := chainModelResult.toOption.get (by native_decide)
 
 def requestHop (source target : EntityUID) (depth : Int64) : Request :=
   let requested := if target == dataBot then "delete_records" else "delegate"
