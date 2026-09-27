@@ -1,4 +1,4 @@
-import Examples.Enterprise.Vehicle.SupplierTransition
+import Examples.Enterprise.Vehicle.Uptane.SupplierTransition
 
 /-! Export the same policy revisions and per-layer requests checked in Lean. -/
 

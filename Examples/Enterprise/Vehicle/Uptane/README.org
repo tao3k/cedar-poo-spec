@@ -1,0 +1,109 @@
+#+TITLE: Uptane Supplier Transition
+#+OPTIONS: toc:nil
+
+* Case and source
+
+[[file:SupplierTransition.lean][SupplierTransition.lean]] projects the tier-1
+supplier removal and replacement procedure from
+[[https://uptane.org/papers/V2.1.0_uptane_deploy.pdf][Uptane Deployment Best
+Practices 2.1.0, section 6.3]] into two authorization surfaces: the Image
+repository delegation and the Director repository's target assignment.
+The [[https://uptane.org/docs/2.0.0/standard/uptane-standard][Uptane Standard
+2.0.0, sections 5.3.1 and 5.3.2]] defines the distinct responsibilities
+of those repositories. This is a concrete maintenance procedure, not a
+retrospective claim that an unrelated vehicle vulnerability was fixed by OTA.
+
+| Published requirement or observation | Projection in this example |
+|--------------------------------------+----------------------------|
+| The OEM should remove the departing supplier's Image Targets delegation and its images and metadata. | =ImageRemoval= removes the old supplier's publication authority. |
+| The OEM should remove that supplier's images, dependencies, and conflicts from the Director so they are no longer selected. | =DirectorRemoval= removes the old image assignment authority. |
+| Vehicles formerly served by that supplier need a replacement delegation. | =Replacement= adds a new supplier publication rule and a new Director assignment rule. |
+| The Snapshot must keep a record of the removed delegation until the specified key rotation path is performed, preventing rollback. | The replacement Director rule requires a host-supplied =snapshotRetainsRevocation= fact. The example does not construct or verify Snapshot metadata. |
+| The Director receives signed version manifests from Primary ECUs. | An unchanged =primary-version-manifest= authorization rule remains available through supplier retirement and replacement. |
+
+The repository principals, image identifiers, compatibility labels, and
+Boolean evidence fields are illustrative. Uptane's signed metadata, hashes,
+delegation traversal, Snapshot handling, vehicle version manifests, ECU
+verification, and update installation remain outside this Cedar model. The
+host must derive the evidence from those actual mechanisms before using a
+Cedar decision to authorize a repository operation.
+
+* Why this is a POO case
+
+Removing a supplier from only one repository leaves a stale authority on
+the other side. The example therefore checks each authorization decision
+separately and their conjunction. =ImageRemoval= and =DirectorRemoval= are
+independent Lean-POO branches; =Retired= composes both via C4; =Replacement=
+extends the result with the new supplier's permissions. The old publication
+and assignment permissions do not return in =Replacement=.
+
+The retirement revision changes exactly the two old policy IDs, introduces
+zero new policy bodies, and preserves the manifest policy. The replacement
+introduces exactly two new policy bodies. Lean re-closes the retirement
+authorization certificate from the validated baseline without a fresh
+per-policy certificate. Cedar's upstream authorization soundness theorem
+then applies to the resulting snapshot. The
+[[file:SupplierTransitionExport.lean][exporter]] sends the same per-layer
+requests and materialized revisions to the official Rust Cedar authorizer.
+The current case has 26 individual Cedar decisions across five revisions.
+Cedar policy text evaluates each final state, while Lean-POO records the
+owner-specific edits and the local proof reuse across revisions.
+
+* Case matrices and compression
+
+The decision matrix uses valid delegation, authenticated metadata, a retained
+Snapshot revocation record, and a valid manifest signature. =Old image= is
+the departing supplier's target; =New image= is the replacement target.
+Each Image and Director cell is one Cedar decision, not an inferred fleet
+update outcome. A workflow may proceed only when both cells in its pair
+allow.
+
+| POO root | Old Image publish | Old Director assign | New Image publish | New Director assign | Primary manifest |
+|----------+-------------------+---------------------+-------------------+---------------------+------------------|
+| =Base= | Allow | Allow | Deny | Deny | Allow |
+| =ImageRemoval= | Deny | Allow | Deny | Deny | Allow |
+| =DirectorRemoval= | Allow | Deny | Deny | Deny | Allow |
+| =Retired= | Deny | Deny | Deny | Deny | Allow |
+| =Replacement= | Deny | Deny | Allow | Allow | Allow |
+
+The one-sided rows show the gap the Uptane procedure closes: a compound
+update already denies, yet one repository still has stale authority.
+Additional named requests deny a missing replacement delegation, a missing
+Snapshot revocation record, unauthenticated metadata, an incompatible
+replacement image, and an invalid Primary manifest signature. Together the
+Lean case table exports 11 update rows with two decisions each and four
+manifest rows: *26 Cedar decisions* over five materialized revisions.
+
+| Root | Local change | Live policy bodies | Fresh bodies against stated baseline |
+|------+--------------+--------------------+-------------------------------------|
+| =Base= | Declare old Image, old Director, and manifest rules | 3 | 3 |
+| =ImageRemoval= | Remove old Image rule | 2 | 0 vs =Base= |
+| =DirectorRemoval= | Remove old Director rule | 2 | 0 vs =Base= |
+| =Retired= | C4-compose both removals | 1 | 0 vs =Base= |
+| =Replacement= | Extend new Image and new Director rules | 3 | 2 vs =Retired= |
+
+Across these five final Cedar policy sets there are 11 materialized policy
+occurrences, but only five distinct policy bodies are authored in Lean.
+Seven POO edits describe the history: five extensions and two removals.
+The six repeated occurrences are retained in exported Cedar because each
+revision must stand alone. This is a source-maintenance count, not a
+measured runtime or repository-size improvement. The proved retirement
+certificate specifically reuses the unchanged manifest policy and requires
+no new per-policy validation.
+
+* Threat boundary
+
+[[https://pure.coventry.ac.uk/ws/portalfiles/portal/55055433/Published.pdf][Mahmood,
+Nguyen, and Shaikh, Vehicular Communications 35 (2022), threat 21.3]]
+tested the harder case where both Image and Director repositories and their
+signing keys were compromised. Their Uptane test accepted the malicious
+image because both signed metadata sources agreed. This example does not
+claim that Cedar or POO defeats that attack: an attacker who controls the
+evidence producer or authorization enforcement point can supply false facts
+or bypass the policy. The test makes the independent trust boundary explicit
+instead of treating metadata agreement as proof of benign content.
+
+#+begin_src sh
+just check-supplier-transition
+just check-cedar-language
+#+end_src
