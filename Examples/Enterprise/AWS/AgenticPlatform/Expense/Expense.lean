@@ -137,6 +137,23 @@ def model : Model := { modules := [
   { name := "Recovered", parentOrders := [["Incident"]],
     edits := [.remove frozenExpense.id] }] }
 
+/-- The composition is the LeanPOO C4 order, not a handwritten conjunction
+    of the five Cedar conditions. Each policy below comes from its own owner. -/
+theorem governedComposition :
+    LeanPoo.C4.linearize model.graph "Governed" =
+      .ok ["Governed", "Team", "ApprovalScope", "Role", "Duties", "State",
+        "SourceProjection"] ∧
+    (model.compilePlan "Governed").toOption.map (·.plan.precedence) =
+      some ["Governed", "Team", "ApprovalScope", "Role", "Duties", "State",
+        "SourceProjection"] ∧
+    (model.compileWithProvenance "Governed").toOption.map
+      (·.map (fun p => (p.policy.id, p.introducedBy))) =
+      some [(exposed.id, "SourceProjection"),
+        (nonSubmitted.id, "State"), (selfRejection.id, "Duties"),
+        (nonApprover.id, "Role"), (rejectScope.id, "ApprovalScope"),
+        (crossDepartment.id, "Team")] := by
+  native_decide
+
 def decideAt (root : String) (req : Request) : Option Decision := do
   let policies ← (model.compile root).toOption
   let response := isAuthorized req entities policies
