@@ -94,9 +94,10 @@ computes the manifest from the existing Lean policy model, entity store,
 requests, and authorization responses. The Rust bridge checks nine cases
 across published, posture, revoked, and expanded revisions. Each case compares the
 authorization decision, determining policy IDs, and IDs of policies with
-evaluation errors. It reparses the rendered =.cedar= syntax and checks that
-the decision and error count still match; Cedar assigns new IDs when parsing
-text, so ID comparison applies to the JSON artifact only. A mismatch or parse failure exits with an error. The regular
+evaluation errors. It reparses the rendered =.cedar= syntax and compares
+policy-body multisets, decisions, and the bodies of determining and erroring
+policies. Cedar assigns new IDs when parsing text, so ID comparison applies
+to the JSON artifact only. A mismatch or parse failure exits with an error. The regular
 check also fails if committed =.cedar= files differ from freshly generated
 output.
 
@@ -178,7 +179,10 @@ template payloads, and conflicting revision artifacts. Cedar owns JSON and
 policy-language parsing; these checks target our translation boundary.
 For the independently maintained Vehicle =.cedar= baselines, the direct-source
 gate also compares the multiset of canonical policy bodies after official
-Cedar parsing. A matching decision with a changed policy body is rejected.
+Cedar parsing. It maps regenerated source IDs to those bodies before comparing
+determining and erroring policies. A matching decision with a changed body or
+diagnostic is rejected. Identical policy bodies remain indistinguishable after
+the source IDs are regenerated.
 
 The finite request tables establish conformance for their named requests.
 They are not a universal proof that every abstract Lean policy has identical

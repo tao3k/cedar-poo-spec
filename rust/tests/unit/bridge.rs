@@ -179,6 +179,30 @@ fn direct_cedar_check_detects_policy_drift() {
     };
     std::fs::write(&path, "permit(principal, action, resource);").expect("direct permit");
     check_direct_sources(&manifest, &directory).expect("matching decision");
+    let mut wrong_ids = receipt();
+    wrong_ids.policy_ids = vec!["other".into()];
+    assert!(
+        check_direct_sources(
+            &Manifest {
+                cases: vec![wrong_ids]
+            },
+            &directory
+        )
+        .unwrap_err()
+        .contains("loaded policy IDs differ")
+    );
+    let mut wrong_reasons = receipt();
+    wrong_reasons.expected_reasons.clear();
+    assert!(
+        check_direct_sources(
+            &Manifest {
+                cases: vec![wrong_reasons]
+            },
+            &directory
+        )
+        .unwrap_err()
+        .contains("direct Cedar expected")
+    );
     std::fs::write(&path, "permit(principal, action, resource) when { true };")
         .expect("different body with the same decision");
     assert!(
@@ -191,6 +215,47 @@ fn direct_cedar_check_detects_policy_drift() {
         check_direct_sources(&manifest, &directory)
             .unwrap_err()
             .contains("direct policy bodies differ")
+    );
+    std::fs::remove_dir_all(directory).expect("remove temporary directory");
+}
+
+#[test]
+fn direct_cedar_check_identifies_erroring_policy_with_new_source_ids() {
+    let directory =
+        std::env::temp_dir().join(format!("cedar-poo-direct-errors-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory");
+    std::fs::write(
+        directory.join("published.cedar"),
+        "permit(principal, action, resource) when { principal.missing };\n\
+         forbid(principal, action, resource) when { false };",
+    )
+    .expect("direct policies");
+    let mut case = receipt();
+    let mut policies = case.policies.as_value().clone();
+    policies["staticPolicies"]["base"]["conditions"] = json!([{
+        "kind": "when",
+        "body": { ".": { "left": { "Var": "principal" }, "attr": "missing" } }
+    }]);
+    policies["staticPolicies"]["other"] = json!({
+        "effect": "forbid",
+        "principal": { "op": "All" },
+        "action": { "op": "All" },
+        "resource": { "op": "All" },
+        "conditions": [{ "kind": "when", "body": { "Value": false } }]
+    });
+    case.policies = serde_json::from_value(policies).expect("two policies");
+    case.policy_ids.push("other".into());
+    case.expected = "deny".into();
+    case.expected_reasons.clear();
+    case.expected_error_policies = vec!["base".into()];
+    let mut manifest = Manifest { cases: vec![case] };
+    check_direct_sources(&manifest, &directory).expect("same erroring policy body");
+
+    manifest.cases[0].expected_error_policies = vec!["other".into()];
+    assert!(
+        check_direct_sources(&manifest, &directory)
+            .unwrap_err()
+            .contains("direct Cedar expected")
     );
     std::fs::remove_dir_all(directory).expect("remove temporary directory");
 }

@@ -173,7 +173,9 @@ dataset author's attack labels. The dataset metadata used for extraction has SHA
 The [[file:DirectPolicies/][direct Cedar baseline]] stores six
 standalone Cedar policy snapshots without Lean-generated comments.
 The official Rust Cedar engine authorizes all 68 existing requests
-with the same allow/deny decision and error count as Lean. For one
+with the same allow/deny decision and determining and erroring policy bodies
+as Lean. Source policy IDs are regenerated, so the comparison uses bodies.
+For one
 controlled change, fallback handoff additionally requires
 =routeApproved=. [[file:MaintenanceComparison.lean][Lean]] makes this
 change once in =Base= and proves that all six roots inherit it. Six
@@ -188,7 +190,7 @@ experiment does not establish a general authoring or speed advantage.
 | Evidence | Observation | Limit |
 |----------+-------------+-------|
 | Public trace record 1 | Clean/injected predicted paths differ and the independent Waymo future supports an offline reference check. | The post-decision theorem uses hypothetical samples; no measured attacked execution, deployable reference, or proven fallback controller. |
-| Direct Cedar baseline | 68/68 decisions and error counts match the Lean export. | The snapshots began as copies of equivalent policy text. |
+| Direct Cedar baseline | 68/68 decisions and determining/erroring policy bodies match the Lean export. | The snapshots began as copies of equivalent policy text. |
 | Controlled fallback edit | One =Base= owner edit versus six direct snapshot edits; 12/12 decisions match. | This compares only independently maintained snapshots, not every Cedar authoring workflow. |
 
 #+begin_src sh

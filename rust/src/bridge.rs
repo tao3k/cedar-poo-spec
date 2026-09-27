@@ -59,8 +59,14 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), String> {
         if revision.source != *case.policies.as_value() {
             return Err(format!("{}: conflicting revision output", case.revision));
         }
-        check_case(case, &revision.policies, &revision.rendered)
-            .map_err(|error| format!("{}: {error}", case.name))?;
+        check_case(
+            case,
+            &revision.policies,
+            &revision.rendered,
+            &revision.compiled_bodies,
+            &revision.rendered_bodies,
+        )
+        .map_err(|error| format!("{}: {error}", case.name))?;
     }
     render_artifacts(manifest)?;
     Ok(())
@@ -70,6 +76,8 @@ struct CheckedRevision {
     source: Value,
     policies: PolicySet,
     rendered: PolicySet,
+    compiled_bodies: BTreeMap<String, String>,
+    rendered_bodies: BTreeMap<String, String>,
 }
 
 impl CheckedRevision {
@@ -78,16 +86,24 @@ impl CheckedRevision {
         let text = render_loaded_policy_set(&policies)?;
         let rendered = PolicySet::from_str(&text)
             .map_err(|error| format!("rendered Cedar text parse: {error}"))?;
+        let compiled_bodies = policy_bodies_by_id(&policies)?;
+        let rendered_bodies = policy_bodies_by_id(&rendered)?;
+        if policy_body_counts(&compiled_bodies) != policy_body_counts(&rendered_bodies) {
+            return Err("rendered Cedar text changed policy bodies".into());
+        }
         Ok(Self {
             source: case.policies.as_value().clone(),
             policies,
             rendered,
+            compiled_bodies,
+            rendered_bodies,
         })
     }
 }
 
 /// Replay Lean's requests against independently stored Cedar source files.
-/// Cedar assigns source policy IDs, so policy bodies are compared without IDs.
+/// Cedar assigns source policy IDs, so bodies and diagnostics are compared
+/// through policy bodies rather than regenerated IDs.
 pub fn check_direct_sources(manifest: &Manifest, directory: &Path) -> Result<(), String> {
     if manifest.cases.is_empty() {
         return Err("manifest has no cases".into());
@@ -129,7 +145,15 @@ fn check_direct_case(case: &Case, policies: &PolicySet) -> Result<(), String> {
         return Err("direct policy count differs".into());
     }
     let compiled = load_policy_set(&case.policies)?;
-    if !same_policy_bodies_ignoring_ids(policies, &compiled)? {
+    let direct_bodies = policy_bodies_by_id(policies)?;
+    let compiled_bodies = policy_bodies_by_id(&compiled)?;
+    let expected_ids = case.policy_ids.iter().cloned().collect::<BTreeSet<_>>();
+    if expected_ids.len() != case.policy_ids.len()
+        || expected_ids != compiled_bodies.keys().cloned().collect()
+    {
+        return Err("loaded policy IDs differ from the Lean compilation".into());
+    }
+    if policy_body_counts(&direct_bodies) != policy_body_counts(&compiled_bodies) {
         return Err("direct policy bodies differ".into());
     }
     let entities = Entities::from_json_value(case.entities.clone(), None)
@@ -150,28 +174,62 @@ fn check_direct_case(case: &Case, policies: &PolicySet) -> Result<(), String> {
         Decision::Allow => "allow",
         Decision::Deny => "deny",
     };
-    let errors = response.diagnostics().errors().count();
-    if decision != case.expected || errors != case.expected_error_policies.len() {
+    let reasons = diagnostic_body_counts(
+        response.diagnostics().reason().map(ToString::to_string),
+        &direct_bodies,
+    )?;
+    let expected_reasons =
+        diagnostic_body_counts(case.expected_reasons.iter().cloned(), &compiled_bodies)?;
+    let errors = diagnostic_body_counts(
+        response.diagnostics().errors().map(|error| match error {
+            AuthorizationError::PolicyEvaluationError(error) => error.policy_id().to_string(),
+        }),
+        &direct_bodies,
+    )?;
+    let expected_errors = diagnostic_body_counts(
+        case.expected_error_policies.iter().cloned(),
+        &compiled_bodies,
+    )?;
+    if decision != case.expected || reasons != expected_reasons || errors != expected_errors {
         return Err(format!(
-            "direct Cedar expected {} with {} errors, got {} with {} errors",
-            case.expected,
-            case.expected_error_policies.len(),
-            decision,
-            errors
+            "direct Cedar expected {} reasons {:?} errors {:?}, got {} reasons {:?} errors {:?}",
+            case.expected, expected_reasons, expected_errors, decision, reasons, errors,
         ));
     }
     Ok(())
 }
 
-fn same_policy_bodies_ignoring_ids(left: &PolicySet, right: &PolicySet) -> Result<bool, String> {
-    let body_counts = |policies: &PolicySet| -> Result<BTreeMap<String, usize>, String> {
-        let mut counts = BTreeMap::new();
-        for policy in policies.policies() {
-            *counts.entry(canonical_policy_body(policy)?).or_insert(0) += 1;
+fn policy_bodies_by_id(policies: &PolicySet) -> Result<BTreeMap<String, String>, String> {
+    policies
+        .policies()
+        .map(|policy| Ok((policy.id().to_string(), canonical_policy_body(policy)?)))
+        .collect()
+}
+
+fn policy_body_counts(bodies: &BTreeMap<String, String>) -> BTreeMap<String, usize> {
+    let mut counts = BTreeMap::new();
+    for body in bodies.values() {
+        *counts.entry(body.clone()).or_insert(0) += 1;
+    }
+    counts
+}
+
+fn diagnostic_body_counts(
+    ids: impl IntoIterator<Item = String>,
+    bodies: &BTreeMap<String, String>,
+) -> Result<BTreeMap<String, usize>, String> {
+    let mut counts = BTreeMap::new();
+    let mut seen = BTreeSet::new();
+    for id in ids {
+        if !seen.insert(id.clone()) {
+            return Err(format!("duplicate diagnostic policy ID: {id}"));
         }
-        Ok(counts)
-    };
-    Ok(body_counts(left)? == body_counts(right)?)
+        let body = bodies
+            .get(&id)
+            .ok_or_else(|| format!("unknown diagnostic policy ID: {id}"))?;
+        *counts.entry(body.clone()).or_insert(0) += 1;
+    }
+    Ok(counts)
 }
 
 fn canonical_policy_body(policy: &cedar_policy::Policy) -> Result<String, String> {
@@ -334,7 +392,13 @@ pub fn render_artifacts(manifest: &Manifest) -> Result<BTreeMap<String, String>,
         .collect())
 }
 
-fn check_case(case: &Case, policies: &PolicySet, rendered: &PolicySet) -> Result<(), String> {
+fn check_case(
+    case: &Case,
+    policies: &PolicySet,
+    rendered: &PolicySet,
+    compiled_bodies: &BTreeMap<String, String>,
+    rendered_bodies: &BTreeMap<String, String>,
+) -> Result<(), String> {
     let expected_ids = case.policy_ids.iter().cloned().collect::<BTreeSet<_>>();
     let loaded_ids = policies
         .policies()
@@ -401,10 +465,23 @@ fn check_case(case: &Case, policies: &PolicySet, rendered: &PolicySet) -> Result
         ));
     }
     let reparsed = Authorizer::new().is_authorized(&request, rendered, &entities);
+    let rendered_reasons = diagnostic_body_counts(
+        reparsed.diagnostics().reason().map(ToString::to_string),
+        rendered_bodies,
+    )?;
+    let compiled_reasons = diagnostic_body_counts(reasons, compiled_bodies)?;
+    let rendered_errors = diagnostic_body_counts(
+        reparsed.diagnostics().errors().map(|error| match error {
+            AuthorizationError::PolicyEvaluationError(error) => error.policy_id().to_string(),
+        }),
+        rendered_bodies,
+    )?;
+    let compiled_errors = diagnostic_body_counts(error_policies, compiled_bodies)?;
     if reparsed.decision() != response.decision()
-        || reparsed.diagnostics().errors().count() != error_policies.len()
+        || rendered_reasons != compiled_reasons
+        || rendered_errors != compiled_errors
     {
-        return Err("rendered Cedar text changed authorization behavior".into());
+        return Err("rendered Cedar text changed authorization diagnostics".into());
     }
     Ok(())
 }
