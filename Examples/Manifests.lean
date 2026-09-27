@@ -5,7 +5,9 @@ import Examples.Governance.AttestedDataAccessExport
 import Examples.Governance.AttestedSchemaEvolutionExport
 import Examples.Language.ScopeAndPatternExport
 import Examples.Governance.TrustedNetworkDataAccessExport
+import Examples.Governance.TrustedNetworkValidatedExport
 import Examples.Governance.CountryApprovalExport
+import Examples.Governance.CountryApprovalValidatedExport
 import Examples.Enterprise.Procurement.PurchaseApprovalExport
 import Examples.Enterprise.Procurement.DelegatedApprovalExport
 import Examples.Enterprise.Procurement.DelegatedApprovalMatrixExport
@@ -15,6 +17,7 @@ import Examples.Enterprise.Agent.Chain.AgentChainExport
 import Examples.Enterprise.Agent.Payment.AgentPaymentExport
 import Examples.Enterprise.Agent.Payment.ValidatedExport
 import Examples.Enterprise.Agent.DataFlow.AgentDataFlowExport
+import Examples.Enterprise.Agent.DataFlow.ValidatedExport
 import Examples.Enterprise.Agent.Session.BoundedSessionExport
 import Examples.Enterprise.Agent.Fanout.SharedBudgetExport
 import Examples.Enterprise.Vehicle.Uptane.SupplierTransitionExport
@@ -35,7 +38,9 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("attested-schema-evolution", fun _ => AttestedSchemaEvolutionExport.bundle),
   ("scope-pattern", fun _ => ScopeAndPatternExport.manifest),
   ("network", fun _ => TrustedNetworkDataAccessExport.manifest),
+  ("network-validated", fun _ => TrustedNetworkValidatedExport.manifest),
   ("country-approval", fun _ => CountryApprovalExport.manifest),
+  ("country-approval-validated", fun _ => CountryApprovalValidatedExport.manifest),
   ("purchase-approval", fun _ => PurchaseApprovalExport.manifest),
   ("delegated-approval", fun _ => DelegatedApprovalExport.manifest),
   ("delegated-matrix", fun _ => DelegatedApprovalMatrixExport.manifest),
@@ -45,6 +50,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("agent-payment", fun _ => AgentPaymentExport.manifest),
   ("agent-payment-validated", fun _ => AgentPaymentValidatedExport.manifest),
   ("agent-data-flow", fun _ => AgentDataFlowExport.manifest),
+  ("agent-data-flow-validated", fun _ => AgentDataFlowValidatedExport.manifest),
   ("bounded-session", fun _ => BoundedSessionExport.manifest),
   ("shared-budget", fun _ => SharedBudgetExport.manifest),
   ("supplier-transition", fun _ => SupplierTransitionExport.manifest),

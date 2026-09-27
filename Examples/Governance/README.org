@@ -240,6 +240,11 @@ counts. The official Cedar Rust engine checks all nine and reparses the
 generated [[file:NetworkPolicies/enclavenetwork.cedar][enclave policy source]].
 The example exercises the adapter's IP extension-value and function-call
 mapping; non-IP extension forms remain unsupported by this export path.
+The [[file:TrustedNetworkValidatedExport.lean][schema-bound exporter]] also
+validates all nine requests with Cedar's =ipaddr= context schema and official
+Rust authorizer. This checks the schema projection, not the gateway's claim
+that the supplied address is genuine. Run =just check-schema-bound-scenarios=;
+see [[file:../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
 
 #+begin_src sh
 lake env lean Examples/Governance/AttestedDataAccess.lean
@@ -286,8 +291,15 @@ feeds the named requests into Rust Cedar; the generated
 [[file:CountryPolicies/integrated.cedar][integrated policy source]] is
 reparsed and checked with the same requests. This is finite conformance
 evidence for the modeled requests, not a proof about all possible requests.
+The [[file:CountryApprovalValidatedExport.lean][schema-bound exporter]]
+also checks all thirteen requests through Cedar's strict schema boundary.
+=schemaValidationFully= checks the schema and four POO roots in Lean;
+=just check-schema-bound-scenarios= checks tag types and the
+=ApproverActions= hierarchy in the exported schema before Rust replay.
+See [[file:../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
 
 #+begin_src sh
 just check-country-approval
 just check-cedar-language
+just check-schema-bound-scenarios
 #+end_src

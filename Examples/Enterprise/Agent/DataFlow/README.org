@@ -51,6 +51,12 @@ Every root passes Lean Cedar schema and policy validation.
 review veto error while Cedar's broad permit returns raw =Allow=; the
 compound API rejects that operation. A downstream caller using generated
 =.cedar= must likewise reject a response containing policy errors.
+The [[file:ValidatedExport.lean][schema-bound exporter]] additionally checks
+all thirty well-formed read and publish layer requests through Cedar's
+strict policy, entity, context, and request validation. The malformed
+reviewer requests remain in the diagnostic manifest. Run
+=just check-schema-bound-scenarios=; the boundary is defined in
+[[file:../../../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
 
 The host must authenticate the agent, original user, and reviewer; provide
 authoritative tenant, classification, and approval facts; and bind both
@@ -62,4 +68,5 @@ facts, or implement an MCP server.
 #+begin_src sh
 just check-agent-data-flow
 just check-cedar-language
+just check-schema-bound-scenarios
 #+end_src

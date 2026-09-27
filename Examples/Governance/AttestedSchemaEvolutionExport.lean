@@ -9,7 +9,6 @@ namespace CedarPooSpec.AttestedSchemaEvolutionExport
 open CedarPooSpec.AttestedDataAccessExample
 
 private def manifest (candidate : Cedar.Validation.Schema) : Except String Lean.Json := do
-  let projected ← (CedarPooSpec.SchemaJson.schema candidate).mapError reprStr
   let mut rows : List Lean.Json := []
   for (name, req, _) in unchangedCases do
     let receipt ← CedarPooSpec.PolicyJson.authorizationCase
@@ -18,9 +17,7 @@ private def manifest (candidate : Cedar.Validation.Schema) : Except String Lean.
   let stale ← CedarPooSpec.PolicyJson.authorizationCase
     "stale-attestation" "attested-governedv2" model "GovernedV2"
     (request customerDataset { attestationFresh := false }) entities
-  return Lean.Json.mkObj [
-    ("schema", projected),
-    ("cases", Lean.toJson (rows ++ [stale]))]
+  CedarPooSpec.SchemaJson.validatedManifest candidate (rows ++ [stale])
 
 def bundle : Except String Lean.Json := do
   return Lean.Json.mkObj [

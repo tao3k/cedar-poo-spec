@@ -77,4 +77,8 @@ def schema (input : Schema) : Except Error Lean.Json := do
       obj [("entityTypes", obj entityTypes), ("actions", obj actions)])
   return obj entries
 
+def validatedManifest (input : Schema) (cases : List Lean.Json) : Except String Lean.Json := do
+  let projected ← (schema input).mapError reprStr
+  return obj [("schema", projected), ("cases", Lean.toJson cases)]
+
 end CedarPooSpec.SchemaJson

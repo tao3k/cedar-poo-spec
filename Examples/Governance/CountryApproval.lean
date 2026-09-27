@@ -8,7 +8,7 @@ revision assumptions, with fictive identities and records.
 
 namespace CedarPooSpec.CountryApprovalExample
 
-open Cedar.Spec Cedar.Data CedarPooSpec.PolicyModules
+open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
 
 def userType : EntityType := ⟨"User", []⟩
 def roleType : EntityType := ⟨"Role", []⟩
@@ -40,6 +40,23 @@ def approve : EntityUID := ⟨actionType, "approve"⟩
 def review : EntityUID := ⟨actionType, "review"⟩
 def delete : EntityUID := ⟨actionType, "delete"⟩
 def approverActions : EntityUID := ⟨actionType, "ApproverActions"⟩
+
+def userEntry : EntitySchemaEntry :=
+  .standard ⟨Set.make [roleType], Map.empty, some .string⟩
+def roleEntry : EntitySchemaEntry :=
+  .standard ⟨Set.make [roleType], Map.empty, none⟩
+def sheetEntry : EntitySchemaEntry :=
+  .standard ⟨Set.make [groupType], Map.empty, some .string⟩
+def groupEntry : EntitySchemaEntry :=
+  .standard ⟨Set.make [groupType], Map.empty, none⟩
+def actionEntry (ancestors : Set EntityUID := Set.empty) : ActionSchemaEntry :=
+  ⟨Set.make [userType], Set.make [sheetType], ancestors, Map.empty⟩
+def schema : Schema :=
+  ⟨Map.make [(userType, userEntry), (roleType, roleEntry),
+      (sheetType, sheetEntry), (groupType, groupEntry)],
+    Map.make [(approve, actionEntry (Set.make [approverActions])),
+      (review, actionEntry (Set.make [approverActions])),
+      (delete, actionEntry), (approverActions, actionEntry)]⟩
 
 def data (parents : List EntityUID := []) (tags : List (String × Value) := []) :
     EntityData :=
@@ -109,6 +126,14 @@ def model : Model := { modules := [
     edits := [.extend sensitiveVeto] },
   { name := "Integrated", parentOrders := [["Expansion", "Sensitive"]],
     edits := [.remove "legacy-europe"] }] }
+
+def schemaValidationExact : Bool :=
+  schema.validateWellFormed.isOk &&
+  ["Base", "Expansion", "Sensitive", "Integrated"].all fun root =>
+    match model.compile root with
+    | .error _ => false
+    | .ok policies => (validate policies schema).isOk
+theorem schemaValidationFully : schemaValidationExact = true := by native_decide
 
 def request (principal action resource : EntityUID) : Request :=
   ⟨principal, action, resource, Map.empty⟩

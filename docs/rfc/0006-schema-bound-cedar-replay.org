@@ -59,6 +59,29 @@ type, an invalid policy, and a stored receipt under a changed schema. They
 also show a schema-defined Action hierarchy authorizing a request that
 schema-free entity parsing denies.
 
+* Cross-tool, network, and country coverage
+
+The [[file:../../Examples/Enterprise/Agent/DataFlow/ValidatedExport.lean][data-flow exporter]]
+reuses thirty well-formed read and publish layer cases. It checks required
+=Document= and =User= entity references in publish context under the official
+Cedar schema. Its two deliberately malformed reviewer cases stay in the
+schema-free diagnostic manifest. The
+[[file:../../Examples/Governance/TrustedNetworkValidatedExport.lean][network exporter]]
+checks nine corporate and enclave policy cases with a required =ipaddr=
+extension value in context. These exporters use
+=SchemaJson.validatedManifest= so the schema projection and case envelope
+have one Cedar-specific owner.
+The [[file:../../Examples/Governance/CountryApprovalValidatedExport.lean][country approval exporter]]
+adds thirteen requests with entity tag types and Action group membership.
+Its =Integrated= POO root removes a broad inherited grant while retaining
+the country-specific role and resource hierarchy. Lean checks the schema
+and all four compiled roots; official Rust Cedar validates and replays the
+same thirteen cases using schema-supplied Action inheritance.
+
+#+begin_src sh
+just check-schema-bound-scenarios
+#+end_src
+
 * Schema-only evolution
 
 =SchemaEvolutionBundle= carries two =ValidatedManifest= values. The public
