@@ -112,6 +112,6 @@ request to the official Rust Cedar authorizer and checks all generated
 =.cedar= revisions after rendering and reparsing.
 
 #+begin_src sh
-just check-agent-fanout
+just example enterprise agent fanout
 just check-cedar-language
 #+end_src

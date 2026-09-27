@@ -70,6 +70,6 @@ HMAC, OAuth token exchange, or runtime loop detection across arbitrary
 external agents.
 
 #+begin_src sh
-just check-agent-chain
+just example enterprise agent chain
 just check-cedar-language
 #+end_src

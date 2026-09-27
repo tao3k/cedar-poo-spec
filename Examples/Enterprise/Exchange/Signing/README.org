@@ -182,7 +182,7 @@ source identity and contradictions rather than collapse them into one
 unqualified verdict.
 
 #+begin_src sh
-just check-exchange-signing
+just example enterprise exchange signing boundary
 just check-exchange-signing-replay
 just check-exchange-signing-validated
 just check-cedar-artifacts

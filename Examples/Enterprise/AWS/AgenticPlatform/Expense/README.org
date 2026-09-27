@@ -1,0 +1,76 @@
+#+TITLE: Expense Tool Governance Across Independent Owners
+#+OPTIONS: toc:nil
+
+* Published source and local claim
+
+The [[https://github.com/aws-samples/sample-agentic-ai-control-plane][AWS agentic AI platform sample]] exposes five expense tools. In its
+[[https://github.com/aws-samples/sample-agentic-ai-control-plane/blob/main/apps/infra/lib/lambdas/expense-tools.ts][expense tool source]], =approveExpense= calls Amazon Verified Permissions
+before updating the record. =listTeamExpenses= performs an unfiltered
+=findMany()= query, and =rejectExpense= updates the requested expense without
+an AVP call. The [[https://github.com/aws-samples/sample-agentic-ai-control-plane/blob/main/apps/infra/lib/lambdas/request-interceptor.ts][Gateway interceptor]] supplies caller identity and groups from
+the JWT. The published [[https://github.com/aws-samples/sample-agentic-ai-control-plane/blob/main/apps/infra/lib/lambdas/expense-schema.ts][AVP expense schema]] includes amount, submitter email,
+and status; it does not include expense department. These observations are
+about the reference code, not a deployed production vulnerability.
+
+[[file:Expense.lean][Expense.lean]] projects the two observable paths onto row-level Cedar
+requests. =SourceProjection= is a diagnostic broad permit standing for the
+current tool behavior; it is *not* a policy found in the sample. The
+department attribute, two projected actions, and all governance branches
+are proposed extensions. The real =listTeamExpenses= call returns a list,
+while this model evaluates disclosure of each returned row. A host must
+apply the decision to every row before release.
+
+* POO composition
+
+| Owner | Single edit | Gap left when used alone |
+|-------+-------------+--------------------------|
+| =Team= | Forbid reading a row from another department. | Rejection still has no local restrictions. |
+| =ApprovalScope= | Forbid rejection across departments. | A self rejection still passes. |
+| =Role= | Forbid a non-approver's rejection. | An approver may reject their own or already approved expense. |
+| =Duties= | Forbid rejection of one's own expense. | Another approver may reject an already approved expense. |
+| =State= | Forbid rejection unless the expense is submitted. | Cross-department reads remain exposed. |
+
+=Governed= C4-composes these independent owners. =Incident= extends one
+expense-specific rejection freeze; =Recovered= removes that edit. The Lean
+claims show the changed policy ID is exactly the freeze and the recovered
+policy set equals =Governed=. The owners are independently editable: a new
+department rule need not copy the role, duty, or state policy bodies.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> SourceProjection: Reference tool behavior
+    SourceProjection --> Team: Row visibility owner
+    SourceProjection --> ApprovalScope: Rejection scope owner
+    SourceProjection --> Role: Approver role owner
+    SourceProjection --> Duties: Separation of duties owner
+    SourceProjection --> State: Expense state owner
+    Team --> Governed: C4 compose
+    ApprovalScope --> Governed: C4 compose
+    Role --> Governed: C4 compose
+    Duties --> Governed: C4 compose
+    State --> Governed: C4 compose
+    Governed --> Incident: Freeze one expense
+    Incident --> Recovered: Remove freeze
+#+end_src
+
+* Verification and authority boundary
+
+[[file:ValidatedExport.lean][ValidatedExport.lean]] exports 27 named requests across the source
+projection, individual branches, composed policy, freeze, and recovery.
+The official Cedar Rust validator and authorizer replay every request and
+require empty policy-error lists. It also regenerates and compares the
+[[file:Policies/source-projection.cedar][source projection]], [[file:Policies/governed.cedar][governed]], and [[file:Policies/incident.cedar][incident]] Cedar files.
+The examples include cross-department
+disclosure, self rejection, a non-approver, an already approved record,
+a valid manager action, an incident, and recovery.
+
+The host must authenticate the JWT, bind the interceptor's caller to the
+AVP principal, obtain current expense facts from storage, apply row-level
+filtering, and make authorization and update atomic. This model checks
+supplied facts and Cedar decisions; it does not prove those host duties or
+change the published implementation. The sample's existing =approveExpense=
+AVP path remains a separate authority and is not replaced here.
+
+#+begin_src sh
+just example aws agentic-platform expense
+#+end_src

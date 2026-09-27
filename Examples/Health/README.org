@@ -154,6 +154,6 @@ before releasing an alert. Cedar and POO decide authorization from those
 facts; neither verifies device firmware, clinical accuracy, or an FDA status.
 
 #+begin_src sh
-just check-wearable-triage
+just example health wearable-triage
 just check-cedar-language
 #+end_src

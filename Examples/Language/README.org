@@ -14,7 +14,7 @@ unary =is=, and nested =has=. The Lean theorem =decisionsExactFully= checks
 five requests. [[file:ScopeAndPatternExport.lean][ScopeAndPatternExport.lean]]
 exports both POO roots; the Rust Cedar engine checks the same requests and
 reparses the generated [[file:Policies/scoped.cedar][Cedar source]]. The
-=just check-language= and =just check-cedar-language= commands keep the Lean
+=just example language scope-and-enum= and =just check-cedar-language= commands keep the Lean
 and concrete-language boundaries independently inspectable.
 
 The same POO roots now have a Lean schema for the =User= and =Document=
@@ -64,6 +64,6 @@ included as value-serialization boundaries. The full mapping is listed in
 [[file:../../docs/rfc/0003-cedar-language-export.org][RFC 0003]].
 
 #+begin_src sh
-just check-extension-coverage
+just example language extension-coverage
 just check-cedar-language
 #+end_src

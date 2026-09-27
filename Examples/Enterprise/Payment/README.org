@@ -50,6 +50,6 @@ The wrong-preparer case checks that the first query cannot be performed by a
 clerk other than the payment's recorded =preparedBy=.
 
 #+begin_src sh
-just check-payment-release
+just example enterprise payment release
 just check-cedar-language
 #+end_src

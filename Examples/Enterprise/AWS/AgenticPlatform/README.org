@@ -1,0 +1,12 @@
+#+TITLE: AWS Agentic AI Platform Cases
+#+OPTIONS: toc:nil
+
+* Business workflows
+
+| Case | Source | Composition question |
+|------+--------+----------------------|
+| [[file:Expense/README.org][Expense operations]] | [[https://github.com/aws-samples/sample-agentic-ai-control-plane][AWS agentic AI control-plane sample]] | Can independent data, approval, duty, and state owners close two exposed tool paths without copying their rules into every revision? |
+
+The sample is a published reference platform, not a statement about AWS's
+internal expense processes. Each local rule beyond the observed source
+behavior is labeled as a proposed control.

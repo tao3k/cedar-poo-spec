@@ -83,7 +83,7 @@ The solver boundary is specified in
 [[file:../../../../docs/rfc/0004-authorization-delta.org][RFC 0004]].
 
 #+begin_src sh
-just check-agent-payment
+just example enterprise agent payment
 just check-payment-delta
 just check-cedar-language
 just check-schema-bound-receipts

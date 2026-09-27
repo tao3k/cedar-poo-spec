@@ -1,0 +1,5 @@
+mod agent 'Agent/Justfile'
+mod payment 'Payment/Justfile'
+mod procurement 'Procurement/Justfile'
+mod exchange 'Exchange/Justfile'
+mod vehicle 'Vehicle/Justfile'

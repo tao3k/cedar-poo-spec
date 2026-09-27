@@ -46,6 +46,6 @@ perform the tool call. The preprint's money ceiling and idempotency stages
 are outside this deletion scenario.
 
 #+begin_src sh
-just check-agent-delegation
+just example enterprise agent delegation
 just check-cedar-language
 #+end_src

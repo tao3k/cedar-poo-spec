@@ -1,0 +1,21 @@
+set working-directory := '../../..'
+
+delegation:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Delegation/AgentDelegation.lean
+
+chain:
+    mkdir -p .lake/build/lib/lean/Examples/Enterprise/Agent/Delegation
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Enterprise/Agent/Delegation/AgentDelegation.olean Examples/Enterprise/Agent/Delegation/AgentDelegation.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Chain/AgentChain.lean
+
+payment:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Payment/AgentPayment.lean
+
+data-flow:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/DataFlow/AgentDataFlow.lean
+
+session:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Session/BoundedSession.lean
+
+fanout:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Fanout/SharedBudget.lean

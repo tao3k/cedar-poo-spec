@@ -1,6 +1,9 @@
 set shell := ["sh", "-eu", "-c"]
 export CARGO_TARGET_DIR := "rust/target"
 
+# Example recipes follow the source publisher or project area.
+mod example 'Examples/Justfile'
+
 default:
     @just --list
 
@@ -35,10 +38,11 @@ check: check-tests check-docs
     just check-exchange-signing-validated
     just check-schema-bound-receipts
     just check-schema-bound-scenarios
-    just check-lakehouse-gateway
-    just check-multi-account-banking
-    just check-claim-settlement
-    just check-reconciliation
+    just example aws financial-services lakehouse
+    just example aws financial-services multi-account-banking
+    just example aws financial-services claim-settlement
+    just example aws financial-services reconciliation
+    just example aws agentic-platform expense
     just check-attested-schema-evolution
     just check-authorization-delta
     just check-authorization-delta-proof
@@ -87,44 +91,6 @@ check-schema-bound-scenarios: prepare-schema-bound-scenarios
     jq -e 'length == 9 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/network-validated-receipts.json > /dev/null
     jq -e 'length == 13 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/country-approval-validated-receipts.json > /dev/null
 
-check-lakehouse-gateway: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean lakehouse-gateway-validated > .lake/build/lakehouse-gateway-validated-manifest.json
-    jq -e '.schema.AgentCore.entityTypes.OAuthUser.tags == {"type":"String"} and .schema.AgentCore.actions["lakehouse-mcp-target___query_claims"].appliesTo.context.attributes.input.attributes.geography == {"required":false,"type":"String"} and (.cases | length) == 16' .lake/build/lakehouse-gateway-validated-manifest.json > /dev/null
-    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/lakehouse-gateway-validated-manifest.json > .lake/build/lakehouse-gateway-validated-receipts.json
-    jq -e 'length == 16 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | {key:.replay.case_name,value:.replay.decision}] | from_entries) == {"policyholder-us-query":"allow","hardened-policyholder-us-query":"allow","policyholder-eu-query":"deny","hardened-policyholder-eu-query":"deny","policyholder-eu-summary":"deny","hardened-policyholder-eu-summary":"deny","adjuster-us-summary":"allow","hardened-adjuster-us-summary":"allow","adjuster-eu-details":"deny","hardened-adjuster-eu-details":"deny","restricted-tool":"deny","hardened-restricted-tool":"deny","sourcecombined-missing-geography":"allow","failclosed-missing-geography":"deny","sourcecombined-unknown-geography":"allow","failclosed-unknown-geography":"deny"}' .lake/build/lakehouse-gateway-validated-receipts.json > /dev/null
-    jq '.cases[0].policies' .lake/build/lakehouse-gateway-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/lakehouse-source-combined.cedar
-    cmp .lake/build/lakehouse-source-combined.cedar Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/Policies/source-combined.cedar
-    jq '.cases[1].policies' .lake/build/lakehouse-gateway-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/lakehouse-fail-closed.cedar
-    cmp .lake/build/lakehouse-fail-closed.cedar Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/Policies/fail-closed.cedar
-
-check-multi-account-banking: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean multi-account-banking-validated > .lake/build/multi-account-banking-validated-manifest.json
-    jq -e '.schema.AgentCore.entityTypes.OAuthUser != null and (.schema.AgentCore.actions | length) == 18 and (.cases | length) == 41' .lake/build/multi-account-banking-validated-manifest.json > /dev/null
-    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/multi-account-banking-validated-manifest.json > .lake/build/multi-account-banking-validated-receipts.json
-    jq -e 'length == 41 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$")) and (.replay.case_name | test("^(source|owners|paused|resumed)-")) and .replay.decision == (if (.replay.case_name | endswith("delete-customer")) or .replay.case_name == "paused-transfer" then "deny" else "allow" end)) and ([.[] | select(.replay.case_name | test("^(source|owners)-"))] | group_by(.replay.case_name | sub("^(source|owners)-"; "")) | length == 18 and all(.[]; length == 2 and (map(.replay.case_name | split("-")[0]) | sort) == ["owners", "source"])) and ([.[] | select(.replay.case_name | test("^(paused|resumed)-"))] | map(.replay.case_name) | sort) == ["paused-balance","paused-delete-customer","paused-payments","paused-transfer","resumed-transfer"]' .lake/build/multi-account-banking-validated-receipts.json > /dev/null
-    jq '.cases[0].policies' .lake/build/multi-account-banking-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/multi-account-banking-source.cedar
-    cmp .lake/build/multi-account-banking-source.cedar Examples/Enterprise/AWS/FinancialServices/MultiAccountBanking/Policies/source-broad.cedar
-    jq '.cases[1].policies' .lake/build/multi-account-banking-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/multi-account-banking-owners.cedar
-    cmp .lake/build/multi-account-banking-owners.cedar Examples/Enterprise/AWS/FinancialServices/MultiAccountBanking/Policies/owner-composed.cedar
-    lake build Examples.Enterprise.AWS.FinancialServices.MultiAccountBanking.Lineage
-
-check-claim-settlement: build-examples
-    lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlement
-    lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlementRevision
-
-check-reconciliation: build-examples
-    lake build Examples.Enterprise.AWS.FinancialServices.Reconciliation.Workflow
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean reconciliation-validated > .lake/build/reconciliation-validated-manifest.json
-    jq -e '.schema.AgentCore.entityTypes.IamEntity != null and (.schema.AgentCore.actions | length) == 10 and (.cases | length) == 32' .lake/build/reconciliation-validated-manifest.json > /dev/null
-    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/reconciliation-validated-manifest.json > .lake/build/reconciliation-validated-receipts.json
-    jq -e 'length == 32 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["agent-status-denied","joint-graph-send","joint-worker-85","paused-graph-send","raised-threshold-denies","worker-below-threshold","worker-missing-confidence"]' .lake/build/reconciliation-validated-receipts.json > /dev/null
-    jq '[.cases[] | select(.revision == "source")][0].policies' .lake/build/reconciliation-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/reconciliation-source.cedar
-    cmp .lake/build/reconciliation-source.cedar Examples/Enterprise/AWS/FinancialServices/Reconciliation/Policies/source.cedar
-    jq '[.cases[] | select(.revision == "owners")][0].policies' .lake/build/reconciliation-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/reconciliation-owners.cedar
-    cmp .lake/build/reconciliation-owners.cedar Examples/Enterprise/AWS/FinancialServices/Reconciliation/Policies/owners.cedar
-    jq '[.cases[] | select(.revision == "JointIncident")][0].policies' .lake/build/reconciliation-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/reconciliation-joint-incident.cedar
-    cmp .lake/build/reconciliation-joint-incident.cedar Examples/Enterprise/AWS/FinancialServices/Reconciliation/Policies/joint-incident.cedar
-
 prepare-attested-schema-evolution: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json
 
@@ -147,100 +113,7 @@ check-payment-delta: build-examples
     jq '.manifest' .lake/build/payment-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 [parallel]
-check-examples: check-evaluation check-composition check-authorization check-scenarios check-health check-wearable-triage check-governance check-ticket-sharing check-language check-payment-release check-agent-delegation check-agent-chain check-agent-payment check-agent-data-flow check-agent-session check-agent-fanout check-exchange-signing check-supplier-transition check-vla-command check-mission-successor check-mission-replay check-mission-maintenance check-vehicle-tara
-
-check-evaluation:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Evaluation.lean
-
-check-composition:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Composition.lean
-
-check-authorization:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/AuthorizationSoundness.lean
-
-check-scenarios:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Scenarios/TenantDevicePolicyEvolution.lean
-
-check-health:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/ClinicalBreakGlass.lean
-
-check-wearable-triage:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/WearableTriage.lean
-
-check-governance:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/AttestedDataAccess.lean
-
-check-trusted-network:
-    mkdir -p .lake/build/lib/lean/Examples/Governance
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Governance/AttestedDataAccess.olean Examples/Governance/AttestedDataAccess.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/TrustedNetworkDataAccess.lean
-
-check-country-approval:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/CountryApproval.lean
-
-check-purchase-approval:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Procurement/PurchaseApproval.lean
-
-check-delegated-approval:
-    mkdir -p .lake/build/lib/lean/Examples/Enterprise/Procurement
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Enterprise/Procurement/PurchaseApproval.olean Examples/Enterprise/Procurement/PurchaseApproval.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Procurement/DelegatedApproval.lean
-
-check-payment-release:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Payment/PaymentRelease.lean
-
-check-agent-delegation:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Delegation/AgentDelegation.lean
-
-check-agent-chain:
-    mkdir -p .lake/build/lib/lean/Examples/Enterprise/Agent/Delegation
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Enterprise/Agent/Delegation/AgentDelegation.olean Examples/Enterprise/Agent/Delegation/AgentDelegation.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Chain/AgentChain.lean
-
-check-agent-payment:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Payment/AgentPayment.lean
-
-check-agent-data-flow:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/DataFlow/AgentDataFlow.lean
-
-check-agent-session:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Session/BoundedSession.lean
-
-check-agent-fanout:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Fanout/SharedBudget.lean
-
-check-exchange-signing:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Exchange/Signing/SigningBoundary.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Exchange/Signing/SigningAttackReplay.lean
-
-check-supplier-transition:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Uptane/SupplierTransition.lean
-
-check-vla-command:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/VLA/CommandBoundary.lean
-
-check-mission-successor:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Mission/SuccessorBoundary.lean
-
-check-mission-replay:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Mission/TrajectoryReplay.lean
-
-check-mission-maintenance:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Mission/MaintenanceComparison.lean
-
-check-vehicle-tara:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/TARA/TaraProjection.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/TARA/TaraHandoff.lean
-
-check-extension-coverage:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/ExtensionCoverage.lean
-
-check-ticket-sharing:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/TicketSharing.lean
-
-check-language:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/ScopeAndPattern.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Language/NamespacedEnum.lean
+check-examples: example::core::evaluation example::core::composition example::core::authorization example::scenarios::tenant-device example::health::clinical-break-glass example::health::wearable-triage example::governance::attested-data example::governance::trusted-network example::governance::country-approval example::governance::ticket-sharing example::language::scope-and-enum example::language::extension-coverage example::enterprise::agent::delegation example::enterprise::agent::chain example::enterprise::agent::payment example::enterprise::agent::data-flow example::enterprise::agent::session example::enterprise::agent::fanout example::enterprise::payment::release example::enterprise::procurement::purchase-approval example::enterprise::procurement::delegated-approval example::enterprise::exchange::signing::boundary example::enterprise::vehicle::supplier-transition example::enterprise::vehicle::vla-command example::enterprise::vehicle::mission-successor example::enterprise::vehicle::mission-replay example::enterprise::vehicle::mission-maintenance example::enterprise::vehicle::tara
 
 prepare-cedar-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean ticket-sharing > .lake/build/ticket-sharing-manifest.json

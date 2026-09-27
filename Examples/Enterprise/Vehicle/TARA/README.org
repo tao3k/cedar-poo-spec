@@ -216,6 +216,6 @@ VLA's own prediction can miss a self-consistent attack; the
 counterexample.
 
 #+begin_src sh
-just check-vehicle-tara
+just example enterprise vehicle tara
 just check-mission-comparison
 #+end_src

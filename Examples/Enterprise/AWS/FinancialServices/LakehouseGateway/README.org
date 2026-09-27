@@ -66,5 +66,5 @@ error lists. It also regenerates and compares the committed
 [[file:Policies/fail-closed.cedar][extended Cedar]] artifacts.
 
 #+begin_src sh
-just check-lakehouse-gateway
+just example aws financial-services lakehouse
 #+end_src

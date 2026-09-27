@@ -104,6 +104,6 @@ or bypass the policy. The test makes the independent trust boundary explicit
 instead of treating metadata agreement as proof of benign content.
 
 #+begin_src sh
-just check-supplier-transition
+just example enterprise vehicle supplier-transition
 just check-cedar-language
 #+end_src

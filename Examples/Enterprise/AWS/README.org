@@ -13,3 +13,4 @@ source, or product documentation that supports its claims.
 |----------+-------|
 | [[file:AgentCore/README.org][AgentCore]] | Shared Gateway projection used by business domains. |
 | [[file:FinancialServices/README.org][Financial services]] | Insurance claims data, banking LOB authorization, and a cross-domain settlement plan. |
+| [[file:AgenticPlatform/README.org][Agentic AI platform]] | Expense-tool governance across independent row, approval, duty, and state owners. |

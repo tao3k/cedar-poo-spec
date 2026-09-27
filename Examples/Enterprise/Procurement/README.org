@@ -79,7 +79,7 @@ checks establish behavior for these inputs; they do not establish genuine
 agent authentication, grant provenance, or complete enterprise coverage.
 
 #+begin_src sh
-just check-purchase-approval
-just check-delegated-approval
+just example enterprise procurement purchase-approval
+just example enterprise procurement delegated-approval
 just check-cedar-language
 #+end_src

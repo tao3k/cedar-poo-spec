@@ -1,0 +1,7 @@
+mod core 'Core/Justfile'
+mod aws 'Enterprise/AWS/Justfile'
+mod scenarios 'Scenarios/Justfile'
+mod health 'Health/Justfile'
+mod governance 'Governance/Justfile'
+mod language 'Language/Justfile'
+mod enterprise 'Enterprise/Justfile'

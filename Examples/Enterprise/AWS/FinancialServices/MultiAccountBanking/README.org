@@ -144,5 +144,5 @@ article's explicit user-JWT-to-Gateway and M2M-to-LOB chain is the authority
 for the modeled boundary.
 
 #+begin_src sh
-just check-multi-account-banking
+just example aws financial-services multi-account-banking
 #+end_src

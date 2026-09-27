@@ -23,6 +23,7 @@ import Examples.Enterprise.Agent.DataFlow.ValidatedExport
 import Examples.Enterprise.AWS.FinancialServices.LakehouseGateway.ValidatedExport
 import Examples.Enterprise.AWS.FinancialServices.MultiAccountBanking.ValidatedExport
 import Examples.Enterprise.AWS.FinancialServices.Reconciliation.ValidatedExport
+import Examples.Enterprise.AWS.AgenticPlatform.Expense.ValidatedExport
 import Examples.Enterprise.Agent.Session.BoundedSessionExport
 import Examples.Enterprise.Agent.Fanout.SharedBudgetExport
 import Examples.Enterprise.Exchange.Signing.SigningBoundaryExport
@@ -63,6 +64,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("lakehouse-gateway-validated", fun _ => LakehouseGatewayValidatedExport.manifest),
   ("multi-account-banking-validated", fun _ => MultiAccountBankingValidatedExport.manifest),
   ("reconciliation-validated", fun _ => CedarPooSpec.AWS.Reconciliation.ValidatedExport.manifest),
+  ("expense-governance-validated", fun _ => CedarPooSpec.AWS.Expense.ValidatedExport.manifest),
   ("bounded-session", fun _ => BoundedSessionExport.manifest),
   ("shared-budget", fun _ => SharedBudgetExport.manifest),
   ("exchange-signing", fun _ => ExchangeSigningExport.manifest),

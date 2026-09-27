@@ -124,6 +124,6 @@ and the Rust bridge compares its expected authorization result to the
 official Cedar engine after rendering and reparsing the policy set.
 
 #+begin_src sh
-just check-agent-session
+just example enterprise agent session
 just check-cedar-language
 #+end_src

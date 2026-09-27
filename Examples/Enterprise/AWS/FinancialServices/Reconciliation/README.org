@@ -90,5 +90,5 @@ policy-error lists. It also regenerates and compares the committed
 [[file:Policies/joint-incident.cedar][joint-incident]] Cedar artifacts.
 
 #+begin_src sh
-just check-reconciliation
+just example aws financial-services reconciliation
 #+end_src

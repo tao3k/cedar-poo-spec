@@ -299,7 +299,7 @@ also checks all thirteen requests through Cedar's strict schema boundary.
 See [[file:../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
 
 #+begin_src sh
-just check-country-approval
+just example governance country-approval
 just check-cedar-language
 just check-schema-bound-scenarios
 #+end_src

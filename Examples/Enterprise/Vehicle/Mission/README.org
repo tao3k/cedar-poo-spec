@@ -203,9 +203,9 @@ baseline; it is not a claim that Cedar itself requires six source edits.
 | Controlled fallback edit | One =Base= owner edit versus six direct snapshot edits; 12/12 decisions match. | This compares only independently maintained snapshots, not every Cedar authoring workflow. |
 
 #+begin_src sh
-just check-mission-successor
-just check-mission-replay
-just check-mission-maintenance
+just example enterprise vehicle mission-successor
+just example enterprise vehicle mission-replay
+just example enterprise vehicle mission-maintenance
 just check-mission-comparison
 just check-cedar-language
 #+end_src

@@ -98,10 +98,11 @@ jobs:
       - run: just check-schema-bound-receipts
       - run: just check-exchange-signing-validated
       - run: just check-schema-bound-scenarios
-      - run: just check-lakehouse-gateway
-      - run: just check-multi-account-banking
-      - run: just check-claim-settlement
-      - run: just check-reconciliation
+      - run: just example aws financial-services lakehouse
+      - run: just example aws financial-services multi-account-banking
+      - run: just example aws financial-services claim-settlement
+      - run: just example aws financial-services reconciliation
+      - run: just example aws agentic-platform expense
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
 

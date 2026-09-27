@@ -110,7 +110,7 @@ The example does not inspect document contents, prove provenance of these
 facts, or implement an MCP server.
 
 #+begin_src sh
-just check-agent-data-flow
+just example enterprise agent data-flow
 just check-cedar-language
 just check-schema-bound-scenarios
 #+end_src

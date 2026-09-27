@@ -22,4 +22,16 @@ depend on either verification directory.
 | [[file:Language/README.org][Language]] | Cedar syntax and extension coverage. |
 | [[file:Scenarios/README.org][Scenarios]] | POO edit patterns and cross-case navigation. |
 
-The focused checks and export commands are in the root =Justfile=.
+Focused example commands follow the directory structure. Use
+=just --list example= to browse areas, then descend into a company or
+category, for example:
+
+#+begin_src sh
+just --list example aws
+just example aws financial-services lakehouse
+just example aws agentic-platform expense
+just example health wearable-triage
+#+end_src
+
+=just check-examples= runs all focused example checks. The root =Justfile=
+retains repository-wide build, test, and Cedar runtime gates.

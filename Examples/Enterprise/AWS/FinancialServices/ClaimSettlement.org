@@ -85,5 +85,5 @@ requirement. None of the Lean theorems claims AWS runtime
 execution, data lineage, or settlement completion.
 
 #+begin_src sh
-just check-claim-settlement
+just example aws financial-services claim-settlement
 #+end_src

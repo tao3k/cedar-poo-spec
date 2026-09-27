@@ -1,0 +1,4 @@
+set working-directory := '../../..'
+
+release:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Payment/PaymentRelease.lean
