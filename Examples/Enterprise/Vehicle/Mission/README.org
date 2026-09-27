@@ -24,6 +24,15 @@ It motivates the example's distinct successor evidence for two candidates
 with the same nominal command ID; the Lean theorem checks that a changed
 successor can change authorization without changing the command ID.
 
+The companion =unobservedTrajectoryCounterexample= states the harder
+limit: two executions can present the *same* Cedar request and therefore
+receive the same allow decision while their actual successors differ in
+mission feasibility. This is an illustrative counterexample about the
+interface, not a replay of either paper's attack traces. Binding a
+witness to an ID and timestamp cannot establish that its predictions are
+accurate. A deployment needs independent post-decision observation and
+an enforcement or fallback path; those components are outside this case.
+
 | Published observation | This example's projection | Boundary |
 |-----------------------+---------------------------+----------|
 | A collision-free next step can still skip a required checkpoint. | =Platform= and =Mission= are independent POO owners; only their C4 composition rejects both classes. | The modeled successor list is illustrative, not the paper's predictor. |
@@ -99,6 +108,10 @@ proposed boundary checks, not results measured by the source paper.
 Six standalone Cedar revisions contain 18 materialized policy
 occurrences. Lean declares six distinct policy bodies in six POO edits.
 These are source-maintenance counts, not a runtime speedup measurement.
+They also do not establish an advantage over a direct Cedar workflow
+that uses its own generation or factoring tools. The existing
+=PolicyReuse= timing probe uses a synthetic 1,000-policy set; it is not
+a vehicle workload or a comparison of authoring effort.
 Lean proves that the =Current= revision changes exactly the nominal
 policy ID and needs one fresh per-policy certificate; the other
 certificates are reused to reclose the authorization certificate.

@@ -219,6 +219,25 @@ theorem sameProposalDifferentSuccessor :
     authorized "Current" proceed clear = true ∧
     authorized "Current" proceed skippedCheckpoint = false := by native_decide
 
+/- The actual successor is deliberately outside the Cedar request. This
+   exhibits the limit of authorization when a predictor is wrong or stale. -/
+structure Execution where
+  proposal : Candidate
+  actualSuccessors : List Successor
+
+def expectedExecution : Execution :=
+  { proposal := clear, actualSuccessors := clear.witness.steps }
+def redirectedExecution : Execution :=
+  { proposal := clear, actualSuccessors := skippedCheckpoint.witness.steps }
+
+theorem unobservedTrajectoryCounterexample :
+    request proceed expectedExecution.proposal =
+      request proceed redirectedExecution.proposal ∧
+    missionFeasible expectedExecution.actualSuccessors = true ∧
+    missionFeasible redirectedExecution.actualSuccessors = false ∧
+    authorized "Current" proceed redirectedExecution.proposal = true := by
+  native_decide
+
 def withoutContextField (field : String) : Request :=
   let original := request proceed clear
   let reduced := Map.filter (fun name _ => name != field) original.context
