@@ -45,6 +45,13 @@ Write, Human, and Status own their respective grants. C4 composes these
 owners. Lean checks source/owner decision equality for all eight published
 read actions across the representative principals.
 
+The model now builds these roots with the Cedar adapter's =Model.mix=,
+which calls LeanPOO's public =mix= and keeps its compiled schema for later
+authorization and export. =Model.extend= stages the threshold, Graph pause,
+and recovery revisions through LeanPOO's =extendSchema=. Thus the source
+and owner policy sets are constructed from the same reusable business-owner
+modules rather than restating the combined policies.
+
 =Threshold90= overlays only =recon_write_gate=, reflecting the sample's
 administrator threshold rewrite. =GraphPaused= is a proposed incident
 overlay on Correspondence: it removes only Graph send from that owner while

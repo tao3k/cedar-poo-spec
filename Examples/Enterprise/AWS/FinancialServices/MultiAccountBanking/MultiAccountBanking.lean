@@ -81,23 +81,20 @@ def deleteVeto : Policy :=
 
 /-- The sample's broad grant and delete veto are compared with a POO rewrite
     that assigns all sixteen published tools to independent LOB owners. -/
-def model : Model := { modules := [
-  { name := "Gateway", edits := [.extend deleteVeto] },
-  { name := "SampleBroad", parentOrders := [["Gateway"]],
-    edits := [.extend broadPermit] },
-  { name := "Protocol", parentOrders := [["Gateway"]],
-    edits := [.extend protocolPermit] },
-  { name := "Retail", parentOrders := [["Gateway"]],
-    edits := [.extend retailPermit] },
-  { name := "Transaction", parentOrders := [["Gateway"]],
-    edits := [.extend transactionPermit] },
-  { name := "Lending", parentOrders := [["Gateway"]],
-    edits := [.extend lendingPermit] },
-  { name := "OwnerCombined", parentOrders := [["Retail", "Transaction", "Lending", "Protocol"]] },
-  { name := "TransferPaused", parentOrders := [["OwnerCombined"]],
-    edits := [.overlay pausedTransactionPermit] },
-  { name := "TransferResumed", parentOrders := [["TransferPaused"]],
-    edits := [.overlay transactionPermit] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let gateway : Model :=
+    { modules := [{ name := "Gateway", edits := [.extend deleteVeto] }] }
+  let source ← gateway.extend "SampleBroad" "Gateway" [.extend broadPermit]
+  let protocol ← source.extend "Protocol" "Gateway" [.extend protocolPermit]
+  let retail ← protocol.extend "Retail" "Gateway" [.extend retailPermit]
+  let transaction ← retail.extend "Transaction" "Gateway" [.extend transactionPermit]
+  let lending ← transaction.extend "Lending" "Gateway" [.extend lendingPermit]
+  let owners ← lending.mix "OwnerCombined" ["Retail", "Transaction", "Lending", "Protocol"]
+  let paused ← owners.extend "TransferPaused" "OwnerCombined"
+    [.overlay pausedTransactionPermit]
+  paused.extend "TransferResumed" "TransferPaused" [.overlay transactionPermit]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def decideAt (root : String) (req : Request) : Option Decision := do
   let policies ← (model.compile root).toOption

@@ -85,16 +85,17 @@ def budgetVeto : Policy :=
 def incidentVeto : Policy :=
   policy "incident-egress-freeze" .forbid sendAction (resourceFact "external")
 
-def model : Model := { modules := [
-  { name := "Base", edits := [.extend readPermit, .extend sendPermit] },
-  { name := "Intent", parentOrders := [["Base"]], edits := [.extend intentVeto] },
-  { name := "History", parentOrders := [["Base"]], edits := [.extend historyVeto] },
-  { name := "Budget", parentOrders := [["Base"]], edits := [.extend budgetVeto] },
-  { name := "Integrated", parentOrders := [["Intent", "History", "Budget"]] },
-  { name := "Incident", parentOrders := [["Integrated"]],
-    edits := [.extend incidentVeto] },
-  { name := "Recovered", parentOrders := [["Incident"]],
-    edits := [.remove incidentVeto.id] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model :=
+    { modules := [{ name := "Base", edits := [.extend readPermit, .extend sendPermit] }] }
+  let intent ← base.extend "Intent" "Base" [.extend intentVeto]
+  let history ← intent.extend "History" "Base" [.extend historyVeto]
+  let budget ← history.extend "Budget" "Base" [.extend budgetVeto]
+  let integrated ← budget.mix "Integrated" ["Intent", "History", "Budget"]
+  let incident ← integrated.extend "Incident" "Integrated" [.extend incidentVeto]
+  incident.extend "Recovered" "Incident" [.remove incidentVeto.id]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- The host owns this ledger and serializes admission and updates. -/
 structure Session where

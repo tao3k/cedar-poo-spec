@@ -109,7 +109,8 @@ def correspondencePaused : Policy :=
   { correspondenceReads with
     actionScope := .actionInAny (correspondenceActions.filter (· != graphSend)) }
 
-def model : Model := { modules := [
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let owners : Model := { modules := [
   { name := "SourceReads", edits := [.extend sourceReads] },
   { name := "Ledger", edits := [.extend ledgerReads] },
   { name := "Knowledge", edits := [.extend knowledgeReads] },
@@ -117,19 +118,20 @@ def model : Model := { modules := [
   { name := "Directory", edits := [.extend directoryReads] },
   { name := "Write", edits := [.extend write85] },
   { name := "Human", edits := [.extend humanWrite] },
-  { name := "Status", edits := [.extend statusPlatform] },
-  { name := "SourceCombined", parentOrders :=
-      [["SourceReads", "Write", "Human", "Status"]] },
-  { name := "OwnerCombined", parentOrders :=
-      [["Ledger", "Knowledge", "Correspondence", "Directory",
-        "Write", "Human", "Status"]] },
-  { name := "Threshold90", parentOrders := [["OwnerCombined"]],
-    edits := [.overlay write90] },
-  { name := "GraphPaused", parentOrders := [["OwnerCombined"]],
-    edits := [.overlay correspondencePaused] },
-  { name := "JointIncident", parentOrders := [["Threshold90", "GraphPaused"]] },
-  { name := "Recovered", parentOrders := [["JointIncident"]],
-    edits := [.overlay write85, .overlay correspondenceReads] }] }
+  { name := "Status", edits := [.extend statusPlatform] }] }
+  let source ← owners.mix "SourceCombined"
+    ["SourceReads", "Write", "Human", "Status"]
+  let combined ← source.mix "OwnerCombined"
+    ["Ledger", "Knowledge", "Correspondence", "Directory",
+      "Write", "Human", "Status"]
+  let threshold ← combined.extend "Threshold90" "OwnerCombined" [.overlay write90]
+  let paused ← threshold.extend "GraphPaused" "OwnerCombined"
+    [.overlay correspondencePaused]
+  let incident ← paused.mix "JointIncident" ["Threshold90", "GraphPaused"]
+  incident.extend "Recovered" "JointIncident"
+    [.overlay write85, .overlay correspondenceReads]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def decideAt (root : String) (request : Request) : Option Decision := do
   let policies ← (model.compile root).toOption

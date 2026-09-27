@@ -80,21 +80,20 @@ def frozenAccountVeto : Policy :=
   veto "frozen-payment-account"
     (eq (.var .resource) (.lit (.entityUID approvedAccount)))
 
-def paymentModel : Model := { modules := model.modules ++ [
-  { name := "FinanceTool", edits := [.extend financeToolPolicy] },
-  { name := "PaymentBase", edits := [.extend paymentBase] },
-  { name := "PaymentAccount", parentOrders := [["PaymentBase"]],
-    edits := [.extend accountVeto] },
-  { name := "PaymentAmount", parentOrders := [["PaymentBase"]],
-    edits := [.extend amountVeto] },
-  { name := "PaymentOrigin", parentOrders := [["PaymentBase"]],
-    edits := [.extend originVeto] },
-  { name := "PaymentGoverned",
-    parentOrders := [["PaymentAccount", "PaymentAmount", "PaymentOrigin"]] },
-  { name := "PaymentFrozen", parentOrders := [["PaymentGoverned"]],
-    edits := [.extend frozenAccountVeto] },
-  { name := "PaymentRestored", parentOrders := [["PaymentFrozen"]],
-    edits := [.remove frozenAccountVeto.id] }] }
+def paymentModelResult : Except LeanPoo.C4.Error Model := do
+  let tool ← model.mix "FinanceTool" [] [.extend financeToolPolicy]
+  let base ← tool.mix "PaymentBase" [] [.extend paymentBase]
+  let account ← base.extend "PaymentAccount" "PaymentBase" [.extend accountVeto]
+  let amount ← account.extend "PaymentAmount" "PaymentBase" [.extend amountVeto]
+  let origin ← amount.extend "PaymentOrigin" "PaymentBase" [.extend originVeto]
+  let governed ← origin.mix "PaymentGoverned"
+    ["PaymentAccount", "PaymentAmount", "PaymentOrigin"]
+  let frozen ← governed.extend "PaymentFrozen" "PaymentGoverned"
+    [.extend frozenAccountVeto]
+  frozen.extend "PaymentRestored" "PaymentFrozen"
+    [.remove frozenAccountVeto.id]
+
+def paymentModel : Model := paymentModelResult.toOption.get (by native_decide)
 
 /-- Inspect the compiled C4 slot at a revision boundary. `some none` is the
     explicit removal tombstone; Cedar publication still validates edit intent. -/

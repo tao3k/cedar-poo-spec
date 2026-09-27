@@ -19,6 +19,12 @@ model transfer atomicity, transaction compensation, account ownership, token
 validation, IAM, row-level access, or retrieval contents. The Cedar schema is
 a local projection, not an exported AgentCore Gateway schema.
 
+The executable =modelResult= uses =Model.extend= to stage the protocol and
+three LOB policy owners, =Model.mix= to construct =OwnerCombined= through
+LeanPOO's C4 mix API, and two further extensions for transfer pause and
+recovery. The generated Cedar policies come from that constructed model;
+the business owners do not repeat the combined policy bodies.
+
 | Source file | Facts used here |
 |-------------+-----------------|
 | [[https://github.com/aws-samples/sample-amazon-bedrock-agentcore-banking-mcp-multi-account/blob/main/platform-account/gateway/setup_gateway.py][Gateway setup]] | Action-wide authenticated permit, =delete_customer= forbid, ENFORCE mode, outbound M2M target credentials. |

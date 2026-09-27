@@ -102,6 +102,7 @@ jobs:
       - run: just example aws financial-services claim-settlement
       - run: just example aws financial-services reconciliation
       - run: just example aws agentic-platform expense
+      - run: just example enterprise agent cross-agent-egress
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
 

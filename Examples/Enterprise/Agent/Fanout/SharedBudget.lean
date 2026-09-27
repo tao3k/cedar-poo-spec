@@ -70,16 +70,16 @@ def incidentVeto : Policy :=
     resourceScope := .resourceScope (.eq endpoint),
     condition := [{ kind := .when, body := .lit (.bool true) }] }
 
-def model : Model := { modules := [
-  { name := "Base", edits := [.extend sendPermit] },
-  { name := "Local", parentOrders := [["Base"]], edits := [.extend localVeto] },
-  { name := "Shared", parentOrders := [["Base"]], edits := [.extend sharedVeto] },
-  { name := "Integrated", parentOrders := [["Local", "Shared"]],
-    edits := [.overlay boundedPermit] },
-  { name := "Incident", parentOrders := [["Integrated"]],
-    edits := [.extend incidentVeto] },
-  { name := "Recovered", parentOrders := [["Incident"]],
-    edits := [.remove incidentVeto.id] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [{ name := "Base", edits := [.extend sendPermit] }] }
+  let localOwner ← base.extend "Local" "Base" [.extend localVeto]
+  let shared ← localOwner.extend "Shared" "Base" [.extend sharedVeto]
+  let integrated ← shared.mix "Integrated" ["Local", "Shared"]
+    [.overlay boundedPermit]
+  let incident ← integrated.extend "Incident" "Integrated" [.extend incidentVeto]
+  incident.extend "Recovered" "Incident" [.remove incidentVeto.id]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- One ledger for the delegation, plus a local counter for each worker. -/
 structure State where

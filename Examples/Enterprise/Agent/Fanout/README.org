@@ -115,3 +115,64 @@ request to the official Rust Cedar authorizer and checks all generated
 just example enterprise agent fanout
 just check-cedar-language
 #+end_src
+
+* Cross-agent sensitive-read and egress composition
+
+[[https://arxiv.org/html/2608.15888v1][Bounded Agents]] treats prior actions and delegated budgets as accumulated
+session state, while limiting its composition soundness claim to complete
+restrictions and serialized admission. The [[https://arxiv.org/abs/2609.15906][2026 authorization architecture
+survey]] identifies runtime enforcement and aggregation bounds as open gaps.
+The earlier session and fanout examples model those concerns separately.
+[[file:CrossAgentEgress.lean][CrossAgentEgress.lean]] combines them in one proposed workflow: worker A
+reads a sensitive document and worker B proposes an external send under the
+same delegation. This is a new model of the boundary, not a reproduction of
+either paper's experiments or a claim that all agent exfiltration is solved.
+
+The model starts from the existing fanout budget policy model. It reuses
+the bounded-session read, history, and intent policy bodies after widening
+their principal scope to workers authenticated by the host. =Model.extend=
+stages three independent owners; =Model.mix= compiles the C4-composed
+=CrossAgentGoverned= root through LeanPOO. The resulting policy set has six
+surviving owner contributions: a send permit, shared and local budgets, a
+read permit, delegated intent, and sensitive-read history. =CrossAgentIncident=
+adds one egress freeze; =CrossAgentRecovered= removes just that edit.
+
+| Trace | Worker-local history | Delegation-shared history |
+|-------+----------------------+---------------------------|
+| A reads secret; B sends externally | Both steps Allow: B's local ledger never saw A's read. | Read Allows; send Denies. |
+| A reads public document; B sends on-task | Both Allow. | Both Allow. |
+| A sends, then B sends with one shared export slot | First Allows; second Denies. | First Allows; second Denies. |
+
+The same Cedar policies give different answers when the host supplies
+worker-local versus delegation-shared =sensitiveSeen=. This is the concrete
+aggregation gap: adding a history policy alone does not bind state across
+workers. The Lean =admit= transition serializes the finite example, and a
+denied send leaves the shared budget unchanged. A production host still
+must authenticate lineage, derive the shared history from all relevant
+reads, bind the checked output to the actual tool effect, and serialize
+admission with durable state. Neither Cedar nor LeanPOO supplies that host
+transaction automatically.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Clean
+    Clean --> Sensitive: A reads secret and host commits shared history
+    Clean --> Exported: B sends public report and host commits shared budget
+    Sensitive --> Sensitive: B external send denied by history
+    Exported --> Exported: Second worker send denied by shared budget
+    Sensitive --> Leak: B sees only local history and sends
+    note right of Leak
+      This is the modeled host-binding failure.
+      The shared-history request avoids this path.
+    end note
+#+end_src
+
+The named Lean traces export 20 pre-admission requests through
+[[file:CrossAgentEgressValidatedExport.lean][CrossAgentEgressValidatedExport.lean]]. The official Cedar Rust validator
+and authorizer replay all 20 with no policy evaluation errors. Their
+generated governed and incident policies match the committed Cedar files in
+[[file:CrossAgentEgressPolicies/governed.cedar][CrossAgentEgressPolicies]].
+
+#+begin_src sh
+just example enterprise agent cross-agent-egress
+#+end_src

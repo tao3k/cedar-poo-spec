@@ -1,4 +1,5 @@
 set working-directory := '../../..'
+export CARGO_TARGET_DIR := "rust/target"
 
 delegation:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Delegation/AgentDelegation.lean
@@ -19,3 +20,17 @@ session:
 
 fanout:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Fanout/SharedBudget.lean
+
+cross-agent-egress-lean:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Fanout/CrossAgentEgress.lean
+
+cross-agent-egress:
+    just build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean cross-agent-egress-validated > .lake/build/cross-agent-egress-validated-manifest.json
+    jq -e '(.cases | length) == 20 and (.schema[""].actions | keys) == ["read", "send"]' .lake/build/cross-agent-egress-validated-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/cross-agent-egress-validated-manifest.json > .lake/build/cross-agent-egress-validated-receipts.json
+    jq -e 'length == 20 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["governed-off-task-send-step-0","governed-shared-budget-step-1","governed-shared-ledger-blocks-step-1","history-owner-blocks-shared-egress-step-1","incident-freezes-otherwise-valid-egress-step-1","recovered-keeps-lineage-history-step-1"]' .lake/build/cross-agent-egress-validated-receipts.json > /dev/null
+    jq '[.cases[] | select(.revision == "CrossAgentGoverned")][0].policies' .lake/build/cross-agent-egress-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/cross-agent-egress-governed.cedar
+    cmp .lake/build/cross-agent-egress-governed.cedar Examples/Enterprise/Agent/Fanout/CrossAgentEgressPolicies/governed.cedar
+    jq '[.cases[] | select(.revision == "CrossAgentIncident")][0].policies' .lake/build/cross-agent-egress-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/cross-agent-egress-incident.cedar
+    cmp .lake/build/cross-agent-egress-incident.cedar Examples/Enterprise/Agent/Fanout/CrossAgentEgressPolicies/incident.cedar

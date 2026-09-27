@@ -16,6 +16,7 @@ inductive Edit where
   | extend (policy : Policy)
   | overlay (policy : Policy)
   | remove (policyId : PolicyID)
+  deriving DecidableEq
 
 /-- Lift a generated policy family into explicit POO edits. -/
 def Edit.extendAll (policies : Policies) : List Edit :=
@@ -29,6 +30,7 @@ structure Module where
   parentOrders : List (List String) := []
   suffix : Bool := false
   edits : List Edit := []
+  deriving DecidableEq
 
 def Module.node (module : Module) : LeanPoo.C4.Node :=
   { name := module.name, parentOrders := module.parentOrders,
@@ -37,9 +39,15 @@ def Module.node (module : Module) : LeanPoo.C4.Node :=
 structure Model where
   modules : List Module
   builtSchema : Option (LeanPoo.Object.Schema PolicyID (fun _ => Option Policy)) := none
+  builtModules : Option (List Module) := none
+
+/-- A record update to `modules` invalidates the cached LeanPOO schema. -/
+private def Model.activeSchema? (model : Model) :
+    Option (LeanPoo.Object.Schema PolicyID (fun _ => Option Policy)) :=
+  if model.builtModules = some model.modules then model.builtSchema else none
 
 def Model.graph (model : Model) : LeanPoo.C4.Graph :=
-  match model.builtSchema with
+  match model.activeSchema? with
   | some schema => schema.graph
   | none => { nodes := model.modules.map Module.node }
 
@@ -57,7 +65,7 @@ private def Module.declaration (module : Module) :
 
 private def Model.schema (model : Model) :
     LeanPoo.Object.Schema PolicyID (fun _ => Option Policy) :=
-  match model.builtSchema with
+  match model.activeSchema? with
   | some schema => schema
   | none =>
       { graph := model.graph
@@ -71,14 +79,16 @@ def Model.extend (model : Model) (name parent : String)
     (edits : List Edit := []) : Except LeanPoo.C4.Error Model := do
   let module : Module := { name, parentOrders := [[parent]], edits }
   let schema ← LeanPoo.extendSchema model.schema name parent module.declaration
-  return { modules := model.modules ++ [module], builtSchema := some schema }
+  let modules := model.modules ++ [module]
+  return { modules, builtSchema := some schema, builtModules := some modules }
 
 /-- Compose ordered policy owners through LeanPOO's C4 mix operation. -/
 def Model.mix (model : Model) (name : String) (supers : List String)
     (edits : List Edit := []) : Except LeanPoo.C4.Error Model := do
   let module : Module := { name, parentOrders := if supers.isEmpty then [] else [supers], edits }
   let plan ← LeanPoo.mix model.schema name supers module.declaration
-  return { modules := model.modules ++ [module], builtSchema := some plan.schema }
+  let modules := model.modules ++ [module]
+  return { modules, builtSchema := some plan.schema, builtModules := some modules }
 
 /-- Inspect the C4-composed policy slots before Cedar edit validation.
     Publication must still go through `compile` or `compileWithTrace`. -/
