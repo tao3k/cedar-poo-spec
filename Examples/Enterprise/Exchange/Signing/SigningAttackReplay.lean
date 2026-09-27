@@ -20,6 +20,7 @@ def timeline : List Stage := [
   ⟨"legitimate-transfer", "Integrated", {}, true⟩,
   ⟨"backend-only-substitution", "Backend", backendForgery, true⟩,
   ⟨"independent-controls-reject", "Integrated", backendForgery, false⟩,
+  ⟨"interface-substitution-rejected", "Integrated", interfaceSwap, false⟩,
   ⟨"shared-source-claim-contamination", "Integrated", singleSourceForgery, true⟩,
   ⟨"incident-freeze", "Incident", singleSourceForgery, false⟩,
   ⟨"premature-recovery", "Recovered", singleSourceForgery, true⟩]
@@ -38,6 +39,7 @@ theorem boundaryTransitions :
       ("legitimate-transfer", true),
       ("backend-only-substitution", true),
       ("independent-controls-reject", false),
+      ("interface-substitution-rejected", false),
       ("shared-source-claim-contamination", true),
       ("incident-freeze", false),
       ("premature-recovery", true)] := by

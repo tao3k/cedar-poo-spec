@@ -112,6 +112,7 @@ the order is a model of control transitions, not a reconstructed Bitget log.
 | Legitimate transfer | =Integrated= | Independent witnesses agree | Allow |
 | Backend-only substitution | =Backend= | Candidate bytes replaced | Allow: legacy weakness |
 | Independent controls | =Integrated= | Candidate differs from intent, risk and ledger | Deny |
+| Interface substitution | =Integrated= | Intent, risk and ledger match but signer display differs | Deny |
 | Shared-source contamination | =Integrated= | All digest claims copied from the attacker candidate | Allow: provenance weakness |
 | Incident freeze | =Incident= | Same contaminated claims, affected wallet | Deny |
 | Premature recovery | =Recovered= | Same contaminated claims, freeze removed | Allow again |
