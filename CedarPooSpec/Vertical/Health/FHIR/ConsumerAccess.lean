@@ -2,8 +2,9 @@ import CedarPooSpec.Governance.Veto
 
 /-!
 Reusable Cedar policy objects for an application consuming patient-scoped FHIR
-resources through an intermediary. These are application controls, not rules
-imposed by the FHIR data standard or by any national gateway.
+resources through an intermediary. A separate FHIR implementation and Host
+project verified facts into Cedar requests. This module only composes Cedar
+application controls; it does not parse FHIR or interpret its specification.
 -/
 
 namespace CedarPooSpec.Vertical.Health.FHIR

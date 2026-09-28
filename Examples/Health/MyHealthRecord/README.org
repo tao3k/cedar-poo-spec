@@ -21,6 +21,9 @@ standard; the AI summary and Cedar control graph here are our design choices.
 The cited security document covers more controls than this finite model.
 This example makes no product-conformance claim, does not implement the
 Gateway API v5.0, and does not claim the Agency requires an AI workflow.
+Its synthetic resource classifications stand in for facts that a Host would
+derive from an upstream FHIR implementation; this repository does not parse
+FHIR documents or reinterpret the standard.
 
 * Composition and reusable objects
 

@@ -4,10 +4,27 @@
 * Scope
 
 [[file:ConsumerAccess.lean][ConsumerAccess.lean]] provides public Lean-POO
-objects for patient-scoped access to FHIR data through a consumer app or
-intermediary. FHIR defines healthcare exchange and resource representation;
-these Cedar policies are optional application controls. They are not an HL7
-authorization profile, a FHIR parser, or a claim of gateway conformance.
+objects for Cedar authorization decisions around an application consuming
+FHIR data. The =FHIR/= directory names the integration context, not an
+implementation of the FHIR specification. The objects are optional
+application controls, not an HL7 authorization profile or a claim of gateway
+conformance.
+
+FHIR parsing, resource validation, and protocol interpretation belong to the
+upstream FHIR implementation used by an application. In the planned Lambda
+integration, its Scheme layer owns that work. The application Host projects
+verified patient, resource, token, session, and revocation facts into a Cedar
+request. This library owns only the Cedar policy objects and their Lean-POO
+composition. It does not depend on the Scheme parser or duplicate its AST.
+
+#+begin_src mermaid
+flowchart LR
+  FHIR[FHIR input] --> Parser[Lambda Scheme FHIR layer]
+  Parser --> Host[Host evidence projection]
+  Host --> Cedar[Cedar request and decision]
+  POO[cedar-poo-spec control objects] --> Cedar
+  Cedar --> Effect[Host admission and effect]
+#+end_src
 
 | Object | Policy slot | Input supplied by the application |
 |--------+-------------+-----------------------------------|
@@ -40,7 +57,8 @@ objects normative FHIR behavior.
 * Host boundary
 
 The Host must authenticate the patient, validate OAuth, derive resource and
-patient attributes from actual FHIR inputs, observe access changes, prevent
+patient attributes from parsed FHIR inputs, observe access changes, prevent
 cache use after revocation, and execute deletion. A Boolean Cedar fact is
-only a projection of that evidence. The library does not call a FHIR gateway,
-store tokens, emit audit records, or delete cached data.
+only a projection of that evidence. The library neither parses nor validates
+FHIR, and it does not call a gateway, store tokens, emit audit records, or
+delete cached data.

@@ -141,6 +141,10 @@ Industry-specific scenario facts and Host execution remain in Examples or
 downstream projects. Reusable healthcare and finance controls live under
 =Vertical/=; platform-specific projections live under =Platform/=, and
 cross-industry data capabilities live under =Data/=.
+For FHIR-consuming applications, the upstream FHIR implementation owns
+parsing and resource semantics; the Host projects verified facts; this
+library composes Cedar authorization controls. See the
+[[file:CedarPooSpec/Vertical/Health/FHIR/README.org][FHIR consumer-access boundary]].
 
 * Verification
 
