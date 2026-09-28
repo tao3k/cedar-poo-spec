@@ -5,6 +5,7 @@ import Examples.Health.Pseudonymization.Tabular
 import Examples.Health.WearableTriageExport
 import Examples.Health.PriorAuthorization.ValidatedExport
 import Examples.Health.PriorAuthorization.InternalChannelsExport
+import Examples.Health.MyHealthRecord.ValidatedExport
 import Examples.Governance.AttestedDataAccessExport
 import Examples.Governance.AttestedViewsValidatedExport
 import Examples.Governance.AttestedSchemaEvolutionExport
@@ -53,6 +54,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("prior-authorization-validated", fun _ => PriorAuthorizationValidatedExport.manifest),
   ("prior-authorization-malformed", fun _ => PriorAuthorizationValidatedExport.malformedManifest),
   ("prior-authorization-internal-channels", fun _ => PriorAuthorizationInternalChannelsExport.manifest),
+  ("my-health-record-consumer-platform", fun _ => MyHealthRecordExample.ValidatedExport.manifest),
   ("attested", fun _ => AttestedDataAccessExport.manifest),
   ("attested-views-validated", fun _ => AttestedViewsValidatedExport.manifest),
   ("attested-schema-evolution", fun _ => AttestedSchemaEvolutionExport.bundle),

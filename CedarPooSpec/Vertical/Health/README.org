@@ -37,6 +37,8 @@ premises are defined once.
 * Organization boundary
 
 Reusable healthcare control definitions belong under =Vertical/Health/=.
+The [[file:FHIR/README.org][FHIR consumer-access objects]] provide reusable
+patient, read, session, and revocation controls for FHIR-consuming apps.
 Patient identifiers, hospital workflows, policy instances, synthetic
 records, and scenario-specific proofs belong to the consuming project or
 =Examples/Health/=. Cross-industry controls remain in the top-level

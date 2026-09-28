@@ -1,0 +1,71 @@
+#+TITLE: My Health Record Consumer Platform and AI Summary
+#+OPTIONS: toc:nil
+
+* Boundary and sources
+
+This synthetic example follows the Australian Digital Health Agency's
+[[https://implementer.digitalhealth.gov.au/resources/services/my-health-record/my-health-record-fhir-gateway][My Health Record FHIR Gateway consumer connection via platform]] shape:
+a consumer app accesses a record through an intermediary. The agency's
+[[https://implementer.digitalhealth.gov.au/resources/my-health-record-fhir-gateway-security-requirements-and-guidelines][Security Requirements and Guidelines v1.4]] is active and applies to
+interaction models #1 and #4. The [[https://www.digitalhealth.gov.au/national-digital-health-strategy/about-the-strategy][national strategy]] motivates timely,
+interoperable exchange with privacy and cyber security. FHIR is an exchange
+standard; the AI summary and Cedar control graph here are our design choices.
+
+| Source boundary | Scenario projection | Checked behavior |
+|-----------------+---------------------+------------------|
+| Gateway consumer platform has an intermediary. | =ConsumerPlatform= mixes identity, session, consent, and agent owners. | Patient read, AI summary, reviewed release, and later purge follow distinct Cedar actions. |
+| A consumer authenticates through MyGov and an app receives an access token. | Trusted Host projects OAuth and session state. | Expired OAuth and session facts deny fetch. |
+| Security requirements address inactive token use, revocation information, local removal, and intermediary audit. | Inactivity, access, purge, and audit facts have separate control owners. | Inactive read and revoked data use deny; purge remains allowed; missing audit blocks release. |
+| No cited gateway source supplies an AI summary service. | The example adds an optional assistant and a controlled summary-release path. | Unapproved model, stale input, missing review, broad payload, and incident each deny their respective operation. |
+
+The cited security document covers more controls than this finite model.
+This example makes no product-conformance claim, does not implement the
+Gateway API v5.0, and does not claim the Agency requires an AI workflow.
+
+* Composition and reusable objects
+
+[[file:../../../CedarPooSpec/Vertical/Health/FHIR/README.org][Vertical.Health.FHIR]] owns the reusable =ResourceRead=,
+=PatientBoundary=, =ConsumerSession=, and =RevocableUse= objects.
+[[file:../../../CedarPooSpec/Vertical/Health/DisclosureChannel.lean][DisclosureChannel]] owns a reusable disclosure slot. The
+[[file:ConsumerPlatform.lean][scenario]] instantiates these objects and
+adds application-specific summary, delegation, review, incident, and purge
+policies. This keeps national product choices in the example while allowing
+another Health app to reuse the FHIR consumer controls.
+
+#+begin_src mermaid
+flowchart LR
+  Base --> Identity
+  Base --> Session
+  Base --> Consent
+  Base --> Agent
+  Identity --> Platform[ConsumerPlatform]
+  Session --> Platform
+  Consent --> Platform
+  Agent --> Platform
+  Platform --> Incident[AgentIncident]
+  Incident --> Recovered
+  Platform --> Host[Host effect admission]
+#+end_src
+
+The integrated POO root removes a legacy broad agent permit and strengthens
+the disclosure slot. An agent incident adds one veto while preserving the
+consumer read and purge paths. Recovery removes that incident veto; the
+revocation owner is reused. The Lean theorems check the affected policy ID,
+restoration, and legacy-permit removal. These are concrete reasons to compose
+owners rather than copy a complete Cedar policy set for each state.
+
+* Lifecycle and verification
+
+[[file:Lifecycle.lean][Lifecycle.lean]] projects a finite Host state for
+fetch, summary, release, revocation, and purge. Tickets bind a policy root,
+state epoch, policy revision, consent revision, and an effect digest. The
+finite checks reject stale, replayed, or revoked tickets and reject release
+after audit failure. This is a pure admission model. A production Host must
+atomically persist audit, enforce response effects, invalidate caches, and
+prove actual deletion.
+
+[[file:ValidatedExport.lean][ValidatedExport.lean]] exports the named cases
+through the public Cedar JSON format. The =just example health my-health-record=
+recipe compiles the Lean modules and replays all cases with official Cedar
+Rust. Its receipt checks deny cases and absence of Cedar policy errors.
+Synthetic identifiers and digests represent no patient data.

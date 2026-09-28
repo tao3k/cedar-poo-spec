@@ -46,6 +46,7 @@ check: check-tests check-docs
     just example health prior-authorization
     just example health prior-authorization-internal-channels
     just example health pseudonymization
+    just example health my-health-record
     just check-authorization-delta-proof
 
 check-lean: check-tests check-authorization-delta-proof check-policy-reuse

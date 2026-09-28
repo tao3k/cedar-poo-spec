@@ -1,6 +1,10 @@
 #+TITLE: Health Authorization Examples
 #+OPTIONS: toc:nil
 
+The [[file:MyHealthRecord/README.org][My Health Record consumer-platform scenario]]
+composes reusable FHIR consumer-access objects with a synthetic AI summary,
+revocation, incident, and local-data removal lifecycle.
+
 The [[file:Pseudonymization/README.org][pseudonymization and re-identification
 scenario]] composes cryptographic capability profiles with data-owner,
 privacy, agent, and incident controls. It compares deterministic AES-SIV,

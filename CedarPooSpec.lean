@@ -11,6 +11,7 @@ import CedarPooSpec.Governance.ScopedApproval
 import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Vertical.Health.DisclosureChannel
 import CedarPooSpec.Vertical.Health.EmergencyAccess
+import CedarPooSpec.Vertical.Health.FHIR.ConsumerAccess
 import CedarPooSpec.Vertical.FinancialServices.ControllerRelease
 import CedarPooSpec.Vertical.FinancialServices.BankingToolOwner
 import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto

@@ -1,5 +1,12 @@
 set working-directory := '../..'
 
+my-health-record:
+    lake build Examples.Health.MyHealthRecord.ConsumerPlatform Examples.Health.MyHealthRecord.Lifecycle Examples.Health.MyHealthRecord.ValidatedExport Examples.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean my-health-record-consumer-platform > .lake/build/my-health-record-consumer-platform-manifest.json
+    jq -e '(.cases | length) == 26 and ([.cases[].name] | unique | length) == 26' .lake/build/my-health-record-consumer-platform-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/my-health-record-consumer-platform-manifest.json > .lake/build/my-health-record-consumer-platform-receipts.json
+    jq -e 'length == 26 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["fetch-expired-oauth", "fetch-expired-session", "fetch-other-document-class", "fetch-other-patient", "fetch-six-month-inactivity", "fetch-wrong-purpose", "incident-blocks-agent", "recovery-keeps-revocation", "release-broad-payload", "release-expired-delegation", "release-no-audit", "release-stale-summary", "release-unreviewed", "revoked-fetch", "revoked-release", "revoked-summary", "summarize-stale-source", "summarize-unapproved-model"]' .lake/build/my-health-record-consumer-platform-receipts.json > /dev/null
+
 clinical-break-glass:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/ClinicalBreakGlass.lean
 
