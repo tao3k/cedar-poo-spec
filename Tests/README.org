@@ -21,3 +21,13 @@ decision matrix.
 #+begin_src sh
 just check-tests
 #+end_src
+
+* Cross-language conformance
+
+[[file:Conformance/][Conformance/]] owns executable assertions over generated Lean manifests
+and Cedar Rust replay receipts. Each =.jq= file checks one named contract;
+the root Justfile only generates the inputs and invokes these tests. This
+keeps schema shapes, replay counts, digests, and authorization-delta
+expectations with the test suite rather than embedding them in recipes.
+Run the relevant =just check-*= target to regenerate and check its input;
+=just check-conformance= runs the full collection, and =just check= includes it.

@@ -31,13 +31,11 @@ check-docs:
     emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "CedarPooSpec" "\\.org$") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$") (directory-files-recursively "Tests" "\\.org$") (directory-files-recursively "Benchmarks" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
 
 check: check-tests check-docs
+    just check-conformance
     just check-policy-reuse
     just example governance attested-views
     just check-cedar-language
     just check-mission-comparison
-    just check-replay-receipts
-    just check-schema-bound-receipts
-    just check-schema-bound-scenarios
     just example aws financial-services lakehouse
     just example aws financial-services multi-account-banking
     just example aws financial-services claim-settlement
@@ -48,12 +46,12 @@ check: check-tests check-docs
     just example health prior-authorization
     just example health prior-authorization-internal-channels
     just example health pseudonymization
-    just check-attested-schema-evolution
-    just check-authorization-delta
     just check-authorization-delta-proof
-    just check-payment-delta
 
 check-lean: check-tests check-authorization-delta-proof check-policy-reuse
+
+# Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.
+check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-payment-delta
 
 check-tests: build-examples
     lake build Tests
@@ -62,14 +60,14 @@ check-delta: check-authorization-delta check-payment-delta
 
 check-replay-receipts: prepare-agent-payment-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < .lake/build/agent-payment-manifest.json > .lake/build/agent-payment-replay-receipts.json
-    jq -e --slurpfile manifest .lake/build/agent-payment-manifest.json 'length == ($manifest[0].cases | length) and all(.[]; .format_version == 1 and .cedar_policy_version == "4.12.0" and .cedar_language_version == "4.5.0" and (.policies_sha256 | test("^[0-9a-f]{64}$")) and (.entities_sha256 | test("^[0-9a-f]{64}$")) and (.request_sha256 | test("^[0-9a-f]{64}$")) and .error_free_allow == (.decision == "allow" and (.error_policy_ids | length) == 0))' .lake/build/agent-payment-replay-receipts.json > /dev/null
+    jq -e --slurpfile manifest .lake/build/agent-payment-manifest.json -f Tests/Conformance/agent-payment-replay-receipts.jq .lake/build/agent-payment-replay-receipts.json > /dev/null
 
 prepare-agent-payment-validated-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-payment-validated > .lake/build/agent-payment-validated-manifest.json
 
 check-schema-bound-receipts: prepare-agent-payment-validated-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/agent-payment-validated-manifest.json > .lake/build/agent-payment-validated-receipts.json
-    jq -e --slurpfile manifest .lake/build/agent-payment-validated-manifest.json 'length == ($manifest[0].cases | length) and length == 32 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [] and .replay.error_free_allow == (.replay.decision == "allow"))' .lake/build/agent-payment-validated-receipts.json > /dev/null
+    jq -e --slurpfile manifest .lake/build/agent-payment-validated-manifest.json -f Tests/Conformance/agent-payment-validated-receipts.jq .lake/build/agent-payment-validated-receipts.json > /dev/null
 
 prepare-schema-bound-scenarios: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean scope-pattern-validated > .lake/build/scope-pattern-validated-manifest.json
@@ -79,34 +77,34 @@ prepare-schema-bound-scenarios: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean country-approval-validated > .lake/build/country-approval-validated-manifest.json
 
 check-schema-bound-scenarios: prepare-schema-bound-scenarios
-    jq -e '.schema[""].entityTypes.Document.shape.attributes.meta == {"type":"Record","attributes":{"tag":{"type":"String"}}} and (.cases | length) == 5' .lake/build/scope-pattern-validated-manifest.json > /dev/null
-    jq -e '.schema.Data.entityTypes.Classification.enum == ["public","restricted"] and .schema.Data.entityTypes.Document.shape.attributes.classification == {"type":"Entity","name":"Data::Classification"} and .schema.Org.actions.read.appliesTo.principalTypes == ["Org::User"] and .schema.Org.actions.read.appliesTo.resourceTypes == ["Data::Document"] and (.cases | length) == 4' .lake/build/namespaced-enum-validated-manifest.json > /dev/null
-    jq -e '.schema[""].actions["publish-document"].appliesTo.context.attributes.source == {"type":"Entity","name":"Document"} and .schema[""].actions["publish-document"].appliesTo.context.attributes.reviewer == {"type":"Entity","name":"User"} and (.cases | length) == 34' .lake/build/agent-data-flow-validated-manifest.json > /dev/null
-    jq -e '.schema[""].actions.query.appliesTo.context.attributes.sourceIp == {"type":"Extension","name":"ipaddr"} and (.cases | length) == 9' .lake/build/network-validated-manifest.json > /dev/null
-    jq -e '.schema[""].entityTypes.User.tags == {"type":"String"} and .schema[""].entityTypes.Timesheet.tags == {"type":"String"} and .schema[""].actions.approve.memberOf == [{"type":"Action","id":"ApproverActions"}] and (.cases | length) == 13' .lake/build/country-approval-validated-manifest.json > /dev/null
+    jq -e -f Tests/Conformance/scope-pattern-validated-manifest.jq .lake/build/scope-pattern-validated-manifest.json > /dev/null
+    jq -e -f Tests/Conformance/namespaced-enum-validated-manifest.jq .lake/build/namespaced-enum-validated-manifest.json > /dev/null
+    jq -e -f Tests/Conformance/agent-data-flow-validated-manifest.jq .lake/build/agent-data-flow-validated-manifest.json > /dev/null
+    jq -e -f Tests/Conformance/network-validated-manifest.jq .lake/build/network-validated-manifest.json > /dev/null
+    jq -e -f Tests/Conformance/country-approval-validated-manifest.jq .lake/build/country-approval-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/agent-data-flow-validated-manifest.json > .lake/build/agent-data-flow-validated-receipts.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/network-validated-manifest.json > .lake/build/network-validated-receipts.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/country-approval-validated-manifest.json > .lake/build/country-approval-validated-receipts.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/scope-pattern-validated-manifest.json > .lake/build/scope-pattern-validated-receipts.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/namespaced-enum-validated-manifest.json > .lake/build/namespaced-enum-validated-receipts.json
-    jq -e 'length == 5 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/scope-pattern-validated-receipts.json > /dev/null
-    jq -e 'length == 4 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/namespaced-enum-validated-receipts.json > /dev/null
-    jq -e 'length == 34 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/agent-data-flow-validated-receipts.json > /dev/null
-    jq -e '[.[] | select(.replay.case_name | startswith("dispatch-"))] | (map(.replay.case_name) | sort) == ["dispatch-allow-publishdispatched", "dispatch-allow-publishgoverned", "dispatch-deny-publishdispatched", "dispatch-deny-publishgoverned"] and (map(.replay.decision) | unique) == ["allow", "deny"] and (group_by(.replay.request_sha256) | length == 2 and all(.[]; length == 2 and (map(.replay.policies_sha256) | unique | length) == 1 and (map(.replay.decision) | unique | length) == 1))' .lake/build/agent-data-flow-validated-receipts.json > /dev/null
-    jq -e 'length == 9 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/network-validated-receipts.json > /dev/null
-    jq -e 'length == 13 and all(.[]; (.schema_sha256 | test("^[0-9a-f]{64}$")) and .replay.error_policy_ids == [])' .lake/build/country-approval-validated-receipts.json > /dev/null
+    jq -e -f Tests/Conformance/scope-pattern-validated-receipts.jq .lake/build/scope-pattern-validated-receipts.json > /dev/null
+    jq -e -f Tests/Conformance/namespaced-enum-validated-receipts.jq .lake/build/namespaced-enum-validated-receipts.json > /dev/null
+    jq -e -f Tests/Conformance/agent-data-flow-validated-receipts.jq .lake/build/agent-data-flow-validated-receipts.json > /dev/null
+    jq -e -f Tests/Conformance/agent-data-flow-validated-receipts-dispatch.jq .lake/build/agent-data-flow-validated-receipts.json > /dev/null
+    jq -e -f Tests/Conformance/network-validated-receipts.jq .lake/build/network-validated-receipts.json > /dev/null
+    jq -e -f Tests/Conformance/country-approval-validated-receipts.jq .lake/build/country-approval-validated-receipts.json > /dev/null
 
 prepare-attested-schema-evolution: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json
 
 check-attested-schema-evolution: prepare-attested-schema-evolution
-    jq -e '(.before.schema[""].entityTypes.Dataset.shape.attributes | has("classification") | not) and .after.schema[""].entityTypes.Dataset.shape.attributes.classification == {"type":"String","required":false}' .lake/build/attested-schema-evolution.json > /dev/null
+    jq -e -f Tests/Conformance/attested-schema-evolution.jq .lake/build/attested-schema-evolution.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-schema-only-revision < .lake/build/attested-schema-evolution.json > .lake/build/attested-schema-evolution-receipt.json
-    jq -e '(.before_schema_sha256 | test("^[0-9a-f]{64}$")) and (.after_schema_sha256 | test("^[0-9a-f]{64}$")) and .before_schema_sha256 != .after_schema_sha256 and (.replay | length) == 6 and all(.replay[]; .error_policy_ids == [])' .lake/build/attested-schema-evolution-receipt.json > /dev/null
+    jq -e -f Tests/Conformance/attested-schema-evolution-receipt.jq .lake/build/attested-schema-evolution-receipt.json > /dev/null
 
 check-authorization-delta: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
-    jq -e '.posture.status == "no-expansion-in-schema" and .posture.environments_checked == 1 and .new_grant.status == "expanded" and .new_grant.environments_checked == 1 and (.new_grant.counterexamples | length) > 0' .lake/build/authorization-delta.json > /dev/null
+    jq -e -f Tests/Conformance/authorization-delta.jq .lake/build/authorization-delta.json > /dev/null
     jq '.manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-authorization-delta-proof:
@@ -114,7 +112,7 @@ check-authorization-delta-proof:
 
 check-payment-delta: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean > .lake/build/payment-delta.json
-    jq -e '.freeze.status == "no-expansion-in-schema" and .freeze.environments_checked == 4 and .restore.status == "expanded" and .restore.environments_checked == 4 and (.restore.counterexamples | length) > 0' .lake/build/payment-delta.json > /dev/null
+    jq -e -f Tests/Conformance/payment-delta.jq .lake/build/payment-delta.json > /dev/null
     jq '.manifest' .lake/build/payment-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 [parallel]
