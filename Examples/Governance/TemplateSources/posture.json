@@ -1,0 +1,137 @@
+{
+  "staticPolicies": {},
+  "templateLinks": [
+    {
+      "newId": "alice-ticket-a",
+      "templateId": "contributor",
+      "values": {
+        "?principal": {
+          "id": "alice",
+          "type": "User"
+        },
+        "?resource": {
+          "id": "ticket-a",
+          "type": "Ticket"
+        }
+      }
+    },
+    {
+      "newId": "bob-ticket-b",
+      "templateId": "contributor",
+      "values": {
+        "?principal": {
+          "id": "bob",
+          "type": "User"
+        },
+        "?resource": {
+          "id": "ticket-b",
+          "type": "Ticket"
+        }
+      }
+    },
+    {
+      "newId": "bob-ticket-a",
+      "templateId": "viewer",
+      "values": {
+        "?principal": {
+          "id": "bob",
+          "type": "User"
+        },
+        "?resource": {
+          "id": "ticket-a",
+          "type": "Ticket"
+        }
+      }
+    }
+  ],
+  "templates": {
+    "contributor": {
+      "action": {
+        "entity": {
+          "id": "read",
+          "type": "Action"
+        },
+        "op": "=="
+      },
+      "conditions": [
+        {
+          "body": {
+            "&&": {
+              "left": {
+                "==": {
+                  "left": {
+                    ".": {
+                      "attr": "status",
+                      "left": {
+                        "Var": "resource"
+                      }
+                    }
+                  },
+                  "right": {
+                    "Value": "OPEN"
+                  }
+                }
+              },
+              "right": {
+                ".": {
+                  "attr": "deviceTrusted",
+                  "left": {
+                    "Var": "context"
+                  }
+                }
+              }
+            }
+          },
+          "kind": "when"
+        }
+      ],
+      "effect": "permit",
+      "principal": {
+        "op": "==",
+        "slot": "?principal"
+      },
+      "resource": {
+        "op": "==",
+        "slot": "?resource"
+      }
+    },
+    "viewer": {
+      "action": {
+        "entity": {
+          "id": "read",
+          "type": "Action"
+        },
+        "op": "=="
+      },
+      "conditions": [
+        {
+          "body": {
+            "==": {
+              "left": {
+                ".": {
+                  "attr": "status",
+                  "left": {
+                    "Var": "resource"
+                  }
+                }
+              },
+              "right": {
+                "Value": "OPEN"
+              }
+            }
+          },
+          "kind": "when"
+        }
+      ],
+      "effect": "permit",
+      "principal": {
+        "op": "==",
+        "slot": "?principal"
+      },
+      "resource": {
+        "op": "==",
+        "slot": "?resource"
+      }
+    }
+  }
+}

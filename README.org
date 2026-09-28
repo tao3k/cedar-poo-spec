@@ -20,31 +20,150 @@ specification.
   repositories. They are not part of Lean-POO or this specification
   adapter.
 
-* Planned layers
+* Features
 
-| Layer | Responsibility |
-|-------+----------------|
-| Cedar adapter | Represent upstream Cedar definitions through Lean-POO abstractions without changing Cedar semantics. |
-| Composition examples | Exercise overrides and proof obligations on small Cedar-derived cases. |
-| Evaluation | Measure proof reuse, change impact, and repair effort on pinned upstream revisions. |
+[[file:docs/rfc/0001-certified-authorization.org][RFC 0001]] defines the
+implemented authorization and entity-slicing certificate contract.
+[[file:docs/rfc/0002-policy-module-composition.org][RFC 0002]] defines
+policy module edits and conflict handling.
+[[file:docs/rfc/0003-cedar-language-export.org][Cedar language export]]
+connects compiled Lean policy modules to the official Rust authorizer through
+Cedar's public JSON policy-set format.
+The [[file:Examples/Governance/Policies/expanded.cedar][final ticket-sharing policy]]
+is also committed as readable Cedar language syntax.
+[[file:docs/rfc/0003-cedar-language-export.org][RFC 0003]] shows the downstream
+Lean extension and Rust deployment interface.
+[[file:docs/rfc/0004-authorization-delta.org][RFC 0004]] defines an
+authorization-delta analysis over C4 revisions using Cedar's upstream
+symbolic compiler and a concrete counterexample replayed by Rust Cedar.
+[[file:docs/rfc/0005-cedar-replay-receipts.org][RFC 0005]] defines content-bound
+Rust Cedar replay receipts for checked Lean manifests.
+[[file:docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]] adds an explicit
+Lean-to-Cedar schema projection, schema-bound replay API, and a schema-only
+evolution receipt for unchanged concrete authorization inputs.
+[[file:docs/rfc/0007-poo-dispatch-boundary.org][RFC 0007]] defines the
+construction-time boundary for Lean-POO multiple dispatch across independently
+extensible policy profiles.
+The executable
+[[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
+overlay, extend, and remove are all needed during an authorization migration.
+The [[file:Examples/README.org][examples index]] links each case and its
+source and modeling notes. [[file:Tests/README.org][Tests]] hold exact regressions
+and rejection paths; [[file:Benchmarks/README.org][Benchmarks]] hold timing
+probes. The [[file:Examples/Health/README.org][health example]] connects a clinical
+emergency-access diamond to published EHR studies and HL7 guidance. It also
+composes consent, monitor quarantine, AI model eligibility, and clinician review
+for a remote-monitoring alert workflow.
+The same area now includes a provider-to-payer AI prior-authorization chain
+with separate patient-identity, administrative, disclosure, payer, and
+delegation owners.
+The [[file:Examples/Governance/README.org][governance example]] uses a
+source-grounded attestation revision to show policy provenance, local
+invalidation, and certificate reuse across C4 composition. It also includes
+a ticket-sharing template revision based on Cedar's published design pattern.
+It also includes a trusted-network revision that checks Cedar IP extension
+values and a narrower network veto through the official Rust authorizer.
+The [[file:Examples/Language/README.org][language example]] checks concrete
+Cedar scope and pattern syntax across a POO overlay, plus all pinned Cedar
+extension functions and values. The
+[[file:Examples/Enterprise/README.org][enterprise examples]] cover delegated
+procurement approval, compound payment release, and AI agent delegation,
+payment authorization, three-to-five-layer delegation, and cross-tool data
+flow across independently evolving controls. The
+[[file:Examples/Enterprise/Agent/Session/README.org][bounded agent session]]
+case includes a Mermaid state diagram for history-aware admission. The
+[[file:Examples/Enterprise/Agent/Fanout/README.org][shared budget fanout]]
+case exposes cross-worker budget aggregation and a stale-check race. The
+same area now composes a sensitive read by one worker with external egress by
+another, showing why worker-local history misses a delegation-wide data
+flow and where a shared lineage ledger changes the Cedar decision. The
+[[file:Examples/Enterprise/Agent/Department/README.org][cross-department synthesis]]
+case extends that lineage model with separate Sales and Finance owners,
+joint-result egress, and delegation validity. The
+[[file:Examples/Enterprise/Vehicle/README.org][vehicle examples]] include
+AI-mediated command hijacking, successor-safe mission authorization, and
+an Uptane supplier transition. They use separate source-grounded cases
+and keep their assumptions explicit.
 
-Agent delegation, device trust, temporal authorization, and healthcare
-policy are possible downstream studies. They do not define this library's
-semantics.
+| Feature | Implemented contract |
+|---------+----------------------|
+| Cedar adapters | Store upstream evaluation and typechecking results in typed Lean-POO proof objects. |
+| Composition | Track alignment and preserve unaffected certificates across overrides. |
+| Authorization | Transport Cedar's policy-set and response-level soundness theorems. |
+| Entity slicing | Certify equality of full and request-relative sliced authorization responses. |
+| Policy modules | Compile C4-ordered extend, overlay, and remove edits into Cedar policies; reject ambiguous edits and retain an edit trace and policy provenance. |
+| Policy revision | Compare compiled policy bodies by ID; compose per-policy proof objects for fresh bodies and reuse unchanged bodies under the same schema. Reclose all dependent premises after schema changes. |
+| Runtime validation cache | Reuse any identical policy body in a Cedar-validated baseline, including after reordering; prove the incremental result equals Cedar's full validation result. |
+| Template revisions | Re-link through upstream Cedar, validate only changed materialized bodies, and distinguish link errors from policy validation errors. |
+| Cedar language export | Convert supported materialized Cedar policies, editable templates and links, entities, and requests to public JSON formats; reject unsupported abstract syntax; compare Lean authorization receipts and linked template bodies with the Rust Cedar engine. |
+| Reuse probe | Check dependency selection across 10,000 indexed evaluator obligations. |
 
-* Initial milestones
+Enterprise agent authorization, device trust, temporal authorization, and
+healthcare policy remain downstream studies. They do not define this
+library's semantics.
 
-1. Pin compatible upstream =cedar-spec= and Lean-POO revisions.
-2. Implement a small adapter for Cedar expressions and evaluator artifacts.
-3. Compose a minimal Cedar-derived extension and record its proof
-   obligations.
-4. Compare reused and invalidated proofs after an override.
-5. Report reproducible measurements and the exact revisions used.
+* Verification
+
+=just lean-poo-api= lists the public modules from the locked LeanPOO
+dependency. =just lean-poo-api-find 'Multimethod.register'= searches its Lean
+declarations and uses the same revision that Lake builds for this project.
+
+=just check= runs the complete local gate. Its smaller entrypoints are
+=check-docs=, =check-lean=, =check-tests=, =check-rust=, =check-cedar-artifacts=,
+=check-mission-comparison=, and =check-delta=. CI gives documentation, Lean,
+Rust, Cedar conformance, and authorization delta separate jobs. The latter
+two start after the Lean and Rust jobs and restore their Lake and Cargo build
+caches. Lake cache identity includes the toolchain, dependency manifest, and
+Lean sources; the Cargo cache includes the Rust compiler and manifests.
+The =check-replay-receipts= entrypoint checks the agent-payment diagnostic
+replay output. =check-schema-bound-receipts= checks the corresponding
+well-typed payment operations through Cedar's strict schema validation.
+=check-schema-bound-scenarios= covers cross-tool data flow, the trusted
+network IP extension, and country-specific tags and Action inheritance
+under the same official Cedar boundary.
 
 * Status
 
-This repository currently defines the integration boundary and research
-plan. No Cedar adapter, extension, or proof-reuse result is claimed yet.
+The executable adapters are in
+[[file:CedarPooSpec/Evaluation.lean][Evaluation.lean]] and
+[[file:CedarPooSpec/Validation.lean][Validation.lean]]. They store upstream
+Cedar expressions, requests, entities, policies, type environments, and
+computed results in typed Lean-POO proof objects. Their obligations bind
+those results to Cedar's own evaluator and policy typechecker.
+
+Each adapter declares an exact dependency footprint. A label-only patch
+reuses the existing evaluation certificate. An expression override writes
+the new expression and upstream evaluation result, reports the changed
+dependencies, and closes the pending certificate. A policy override
+does the corresponding work for typechecking.
+
+[[file:CedarPooSpec/Composition.lean][Composition.lean]] pairs these
+independent certificates and adds an explicit alignment obligation between
+the evaluated expression and the checked policy. A change on one side
+reuses the other side's certificate, while alignment becomes pending.
+[[file:Examples/Composition.lean][Composition.lean]] prints the exact
+dependency and repair report through Lean-POO's public Debug API.
+[[file:CedarPooSpec/Soundness.lean][Soundness.lean]] transports the upstream
+Cedar typechecker soundness theorem through the certified snapshot. It
+requires Cedar's well-formed environment premise and a successful typed
+result; no replacement soundness argument is invented here.
+It also transports =validation_is_sound= for a whole policy set through
+four explicit Cedar validation obligations. The theorem retains Cedar's
+documented runtime-error cases; it is not an unconditional allow or
+error-free claim.
+[[file:CedarPooSpec/Slicing.lean][Slicing.lean]] combines that certificate
+with Cedar's level validation and transports the upstream response
+equality theorem for request-relative entity slices.
+
+#+begin_src sh
+just sync
+#+end_src
+
+The Lake manifest pins =cedar-spec= and Lean-POO. After deliberately changing
+a pinned revision in =lakefile.toml=, =just sync= refreshes the lockfile and
+runs the complete checks. It does not select an upstream revision on its own.
+This slice does not yet
+provide domain extensions or measure reuse on a large proof corpus.
 
 * Credits and license
 

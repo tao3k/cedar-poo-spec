@@ -1,0 +1,8 @@
+#+TITLE: AWS AgentCore Gateway Projection
+#+OPTIONS: toc:nil
+
+[[file:Gateway.lean][Gateway.lean]] defines the shared AgentCore entity types, Gateway action
+schema entry, entity data, and scoped Cedar policy constructor. It is the
+platform adapter used by the [[file:../FinancialServices/README.org][financial-services scenarios]]. Insurance
+and banking policy ownership, transfer lineage, and claim settlement remain
+in their business-domain modules.

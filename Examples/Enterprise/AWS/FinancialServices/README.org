@@ -1,0 +1,37 @@
+#+TITLE: AWS Financial Services Authorization Cases
+#+OPTIONS: toc:nil
+
+* Cases
+
+| Case | Published source | POO question |
+|------+------------------+--------------|
+| [[file:LakehouseGateway/README.org][Insurance lakehouse Gateway]] | [[https://aws.amazon.com/blogs/machine-learning/secure-ai-agents-with-policy-and-lambda-interceptors-in-amazon-bedrock-agentcore-gateway/][AWS lakehouse policy and interceptor example]] | How do independent role and geography restrictions compose at one Gateway? |
+| [[file:MultiAccountBanking/README.org][Multi-account banking]] | [[https://aws.amazon.com/blogs/machine-learning/build-a-multi-account-ai-agent-with-agentcore-gateway-and-mcp/][AWS banking AgentCore example]] | How do Gateway policy owners and cross-account identity relations compose over a multi-LOB call path? |
+| [[file:ClaimSettlement.org][Cross-domain claim settlement]] | [[https://aws.amazon.com/blogs/industries/agentic-ai-in-financial-services-choosing-the-right-pattern-for-multi-agent-systems/][AWS claims adjudication workflow]] combined with the two reference cases above | What happens when claim-data access, identity handoff, and multi-account payment calls form one authorization plan? |
+| [[file:Reconciliation/README.org][Reconciliation agent]] | [[https://github.com/aws-samples/sample-reconciliation-agent][AWS reconciliation-agent sample]] | How do Cedar Gateway policy, persisted evidence, case transition, and Graph email compose across owners and incidents? |
+
+Gateway Cedar decisions are one stage. JWT validation, outbound credentials,
+LOB Runtime admission, and data-plane effects retain separate owners and
+must be evidenced independently.
+
+* Lean module dependency
+
+The cases share the [[file:../AgentCore/Gateway.lean][AgentCore Gateway projection]]. The cross-domain scenario imports
+both case models through their actual Lean modules and reuses banking's
+C4/multimethod lineage; imports are acyclic. A direct import from one
+business model into the other would make its local Cedar policy depend on
+unrelated business rules. The composite workflow is the point where the
+different owners meet. Its two claims calls share one compiled claims root;
+its four bank calls share one compiled bank root. Each batch binds its Cedar
+decisions to that root, while the banking multimethod supplies the distinct
+LOB requirements for each call.
+
+#+begin_src mermaid
+flowchart TB
+    G[Gateway.lean: shared entities, schema entry, policy scope]
+    G --> L[LakehouseGateway.lean: claims owner rules]
+    G --> B[MultiAccountBanking.lean: banking LOB rules]
+    B --> R[Lineage.lean: C4 and multimethod route]
+    L --> C[ClaimSettlement.lean: cross-domain plan]
+    R --> C
+#+end_src

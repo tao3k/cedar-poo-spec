@@ -1,0 +1,232 @@
+import CedarPooSpec.PolicyJson
+import CedarPooSpec.CompoundAuthorization
+
+/-!
+Two authorization queries form one payment release. The controls illustrate
+separation of duties and compound authorization; all amounts and identities
+are fictive application assumptions.
+-/
+
+namespace CedarPooSpec.PaymentReleaseExample
+
+open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
+
+def userType : EntityType := ⟨"User", []⟩
+def roleType : EntityType := ⟨"Role", []⟩
+def paymentType : EntityType := ⟨"Payment", []⟩
+def groupType : EntityType := ⟨"PaymentGroup", []⟩
+def actionType : EntityType := ⟨"Action", []⟩
+
+def alice : EntityUID := ⟨userType, "alice"⟩
+def bob : EntityUID := ⟨userType, "bob"⟩
+def carol : EntityUID := ⟨userType, "carol"⟩
+def dave : EntityUID := ⟨userType, "dave"⟩
+def clerk : EntityUID := ⟨roleType, "Clerk"⟩
+def controller : EntityUID := ⟨roleType, "Controller"⟩
+def senior : EntityUID := ⟨roleType, "SeniorController"⟩
+def operations : EntityUID := ⟨groupType, "Operations"⟩
+def research : EntityUID := ⟨groupType, "Research"⟩
+def small : EntityUID := ⟨paymentType, "small"⟩
+def large : EntityUID := ⟨paymentType, "large"⟩
+def frozen : EntityUID := ⟨paymentType, "frozen"⟩
+def unmatched : EntityUID := ⟨paymentType, "unmatched"⟩
+def researchPayment : EntityUID := ⟨paymentType, "research"⟩
+def sameActor : EntityUID := ⟨paymentType, "same-actor"⟩
+def prepare : EntityUID := ⟨actionType, "prepare"⟩
+def release : EntityUID := ⟨actionType, "release"⟩
+
+def decimal (text : String) : Cedar.Spec.Ext.Decimal :=
+  match Cedar.Spec.Ext.Decimal.decimal text with
+  | some value => value
+  | none => panic! s!"invalid payment amount: {text}"
+
+def emptyData (parents : List EntityUID := []) : EntityData :=
+  { attrs := Map.empty, ancestors := Set.make parents, tags := Map.empty }
+
+def paymentData (owner group : EntityUID) (amount : String)
+    (matched blocked : Bool) : EntityData :=
+  { attrs := Map.make [
+      ("preparedBy", .prim (.entityUID owner)),
+      ("amount", .ext (.decimal (decimal amount))),
+      ("matched", .prim (.bool matched)),
+      ("blocked", .prim (.bool blocked))],
+    ancestors := Set.make [group], tags := Map.empty }
+
+def entities : Entities := Map.make [
+  (alice, emptyData [clerk]), (bob, emptyData [controller]),
+  (carol, emptyData [controller, senior]),
+  (dave, emptyData [clerk, controller]),
+  (clerk, emptyData), (controller, emptyData), (senior, emptyData),
+  (operations, emptyData), (research, emptyData),
+  (small, paymentData alice operations "250.0000" true false),
+  (large, paymentData alice operations "750.0000" true false),
+  (frozen, paymentData alice operations "250.0000" true true),
+  (unmatched, paymentData alice operations "250.0000" false false),
+  (researchPayment, paymentData alice research "250.0000" true false),
+  (sameActor, paymentData dave operations "250.0000" true false),
+  (prepare, emptyData), (release, emptyData)]
+
+def userEntry : EntitySchemaEntry :=
+  .standard ⟨Set.make [roleType], Map.empty, none⟩
+def roleEntry : EntitySchemaEntry :=
+  .standard ⟨Set.empty, Map.empty, none⟩
+def paymentEntry : EntitySchemaEntry :=
+  .standard ⟨Set.make [groupType], Map.make [
+    ("preparedBy", .required (.entity userType)),
+    ("amount", .required (.ext .decimal)),
+    ("matched", .required (.bool .anyBool)),
+    ("blocked", .required (.bool .anyBool))], none⟩
+def groupEntry : EntitySchemaEntry :=
+  .standard ⟨Set.empty, Map.empty, none⟩
+def actionEntry : ActionSchemaEntry :=
+  ⟨Set.make [userType], Set.make [paymentType], Set.empty, Map.empty⟩
+def schema : Schema :=
+  ⟨Map.make [(userType, userEntry), (roleType, roleEntry),
+    (paymentType, paymentEntry), (groupType, groupEntry)],
+    Map.make [(prepare, actionEntry), (release, actionEntry)]⟩
+
+def paymentFact (name : String) : Expr := .getAttr (.var .resource) name
+
+def positive : Expr :=
+  .call .greaterThan [paymentFact "amount", .call .decimal [.lit (.string "0.0000")]]
+def matched : Expr := paymentFact "matched"
+def blocked : Expr := paymentFact "blocked"
+def selfRelease : Expr :=
+  .binaryApp .eq (.var .principal) (paymentFact "preparedBy")
+def withinThreshold : Expr :=
+  .call .lessThanOrEqual [paymentFact "amount", .call .decimal [.lit (.string "500.0000")]]
+def isSenior : Expr :=
+  .binaryApp .mem (.var .principal) (.lit (.entityUID senior))
+
+def policy (id : String) (effect : Effect) (action : EntityUID)
+    (scope : Scope) (body : Expr) : Policy :=
+  { id, effect,
+    principalScope := .principalScope scope,
+    actionScope := .actionScope (.eq action),
+    resourceScope := .resourceScope (.mem operations),
+    condition := [{ kind := .when, body }] }
+
+def preparePermit : Policy :=
+  policy "prepare-matched-payment" .permit prepare (.mem clerk)
+    (.and selfRelease (.and matched positive))
+def baseRelease : Policy :=
+  policy "controller-release" .permit release (.mem controller) (.lit (.bool true))
+def thresholdRelease : Policy :=
+  { baseRelease with condition := [{ kind := .when, body := .and matched (.or withinThreshold isSenior) }] }
+def legacyBypass : Policy :=
+  policy "legacy-matched-release" .permit release .any matched
+
+def dutiesVeto : Policy :=
+  policy "separate-preparer-and-releaser" .forbid release .any selfRelease
+
+def riskVeto : Policy :=
+  policy "block-frozen-payment" .forbid release .any blocked
+
+def model : Model := { modules := [
+  { name := "Base", edits := [.extend preparePermit, .extend baseRelease,
+      .extend legacyBypass] },
+  { name := "Threshold", parentOrders := [["Base"]],
+    edits := [.overlay thresholdRelease] },
+  { name := "Duties", parentOrders := [["Base"]],
+    edits := [.extend dutiesVeto] },
+  { name := "Risk", parentOrders := [["Base"]],
+    edits := [.extend riskVeto] },
+  { name := "Retired", parentOrders := [["Base"]],
+    edits := [.remove "legacy-matched-release"] },
+  { name := "Integrated", parentOrders := [["Threshold", "Duties", "Risk", "Retired"]] }] }
+
+def request (principal action resource : EntityUID) : Request :=
+  ⟨principal, action, resource, Map.empty⟩
+
+def authorized (root : String) (principal action resource : EntityUID) : Bool :=
+  match model.compile root with
+  | .error _ => false
+  | .ok policies =>
+      let response := isAuthorized (request principal action resource) entities policies
+      response.decision == .allow && response.erroringPolicies.isEmpty
+
+/-- The application must require both permissions on the same payment snapshot. -/
+def releaseOperation (root : String) (preparer releaser resource : EntityUID) : Bool :=
+  let requests := [request preparer prepare resource, request releaser release resource]
+  match CedarPooSpec.CompoundAuthorization.authorizeAll model root requests entities with
+  | .error _ => false
+  | .ok receipt => receipt.allowed
+
+def operationCases : List (String × String × EntityUID × EntityUID × EntityUID × Bool) := [
+  ("base-same-actor", "Base", dave, dave, sameActor, true),
+  ("integrated-small", "Integrated", alice, bob, small, true),
+  ("integrated-wrong-preparer", "Integrated", dave, bob, small, false),
+  ("integrated-same-actor", "Integrated", dave, dave, sameActor, false),
+  ("integrated-high-controller", "Integrated", alice, bob, large, false),
+  ("integrated-high-senior", "Integrated", alice, carol, large, true),
+  ("integrated-frozen", "Integrated", alice, bob, frozen, false),
+  ("integrated-unmatched", "Integrated", alice, bob, unmatched, false),
+  ("integrated-cross-group", "Integrated", alice, bob, researchPayment, false),
+  ("integrated-clerk-release", "Integrated", alice, alice, small, false)]
+
+def branchCases : List (String × String × EntityUID × EntityUID × EntityUID × Decision) := [
+  ("base-same-actor-release-probe", "Base", dave, release, sameActor, .allow),
+  ("duties-same-actor-release", "Duties", dave, release, sameActor, .deny),
+  ("threshold-high-release", "Threshold", bob, release, large, .allow),
+  ("retired-high-release", "Retired", bob, release, large, .allow),
+  ("integrated-high-release", "Integrated", bob, release, large, .deny),
+  ("base-frozen-release", "Base", bob, release, frozen, .allow),
+  ("risk-frozen-release", "Risk", bob, release, frozen, .deny),
+  ("integrated-unmatched-release-probe", "Integrated", bob, release, unmatched, .deny)]
+
+def operationsExact : Bool := operationCases.all fun (_, root, preparer, releaser, resource, expected) =>
+  releaseOperation root preparer releaser resource == expected
+
+theorem operationsExactFully : operationsExact = true := by native_decide
+
+theorem emptyCompoundRejected :
+    (match CedarPooSpec.CompoundAuthorization.authorizeAll model "Integrated" [] entities with
+     | .ok receipt => receipt.allowed
+     | .error _ => false) = false := by native_decide
+
+def branchCasesExact : Bool := branchCases.all fun (_, root, principal, action, resource, expected) =>
+  match model.compile root with
+  | .error _ => false
+  | .ok policies =>
+      let response := isAuthorized (request principal action resource) entities policies
+      response.decision == expected && response.erroringPolicies.isEmpty
+
+theorem branchCasesExactFully : branchCasesExact = true := by native_decide
+
+def controlsNeedComposition : Bool :=
+  releaseOperation "Base" dave dave sameActor &&
+  !releaseOperation "Duties" dave dave sameActor &&
+  releaseOperation "Threshold" alice bob large &&
+  releaseOperation "Retired" alice bob large &&
+  !releaseOperation "Integrated" alice bob large &&
+  releaseOperation "Base" alice bob frozen &&
+  !releaseOperation "Risk" alice bob frozen &&
+  !authorized "Integrated" bob release unmatched
+
+theorem controlsNeedCompositionFully : controlsNeedComposition = true := by
+  native_decide
+
+theorem thresholdEditLocal :
+    ((model.compileRevision "Base" "Threshold").toOption.get
+      (by native_decide)).changedPolicyIds = ["controller-release"] := by native_decide
+
+def integratedPolicyIdsExact : Bool :=
+  let ids := ((model.compile "Integrated").toOption.get (by native_decide)).map Policy.id
+  ids.length == 4 &&
+  ["prepare-matched-payment", "controller-release",
+   "separate-preparer-and-releaser", "block-frozen-payment"].all ids.contains &&
+  !ids.contains "legacy-matched-release"
+
+theorem legacyRetired : integratedPolicyIdsExact = true := by native_decide
+
+theorem validatedIntegrated :
+    (CedarPooSpec.PolicyJson.publish model "Integrated" schema).isOk = true := by
+  native_decide
+
+def allRootsValidated : Bool :=
+  ["Base", "Threshold", "Duties", "Risk", "Retired", "Integrated"].all fun root =>
+    (CedarPooSpec.PolicyJson.publish model root schema).isOk
+
+theorem allRootsValidatedFully : allRootsValidated = true := by native_decide
+
+end CedarPooSpec.PaymentReleaseExample

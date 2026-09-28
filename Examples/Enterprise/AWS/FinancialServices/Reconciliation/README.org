@@ -1,0 +1,101 @@
+#+TITLE: Reconciliation Agent: Cross-Target Authorization and Incident Revisions
+#+OPTIONS: toc:nil
+
+* Published system and evidence
+
+The [[https://github.com/aws-samples/sample-reconciliation-agent][AWS reconciliation-agent sample]] combines an AgentCore Runtime agent, a
+worker, a frontend platform service, an egress Gateway, a second ingress
+Gateway, a general ledger, extracted notices, a managed Knowledge Base,
+and a Microsoft Graph mailbox. The [[https://github.com/aws-samples/sample-reconciliation-agent/blob/main/infra/modules/recon-agent/main.tf][Gateway Terraform]] defines Cedar permits for eight
+read or communication actions, a decimal confidence gate for
+=set-draw-status___set_draw_status=, a separate human write permit, and a
+platform-only case-status permit. The [[https://github.com/aws-samples/sample-reconciliation-agent/blob/main/chatbot-app/frontend/src/lib/reconPolicy.ts][control-plane code]] rewrites the
+confidence gate when the administrator changes the threshold. The
+[[https://github.com/aws-samples/sample-reconciliation-agent/blob/main/backend/gateway_interceptor/handler.py][REQUEST interceptor]] independently verifies stored proposal reference,
+recorded evidence quality, legal case-status transitions, and approved
+email draft details. These are separate authorities.
+
+[[file:Reconciliation.lean][Reconciliation.lean]] projects the published Cedar rules to the ten named
+Gateway actions and three representative IAM principals: agent, worker,
+and frontend platform. The sample matches platform IAM role names through
+=principal.id= patterns that accept AWS role and assumed-role ARN shapes.
+Our exact representative UID scope covers those three cases; it is not a
+proof about every possible AWS session ARN. The external IAM authentication
+and action discovery surface remain outside this projection.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Investigate: Agent reads ledger, notices, KB, correspondence
+    Investigate --> Proposed: Agent proposes reference and evidence trace
+    Proposed --> AutoWrite: Worker confidence passes Cedar gate
+    Proposed --> HumanReview: Low confidence or incomplete evidence
+    AutoWrite --> StoredGuard: Interceptor checks persisted reference and CLEAN verdict
+    HumanReview --> StoredGuard: Frontend uses human permit
+    StoredGuard --> CaseTransition: Platform-only status action
+    CaseTransition --> MailGuard: Confirmed, approved draft and active contact
+    MailGuard --> [*]: Graph send
+#+end_src
+
+* POO ownership and changes
+
+=SourceCombined= represents the sample's broad read policy and its write,
+human, and status grants. =OwnerCombined= is a POO rewrite: Ledger,
+Knowledge, Correspondence, and Directory own disjoint action groups, while
+Write, Human, and Status own their respective grants. C4 composes these
+owners. Lean checks source/owner decision equality for all eight published
+read actions across the representative principals.
+
+The model now builds these roots with the Cedar adapter's =Model.mix=,
+which calls LeanPOO's public =mix= and keeps its compiled schema for later
+authorization and export. =Model.extend= stages the threshold, Graph pause,
+and recovery revisions through LeanPOO's =extendSchema=. Thus the source
+and owner policy sets are constructed from the same reusable business-owner
+modules rather than restating the combined policies.
+
+=Threshold90= overlays only =recon_write_gate=, reflecting the sample's
+administrator threshold rewrite. =GraphPaused= is a proposed incident
+overlay on Correspondence: it removes only Graph send from that owner while
+preserving the correspondence wrapper and its inner Graph read.
+=JointIncident= C4-composes both independent changes. =Recovered= overlays
+the prior owner bodies back. The revision checks identify one changed policy
+ID per independent branch; unrelated owners remain candidates for reuse.
+
+* Security boundary illustrated by the case
+
+The sample's confidence score measures how many prescribed evidence steps
+returned data. Its README explicitly warns that complete coverage can still
+select the wrong ledger record. [[file:Workflow.lean][Workflow.lean]] therefore keeps the
+Gateway confidence decision separate from the interceptor's persisted
+reference and evidence-quality verdict. It also models the distinct
+confirmation, draft revision, exact content, and active-contact checks for
+Graph send. The six Cedar calls use one =CompoundAuthorization.authorizeAll=
+receipt, which binds every decision to a single C4-compiled policy set.
+The model is a pure admission plan over supplied host facts; it does not
+authenticate those facts or execute AWS services.
+
+The source permits Graph send at the Gateway because the OpenAPI operation
+has no confidence input. The interceptor blocks unconfirmed or unapproved
+sends. Lean demonstrates that a high-confidence call by the agent itself
+would pass the Cedar write gate if the tool were exposed to it; the sample
+instead omits that tool from the model-offered action list. This distinction
+matters when an agent or its tool catalog is compromised.
+
+| Change or threat | Cedar/POO result | Separate check still required |
+|------------------+------------------+-------------------------------|
+| Raise 85% threshold to 90% | Write owner body changes; 85% worker write is denied | Control-plane update actually reaches Gateway |
+| Pause Graph send | Correspondence owner changes; wrapper and inner read remain | Mailbox and contact revocation at interceptor |
+| Wrong ledger reference | Cedar may permit a 90% write | Persisted proposal reference must match |
+| Dirty or missing evidence verdict | Cedar may permit a 90% write | Interceptor must read a =CLEAN= verdict from storage |
+| Agent supplies its own 90% confidence | Cedar permits if the action is callable | Tool exposure and worker boundary |
+| Email draft changed after approval | Cedar read-group policy may permit Graph send | Interceptor must re-read approved revision and bytes |
+
+[[file:ValidatedExport.lean][ValidatedExport.lean]] exports 32 source, owner, threshold, incident, and
+recovery requests. The official Cedar Rust parser, validator, and
+authorizer replay them; the Just recipe checks the exact deny set and empty
+policy-error lists. It also regenerates and compares the committed
+[[file:Policies/source.cedar][source-shaped]], [[file:Policies/owners.cedar][owner-composed]], and
+[[file:Policies/joint-incident.cedar][joint-incident]] Cedar artifacts.
+
+#+begin_src sh
+just example aws financial-services reconciliation
+#+end_src

@@ -1,0 +1,326 @@
+#+TITLE: RFC 0003: Cedar Policy Language Export
+#+OPTIONS: toc:nil
+
+* Contract
+
+=PolicyModules.Model.compile= yields =Cedar.Spec.Policies= in Lean. The
+[[file:../../CedarPooSpec/PolicyJson.lean][PolicyJson adapter]] serializes that
+ordinary policy set using Cedar's public JSON policy-set format. The
+[[file:../../rust/Cargo.toml][Rust bridge]] parses the result with the official
+=cedar-policy= crate and calls its authorizer. Composition and proof reuse stay
+in Lean-POO; Cedar continues to own policy parsing and authorization.
+The Rust package defaults to a small JSON artifact type with no Cedar runtime
+dependency. Enabling =cedar-runtime= exposes =load_policy_set= for applications
+that want to load the exported JSON into the official
+=cedar_policy::PolicySet= type.
+The same bridge renders that policy set into human-readable =.cedar= files in
+[[file:../../Examples/Governance/Policies/expanded.cedar][the governance example]].
+The files cover published, posture, revoked, and expanded revisions. The same
+export and check commands cover the clinical break-glass and attested-data
+governance scenarios in their respective example directories.
+
+The compiled-policy exporter materializes linked templates before
+serialization, so its JSON contains static policies with their original IDs
+and empty template and link collections. This preserves the compiled
+authorization behavior. =PolicyJson.sourceSet= separately exports static
+policies, editable templates, and links in the same public JSON policy-set
+format; =templateSet= is its template-only form. The source export calls
+Cedar's Lean linker before emitting JSON and rejects a link ID colliding
+with a static policy ID or a template with no link. The Rust
+=load_template_source= API accepts a =TemplateSourceJson= boundary value and
+loads it through official Cedar, including draft sources with unused templates.
+=check_template_source= admits only sources in which every template has at
+least one linked policy, then compares linked policy IDs and canonical bodies
+with the materialized artifact. Each new link or template revision requires a
+new Lean materialization and boundary check; this check does not certify all
+possible future slot bindings.
+Plain Cedar syntax cannot encode policy IDs. Each generated policy therefore
+has its original POO ID in a comment, while parsing the text assigns Cedar
+new IDs. Use the JSON policy set when stable policy IDs matter to an
+application or diagnostic consumer.
+
+The Lean specification's abstract syntax is broader than Cedar's concrete
+policy language. The exporter returns a typed error for unsupported scopes,
+expressions, values, duplicate policy IDs, and duplicate record keys. Policy
+expressions and nested values have an explicit 1,024-level export limit, so
+an extremely deep generated object fails instead of exhausting the stack.
+A concrete-language conformance example exercises =is= and =is ... in=
+principal/resource scopes, =like= patterns, unary =is=, and nested =has=.
+Cedar Lean's abstract Action scope permits =is=, but Cedar's concrete Action
+grammar does not; export rejects that form explicitly.
+The adapter covers all four extension value variants and all 22 =ExtFun=
+constructors in the pinned Cedar Lean version. The =cedar-runtime= feature
+enables the corresponding official Rust Cedar =decimal=, =ipaddr=, and
+=datetime= features; the default artifact library still has no Cedar runtime
+dependency. The inventory is explicit:
+
+| Family | Lean extension value | Lean functions exported to Cedar JSON |
+|--------+----------------------+---------------------------------------|
+| Decimal | =decimal= | =decimal=, =lessThan=, =lessThanOrEqual=, =greaterThan=, =greaterThanOrEqual= |
+| IP | =ipaddr= | =ip=, =isIpv4=, =isIpv6=, =isLoopback=, =isMulticast=, =isInRange= |
+| Time | =datetime=, =duration= | =datetime=, =duration=, =offset=, =durationSince=, =toDate=, =toTime=, =toMilliseconds=, =toSeconds=, =toMinutes=, =toHours=, =toDays= |
+
+The [[file:../../Examples/Language/ExtensionCoverage.lean][extension coverage
+case]] executes every function and serializes every value family through
+Lean and Rust Cedar. Datetime values are rendered as canonical UTC timestamps
+and reparsed before export; duration values are rendered in milliseconds and
+reparsed. A value outside Cedar's printable date range fails with
+=unsupportedValue= instead of changing meaning. Function arity is checked
+before export. This inventory concerns the pinned Cedar Lean extension AST,
+not every API of the Rust =cedar-policy= crate.
+Entity export rejects self-ancestry and locally visible ancestor chains whose
+transitive members are absent. Cedar Lean reads the supplied ancestor set;
+the official Rust Cedar JSON loader computes transitive closure. Requiring
+locally closed sets prevents that loader from silently changing the meaning
+of a POO request at the translation boundary. Ancestors omitted from the
+entity store cannot be checked by this local rule; callers still own the
+completeness and authenticity of their entity input.
+A successful Lean export is
+then parsed again by Rust Cedar. This parser check is part of the integration
+contract; the adapter does not claim that every abstract Cedar policy can be
+published as a concrete Cedar policy.
+
+* Executable conformance case
+
+The Lean source contains the C4 module graph, overlay and removal edits,
+provenance, and proof obligations. Compilation erases those construction
+steps into an ordinary Cedar policy set. A short generated =.cedar= file is
+therefore expected; it is the deployed result, not a textual rendering of
+the proof or composition history. The compiled JSON retains the original
+policy IDs, while the readable Cedar file records them in comments.
+
+[[file:../../Examples/Governance/TicketSharingExport.lean][TicketSharingExport]]
+computes the manifest from the existing Lean policy model, entity store,
+requests, and authorization responses. The Rust bridge checks nine cases
+across published, posture, revoked, and expanded revisions. Each case compares the
+authorization decision, determining policy IDs, and IDs of policies with
+evaluation errors. It reparses the rendered =.cedar= syntax and compares
+policy-body multisets, decisions, and the bodies of determining and erroring
+policies. Cedar assigns new IDs when parsing text, so ID comparison applies
+to the JSON artifact only. A mismatch or parse failure exits with an error. The regular
+check also fails if committed =.cedar= files differ from freshly generated
+output.
+
+The public =PolicyJson.authorizationCase= builds this receipt from any POO
+model, root, Cedar request, and entity store. The clinical exporter checks
+fourteen cases across two roots, including a changed patient preference. The
+attested-data exporter checks thirteen cases across three roots, including
+the attestation-freshness delta. These source models are independently checked
+in Lean; the Rust gate then compares their computed responses with official
+Cedar and the regenerated policy text.
+The [[file:../../Examples/Language/README.org][concrete-language example]]
+checks five more requests across a POO overlay and two generated revisions.
+The [[file:../../Examples/Governance/TemplateSourceExport.lean][template source
+entrypoint]] emits the ticket-sharing contributor and viewer templates with
+their links beside the Lean-linked policy set. The Rust boundary checks their
+exact materialized policy bodies and IDs. The committed
+[[file:../../Examples/Governance/TemplateSources/posture.json][source artifact]]
+is regenerated by =just export-cedar-language= and checked by
+=just check-cedar-language=. A second
+[[file:../../Examples/Governance/TemplateSources/posture-mixed.json][mixed source]]
+keeps the viewer grant static while two contributor grants remain linked; its
+source therefore exports only the contributor template.
+Both sources resolve to the same validated ticket-sharing policy set; the
+Rust gate checks both and rejects a changed static body or static/link ID
+collision.
+The [[file:../../Examples/Governance/TrustedNetworkDataAccess.lean][trusted
+network revision]] checks nine requests and the IP extension boundary while
+overriding one network policy body on top of the attested governance graph.
+The [[file:../../Examples/Governance/CountryApproval.lean][country approver
+revision]] checks twelve requests with role, action, and resource groups,
+entity tags, country expansion, and removal of a broad legacy grant. It
+also checks the negative incomplete-ancestry export path.
+The [[file:../../Examples/Enterprise/Procurement/PurchaseApproval.lean][procurement
+revision]] checks nine requests across base, budget, duties, and integrated
+roots, including a four-decimal-place amount boundary, a positive amount
+requirement, and a self-approval veto. The delegated procurement case adds ten
+named requests across the delegated and revoked roots, checking agent status,
+operator binding, duties, budget, and revocation. A 160-request matrix also
+compares independent expected decisions, Lean receipts, and the official Rust
+authorizer. Its schema-validated publication is also rendered through Cedar.
+The payment-release example adds twenty-eight Cedar requests across six POO
+roots. Ten compound operations require both a prepare and a release query;
+eight further requests isolate the intermediate branch behavior. Its final
+validated JSON is checked against the emitted Cedar policy source.
+The Cedar-specific =CompoundAuthorization.authorizeAll= evaluates the request
+list against one compiled policy set and one supplied entity store; its
+receipt binds every response to that exact compilation. An empty request
+list, any denial, or any policy evaluation error makes =allowed= false.
+The AI agent delegation case adds thirty-three layer requests across eight
+POO roots. It checks a three-query tool/delegation/origin flow, including a
+runtime error that leaves raw Cedar =Allow= but is rejected by the compound
+consumer because diagnostics are nonempty.
+The chain extension adds fifty-two individual Cedar requests for paths with one,
+two, or three delegation hops. POO overlays the generic hop and origin-depth
+policies independently, composes them with C4, and extends a single-edge
+veto; the Rust boundary checks each layer and six generated policy roots.
+Within one compound request, repeated checks against the same POO root reuse
+its compilation.
+The AI payment case adds thirty-four requests across eight POO roots. It
+authorizes both the finance agent's tool call and the concrete transfer,
+then composes independent account, amount, and originating-user vetoes.
+An account freeze and restoration change only one policy ID. Lean rejects
+an erroring veto even when raw Cedar returns =Allow= for a malformed origin;
+Rust Cedar checks that response and all generated policy artifacts.
+The AI data-flow case adds thirty-two layer requests across nine POO roots.
+It evaluates document read and repository publication separately, then
+composes independent classification and review vetoes. Revocation and
+restoration leave the read root unchanged. The malformed reviewer case also
+checks the raw =Allow= with a policy error against Rust Cedar.
+The extension coverage case adds eight requests across three extension
+families, including timezone normalization and a negative duration value.
+
+Each Lean receipt separately records the IDs returned by POO compilation,
+alongside the exported JSON. The Rust boundary checks that Cedar loaded
+exactly those IDs and only materialized policies, then compares the Lean and
+Rust decisions, determining policy IDs, and erroring policy IDs for each named request. Rust unit checks
+reject changed IDs, changed decisions, duplicate case names, unmaterialized
+template payloads, and conflicting revision artifacts. Cedar owns JSON and
+policy-language parsing; these checks target our translation boundary.
+For the independently maintained Vehicle =.cedar= baselines, the direct-source
+gate also compares the multiset of canonical policy bodies after official
+Cedar parsing. It maps regenerated source IDs to those bodies before comparing
+determining and erroring policies. A matching decision with a changed body or
+diagnostic is rejected. Identical policy bodies remain indistinguishable after
+the source IDs are regenerated.
+
+The finite request tables establish conformance for their named requests.
+They are not a universal proof that every abstract Lean policy has identical
+behavior for every possible request in Rust. Unsupported abstract syntax
+fails export, and a successful export must pass Cedar's parser and the
+boundary checks before the artifact is admitted.
+
+#+begin_src sh
+just export-cedar-language
+just check-cedar-language
+#+end_src
+
+The =Examples= Lake library builds example modules incrementally. The
+[[file:../../Examples/Manifests.lean][manifest entrypoint]] evaluates all
+source-owned exporters in one Lean process for the full gate; named manifest
+selection remains available through the corresponding =prepare-*= recipes.
+
+The top-level =just check= and GitHub CI also run this gate. The Rust crate
+uses [[https://github.com/tao3k/asp-rust][asp-rust]] only as a pinned
+=dev-dependency= for its code-policy gate. No Lean/Rust FFI is involved in
+the artifact boundary.
+
+* Downstream interface
+
+A downstream project maintains its POO extension in Lean. Its Lake manifest
+depends on =CedarPooSpec=, which already depends on Lean-POO and Cedar Lean.
+An executable Lean entrypoint compiles a chosen root and writes the resulting
+JSON policy set to standard output. The
+[[file:../../Examples/Governance/ExpandedPolicy.lean][expanded policy entrypoint]]
+is a working example.
+
+#+begin_src toml
+[[require]]
+name = "CedarPooSpec"
+git = "https://github.com/tao3k/cedar-poo-spec.git"
+rev = "feat/cedar-evaluation-adapter"
+#+end_src
+
+#+begin_src lean
+import CedarPooSpec.PolicyJson
+
+def main : IO Unit :=
+  match CedarPooSpec.PolicyJson.publish myModel "Production" mySchema with
+  | .ok publication => IO.println publication.json.compress
+  | .error _ => throw (IO.userError "publication failed")
+#+end_src
+
+The top-level Cargo workspace makes the =cedar-poo-bridge= package available
+as a Git dependency. Its default library exposes =CompiledPolicyJson= and
+=to_json_string= for passing or storing a compiled artifact. The
+=publish= API carries proofs that the chosen root compiled, the schema is well
+formed, Cedar validated the policy set against it, and serialization
+succeeded. It also carries the unique-policy-ID premise required by Cedar's
+response-level soundness theorem. =compiled= remains a lower-level unvalidated export. The proof is
+checked during Lean compilation; Rust receives the JSON artifact, not a
+transferable proof certificate. Downstream Rust code
+that already uses =cedar-policy= may parse this JSON through its own Cedar
+dependency. It does not need to depend on this bridge merely to load the
+artifact. The optional =cedar-runtime= feature exposes =load_policy_set= and
+=render_loaded_policy_set= for a policy set admitted once and reused in a Rust
+process. =render_policy_source= combines admission and rendering for a single
+artifact. The package also builds a CLI that reads one compiled policy set
+from standard input and writes Cedar source to standard output:
+
+#+begin_src toml
+[dependencies]
+cedar-poo-bridge = { git = "https://github.com/tao3k/cedar-poo-spec.git", branch = "feat/cedar-evaluation-adapter" }
+#+end_src
+
+For the command-line form, install the binary from the same revision:
+
+#+begin_src sh
+cargo install --git https://github.com/tao3k/cedar-poo-spec.git \
+  --branch feat/cedar-evaluation-adapter --package cedar-poo-bridge \
+  --features cedar-runtime
+#+end_src
+
+#+begin_src sh
+lake env lean --run ProductionPolicy.lean > policy-set.json
+cedar-poo-bridge render < policy-set.json > production.cedar
+#+end_src
+
+The application can load =policy-set.json= through =load_policy_set= when it
+needs stable policy IDs. It can load =production.cedar= with Cedar's text
+parser when policy IDs are not part of its interface. POO composition and
+proof checking happen in the Lean build step; a running Rust service consumes
+the resulting policy artifact through Cedar's ordinary authorizer API.
+The Lean =Publication= certifies Lean-side compilation and validation. Runtime
+admission occurs when the Rust consumer successfully calls =load_policy_set=
+or Cedar's equivalent parser; the JSON bytes alone are not a parsed policy set.
+
+* Rust export latency
+
+=just bench-rust-export= builds a release benchmark once, then measures 100
+warm-up calls and repeated operations inside one process. Its real fixtures
+contain three and four policies; scaled fixtures contain 32 and 128 policies.
+It also measures a real 68-case, six-revision manifest through
+=render_artifacts=, =check_manifest=, and =replay_manifest=.
+The reported =admit= stage uses Cedar's official JSON parser, =render-loaded=
+renders an already admitted =PolicySet=, and =decode+admit+render= includes
+JSON decoding. File reads, Cargo compilation, and process startup are outside
+the timed operations.
+
+On an Apple arm64 development host on 2026-09-27, one =just
+bench-rust-export= run measured =decode+admit+render= at p50/p95 of 66/253
+microseconds for three policies (1,273 bytes) and 103/684 microseconds for
+four policies (1,793 bytes), each across 2,000 calls. The 32-policy scaled
+artifact had a p50 of 704 microseconds and a p95 of 7.8 milliseconds; the
+128-policy artifact (52,480 bytes) had a p50 of 4.9 milliseconds. For 128
+policies, =render-loaded= had a p50 of 281 microseconds. These are local
+measurements under shared machine load, not a cross-machine latency guarantee.
+Repeated rendering should retain the admitted =PolicySet=.
+
+Batch rendering and conformance now reuse each revision's admitted policy set
+within one manifest call while still checking every request and rejecting a
+changed policy payload under an existing revision name. Before this change,
+the 68-case manifest's =render_artifacts= and =check_manifest= p50 values were
+10.2 and 58.9 milliseconds on this host. After the change, one benchmark run
+measured p50/p95 of 0.62/4.66 and 11.7/55.0 milliseconds respectively.
+The release benchmark is reproducible through =just bench-rust-export=;
+these numbers describe this fixture and host, not a universal latency bound.
+The full manifest check evaluates every request and is not a sub-millisecond
+operation.
+
+Starting the separately compiled release CLI for each three-policy artifact
+had an 8.4 millisecond median over 100 local invocations. Applications that
+need sub-millisecond per-artifact latency should call the Rust library in a
+persistent process. The first Cargo release build took about three minutes
+and is a build cost, not a per-artifact export cost.
+
+* Source authority
+
+- [[https://docs.cedarpolicy.com/policies/json-format.html][Cedar JSON policy format]]
+  defines the exported policy-set structure and expression encoding.
+- [[https://docs.cedarpolicy.com/auth/entities-syntax.html][Cedar entities and context JSON]]
+  defines the request data boundary.
+- [[https://github.com/cedar-policy/cedar][Cedar Rust implementation]] provides
+  =PolicySet=, =Entities=, =Context=, =Request=, and =Authorizer=.
+- [[https://github.com/cedar-policy/cedar-spec][Cedar Lean specification]]
+  provides the policy, template, evaluator, and validation definitions used
+  before export.

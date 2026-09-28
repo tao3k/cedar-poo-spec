@@ -1,0 +1,20 @@
+#+TITLE: Enterprise Agent Authorization Examples
+#+OPTIONS: toc:nil
+
+* Cases
+
+| Case | Scope |
+|------+-------|
+| [[file:Delegation/README.org][Delegation]] | Origin, tool, and delegation controls. |
+| [[file:Chain/README.org][Chain]] | Variable-depth delegation and edge revocation. |
+| [[file:Payment/README.org][Payment]] | Per-call payment authorization. |
+| [[file:DataFlow/README.org][Data flow]] | Cross-tool read and publication controls. |
+| [[file:Session/README.org][Bounded session]] | Prior actions, delegated intent, export budgets, and incident recovery for AI agents. |
+| [[file:Fanout/README.org][Shared budget fanout]] | Concurrent sub-agents, parent-wide budget aggregation, and atomic admission boundary. |
+| [[file:Fanout/README.org::*Cross-agent sensitive-read and egress composition][Cross-agent egress]] | Sensitive read by one worker, external send by another, shared lineage history, and combined budget controls. |
+| [[file:Department/README.org][Cross-department synthesis]] | Sales and Finance source scopes, joint-result egress, delegation validity, and inherited fanout controls. |
+
+* Platform reference cases
+
+The [[file:../AWS/AgentCore/README.org][AWS AgentCore cases]] trace source-backed agent, Gateway, and LOB
+relations alongside these domain-neutral agent examples.

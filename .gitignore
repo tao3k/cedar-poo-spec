@@ -4,3 +4,5 @@
 .data/
 *.olean
 *.ilean
+rust/target/
+/target/

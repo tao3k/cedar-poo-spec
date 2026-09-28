@@ -1,0 +1,190 @@
+#+TITLE: Delegated Agent Fanout and Shared Budget
+#+OPTIONS: toc:nil
+
+* Research case and exact boundary
+
+[[https://arxiv.org/html/2608.15888][Bounded Agents (2026)]] requires
+cumulative budget accounting across delegation hops and states that its
+composition result assumes serialized admission. Its limitations identify
+attacks spanning multiple sessions as residual risk requiring durable lineage
+state. A [[https://arxiv.org/abs/2609.15906][September 2026 survey of agent
+authorization]] independently identifies runtime enforcement and
+aggregation bounds as unresolved architecture gaps. The survey is a map of
+the literature; this example does not treat it as experimental evidence.
+
+[[https://www.frontiersin.org/journals/artificial-intelligence/articles/10.3389/frai.2026.1800407/full][LATTICE
+(2026)]] evaluates an immutable action bundle against in-process mutation
+and reports successful checks for its tested vectors. That addresses a
+different time-of-check/time-of-use surface from two workers concurrently
+reading a shared budget. This case models the latter boundary. It is our
+proposed Cedar/POO projection, not a reproduction of any paper's runtime.
+
+| Source observation | Proposed Cedar/POO projection | Unverified boundary |
+|--------------------+-------------------------------+---------------------|
+| A delegated budget cannot be reset at each worker. | =Local= and =Shared= are independent policy owners; =Integrated= C4-composes both. | A trusted host must bind both workers to the same delegation and shared ledger. |
+| Per-worker compliance can still exceed a parent-wide cap. | The two-worker trace shows =Local= allowing both sends, while =Integrated= allows only the first. | The example does not discover all descendant workers or enforce a distributed quota itself. |
+| Two concurrent checks can both see an unspent shared budget. | Lean shows both stale checks Allow, whereas serialized admission rejects the second proposal. | Cedar evaluates requests; atomic reserve/commit and tool execution remain host duties. |
+| [[https://docs.cedarpolicy.com/auth/authorization.html][Cedar skips policies that error during evaluation]]. | =Integrated= overlays the broad permit with both positive budget predicates, so a missing counter cannot leave a valid grant. | A host must still validate complete request context and treat diagnostics as an operational failure. |
+| Incident response must stop both workers without rewriting permanent controls. | =Incident= extends one egress veto; =Recovered= removes only that veto. | An external authority determines when the incident is resolved. |
+
+The workers, destination, and budget values in
+[[file:SharedBudget.lean][SharedBudget.lean]] are illustrative. The model
+checks a trusted =State= supplied to Cedar's request context. A production
+host must authenticate worker lineage, validate counter ranges, serialize
+decision plus reservation across every worker, bind approval to the exact
+tool call, and keep the shared ledger durable. A Cedar Allow from an old
+snapshot is not an execution permit after another worker has committed.
+
+* Decision and race matrix
+
+=A= means Allow and =D= means Deny. The default parent-wide cap is one
+external send; each worker also has a local cap of one. The separate
+same-worker row uses a shared cap of three to isolate the local control.
+
+| POO root | Worker A then B, shared cap 1 | Worker A twice, shared cap 3 | First otherwise valid send during incident |
+|----------+-------------------------------+------------------------------+--------------------------------------------|
+| =Base= | A, A | A, A | A |
+| =Local= | A, A | A, D | A |
+| =Shared= | A, D | A, A | A |
+| =Integrated= | A, D | A, D | A |
+| =Incident= | D, D | D, D | D |
+| =Recovered= | A, D | A, D | A |
+
+The =Local= branch leaves the fanout hole; the =Shared= branch leaves the
+same-worker hole when the parent has a larger aggregate allowance.
+=Integrated= closes both in the serialized model. An already spent shared
+budget denies the next proposal without changing state. The named Lean
+cases and pre-admission contexts are exported step by step to the official
+Cedar Rust authorizer. A worker absent from the bound delegation is denied
+before invoking Cedar authorization.
+
+The two missing-field requests expose a Cedar-specific failure mode. With
+=Base=, missing =localUsed= still permits a send. If the final root depended
+only on budget =forbid= policies, an error in a veto could leave that permit
+effective. =Integrated= overlays the permit with both positive budget checks:
+missing =localUsed= or =sharedUsed= then yields no satisfied permit and Deny.
+The Lean decisions and official Rust decisions agree for both malformed
+requests. The intermediate =Local= and =Shared= roots illustrate partial
+owners; only =Integrated= is the proposed final deployment root.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> S0
+    state "S0: sharedUsed = 0" as S0
+    state "S1: sharedUsed = 1" as S1
+    state "Violation: sharedUsed = 2" as Violation
+    S0 --> S1: A Allow + atomic commit
+    S0 --> S1: B Allow + atomic commit
+    S1 --> S1: Other worker Deny, no commit
+    S0 --> Violation: Two stale Allows + uncoordinated execution
+    note right of Violation
+      This path is a host race, not a Cedar decision.
+      Serialized admission must make it unreachable.
+    end note
+#+end_src
+
+The two checks against =S0= each return Allow. The Lean
+=staleDoubleCommitExceedsBudget= result deliberately applies both updates
+without rechecking and reaches =sharedUsed= of =2=. Under =replay=, which
+commits the first decision before checking the second, the decisions are
+=[true, false]= and =sharedUsed= of =1=. This finite example exposes the race;
+it does not implement a distributed transaction or prove its correctness.
+
+* Composition and proof receipts
+
+| Root | Owner-local edit | Materialized policy bodies | Fresh body work against stated baseline |
+|------+------------------+----------------------------+----------------------------------------|
+| =Base= | Extend delegated send grant | 1 | 1 |
+| =Local= | Extend worker-local budget veto | 2 | 1 vs =Base= |
+| =Shared= | Extend delegation-shared budget veto | 2 | 1 vs =Base= |
+| =Integrated= | C4-compose both owners and overlay the final permit | 3 | 3 vs =Base= |
+| =Incident= | Extend egress freeze | 4 | 1 vs =Integrated= |
+| =Recovered= | Remove only the freeze | 3 | 0 vs =Incident= |
+
+Six standalone Cedar revisions contain 15 materialized policy occurrences.
+Lean declares five distinct policy bodies and six local edits, including
+the final permit overlay and recovery removal. This is a source-structure count, not a performance
+measurement. The incident revision adds one fresh body, recovery adds none,
+and unchanged certificates are reused when the authorization certificate
+is reclosed. Cedar's upstream soundness theorem applies to the resulting
+snapshot. The [[file:SharedBudgetExport.lean][exporter]] sends every named
+request to the official Rust Cedar authorizer and checks all generated
+=.cedar= revisions after rendering and reparsing.
+
+#+begin_src sh
+just example enterprise agent fanout
+just check-cedar-language
+#+end_src
+
+* Cross-agent sensitive-read and egress composition
+
+[[https://arxiv.org/html/2608.15888v1][Bounded Agents]] treats prior actions and delegated budgets as accumulated
+session state, while limiting its composition soundness claim to complete
+restrictions and serialized admission. The [[https://arxiv.org/abs/2609.15906][2026 authorization architecture
+survey]] identifies runtime enforcement and aggregation bounds as open gaps.
+The earlier session and fanout examples model those concerns separately.
+[[file:CrossAgentEgress.lean][CrossAgentEgress.lean]] combines them in one proposed workflow: worker A
+reads a sensitive document and worker B proposes an external send under the
+same delegation. This is a new model of the boundary, not a reproduction of
+either paper's experiments or a claim that all agent exfiltration is solved.
+
+The model starts from the existing fanout budget policy model. It reuses
+the bounded-session read, history, and intent policy bodies after widening
+their principal scope to workers authenticated by the host. =Model.extend=
+stages three independent owners; =Model.mix= compiles the C4-composed
+=CrossAgentGoverned= root through LeanPOO. The resulting policy set has six
+surviving owner contributions: a send permit, shared and local budgets, a
+read permit, delegated intent, and sensitive-read history. =CrossAgentIncident=
+adds one egress freeze; =CrossAgentRecovered= removes just that edit.
+
+| Trace | Worker-local history | Delegation-shared history |
+|-------+----------------------+---------------------------|
+| A reads secret; B sends externally | Both steps Allow: B's local ledger never saw A's read. | Read Allows; send Denies. |
+| A reads public document; B sends on-task | Both Allow. | Both Allow. |
+| A sends, then B sends with one shared export slot | First Allows; second Denies. | First Allows; second Denies. |
+
+The same Cedar policies give different answers when the host supplies
+worker-local versus delegation-shared =sensitiveSeen=. This is the concrete
+aggregation gap: adding a history policy alone does not bind state across
+workers. The Lean =admit= transition serializes the finite example, and a
+denied send leaves the shared budget unchanged. A production host still
+must authenticate lineage, derive the shared history from all relevant
+reads, bind the checked output to the actual tool effect, and serialize
+admission with durable state. Neither Cedar nor LeanPOO supplies that host
+transaction automatically.
+
+=prepare= and =commit= specify the host-facing boundary more precisely. A
+ticket binds the C4 root, ledger view, state epoch, proposed call, and
+payload digest. =commit= checks those fields, reauthorizes against the
+current state, and advances the epoch on success. Lean checks three failure
+paths: two sends prepared on one budget snapshot cannot both commit; changing
+the payload after approval fails; and a sensitive read invalidates a
+previously prepared send before a refreshed send is denied by shared
+history. The digest and ticket in this model are values supplied by the
+host, not cryptographic credentials. A deployment must derive the digest
+from the exact tool-call bytes, protect ticket provenance, persist the
+ledger, and make compare-and-swap plus effect reservation atomic.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Clean
+    Clean --> Sensitive: A reads secret and host commits shared history
+    Clean --> Exported: B sends public report and host commits shared budget
+    Sensitive --> Sensitive: B external send denied by history
+    Exported --> Exported: Second worker send denied by shared budget
+    Sensitive --> Leak: B sees only local history and sends
+    note right of Leak
+      This is the modeled host-binding failure.
+      The shared-history request avoids this path.
+    end note
+#+end_src
+
+The named Lean traces export 20 pre-admission requests through
+[[file:CrossAgentEgressValidatedExport.lean][CrossAgentEgressValidatedExport.lean]]. The official Cedar Rust validator
+and authorizer replay all 20 with no policy evaluation errors. Their
+generated governed and incident policies match the committed Cedar files in
+[[file:CrossAgentEgressPolicies/governed.cedar][CrossAgentEgressPolicies]].
+
+#+begin_src sh
+just example enterprise agent cross-agent-egress
+#+end_src

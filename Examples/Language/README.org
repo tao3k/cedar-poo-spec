@@ -1,0 +1,69 @@
+#+TITLE: Cedar Concrete Language Boundary
+#+OPTIONS: toc:nil
+
+* Scope and pattern conformance
+
+[[file:ScopeAndPattern.lean][ScopeAndPattern.lean]] is a focused concrete-language
+example based on Cedar's documented [[https://docs.cedarpolicy.com/policies/json-format.html][JSON policy format]]. The Published
+module permits a =User= to view a =Document= when the email matches a
+pattern. The Scoped module overlays that policy to require membership in a
+staff group and a public folder, plus a nested metadata attribute.
+
+The example exercises the Lean policy AST forms =is=, =is ... in=, =like=,
+unary =is=, and nested =has=. The Lean theorem =decisionsExactFully= checks
+five requests. [[file:ScopeAndPatternExport.lean][ScopeAndPatternExport.lean]]
+exports both POO roots; the Rust Cedar engine checks the same requests and
+reparses the generated [[file:Policies/scoped.cedar][Cedar source]]. The
+=just example language scope-and-enum= and =just check-cedar-language= commands keep the Lean
+and concrete-language boundaries independently inspectable.
+
+The same POO roots now have a Lean schema for the =User= and =Document=
+attributes, their group and folder ancestry, and action applicability. The
+schema projection carries =Document.meta.tag= as a nested required record.
+=just check-schema-bound-scenarios= also passes all five requests through
+official Cedar strict policy validation and schema-parsed entity and request
+replay. [[file:../../Tests/Language/SchemaProjection.lean][SchemaProjection.lean]] checks that the
+shared schema admission API rejects a dangling entity ancestor for both
+public projection and publication, even when no action exists.
+
+These identifiers are fictive. This is a syntax and authorization conformance
+case, not a domain policy recommendation. Cedar Lean admits =is= in an action
+scope, while Cedar's concrete grammar does not; the exporter rejects that
+abstract-only form with =unsupportedScope=.
+
+* Namespaced enum composition
+
+[[file:NamespacedEnum.lean][NamespacedEnum.lean]] uses separate =Org= and =Data=
+namespaces. The =Org::Action::"read"= action applies to =Org::User= and
+=Data::Document=. A required document attribute refers to the enumerated
+=Data::Classification= entity type. The =Published= module permits both public
+and restricted documents; the =Scoped= POO overlay narrows the same policy to
+the public classification. Four Lean decisions and policy validations are
+checked, then [[file:NamespacedEnumValidatedExport.lean][the validated exporter]]
+passes the same requests through Cedar's official schema parser, strict
+validator, typed entity parser, and authorizer. This checks fully qualified
+cross-namespace references and enum membership at the adapter boundary.
+The JSON shape follows Cedar's [[https://docs.cedarpolicy.com/schema/json-schema.html][public schema format]].
+
+#+begin_src sh
+just check-schema-bound-scenarios
+#+end_src
+
+* Complete extension boundary
+
+[[file:ExtensionCoverage.lean][ExtensionCoverage.lean]] checks all 22
+functions in Cedar Lean's =ExtFun= type and all four =Ext= value variants.
+The corresponding official Rust Cedar feature families are =decimal=,
+=ipaddr=, and =datetime=. Eight positive and negative requests exercise the
+constructor and method calls, as well as extension values in request
+context. [[file:ExtensionCoverageExport.lean][ExtensionCoverageExport.lean]]
+supplies Lean-computed receipts to the official Rust authorizer, which also
+reparses the four generated [[file:ExtensionPolicies/datetime.cedar][Cedar
+policy versions]]. A timezone-offset datetime and a negative duration are
+included as value-serialization boundaries. The full mapping is listed in
+[[file:../../docs/rfc/0003-cedar-language-export.org][RFC 0003]].
+
+#+begin_src sh
+just example language extension-coverage
+just check-cedar-language
+#+end_src

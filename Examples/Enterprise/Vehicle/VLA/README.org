@@ -1,0 +1,89 @@
+#+TITLE: AI-Mediated Driving Command Boundary
+#+OPTIONS: toc:nil
+
+* Research case and exact boundary
+
+[[https://arxiv.org/html/2510.00181v2][CHAI (Burbano et al., 2026)]]
+demonstrates environmental indirect prompt injection against an LVLM-based
+driving command layer. In its crosswalk experiment, the benign high-level
+decision was to brake while pedestrians crossed; an attacker-controlled
+visual sign changed the model's decision toward acceleration. The paper
+reports attack success on its evaluated DriveLM images and a small robotic
+vehicle. It does not report a production fleet compromise.
+
+[[https://arxiv.org/pdf/2605.29114][ReasonBreak (Teymoorianfard et al.,
+2026)]] independently studies reasoning-enabled driving VLA models and
+finds that realistic text perturbations can change reasoning and
+trajectories in closed-loop simulation. Its trajectory attacks can bypass
+an interface that sees only high-level commands. [[https://arxiv.org/abs/2603.24935][SABER (Wu et al.,
+2026)]] automates iterative black-box instruction attacks on robotic VLA
+models in the LIBERO manipulation benchmark. SABER supports the concern
+that attackers can automate search; its reported results are *not*
+automotive measurements.
+
+| Source observation | Proposed Cedar/POO projection | What remains unverified |
+|--------------------+-------------------------------+-------------------------|
+| CHAI promotes attacker-controlled visual text into an unsafe driving command. | A high-level =accelerate= proposal enters an authorization boundary; a separate provenance owner can veto promotion of scene text into instruction authority. | The example does not detect the prompt injection or establish the provenance flag. |
+| CHAI's occupied crosswalk should produce braking, but the attack elicits acceleration. | A separate safety owner overlays acceleration permission with an independent =pedestriansPresent= veto; braking remains available. | The example does not authenticate sensors or prove safe actuation. |
+| ReasonBreak also manipulates trajectories and reports timing effects. | The command boundary has an explicit scope; its Cedar policy cannot certify trajectories or real-time control latency. | Low-level VLA outputs and control-loop timing need a different verified runtime layer. |
+| Automated and transferable attacks can recur as models change. | An incident owner can quarantine acceleration for an affected cohort, then remove that local veto after externally established recovery. | The paper does not prescribe this fleet response; it is our proposed policy evolution. |
+
+All identities, cohorts, route decisions, provenance flags, and independent
+perception facts in [[file:CommandBoundary.lean][CommandBoundary.lean]] are
+illustrative. The host must bind them to the same command proposal and
+observation, authenticate the planner and independent sensor, enforce the
+decision before the relevant action, and choose a separate safe fallback.
+The Lean proof is conditional on those inputs. This case does not claim that
+Cedar or Lean-POO alone prevents CHAI, certifies a VLA, or meets an
+automotive control-cycle deadline.
+
+* Decision matrix
+
+=A= means Cedar allows the named request; =D= means it denies. Unless a
+column says otherwise, route approval is present, the crosswalk is clear,
+scene text has not been promoted, and the model is not marked affected.
+The matrix is derived from the named Lean cases and replayed through the
+official Rust Cedar authorizer.
+
+| POO root | Occupied crosswalk accelerate | Clear route accelerate | Scene-text-promoted accelerate | Affected cohort accelerate | Brake at crosswalk |
+|----------+------------------------------+------------------------+-------------------------------+-----------------------------+--------------------|
+| =Base= | A | A | A | A | A |
+| =Safety= | D | A | A | A | A |
+| =Provenance= | A | A | D | A | A |
+| =Integrated= | D | A | D | A | A |
+| =Incident= | D | A | D | D | A |
+| =Recovered= | D | A | D | A | A |
+
+The =Safety= and =Provenance= rows each leave a different hole. Their C4
+composition closes both for the modeled inputs. =Incident= affects only
+the marked cohort and leaves braking and hazard reporting available.
+=Recovered= removes only the cohort veto; the pedestrian and provenance
+rules remain. A false =sceneTextPromoted= value can miss an injected sign;
+the independent pedestrian veto still handles the specific crosswalk case
+when its sensor fact is correct.
+
+* Composition and compression receipts
+
+| Root | Owner-local edit | Materialized Cedar policy bodies | Fresh body work against stated baseline |
+|------+------------------+----------------------------------+----------------------------------------|
+| =Base= | Extend acceleration, braking, and hazard reporting | 3 | 3 |
+| =Safety= | Overlay acceleration with an independent pedestrian check | 3 | 1 vs =Base= |
+| =Provenance= | Extend scene-text instruction veto | 4 | 1 vs =Base= |
+| =Integrated= | C4-compose Safety and Provenance | 4 | 2 vs =Base= |
+| =Incident= | Extend affected-cohort quarantine | 5 | 1 vs =Integrated= |
+| =Recovered= | Remove only the quarantine | 4 | 0 vs =Incident= |
+
+Six standalone Cedar revisions contain 23 materialized policy occurrences.
+Lean declares six distinct policy bodies and seven POO edits, including one
+overlay and one removal; the generated Cedar files remain standalone.
+This count describes source maintenance, not a measured speedup. Lean proves
+that the incident adds exactly one fresh policy and recovery adds none.
+The unchanged policy certificates are reused when the authorization
+certificate is reclosed, and Cedar's upstream soundness theorem applies
+to the resulting snapshots. The [[file:CommandBoundaryExport.lean][exporter]]
+materializes the same named requests for Rust Cedar conformance.
+
+#+begin_src sh
+just example enterprise vehicle vla-command
+just check-cedar-language
+#+end_src

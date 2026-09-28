@@ -1,0 +1,127 @@
+#+TITLE: Cross-Department Agent Synthesis
+#+OPTIONS: toc:nil
+
+* Source-grounded problem
+
+[[https://aws.amazon.com/blogs/security/propagate-user-authorization-context-in-ai-agents-with-amazon-bedrock-agentcore/][AWS's August 2026 AgentCore example]] describes one CRM agent serving
+Sales and Finance staff while accessing departmental DynamoDB records,
+knowledge-base documents, and Salesforce through user-scoped credentials.
+Its documented control is authorization at each source. The source does not
+claim to govern what an agent may infer from two individually accessible
+results or what it may send after a user's delegation changes.
+
+[[https://arxiv.org/abs/2605.05440][Authorization Propagation in Multi-Agent AI Systems]] identifies
+transitive delegation, aggregation inference, and temporal validity as
+workflow-level problems. [[https://arxiv.org/abs/2609.08472][Beyond Agent Harnesses]] presents evidence that
+execution-time authority can differ from a planner's visible state and that
+an execution guard can prevent unauthorized effects in its tested setting.
+The [[https://arxiv.org/abs/2609.15906][2026 authorization architecture review]] identifies runtime enforcement
+and aggregation bounds as remaining gaps across the surveyed literature.
+These papers motivate the boundary here; none supplies this Cedar policy
+or proves the scenario's proposed restriction.
+
+The proposed enterprise workflow has an authorized joint analyst delegate
+two reads: a Sales contract and a Finance invoice. Each document is
+individually marked non-sensitive in this finite model. Together they can
+reveal a commercially sensitive relationship, so the joint result must not
+be sent to an external endpoint. Sales-only and Finance-only delegates must
+also be unable to read the other department's record. A delegation can
+expire between the reads and the proposed send.
+
+* Connected owners and POO leverage
+
+[[file:DepartmentSynthesis.lean][DepartmentSynthesis.lean]] imports the
+[[file:../Fanout/CrossAgentEgress.lean][cross-agent model]], which already
+inherits session history, shared budget, delegated intent, and incident
+controls. Four new owners extend its =CrossAgentGoverned= root:
+
+=DepartmentObject= now binds each department's record, owner policy, and
+read-history fact. The same list derives document entities, Cedar context
+fields, request projection, read-history updates, owner extensions, and the
+aggregate-egress condition. =foldlM= extends one POO owner per object; the
+resulting owner names feed the C4 mix. This avoids parallel Sales/Finance
+declarations drifting when a department is added. The two-department
+aggregation rule remains a proposed finite example; a real host must prove
+that its projected read history covers every admitted source.
+
+| Owner | Local rule | Partial-root gap |
+|-------+------------+------------------|
+| =Sales= | A Sales record needs Sales or Joint origin. | It does not protect Finance records. |
+| =Finance= | A Finance record needs Finance or Joint origin. | It does not protect Sales records. |
+| =Aggregate= | A send is denied after both departmental records were read. | It does not decide who may read either record. |
+| =Temporal= | Reads and sends require an active delegation. | It does not inspect the combined result. |
+
+=Model.mix= composes these owners into =DepartmentGoverned=. A second mix
+adds the inherited incident freeze as =DepartmentIncident=, and
+=DepartmentRecovered= removes only that freeze. No policy body or C4 parent
+list is copied from the earlier session and fanout examples. The final
+root has the prior intent, history, and budget controls in addition to the
+four new owners. =composedOwnersPresent= checks that all four owners and the
+inherited history owner survive compilation; =revisionAddsFourPolicies=
+checks that this extension adds exactly four policy identities.
+
+#+begin_src mermaid
+flowchart LR
+    S[Sales record owner] --> M[DepartmentGoverned C4 mix]
+    F[Finance record owner] --> M
+    A[Joint-result owner] --> M
+    T[Delegation-time owner] --> M
+    H[Inherited session history and fanout budget] --> M
+    M --> I[Incident freeze]
+    I --> R[Recovery removes only freeze]
+    M --> C[Cedar authorization at each read and send]
+#+end_src
+
+* Executable contrast
+
+| Trace | Inherited root | Composed root |
+|-------+----------------+---------------|
+| Sales origin reads Finance invoice | Allow | Deny |
+| Joint origin reads Sales contract and sends | Allow | Allow |
+| Joint origin reads Sales contract, Finance invoice, then sends | Allow, Allow, Allow | Allow, Allow, Deny |
+| Delegation is inactive before a read or send | No new temporal restriction | Deny |
+| Delegation is revoked after a valid Sales read | The earlier read remains valid | The later send is denied. |
+| Incident freezes an otherwise valid single-department send | Not applicable | Deny; recovery allows it again |
+
+The =casesExact= and =aggregationNeedsBothDepartments= Lean results check
+the stepwise decisions. The
+[[file:ValidatedExport.lean][schema-bound exporter]] sends every
+pre-admission request to the official Rust Cedar validator and authorizer.
+This is a proposed finite policy for one pair of departments, not a general
+solution to inference from arbitrary data combinations.
+
+* Data and delivery interface
+
+[[file:Simulation.lean][Simulation.lean]] defines =Port m= with =fetch= and
+=publish= operations, and =run= accepts any implementation of that port.
+The workflow checks Cedar authorization before it calls either operation.
+Only =syntheticPort= is implemented here. Its fictional Sales contract and
+Finance invoice demonstrate what an admitted read places in the draft and
+what an admitted send passes to the delivery operation. A denied read never
+enters the draft, and a denied send never calls =publish=. Lean checks a
+single-department send, a blocked joint result, a cross-department read, and
+a revocation between read and send. An instrumented port additionally checks
+that the denied joint-result send does not invoke =publish=.
+
+#+begin_src lean
+import Examples.Enterprise.Agent.Department.Simulation
+
+open CedarPooSpec.DepartmentSynthesisExample.Simulation
+
+def demo := run syntheticPort "DepartmentGoverned" "Joint"
+  [.readSales, .readFinance, .sendReport]
+#+end_src
+
+A downstream application can implement =Port IO= against its real record
+source and delivery service. The port is an example integration shape, not a
+production host: the downstream application must map real record identities
+and attributes into its Cedar entity store, authenticate the origin and
+worker lineage, derive read-history facts from durable evidence, update
+delegation validity before each admission, and bind an authorization decision
+to the exact effect it executes. The inherited versioned ticket contract
+specifies stale-check rejection. This example does not implement a
+distributed host transaction or classify model-generated content.
+
+#+begin_src sh
+just example enterprise agent department-synthesis
+#+end_src

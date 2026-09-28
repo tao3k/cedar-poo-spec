@@ -1,0 +1,84 @@
+#+TITLE: RFC 0007: POO Dispatch at the Cedar Construction Boundary
+#+OPTIONS: toc:nil
+
+* Contract
+
+Lean-POO C4 resolves ordered policy modules. Its multimethod resolves
+construction methods from the C4 profiles of *all* dispatch arguments. The
+method result is a =PolicyModules.Edit=, which is compiled into an ordinary
+Cedar policy set. Cedar's validator and authorizer remain the authorities
+for each published policy and request. The distinction matters because Cedar
+combines matching =permit= and =forbid= policies itself; choosing a method
+must never replace Cedar's decision or silently omit a required check.
+
+The implemented [[file:../../Examples/Enterprise/Agent/DataFlow/README.org][Data Flow case]] has two independently extensible axes:
+source profile and destination profile. The classification owner registers
+a source-specialized policy edit. The review owner registers a
+destination-specialized policy edit. A derived profile pair selects both
+contributions in sparse lexicographic C4 order. The existing publication
+module hierarchy merges the owner branches into =PublishGoverned=; the
+derived profile builds =PublishDispatched= directly from the same edits.
+The destination axis is first in multimethod precedence so both paths emit
+the *same ordered policy list*. That exact equality matters to the current
+proof-reuse and JSON-export contracts even though Cedar decisions alone are
+insensitive to policy order. Rust Cedar receives paired allow and deny
+requests and checks equal policy digests and decisions.
+
+* Audit of current complex examples
+
+| Case | Current POO work | Additional dispatch fit |
+|------+------------------+-------------------------|
+| [[file:../../Examples/Enterprise/Agent/DataFlow/README.org][Agent Data Flow]] | Two owner branches and source/destination policy profiles. | Implemented two-argument construction dispatch. |
+| [[file:../../Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/README.org][AgentCore lakehouse Gateway]] | AWS-specified role, EU, and restricted-geography forbids have separate owners, with one proposed fail-closed extension. | C4 is the fit: these are fixed independent policy owners, not a request-time method dispatch axis. |
+| [[file:../../Examples/Enterprise/Agent/Payment/README.org][Agent Payment]] | Account, amount, and origin vetoes merge through C4. | A future policy family with independently extensible account and transfer profiles could use dispatch; the present three fixed vetoes do not require it. |
+| [[file:../../Examples/Enterprise/Agent/Chain/README.org][Agent Chain]] | Three-to-five request layers and competing policy edits. | Path validation and Cedar authorization are request-time checks; selecting fewer layers by method dispatch would change the security contract. |
+| [[file:../../Examples/Enterprise/Vehicle/Mission/README.org][Mission successor]] | Platform, mission, and evidence owners merge through C4. | The fixed proceed/fallback actions need no generic method ecosystem. A separately validated family of vehicle and mission profiles would be a construction-time candidate. |
+| [[file:../../Examples/Health/README.org][Wearable triage]] | Privacy, device security, and clinical AI branches merge through C4. | Its current fixed controls benefit from C4; dispatch becomes useful only if independent device and clinical workflow families are added. |
+| [[file:../../Examples/Governance/README.org][Governance]] | Owner, platform, and compliance policies and revisions merge through C4. | Existing Cedar data predicates remain in Cedar; no request-time POO dispatch is needed. |
+
+This audit distinguishes an actual open extension axis from a long list of
+fixed rules. Adding =DispatchTable=, =InlineDispatch=, or =StaticDispatch=
+without several independent generic operations or a measured repeated-call
+cost would add machinery without simplifying the current cases.
+
+* Public API audit and scenario admission
+
+[[https://github.com/tao3k/lean-poo/blob/main/LeanPoo.lean][LeanPoo.lean]] is the public import inventory. This audit covers its
+families, including APIs that this adapter does not yet need. The admission
+question is which variation the application owns and what observation would
+detect an incorrect composition.
+
+| Public family | Admit when | Cedar scenario and evidence |
+|---------------+------------+-----------------------------|
+| =C4=; =Compose=; =Slots=; =Object.Resolve=, =Builder=, =Indexed=, =Instance= | Independent owners contribute ordered, keyed policy edits. | Agent Payment merges account, amount, and origin vetoes; Data Flow merges classification and review. =PolicyModules= uses typed slots, C4 resolution, and the declaration builder. The payment compiled-plan claims cover sibling vetoes and freeze/remove/restore. |
+| =Object.Ranked=, =Incremental=, =Lazy=, =Memo=, =Prepare=, =Cache= | A dependency graph or repeated slot reads make incremental compilation or cache reuse observable. | =PolicyModules.compilePlan= uses =compileMemo=. Proof dependency tests measure affected keys; the current Cedar exporter has no demonstrated benefit from lazy or ranked object instantiation. |
+| =Object.Generic=, =MethodDictionary=, =QualifiedMethods=, =MethodCombination= | A policy *construction* operation has open receiver-specific methods or explicit method qualifiers. | No current Cedar case requires multiple generic operations or around methods. Around methods can skip a continuation, so mandatory veto preservation would require a proof before admission. |
+| =Object.Multimethod=, =MultimethodCombination=, =Subjective=, =DispatchTable= | Independent profile axes select policy construction contributions, or several generic operations share an extension lifecycle. | Agent Data Flow uses a two-argument multimethod. Its derived profile and C4 owner hierarchy produce exactly equal ordered policy lists. One generic does not justify a dispatch table. |
+| =Object.StaticDispatch=, =InlineDispatch=, =PreparedMultimethod=, =ShapeCache= | Repeated construction calls on stable shapes have measured resolution cost. | Current examples compile policy families per export; no speedup is claimed. These caches do not replace Cedar's request-time authorizer. |
+| =Prototype.*=, =Object.Prototype=, =Object.Class=, =Initialization=, =Layout=, =Lens=, =Mutable= | The application has an actual first-class object, typed class lifecycle, focused update, or changing layout. | Cedar schema owns request and entity shapes. =PolicyModules.Edit= already expresses policy changes; introducing a second class or layout model here would duplicate that authority. A future plugin object model would need its own case and schema alignment proof. |
+| =Proof.Object=, =Revision=, =Runtime=, =Batch=, =Product=; =Object.Debug= | A policy revision must identify touched dependencies, reused obligations, invalidated proofs, and reclosure. | =Composition= and =Slicing= use proof objects and product composition; revision and reuse tests cover the generic mechanics. Data Flow's ordered-policy equality is an artifact-preservation fact, not a claim that every downstream certificate was reused. |
+
+The table separates a public Lean-POO capability from evidence of its use in
+Cedar. For Data Flow, an incorrect combination could drop, duplicate, or
+reorder a veto. Exact ordered-policy equality detects all three; fifteen
+Lean request decisions and four strict Rust Cedar replay rows additionally
+check the authorizer boundary. Other API families need equally specific
+cases before adding them to the adapter.
+
+* Verification
+
+[[file:../../Tests/Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]]
+checks both owner-local selections, inherited two-axis selection, an
+unknown profile, exact compiled-policy equality, and the existing decision
+matrix. =just check-tests= compiles those claims. The existing
+=just check-cedar-artifacts= compares the emitted policy revisions with the
+committed Cedar source. =just check-schema-bound-scenarios= replays the
+Data Flow requests through the official Cedar Rust parser, validator, and
+authorizer. These gates check behavioral preservation; they do not establish
+a dispatch performance improvement.
+
+* Sources
+
+- [[https://github.com/metareflection/poof][Faré et al., Prototypes: Object Orientation, Functionally]] provides the prototype-oriented semantic foundation.
+- [[https://docs.cedarpolicy.com/policies/syntax-policy.html][Cedar policy syntax and effect semantics]] defines Cedar's permit/forbid combination.
+- [[https://docs.cedarpolicy.com/auth/authorization.html][Cedar authorization]] explains default deny, forbid precedence, and policy-error behavior.

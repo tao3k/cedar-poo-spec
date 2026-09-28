@@ -1,0 +1,26 @@
+name = "CedarPooSpec"
+version = "0.1.0"
+defaultTargets = ["CedarPooSpec"]
+
+[[require]]
+name = "Cedar"
+git = { url = "https://github.com/cedar-policy/cedar-spec.git", subDir = "cedar-lean" }
+rev = "017c35c3d1f856a0f8b62a66660ee6628870bbcf"
+
+[[require]]
+name = "LeanPoo"
+git = "https://github.com/tao3k/lean-poo.git"
+rev = "ccb94dc44d874050dc8a8ede692bb2afac55ea37"
+
+[[lean_lib]]
+name = "CedarPooSpec"
+
+[[lean_lib]]
+name = "Examples"
+roots = ["Examples"]
+globs = ["Examples.+"]
+
+[[lean_lib]]
+name = "Tests"
+roots = ["Tests"]
+globs = ["Tests.+"]

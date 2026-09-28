@@ -1,0 +1,21 @@
+#+TITLE: Enterprise Authorization Examples
+#+OPTIONS: toc:nil
+
+* Cases
+
+Each case owns its Lean model, manifest exporter, generated Cedar policies,
+and source and modeling notes in its own directory.
+
+| Case | Scope |
+|------+-------|
+| [[file:Procurement/README.org][Procurement]] | Purchase approval, delegated agents, budget bounds, and separation of duties. |
+| [[file:Payment/README.org][Payment]] | Compound payment release across preparer, controller, risk, and budget controls. |
+| [[file:Agent/Delegation/README.org][Agent delegation]] | Origin, tool, and delegation owners across authorization layers. |
+| [[file:Agent/Chain/README.org][Agent chain]] | Variable-depth delegation, local edge freeze, and restoration. |
+| [[file:Agent/Payment/README.org][Agent payment]] | Agent payment value, account, and origin authorization. |
+| [[file:Agent/DataFlow/README.org][Agent data flow]] | Cross-tool read and publish controls with classification and review. |
+| [[file:AWS/README.org][AWS AgentCore references]] | Source-backed lakehouse and multi-account banking examples, with platform, Gateway, LOB, and data-plane boundaries separated. |
+| [[file:Agent/Session/README.org][Bounded agent session]] | Stateful authorization of delegated tasks and cross-tool action sequences. |
+| [[file:Agent/Fanout/README.org][Shared agent budget]] | Parent-wide budget across concurrent sub-agents and a visible stale-read race. |
+| [[file:Agent/Department/README.org][Cross-department synthesis]] | One agent workflow joins Sales and Finance data under separate owners, then checks aggregate egress and temporal delegation. |
+| [[file:Vehicle/README.org][Vehicle]] | AI-mediated command hijacking, successor-safe mission authorization, a composable TARA treatment matrix, and Uptane supplier transition. |

@@ -1,0 +1,167 @@
+#+TITLE: Health Authorization Examples
+#+OPTIONS: toc:nil
+
+The [[file:PriorAuthorization/README.org][provider-to-payer prior-authorization
+example]] connects clinical and billing records, patient identity, AI draft
+requirements, disclosure, payer rules, and delegation in one POO-composed
+workflow. Its own ORG page maps the 2026 research and CMS/AWS sources to the
+finite model. Its internal-channel continuation inherits the same POO
+composition and checks verification delegation and shared memory separately
+from the payer submission boundary.
+
+* Clinical break-glass and patient preferences
+
+[[file:ClinicalBreakGlass.lean][ClinicalBreakGlass.lean]] is an executable,
+source-grounded model of patient-record access. It combines documented
+features from two deployed EHR settings; it is not a transcription of either
+hospital's entire production policy. The principal, patient, and facility
+identifiers are fictive. The example does not contain patient data.
+
+** Source-to-model map
+
+| Published source | Observed behavior or specification | Lean representation and checked case |
+|------------------+-------------------------------------+--------------------------------------|
+| [[https://pmc.ncbi.nlm.nih.gov/articles/PMC4265219/][Careweb design study]] | Patients could restrict display by provider or data category. Its break-glass control displayed that patient's hidden data for the current viewing session, and the system logged the event. | =restricted= is a deliberately coarse patient-preference projection. =patient-preference=, =expired-session=, =wrong-patient=, and =preferenceChangeConformsFully= exercise restriction, patient scope, session expiry, and a changed preference. |
+| [[https://pmc.ncbi.nlm.nih.gov/articles/PMC4265224/][Careweb prospective study]] | Providers used the control in a real clinic, and investigators recorded each break-glass event and subsequent data viewed. | The model requires a trusted =breakGlassGranted= fact but does not treat the fact itself as an audit record. |
+| [[https://pmc.ncbi.nlm.nih.gov/articles/PMC5333332/][French DMP deployment study]] | The shared record supported emergency access when the patient could not consent, required strong practitioner authentication, and exposed access logs to patients. | =cross-site-break-glass=, =patient-can-consent=, =weak-authentication=, and the shared-record entity model exercise those decision inputs. Patient incapacity, authentication, and patient-visible logging remain upstream or downstream facts. |
+| [[https://hl7.org/fhir/R4/security-labels.html#6.1.1.3][HL7 FHIR R4 security labels]] | A break-glass request has a treatment purpose; the specification calls for authorization, consent checks, and an =AuditEvent=, while leaving local protocol rules to implementers. | =non-treatment-purpose= is denied. The model treats the session grant as application-projected context and does not claim FHIR interoperability or =AuditEvent= emission. |
+| [[https://healthit.gov/test-method/emergency-access/][US HealthIT emergency-access test method]] | Emergency access is a pre-established, auditable capability of the health IT module. | The example asserts an access decision only. Audit recording is an explicit integration boundary. |
+| [[https://docs.aws.amazon.com/verified-access/latest/ug/trust-data-third-party-trust.html][AWS Verified Access device trust context]] | A separate AWS access product can supply device-risk context to Cedar policies through configured trust providers. | =deviceTrusted= is a simplified extra veto in this model, not a claim about Careweb, DMP, or direct Verified Access integration. |
+
+The split into Privacy, Security, and Emergency policy owners is a design
+assumption for exploring composition. It is not reported as the organization
+of any cited deployment.
+
+** Why POO is needed
+
+The clinical base, privacy rule, device rule, and emergency rule have separate
+owners. A C4 diamond composes those branches once. The integrated module
+overlays the emergency rule with patient, session, treatment-purpose, and
+device conditions, then removes a legacy broad permit. The executable
+=preIntegrationRiskDetected= theorem shows why the removal matters: before
+integration, the inherited broad permit allows a cross-site read without a
+break-glass grant; after integration it is denied.
+
+=compileWithTrace= records all seven applied edits, including removal of the
+legacy permit; its surviving-policy projection reports who introduced and
+last edited each policy. These APIs close a diagnostics gap exposed by the
+case: a materialized Cedar policy set alone did not explain why a permit was
+absent or how an emergency policy reached the final set.
+The patient-preference change alters entity data
+without editing any policy module. =preferenceRevisionFootprintExact= proves
+that the entity-validation obligation is selected while policy validation,
+schema validation, and request validation are unaffected.
+
+=privacyRevision= follows the Privacy to Integrated compilation. Its checked
+=privacyRevisionBodies= receipt identifies the emergency overlay and device
+veto as the two fresh policy bodies; =privacyRevisionReused= identifies the
+routine permit and patient restriction as the two unchanged bodies.
+=privacyCertificate= closes the Privacy
+baseline once, =freshClinicalCertificates= checks only the two new bodies,
+and =integratedCertificateFromPrivacy= derives the Integrated authorization
+certificate through the Cedar adapter. The final soundness example consumes
+that migrated certificate. This is proof reuse across a concrete clinical
+policy evolution, not just a count of shared policy records.
+
+Across Base, Privacy, Security, Emergency, and Integrated, separately stored
+snapshots would repeat 15 policy records (2 + 3 + 3 + 3 + 4). The module
+source defines six policy bodies and seven explicit edits. This counts
+structural duplication in the example; it does not measure production LOC,
+review time, or maintenance cost.
+
+** Proof receipts and limits
+
+[[file:ClinicalBreakGlassExport.lean][ClinicalBreakGlassExport.lean]] exports the
+emergency and integrated POO roots through Cedar's public JSON format. The
+official Cedar Rust authorizer checks fourteen Lean-computed requests,
+including all twelve clinical cases, the inherited broad-permit risk, and a
+released patient preference. It also reparses the generated
+[[file:Policies/clinical-integrated.cedar][integrated Cedar policy file]]
+and checks the same decisions and error counts. =just export-cedar-language=
+regenerates both clinical revisions; =just check-cedar-language= detects stale
+files or a semantic disagreement.
+
+=scenarioConformsFully= checks all twelve named requests against the
+compiled policy set, Cedar validation, Cedar authorization, and empty runtime
+policy-error lists. =caseNamesUnique= prevents ambiguous case references.
+=privacyRevisionBodies= and =integratedCertificateFromPrivacy= check the
+specific incrementally reclosed authorization certificate.
+=provenanceConformsFully= checks C4 order and policy origin;
+=removalRecordedFully= checks the final removal event. A closed
+authorization certificate transports Cedar's upstream soundness theorem for
+the emergency request. These are machine-checked claims about this Lean
+model and its finite scenario table. They do not establish that a real
+hospital's policy, data projection, session service, or audit pipeline is
+correct.
+
+The application must authenticate the clinician, establish whether emergency
+access is justified, bind the grant to a patient and session, verify device
+posture, enforce Cedar's response, and write a durable audit event before
+releasing data. Neither Cedar's Allow nor the proof certificate proves that
+those external actions occurred. A later domain integration must supply and
+verify those effects; the generic =cedar-poo-spec= adapter does not impersonate
+an EHR or an AWS Verified Permissions service.
+
+#+begin_src sh
+lake env lean Examples/Health/ClinicalBreakGlass.lean
+just check
+#+end_src
+
+* Wearable observation to AI triage to clinician alert
+
+[[file:WearableTriage.lean][WearableTriage.lean]] models a hospital remote-monitoring
+workflow with two required decisions: an AI service may analyze a vital-sign
+observation, then a clinician may release the resulting alert. All patients,
+devices, services, and institutions in the model are fictive. The workflow is
+an application design derived from the risks and data boundaries below, not
+a transcription of a deployed hospital system.
+
+** Source-to-model map
+
+| Source | Published boundary | Model choice |
+|--------+--------------------+--------------|
+| [[https://www.fda.gov/science-research/artificial-intelligence-and-medical-products/fda-digital-health-and-artificial-intelligence-glossary-educational-resource][FDA digital-health and AI glossary]] | Its assistive-AI example includes a wearable monitoring vital signs and alerting a user or provider. | A fictive wearable observation enters an AI analysis step before a clinician releases an alert. The example does not evaluate alert accuracy. |
+| [[https://hl7.org/fhir/us/core/STU7/scopes.html][HL7 US Core SMART scopes]] | Patient, user, and system scopes can limit access to Observation data, including the vital-signs category. | =analyze-vitals= permits only the vital-signs category and treatment purpose. OAuth scope and patient identity validation remain with the host. |
+| [[https://hl7.org/fhir/R4/consent.html][HL7 FHIR R4 Consent]] | Consent provisions can identify actors, purposes, periods, security labels, and controlled data. | =consentActive= is a coarse, trusted projection on one Observation. The example does not parse or enforce a FHIR Consent resource. |
+| [[https://www.fda.gov/medical-devices/safety-communications/cybersecurity-vulnerabilities-certain-patient-monitors-contec-and-epsimed-fda-safety-communication][FDA patient-monitor safety communication]] | Certain connected monitors had vulnerabilities involving unauthorized control and data exfiltration; FDA described local-only monitoring or a patch as responses. | =DeviceSecurity= vetoes untrusted input. =Quarantined= isolates one fictive source while other devices remain usable; =Recovered= removes that policy after an externally verified remediation. |
+| [[https://www.fda.gov/regulatory-information/search-fda-guidance-documents/marketing-submission-recommendations-predetermined-change-control-plan-artificial-intelligence][FDA AI device change-control guidance]] | AI-enabled device software changes require planned evaluation within the guidance's scope. | =ClinicalAI= adds a locally defined =modelApproved= gate. This Boolean is not a claim of FDA approval or regulatory compliance. |
+
+The FDA safety communication concerns specific connected patient monitors,
+not the fictive wearable here. It motivates the incident-response pattern;
+the example does not claim those products or vulnerabilities are identical.
+
+** POO scenario and checked behavior
+
+=Base= permits vital-sign analysis and same-facility alert release. A legacy
+baseline would even allow a withdrawn-consent observation. =Privacy= adds a
+consent veto, =DeviceSecurity= adds a device-trust veto, and =ClinicalAI=
+overlays the two inherited permits with model-approval and clinician-review
+requirements. =Integrated= combines these independently owned branches using
+C4. No branch repeats the other's policy body.
+
+When a monitor source becomes suspect, =Quarantined= extends a single forbid.
+The source's observation is denied at both flow layers; another monitor's
+observation remains usable. =Recovered= removes that forbid without editing
+the privacy, device-trust, or clinical AI branches. The checked compilation
+equals the earlier =Integrated= policy set. The two revision receipts each
+identify exactly one changed policy ID. Separately, changing a patient's
+projected consent from withdrawn to active changes the result without a
+policy edit.
+
+The thirteen named flows include withdrawn consent, missing device trust,
+unapproved AI model, missing clinician review, wrong facility and purpose,
+wrong Observation category, quarantine, unaffected monitoring, and recovery.
+The [[file:WearableTriageExport.lean][exporter]] supplies twenty-six individual
+decisions to the official Rust Cedar authorizer and checks the four generated
+[[file:WearablePolicies/integrated.cedar][Cedar revision artifacts]].
+
+The host must establish patient identity and consent state, authenticate the
+device and clinician, determine whether model and clinical review occurred,
+bind both requests to the same observation, and enforce the two decisions
+before releasing an alert. Cedar and POO decide authorization from those
+facts; neither verifies device firmware, clinical accuracy, or an FDA status.
+
+#+begin_src sh
+just example health wearable-triage
+just check-cedar-language
+#+end_src

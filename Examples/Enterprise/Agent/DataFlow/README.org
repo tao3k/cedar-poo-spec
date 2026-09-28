@@ -1,0 +1,121 @@
+#+TITLE: Agent Data Flow
+#+OPTIONS: toc:nil
+
+* Cross-tool data flow for an AI agent
+
+[[file:AgentDataFlow.lean][AgentDataFlow.lean]] models a separate enterprise
+governance boundary: an agent may read an internal document but must not
+thereby gain permission to publish its contents to a public repository.
+The [[https://github.com/OWASP/OWASP-MCP-Governance-and-Risk-Project/blob/main/mcp-governance-risk-framework-v1.0.md][OWASP MCP Governance and Risk Framework]] describes a poisoned internal
+wiki or tool response driving an agent to use another connected service for
+data exfiltration. Cedar's [[https://docs.cedarpolicy.com/bestpractices/bp-authorization-patterns.html][authorization patterns]] explain that moving data
+between containers calls for authorization at both the source and the
+destination. The identities, documents, repository names, tenant, and review
+facts in this example are fictive; the example models the cited failure mode
+and authorization pattern rather than claiming to reproduce an incident.
+
+| POO root | Control change |
+|----------+----------------|
+| =ReadBase= | Legacy agent read permit. |
+| =ReadTenant= | Overlay tenant and originating-user role checks. |
+| =PublishBase= | Legacy agent publication permit. |
+| =PublishScoped= | Overlay source and destination tenant equality. |
+| =PublishClassified= | Data ownership independently forbids internal material at a public destination. |
+| =PublishReview= | Security independently forbids public publication without an approved, distinct reviewer with MFA. |
+| =PublishGoverned= | C4 composes the sibling controls with the inherited tenant rule. |
+| =PublishDispatched= | The derived source/destination profile selects both edits through one multimethod call. |
+| =PublishRevoked= / =PublishRestored= | Freeze one source document, then remove only that veto. |
+
+* Two-axis POO policy construction
+
+The classification and review owners extend different aspects of one
+publication decision. =sourceClasses= and =destinationClasses= are small C4
+profile graphs. =controlEdits= uses Lean-POO's sparse two-argument
+multimethod to select their policy edits:
+
+| Source profile | Destination profile | Selected edit |
+|----------------+---------------------+---------------|
+| =Internal= | =Destination= (root) | Classification veto. |
+| =Source= (root) | =Public= | Review veto. |
+| =Restricted= | =PartnerPublic= | Both vetoes, through inherited C4 profiles. |
+
+The first two calls construct the =PublishClassified= and =PublishReview=
+branches. =PublishGoverned= C4-composes those branches. The derived
+=Restricted × PartnerPublic= call constructs =PublishDispatched= with both
+edits and no duplicated policy body. Destination precedence comes first to
+preserve the existing ordered policy list: the
+[[file:../../../../Tests/Enterprise/Agent/DataFlow/Dispatch.lean][Lean proof]] establishes exact ordered-list equality between
+=PublishDispatched= and =PublishGoverned=, as well as equal decisions on
+the fifteen scenario inputs. Invalid profiles return typed C4 errors rather than an
+empty control list. These profiles describe *policy construction*, not the
+classification of an incoming request. The emitted Cedar predicates still
+inspect the actual document, repository, and review facts for every request.
+No dispatch result is used as an authorization decision.
+
+=dataModelResult= connects the selected edits to the policy model through
+=Model.extend=. =Model.mix= combines the independent classification and
+review branches into =PublishGoverned=; the dispatched branch receives the
+multimethod output without copying the policy bodies.
+
+#+begin_src mermaid
+flowchart LR
+    S[Source C4 profile] --> M[Two-argument method selection]
+    D[Destination C4 profile] --> M
+    M --> E[Owner policy edits]
+    E --> C[Policy-module C4 composition]
+    C --> P[Published Cedar policies]
+    P --> A[Cedar request authorization]
+#+end_src
+
+The two-method example establishes composition and extension behavior; it
+does not claim a measured reduction in source lines or runtime cost. The
+[[file:../../../../docs/rfc/0007-poo-dispatch-boundary.org][dispatch boundary RFC]] records where other complex cases do and do not
+benefit from the same abstraction.
+
+Fifteen operations cover a legacy internal-to-public leak, foreign source
+and destination tenants, an internal document sent to a public repository,
+public material with and without review, a reviewer with the wrong role,
+self approval, an unprivileged originating user, internal publication,
+revocation, and restoration. The classification branch alone admits public
+material without review; the review branch alone admits an internal document
+to a public repository after approval. =branchesNeedCompositionFully=
+checks that the C4 root closes both gaps. =classifiedLeakBoundaryFully=
+establishes that the read layer
+allows the internal document while the publication layer denies the public
+destination. =casesErrorFreeFully= checks that none of the well-formed cases
+rely on Cedar policy evaluation errors for their outcomes.
+=classificationBranchLocal= and =reviewBranchLocal= identify one added
+policy ID per owner. =governedPolicyIdsFully= checks their joint C4 output;
+=revokeEditLocal=, =restoreEditLocal=, and =restoredPoliciesEqualGoverned=
+check the one-ID freeze and exact rollback. =readRootUnchanged= shows the
+read control is unaffected by the publication evolution. The
+[[file:AgentDataFlowExport.lean][exporter]] compares thirty well-formed
+individual layer responses and two malformed-context responses with the
+official Rust Cedar authorizer, and checks nine
+generated [[file:AgentDataFlowPolicies/publishgoverned.cedar][Cedar revision artifacts]].
+Every root passes Lean Cedar schema and policy validation.
+=malformedReviewRejectedFully= shows that a reviewer String can make the
+review veto error while Cedar's broad permit returns raw =Allow=; the
+compound API rejects that operation. A downstream caller using generated
+=.cedar= must likewise reject a response containing policy errors.
+The [[file:ValidatedExport.lean][schema-bound exporter]] checks the original
+thirty well-formed read and publish layer requests, plus two allow and two
+deny comparisons between the C4 and multimethod roots, through Cedar's
+strict policy, entity, context, and request validation. The Rust receipts
+confirm identical policy digests and decisions for each paired request. The malformed
+reviewer requests remain in the diagnostic manifest. Run
+=just check-schema-bound-scenarios=; the boundary is defined in
+[[file:../../../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
+
+The host must authenticate the agent, original user, and reviewer; provide
+authoritative tenant, classification, and approval facts; and bind both
+authorization requests to the exact bytes and destination of one proposed
+publication. It must enforce the combined decision at the write boundary.
+The example does not inspect document contents, prove provenance of these
+facts, or implement an MCP server.
+
+#+begin_src sh
+just example enterprise agent data-flow
+just check-cedar-language
+just check-schema-bound-scenarios
+#+end_src

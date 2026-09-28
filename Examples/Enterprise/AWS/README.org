@@ -1,0 +1,16 @@
+#+TITLE: AWS-Published Enterprise Reference Cases
+#+OPTIONS: toc:nil
+
+* Scope
+
+AWS is the publisher and platform owner of the reference implementations in
+this directory. The insurance lakehouse and banking business domains belong
+to those published examples; this directory does not describe AWS's internal
+banking or insurance operations. Each case cites the AWS article, sample
+source, or product documentation that supports its claims.
+
+| Platform | Cases |
+|----------+-------|
+| [[file:AgentCore/README.org][AgentCore]] | Shared Gateway projection used by business domains. |
+| [[file:FinancialServices/README.org][Financial services]] | Insurance claims data, banking LOB authorization, and a cross-domain settlement plan. |
+| [[file:AgenticPlatform/README.org][Agentic AI platform]] | Expense-tool governance across independent row, approval, duty, and state owners. |

@@ -1,0 +1,24 @@
+set working-directory := '../..'
+
+attested-data:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/AttestedDataAccess.lean
+
+trusted-network:
+    mkdir -p .lake/build/lib/lean/Examples/Governance
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Governance/AttestedDataAccess.olean Examples/Governance/AttestedDataAccess.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/TrustedNetworkDataAccess.lean
+
+country-approval:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/CountryApproval.lean
+
+country-approval-validated:
+    just build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean country-approval-validated > .lake/build/country-approval-validated-manifest.json
+    jq -e '(.cases | length) == 13 and (.schema[""].actions | keys) == ["ApproverActions", "approve", "delete", "review"]' .lake/build/country-approval-validated-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/country-approval-validated-manifest.json > .lake/build/country-approval-validated-receipts.json
+    jq -e 'length == 13 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["france-unrelated-action", "integrated-cross-country", "japan-cross-country", "restricted-after-veto"]' .lake/build/country-approval-validated-receipts.json > /dev/null
+    jq '[.cases[] | select(.revision == "integrated")][0].policies' .lake/build/country-approval-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/country-approval-integrated.cedar
+    cmp .lake/build/country-approval-integrated.cedar Examples/Governance/CountryPolicies/integrated.cedar
+
+ticket-sharing:
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Governance/TicketSharing.lean

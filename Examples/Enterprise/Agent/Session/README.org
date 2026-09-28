@@ -1,0 +1,129 @@
+#+TITLE: Bounded Agent Session Authorization
+#+OPTIONS: toc:nil
+
+* Research case and exact boundary
+
+[[https://arxiv.org/abs/2608.15888][Bounded Agents (2026)]] studies a failure of
+per-request agent authorization: individually permitted actions can compose
+into a prohibited outcome. Its proposed Agentic Principal Chain accounts
+for delegation, prior actions, budgets, and compositional restrictions. The
+paper's soundness argument assumes complete restrictions and serialized
+admission. This example explores a narrow Cedar/POO projection of that
+problem; it does not implement or reproduce that paper's full mechanism.
+
+[[https://ojs.aaai.org/index.php/AAAI-SS/article/view/36899][EchoLeak]]
+describes an indirect prompt-injection path in which untrusted content
+could steer an assistant toward data exfiltration under particular
+conditions. [[https://www.microsoft.com/en-us/security/security-insider/emerging-trends/ai-application-security-considerations-for-organizations][Microsoft's security analysis]]
+states that the reported vulnerability was fixed. This case models the
+authorization boundary that should check a proposed read and external send;
+it does not reproduce the exploit or detect injected instructions.
+[[https://www.anthropic.com/threat-intelligence-report-september-2026][Anthropic's
+September 2026 threat intelligence report]] documents increased use of AI
+to automate parts of malicious campaigns. It motivates the repeated-probe
+trace here, without implying that the report evaluated this model.
+
+| Source observation | Proposed Cedar/POO projection | Unverified boundary |
+|--------------------+-------------------------------+---------------------|
+| Independent read and send grants can compose into exfiltration. | A trusted host passes prior sensitive-read state into each Cedar request; a History owner vetoes external send after that read. | The host must observe all relevant reads and bind the sent bytes to the checked action. |
+| A delegated task can be exceeded without violating a broad send grant. | An Intent owner vetoes a send whose proposed intent differs from the delegated intent. | The model does not infer intent or authenticate the declaration. |
+| Automated proposals can repeatedly exercise an allowed capability. | A Budget owner limits the count of accepted external sends in the session. | The host must serialize decision and ledger update across workers. |
+| Incident response and recovery change one control. | Incident extends an external-egress veto; Recovered removes only that veto. | An external incident process decides when recovery is safe. |
+
+The identities, documents, endpoints, task names, and export limit in
+[[file:BoundedSession.lean][BoundedSession.lean]] are illustrative. Cedar
+evaluates one request at a time. The =Session= ledger and =replay= transition
+are a proposed host protocol: the host supplies authenticated facts, checks
+before effect, advances state only after Allow, and serializes the whole
+admission transaction. Neither Cedar nor Lean-POO alone prevents prompt
+injection, proves the host protocol is deployed correctly, or guarantees
+complete coverage of all tools and data flows.
+
+* POO decision matrix
+
+=A= means Allow and =D= means Deny. Each row starts with a fresh session.
+The named Lean traces are exported step by step to the official Cedar Rust
+authorizer with the pre-admission context for each request.
+
+| POO root | Read sensitive, then external send | Off-task external send | Second external send after one accepted | Internal send after sensitive read |
+|----------+------------------------------------+------------------------+-----------------------------------------+------------------------------------|
+| =Base= | A, A | A | A | A |
+| =Intent= | A, A | D | A | A |
+| =History= | A, D | A | A | A |
+| =Budget= | A, A | A | D | A |
+| =Integrated= | A, D | D | D | A |
+| =Incident= | A, D | D | D | A |
+| =Recovered= | A, D | D | D | A |
+
+The three independent branches each close one hole and leave the other two.
+=Integrated= C4-composes the controls without copying their policy sets.
+=Incident= stops even a first otherwise valid external report; =Recovered=
+restores that report while retaining all three permanent controls.
+Rejected off-task sends do not spend the budget. In the 32-proposal trace,
+one ordinary external send is accepted and the following 31 are denied.
+These are finite model decisions, not a claim that all future attacks are
+blocked.
+
+* Session state machine
+
+This diagram shows the =Integrated= root with =maxExports= set to =1= and an
+unchanged delegated intent. =Sxy= records whether a sensitive read has
+been accepted (=x=) and whether an external send has been accepted (=y=).
+Every denied proposal leaves the ledger in the same state. The host must
+commit the decision and ledger update atomically; the diagram does not
+claim that Cedar provides persistent state.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> S00
+    state "S00: no sensitive read, 0 exports" as S00
+    state "S10: sensitive read, 0 exports" as S10
+    state "S01: no sensitive read, 1 export" as S01
+    state "S11: sensitive read, 1 export" as S11
+    S00 --> S10: Allow sensitive read
+    S00 --> S01: Allow on-task external send
+    S01 --> S11: Allow sensitive read
+    S10 --> S10: Deny external send after sensitive read
+    S01 --> S01: Deny second external send
+    S11 --> S11: Deny external send by history and budget
+    S00 --> S00: Deny off-task send
+    S10 --> S10: Deny off-task send
+    S01 --> S01: Deny off-task send
+    S11 --> S11: Deny off-task send
+    note right of S00
+      Internal send and public read leave the ledger unchanged.
+      Incident additionally denies external send from every state.
+    end note
+#+end_src
+
+The state transitions correspond to =replay= and =advance= in the Lean
+file. =Incident= and =Recovered= are policy revisions selected by the host,
+not hidden session states.
+
+* Composition and proof receipts
+
+| Root | Owner-local edit | Materialized policy bodies | Fresh body work against stated baseline |
+|------+------------------+----------------------------+----------------------------------------|
+| =Base= | Extend read and send grants | 2 | 2 |
+| =Intent= | Extend delegated-intent veto | 3 | 1 vs =Base= |
+| =History= | Extend read-then-egress veto | 3 | 1 vs =Base= |
+| =Budget= | Extend cumulative-export veto | 3 | 1 vs =Base= |
+| =Integrated= | C4-compose Intent, History, Budget | 5 | 3 vs =Base= |
+| =Incident= | Extend external-egress freeze | 6 | 1 vs =Integrated= |
+| =Recovered= | Remove only the freeze | 5 | 0 vs =Incident= |
+
+Seven standalone Cedar revisions contain 27 materialized policy
+occurrences. Lean declares six distinct policy bodies and seven local edits,
+including the recovery removal. This counts source structure, not a measured
+speedup. Lean proves the incident adds exactly one fresh policy body and
+recovery adds none. The unchanged certificates are reused when the
+authorization certificate is reclosed; Cedar's upstream soundness theorem
+applies to the resulting snapshot. The
+[[file:BoundedSessionExport.lean][exporter]] materializes every named step
+and the Rust bridge compares its expected authorization result to the
+official Cedar engine after rendering and reparsing the policy set.
+
+#+begin_src sh
+just example enterprise agent session
+just check-cedar-language
+#+end_src

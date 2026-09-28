@@ -1,0 +1,221 @@
+#+TITLE: Vehicle TARA to Executable Treatment Handoff
+#+OPTIONS: toc:nil
+
+* Scope and sources
+
+[[https://www.iso.org/standard/70918.html][ISO/SAE 21434]] defines lifecycle
+cybersecurity risk management for road-vehicle E/E systems; it does not
+prescribe one technology or policy language. [[https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng/pdf][UN R155 Annex 5]]
+provides a baseline of threats and corresponding mitigations to consider
+in vehicle risk assessment. [[https://openstd.samr.gov.cn/bzgk/std/newGbInfo?hcno=2DB552CAA58F589705C3DC7AD47AC2AB][GB 44495-2024]] is the current
+Chinese vehicle-cybersecurity standard. [[https://unece.org/transport/documents/2021/03/standards/un-regulation-no-156-software-update-and-software-update][UN R156]]
+addresses software-update management, a related lifecycle boundary.
+
+The mission failure modes below come from the
+[[https://arxiv.org/abs/2606.06996][mission-level runtime assurance study]];
+[[https://arxiv.org/abs/2605.29114][ReasonBreak]] motivates testing an
+untrusted VLA producer. The concrete risk rows, owner allocation, and
+policy treatments are *this example's projection*, not official ratings
+or controls prescribed by those sources. A real TARA still needs
+item-specific damage scenarios, attack paths, impact and feasibility
+ratings, risk decisions, and accountable approval.
+
+[[https://www.usenix.org/conference/vehiclesec26/presentation/woo][Woo and Lee's Physical AI TARA study]] combines automotive TARA with
+AI and physical-layer attack taxonomies. [[https://www.iso.org/standard/83303.html][ISO/PAS 8800:2024]] addresses
+vehicle-level safety risks from AI output insufficiencies and errors.
+These are complementary research and safety inputs; neither makes a
+Cedar permit decision an impact rating or a safety assurance claim.
+
+* AI and hardware entry points
+
+The current mission case exercises one VLA-style planner boundary.
+Vehicle TARA must also consider other entry points before claiming
+coverage. The following sources establish distinct interfaces and
+failure mechanisms; they are not all implementations in this repo.
+
+| Entry point | Source-backed problem | Authorization or evidence boundary | Example status |
+|-------------+-----------------------+------------------------------------+----------------|
+| VLA planner | Mission-level unsafe successor despite a locally valid command | Bind command to independently checked successor and later observation | Executable Mission case |
+| Cabin speech and language model | [[https://arxiv.org/abs/2609.19630][Afroze et al.]] report false executes in a vehicle voice-command benchmark; [[https://www.usenix.org/conference/raid2020/presentation/wang-shu][SIEVE]] studies adversarial in-vehicle speech sources | Speaker provenance, role, authentication, vehicle state, available tool, and pre-action decision | Source-backed research; no voice adapter yet |
+| Wearable-to-vehicle automation | [[https://zhiqlin.github.io/file/SP24.pdf][Zhang et al.]] study smart-glasses-triggered vehicle control chains without user verification | Authenticate each cross-device command and bind it to the intended vehicle and action | Source-backed research; no wearable adapter yet |
+| Embedded sensing and CAN AI | [[https://www.usenix.org/conference/atc24/presentation/xu-he][Xu et al.]] implement CAN intrusion detection on embedded hardware; [[https://www.usenix.org/conference/vehiclesec26/presentation/ali][Ali and Malik]] study counterfeit or compromised embedded-device identity | Preserve sensor/device provenance, model revision, timing, and authority across ECU/controller boundaries | Source-backed research; no hardware adapter yet |
+
+The wearable link is a cross-device Vehicle/TARA input. A medical
+wearable's own clinical risks belong in its separate health case. A
+shared POO treatment can be reused across these entry points only
+after its concrete Cedar request schema and authority assumptions are
+checked for each interface.
+
+* Treatment matrix
+
+The same seven axes are used by
+[[file:../Mission/SuccessorBoundary.lean][the executable mission matrix]].
+=A= means the named root authorizes the command and =D= means it denies.
+The =clear= row is a positive control, not a threat. These six roots are
+composition stages for one illustrative vehicle policy, not six actual
+vehicle models.
+
+| Scenario condition | Illustrative affected asset | Treatment owner | Base | Platform | Mission | Evidence | Integrated | Current |
+|-----------+---------------------------+-----------------+------+----------+---------+----------+------------+---------|
+| Future collision | Vehicle motion; physical harm | Platform | A | D | A | A | D | D |
+| Lost checkpoint | Mission route; task cannot complete | Mission | A | A | D | A | D | D |
+| Restricted region | Operating area; future entry | Mission | A | A | D | A | D | D |
+| Budget exhaustion | Mission reserve; future route infeasible | Mission | A | A | D | A | D | D |
+| Clear command | No modeled damage; positive control | Base | A | A | A | A | A | A |
+| Unbound witness | Decision evidence; wrong proposal accepted | Evidence | A | A | A | D | D | D |
+| Stale horizon | Decision evidence; old prediction reused | Current | A | A | A | A | A | D |
+
+[[file:TaraProjection.lean][TaraProjection.lean]] ties these axes to
+the verified 42-cell matrix. The underlying POO model declares six
+owner edits. Six standalone Cedar revisions materialize 18 policy
+occurrences; those runtime artifacts are *not* compressed away. The
+compression is in the source of change: in the controlled fallback
+maintenance experiment, one =Base= edit propagates through all six
+roots, whereas six independently maintained Cedar snapshots require
+six condition edits. Official Rust Cedar matches Lean on the 68
+original decisions and 12 changed-case decisions. The
+[[file:../Mission/README.org][mission case]] gives the exact scope and
+limitations of that comparison.
+
+* TARA handoff to executable treatment
+
+TARA remains the owner of asset and damage analysis, attack feasibility,
+impact, risk acceptance, and approval. Its output can identify a
+treatment objective and an accountable owner. Cedar then enforces a
+specific authorization decision; Lean checks the encoded decision and
+its assumptions; Lean-POO composes the treatment changes and tracks
+affected proof obligations. Runtime reference verification, sensor
+provenance, and actuator effects remain host responsibilities. This is
+an integration boundary, not a claim that TARA is defective.
+
+Modular TARA methods already exist: the
+[[https://saemobilus.sae.org/articles/mosaic-tara-a-comprehensive-tara-methodology-automotive-cybersecurity-2026-26-0609][MOSAIC-TARA study]] explicitly addresses assessment reuse across ECUs
+and vehicle platforms. The comparison here is with a standalone TARA
+matrix and independently maintained Cedar snapshots, not a claim that
+all TARA methods lack reuse.
+
+* Minimal review handoff
+
+The 42 cells count *policy decisions* across seven axes and six
+composition roots. They are not 42 completed risk assessments. A common
+POO treatment owner can produce the same Cedar rule for several vehicle
+contexts while their impact and attack-feasibility judgments differ.
+MOSAIC-TARA explicitly notes that the same component may have different
+damage impact depending on context. Therefore the adapter does not
+decide whether a risk rating is reusable.
+
+[[file:TaraHandoff.lean][TaraHandoff.lean]] accepts only a source ID,
+work-product ID, revision, approval reference, treatment-goal ID, and
+the linked executable treatment publication. It does not parse the
+asset catalog, attack tree, impact model, risk matrix, or residual-risk
+calculations. A host-supplied verifier checks the external approval.
+An unverified reference produces =taraOwnerReview=. A changed TARA
+reference, goal, or Cedar publication produces =treatmentOwnerReview= so
+the executable link and affected certificates can be checked. Both
+obligations may be emitted together. The example verifier is an
+explicit assumption, not a TARA authority implementation.
+
+| Event | Source owner | Treatment owner |
+|-------+--------------+-----------------|
+| Verified reference and unchanged publication | Retains TARA authority | No new link review emitted |
+| TARA reference or goal changes, with valid approval | Supplies reviewed work product | Recheck goal-to-policy mapping and affected certificates |
+| TARA reference fails external verification | Re-establish approval and source identity | Hold and recheck the link |
+| Cedar publication changes | Retains TARA authority | Recheck the composed treatment and publication |
+
+This gate only routes work. It cannot prove that an external approval is
+authentic, that an unchanged assessment is still current, or that a
+policy is suitable for a new context. The host must implement approval
+verification and bind the reference revision to the actual source
+work product.
+
+The [[https://github.com/ASRG/openXSAM][ASRG openXSAM repository]] provides
+a public XML exchange model for automotive risk information, including
+risk and control schemas. It is a plausible upstream interchange format,
+but this example neither vendors its GPL-licensed schema nor implements
+an XML importer. [[https://github.com/leonkalema/QuickTARA][QuickTARA]] reports
+JSON among its export formats; its public repository does not establish
+a universal industry output schema. Neither GitHub repository is treated
+as the authority for a real vehicle assessment. The TARA owner supplies
+the small, approved projection above, regardless of its authoring tool.
+
+* Relationship to POO Flow and Lambda Episteme
+
+The candidate path can use the existing POO Flow source-admission and
+Lambda Episteme Case/Scenario machinery without moving TARA semantics
+into Lean-POO. Lambda Episteme can declare the selected external
+reference and evidence source; POO Flow can admit a composed candidate
+and return a typed receipt. Admission is not authorization to execute.
+The Cedar adapter then maps an approved treatment goal to a specific
+Lean-POO policy composition, and the application host verifies the
+external approval before publishing or acting. This cross-repository
+path is a proposed integration; =TaraHandoff.lean= currently checks only
+the local reference-to-publication change boundary.
+
+#+begin_src mermaid
+flowchart LR
+    T["TARA owner: full work product and approval"] --> R["Selected reference and goal"]
+    R --> L["Lambda Episteme: source and Case evidence"]
+    L --> P["POO Flow: candidate admission receipt"]
+    P --> H["Host: approval and effect authorization"]
+    H --> C["Lean-POO + Cedar: composed treatment and decision"]
+    C --> X["Runtime observation and actuator handoff"]
+#+end_src
+
+| Capability | TARA research | This example |
+|------------+---------------+--------------|
+| Modular risk assessment | MOSAIC-TARA proposes assessment reuse with context-sensitive damage classification | Consumes a TARA reference; does not duplicate ratings |
+| Physical AI threat discovery | Woo and Lee combine automotive, AI, and physical-layer taxonomies | Models one untrusted-planner path; no attack-library completeness claim |
+| Executable authorization composition | Not evaluated against these two studies | Six POO owner edits, six Cedar roots, 42 checked decisions |
+| Change traceability | TARA retains approval authority | Routes changed inputs and publication revisions to the responsible owner |
+| Vehicle safety and regulatory approval | Requires a vehicle-specific assurance process | Not established by this example |
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Linked: verified TARA reference and treatment publication
+    Linked --> Linked: verified reference and publication unchanged
+    Linked --> TaraReview: external reference fails verification
+    Linked --> TreatmentReview: reference, goal, or publication changes
+    Linked --> BothReview: changed reference also fails verification
+    TaraReview --> Linked: TARA owner supplies verified reference
+    TreatmentReview --> Linked: treatment owner republishes
+    BothReview --> Linked: both owners complete their work
+#+end_src
+
+For VLA-driven vehicles, the treatment handoff needs model and prompt
+provenance, command and horizon binding, reference and observation
+authority, model-update revision, and evidence that a physical fallback
+was actually applied. The current example implements only a small part
+of that handoff: ID and tick binding, a source-backed offline trajectory
+comparison, hypothetical post-decision observations, and policy-level
+fallback authorization.
+
+* Decision and observation states
+
+This diagram shows the intended integration boundary. The host owns
+reference verification, sensor provenance, and physical handoff; the
+example exposes the two Lean checks and Cedar authorization.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Proposed
+    Proposed --> Denied: Cedar denies command
+    Proposed --> ReferenceCheck: Cedar allows command
+    ReferenceCheck --> FallbackRequested: reference invalid or path outside envelope
+    ReferenceCheck --> Executing: independent reference accepted
+    Executing --> Executing: verified observation within envelope
+    Executing --> FallbackRequested: observation invalid, late, or outside envelope
+    FallbackRequested --> HostHandoff: Cedar authorizes fallback request
+    HostHandoff --> [*]: host applies physical controller
+    Denied --> [*]
+#+end_src
+
+The diagram is an interface contract, not a demonstrated physical
+controller. In particular, comparing execution only with the attacked
+VLA's own prediction can miss a self-consistent attack; the
+[[file:../Mission/TrajectoryReplay.lean][Lean replay]] includes that
+counterexample.
+
+#+begin_src sh
+just example enterprise vehicle tara
+just check-mission-comparison
+#+end_src

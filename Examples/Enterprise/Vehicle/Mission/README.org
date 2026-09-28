@@ -1,0 +1,211 @@
+#+TITLE: Successor-Safe Mission Command Authorization
+#+OPTIONS: toc:nil
+
+* Source, threat, and projection
+
+[[https://arxiv.org/html/2606.06996v1][Tsai and Hariri (2026)]] study a
+high-level autonomy command that can be locally safe while making a
+driving mission infeasible. Their finite-horizon runtime monitor rejects
+successors that violate platform safety or mission feasibility. Their
+fault-injection scenarios include missed checkpoints, restricted regions,
+and insufficient remaining budget. The paper evaluates a rule-based
+mission planner in =highway-env=; it does not report a VLA prompt-injection
+attack. [[https://arxiv.org/abs/2605.29114][ReasonBreak (2026)]] separately
+shows that textual perturbations can alter reasoning and trajectories in
+reasoning-enabled driving VLAs. Applying mission admissibility to an
+untrusted VLA command is *our architectural inference*, not an experiment
+reported by either paper.
+
+[[https://arxiv.org/abs/2606.12978][Puthumanaillam et al. (2026)]]
+demonstrate command-preserving trajectory redirection in robotic
+manipulation: a near-benign instruction can lead to a different physical
+outcome in a closed-loop VLA rollout. That is *not* an automotive result.
+It motivates the example's distinct successor evidence for two candidates
+with the same nominal command ID; the Lean theorem checks that a changed
+successor can change authorization without changing the command ID.
+
+The companion =unobservedTrajectoryCounterexample= states the harder
+limit: two executions can present the *same* Cedar request and therefore
+receive the same allow decision while their actual successors differ in
+mission feasibility. This is an illustrative counterexample about the
+interface, not a replay of either paper's attack traces. Binding a
+witness to an ID and timestamp cannot establish that its predictions are
+accurate. A deployment needs an independently justified admissible
+reference, post-decision observation, and an enforcement or fallback
+path; those components are outside this case.
+
+| Published observation | This example's projection | Boundary |
+|-----------------------+---------------------------+----------|
+| A collision-free next step can still skip a required checkpoint. | =Platform= and =Mission= are independent POO owners; only their C4 composition rejects both classes. | The modeled successor list is illustrative, not the paper's predictor. |
+| Restricted-region or budget failure can occur later in a finite horizon. | Lean folds every predicted successor into separate platform and mission summaries; Cedar authorizes the command from those summaries. | The host must calculate and authenticate the real predictions and mission state. |
+| A rejected nominal command requires a safe fallback. | The =fallback-handoff= authorization remains available when =proceed= is denied. | This rule does not construct, select, or certify a physical fallback controller. |
+| A stale horizon can make a once-valid result irrelevant. | =Current= overlays the nominal permit with a Cedar check of raw observation and decision ticks; =Evidence= checks raw proposal, mission, and vehicle-state IDs. | The host must authenticate the witness and clock. |
+
+[[file:SuccessorBoundary.lean][SuccessorBoundary.lean]] represents a
+finite horizon as a nonempty list of predicted successors. An empty list
+fails both summaries. The five facts per successor stand for collision
+clearance, road clearance, checkpoint reachability, restricted-region
+avoidance, and adequate budget. They are not a complete implementation of
+the paper's dynamic model or of its time-to-collision thresholds. The host
+must bind one authenticated prediction horizon to the exact candidate
+command, vehicle state, mission specification, and decision instant.
+The Lean adapter sends raw proposal, mission, and vehicle-state IDs plus
+observation and decision ticks into the Cedar request. Cedar itself checks
+equality of the IDs and accepts a nonnegative observation at most two
+illustrative ticks old. It calculates the age by subtraction after
+checking order. The final =Current= nominal =permit= requires platform
+safety, mission feasibility, binding, and freshness. If a required
+attribute is absent, this permit cannot grant the command even when
+the separate evidence =forbid= encounters an evaluation error.
+Separate requests show that a witness for another command, a changed
+mission version or vehicle state, a replayed stale witness, a negative
+observation, and a future-dated witness all fail in =Current=. A near
+=Int64= limit request confirms that the bounded subtraction remains
+evaluable there. Two deliberately incomplete Cedar requests omit the
+mission summary or witness proposal ID and are denied by both Lean and
+Rust Cedar. The host must authenticate these inputs; matching
+integers alone do not establish authenticity. Rust Cedar replay checks
+the raw-field policy decision, while prediction correctness and clock
+authenticity remain outside this example. This is a policy gate at the
+command interface, not a real-time vehicle safety monitor.
+
+* Decision matrix
+
+=A= is allow and =D= is deny. Unless shown otherwise, the candidate has
+an approved route, a bound and current horizon, and all successor facts
+are clear. All 42 cells are proved in Lean and replayed through the
+official Rust Cedar authorizer.
+
+| POO root | Future collision | Missed checkpoint | Restricted region | Depleted budget | Clear command | Unbound witness | Stale horizon |
+|----------+------------------+-------------------+-------------------+-----------------+---------------+-----------------+---------------|
+| =Base= | A | A | A | A | A | A | A |
+| =Platform= | D | A | A | A | A | A | A |
+| =Mission= | A | D | D | D | A | A | A |
+| =Evidence= | A | A | A | A | A | D | A |
+| =Integrated= | D | D | D | D | A | D | A |
+| =Current= | D | D | D | D | A | D | D |
+
+The source-backed distinction is visible in =Platform=: a missed
+checkpoint is allowed despite local safety. =Mission= leaves the
+collision gap. =Integrated= combines their decisions and the evidence
+owner; =Current= closes the stale-horizon gap discovered while modeling
+the host interface. Additional named requests cover road exit, an empty
+horizon, wrong proposal ID, changed mission version or vehicle state,
+future-dated or negative observation, near-limit arithmetic, and fallback
+handoff. The witness and freshness cases are
+proposed boundary checks, not results measured by the source paper.
+
+* Composition and maintenance matrix
+
+| Root | Owner-local edit | Live Cedar policy bodies | Fresh body work against stated baseline |
+|------+------------------+--------------------------+----------------------------------------|
+| =Base= | Extend nominal route and fallback handoff | 2 | 2 |
+| =Platform= | Overlay nominal route with platform summary | 2 | 1 vs =Base= |
+| =Mission= | Extend mission infeasibility veto | 3 | 1 vs =Base= |
+| =Evidence= | Extend unbound-witness veto | 3 | 1 vs =Base= |
+| =Integrated= | C4-compose three independent owners | 4 | 2 vs =Platform= |
+| =Current= | Overlay nominal permit with binding and horizon freshness | 4 | 1 vs =Integrated= |
+
+Six standalone Cedar revisions contain 18 materialized policy
+occurrences. Lean declares six distinct policy bodies in six POO edits.
+These are source-maintenance counts, not a runtime speedup measurement.
+They also do not establish an advantage over a direct Cedar workflow
+that uses its own generation or factoring tools. The existing
+=PolicyReuse= timing probe uses a synthetic 1,000-policy set; it is not
+a vehicle workload or a comparison of authoring effort.
+Lean proves that the =Current= revision changes exactly the nominal
+policy ID and needs one fresh per-policy certificate; the other
+certificates are reused to reclose the authorization certificate.
+Cedar's upstream soundness theorem applies to the resulting snapshot.
+The [[file:SuccessorBoundaryExport.lean][exporter]] materializes 24
+focused requests, all 42 matrix cells, and two missing-field requests
+for Rust Cedar conformance: 68 decisions in total.
+
+* Offline trajectory replay and direct Cedar comparison
+
+[[https://huggingface.co/datasets/gray311/physical_attack_vla/tree/31d5a2a0fa1dd88c959df0258d098efaaa9b4e6d][Physical Visual-Prompt-Injection Attacks on Driving VLAs]]
+by =gray311= (CC BY 4.0) publishes 16 clean/injected prediction pairs
+and corresponding future waypoints attributed to the
+[[https://github.com/waymo-research/waymo-open-dataset][Waymo Open Dataset End-to-End Driving data]].
+[[file:TrajectoryReplay.lean][TrajectoryReplay.lean]]
+replays its record 1 (=f8c118db32cc16449b2d9cea9c344df4-149=):
+the clean model predicts about 70.7 m of longitudinal progress; the
+injected model predicts a full stop. The released Waymo future is
+recorded under the original scene, not after executing the injected
+prediction. The example rounds six longitudinal points to centimetres
+and pairs them with recorded Waymo waypoint indices 1, 3, ..., 11.
+That alignment is an illustrative adapter choice; a downstream user
+must establish the actual timebase. It checks a *proposed* 3 m
+longitudinal deviation threshold; lateral deviation is not evaluated.
+It finds no deviation for the clean prediction and requests fallback
+for the injected one *when that independently recorded clean-run path
+is used as a reference*. The theorem
+=selfConsistentAttackEscapesPredictionMonitor= checks the opposing
+case: an attacked execution that follows the injected prediction has
+no prediction-versus-execution deviation. A runtime system therefore
+needs an independent admissible reference or safety envelope, and a
+trusted observation and enforcement path to check the actual motion.
+The example exposes these as two separate interfaces:
+
+- =preDecisionHandoff verifyReference candidate proposedPath reference=
+  checks a command before execution. The host verifies that the reference
+  came from an authority independent of the untrusted VLA output. Lean
+  checks its proposal, vehicle-state, and decision-tick binding.
+- =postDecisionHandoff verifyReference verifyObservation candidate
+  approvedReference observation= checks a later observation. The host
+  verifies both origins. Lean checks the same reference binding,
+  observation proposal and vehicle-state IDs, tick order, bounded age,
+  sample presence, and longitudinal deviation.
+
+The later clean and attack observations in the Lean theorem are
+*hypothetical interface examples*. The always-true demo verifiers are
+explicit assumptions, not attestation. A downstream adapter must align
+the coordinate frame, waypoint timestamps, and sampling interval before
+calling either interface, then implement the physical fallback handoff.
+A real data source can replace the reference and observed path without
+changing Cedar policy composition.
+This is an offline counterfactual comparison, not a closed-loop attack
+replay or evidence that a deployed controller can observe and stop the
+attack. We have not rerun the model or independently audited the
+dataset author's attack labels. The dataset metadata used for extraction has SHA-256
+=5932fd7a7053e5fc5c9ad03ed94e82efa7e152d77793fb69a7980c50fc4a8f4c=.
+
+The [[file:DirectPolicies/][direct Cedar baseline]] stores six
+standalone Cedar policy snapshots without Lean-generated comments.
+The official Rust Cedar engine authorizes all 68 existing requests
+with the same allow/deny decision and determining and erroring policy bodies
+as Lean. Source policy IDs are regenerated, so the comparison uses bodies.
+For one
+controlled change, fallback handoff additionally requires
+=routeApproved=. [[file:MaintenanceComparison.lean][Lean]] makes this
+change once in =Base= and proves that all six roots inherit it. Six
+[[file:DirectChangePolicies/][direct Cedar snapshots]] each need the
+same condition edit; official Cedar matches Lean on 12 changed-case
+requests. This change is a maintenance probe, *not* a recommended
+fallback rule for a vehicle. These are literal maintenance occurrences for this
+standalone-snapshot baseline. Cedar templates, code generation, and
+other direct authoring designs could reduce duplication, so this
+experiment does not establish a general authoring or speed advantage.
+
+[[https://docs.cedarpolicy.com/policies/templates.html][Cedar policy templates]] are a stronger direct-authoring alternative to
+independent snapshots: a linked policy follows changes to its shared template.
+A template can parameterize the principal or resource, so a direct Cedar
+implementation could share this fallback policy body and make the controlled
+condition change once. This example has not built or measured that alternative.
+The result demonstrated here is the Lean-POO revision topology and its proved
+certificate impact, alongside parity with the explicitly scoped snapshot
+baseline; it is not a claim that Cedar itself requires six source edits.
+
+| Evidence | Observation | Limit |
+|----------+-------------+-------|
+| Public trace record 1 | Clean/injected predicted paths differ and the independent Waymo future supports an offline reference check. | The post-decision theorem uses hypothetical samples; no measured attacked execution, deployable reference, or proven fallback controller. |
+| Direct Cedar baseline | 68/68 decisions and determining/erroring policy bodies match the Lean export. | The snapshots began as copies of equivalent policy text. |
+| Controlled fallback edit | One =Base= owner edit versus six direct snapshot edits; 12/12 decisions match. | This compares only independently maintained snapshots, not every Cedar authoring workflow. |
+
+#+begin_src sh
+just example enterprise vehicle mission-successor
+just example enterprise vehicle mission-replay
+just example enterprise vehicle mission-maintenance
+just check-mission-comparison
+just check-cedar-language
+#+end_src

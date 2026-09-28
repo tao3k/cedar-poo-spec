@@ -1,0 +1,133 @@
+#+TITLE: RFC 0002: Cedar Policy Module Composition
+#+OPTIONS: toc:nil
+
+* Contract
+
+=PolicyModules.Model.compile= turns a C4 hierarchy of policy modules into
+an ordinary Cedar =Policies= value. A module has a name, ordered parents,
+an optional C4 =suffix= constraint, and explicit edits. The edits are
+=extend=, =overlay=, and =remove=.
+
+Compilation creates a Lean-POO Object schema from the C4 graph and maps each
+policy ID to a typed slot. =extend= and =overlay= write a policy body; =remove=
+writes a tombstone. The upstream =Object.Declaration.Builder= performs these
+ordered writes. =Object.Plan.compileMemo= compiles effective slot methods in
+one C4 traversal and resolves each surviving policy ID from that shared
+compiled plan. Cedar's edit fold separately checks intent and
+records policy order and provenance; it does not select policy bodies.
+=Model.compilePlan= exposes the compiled slot plan for inspection and
+diagnostics. It precedes Cedar-specific edit validation and is not a
+publication or authorization API.
+=extend= introduces a new policy ID. =overlay= replaces an inherited policy
+with the same ID. =remove= retires an inherited policy ID. An ID may be
+reintroduced later by an explicit =extend=.
+
+Compilation returns a typed error for an inconsistent C4 graph, a duplicate
+ID on extend, an absent ID on overlay or remove, or competing sibling edits
+to the same ID. A descendant may change an ancestor's policy. A sibling may
+not silently replace another sibling's edit, even when C4 gives a linear
+order; the conflicting parent modules must be reconciled before compilation.
+When an owner chain declares =suffix := true=, Lean-POO also rejects a local
+parent order that interleaves another branch into that inherited suffix.
+This is an opt-in ordering constraint; it does not change Cedar policy
+evaluation or grant an owner authority over another branch's edits.
+
+The output is passed to Cedar's own validator and authorizer. This feature
+does not reinterpret Cedar's permit/forbid rules, policy errors, or schema.
+Its purpose is to make policy provenance and evolution explicit before
+evaluation and to connect resulting policies to Lean-POO proof objects.
+=compileWithTrace= returns every successful edit and each surviving policy
+with its introducing and latest editing module. =compileWithProvenance=
+projects those surviving policies; =compile= projects the ordinary Cedar
+policy set from the same result.
+=compileRevision= pairs two traced compilations. =changedPolicyIds= lists
+added, removed, or body-changed policy IDs, regardless of edit provenance.
+The separate =Revision.authorizationPatch= maps a revision to the Cedar
+authorization proof object. It emits an empty patch only when the complete
+ordered policy lists are equal; otherwise it replaces the policy-set key.
+Consequently a no-edit descendant can reuse the whole certificate, while a
+changed policy set selects Cedar's whole-set validation obligation.
+=Revision.freshPolicies= selects policy bodies absent from the baseline;
+=Revision.validateAfter= derives Cedar's whole-set =validate= premise from
+baseline validation and fresh-body Lean-POO certificates. Each
+=PolicyValidation.Snapshot= has one obligation depending on its policy body
+and Cedar schema. =PolicyValidation.Bundle= contains independent certificates
+for the current policy list; =Bundle.reviseSameSchema= carries certificates
+for identical bodies and requires certificates only for fresh bodies. No
+historical obligation remains attached to a removed body. The derivation
+uses the upstream validator's per-policy =forM= structure, so removed and
+reordered bodies need no new typechecking proof when the schema is unchanged.
+The authorization proof object's dependency key remains the complete ordered
+policy set; its Cedar premise is reclosed from the policy bundle.
+=Revision.authorizationPatch_object= proves that applying the diagnostic patch
+to the baseline produces the exact revised proof object.
+=Revision.authorizationCertificate= reuses the baseline schema, request, and
+entity premises and derives the revised policy premise from fresh-body checks;
+callers supply only the baseline certificate and those fresh checks.
+=Revision.patchedAuthorizationCertificate= exposes the same result on the
+Lean-POO patched proof object.
+If the schema changes, every per-policy obligation and all four
+schema-dependent authorization obligations are invalidated.
+=Revision.authorizationCertificateWithSchema= accepts new per-policy
+certificates, schema well-formedness, request validation, and entity
+validation. It does not reuse old-schema policy certificates; finer schema
+dependency slicing would need an additional Cedar-backed theorem.
+=Revision.authorizationPatchWithSchema_object= proves that a combined policy
+and schema patch materializes exactly the revised proof object.
+=Revision.patchedAuthorizationCertificateWithSchema= closes that patched
+object from the new-schema evidence.
+For same-schema execution, =Revision.incrementalValidate= requires a proof
+that the baseline policy set passed Cedar validation. It delegates to the
+validated-set cache and is proven equivalent to Cedar's complete result.
+=Revision.tryRefresh= also requires proof that the cache's stored policy list
+equals this revision's baseline before it attempts to advance the cache.
+The governance example checks a reorder explicitly: the fresh-body set is
+empty, yet the ordered policy list changes and therefore the authorization
+patch still touches the policy key.
+
+** Template-linked policy revisions
+
+[[file:../../CedarPooSpec/TemplateValidation.lean][TemplateValidation.lean]] keeps Cedar's template map and links together
+with the exact materialized policy list. =LinkedSet.create= and
+=LinkedSet.tryRefresh= call upstream =Cedar.Spec.link?=, then Cedar's full
+validator or the proven incremental validator. The dependent =linked= field
+prevents a cache from claiming policies generated by different templates or
+slot bindings. Link failures and validation failures have separate error
+constructors. =LinkedSet.incremental_eq_validate= carries the exact-result
+theorem, including Cedar's first policy validation error.
+
+=Edit.reconcile= derives extend, overlay, and remove edits from two ordinary
+Cedar policy lists. It rejects duplicate policy IDs and ordering changes that
+POO edits cannot represent. Its dependent receipt proves that replaying the
+generated edits through the same C4 compiler yields the exact target list.
+It does not reinterpret template linkage or Cedar permit/forbid aggregation.
+[[file:../../Examples/Governance/TicketSharing.lean][TicketSharing.lean]] checks one template update, an unchanged linked
+policy, a revoked link, a new link, and two successive reused authorization
+certificates. It proves the POO revisions and Cedar's linker materialize the
+same policy lists after link deletion and addition.
+
+* Executable scenario
+
+[[file:../../Examples/Scenarios/README.org][The tenant document migration]] demonstrates a broad legacy permit that
+survives a strict overlay. An added forbid blocks untrusted devices; removal
+of the legacy permit then blocks cross-tenant reads. The executable Lean
+scenario checks every revision against the Cedar evaluator, validates every
+compiled policy set, verifies the final requests have no runtime policy
+errors, and closes a Cedar authorization soundness certificate.
+
+[[file:../../Examples/Health/README.org][The clinical break-glass case]] composes independent privacy,
+device-security, and emergency-access branches over a shared base. It
+checks a twelve-request decision matrix, a risky pre-integration branch,
+policy provenance, and a final Cedar soundness certificate. Session grants
+and audit remain responsibilities of the calling application.
+
+[[file:../../Examples/Governance/README.org][The attested governance case]] isolates a platform attestation overlay
+from independent data-owner and compliance branches. It checks the changed
+policy ID, graph impact, one pending policy-validation obligation, and a
+no-edit descendant whose revision has no pending obligations. Its updated
+certificate closes the policy-validation obligation by checking only the
+new attestation policy body.
+
+This scenario shows fewer repeated policy records for four revisions, but
+does not claim a measured LOC or maintenance-cost reduction. Broader claims
+require additional scenario corpora and change-cost measurements.

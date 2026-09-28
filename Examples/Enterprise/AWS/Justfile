@@ -1,0 +1,2 @@
+mod financial-services 'FinancialServices/Justfile'
+mod agentic-platform 'AgenticPlatform/Justfile'

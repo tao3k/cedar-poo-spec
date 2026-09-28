@@ -1,0 +1,350 @@
+#+TITLE: Attested Enterprise Data Governance
+#+OPTIONS: toc:nil
+
+* The POO question
+
+[[file:AttestedDataAccess.lean][AttestedDataAccess.lean]] asks what happens to a
+composed authorization proof when the platform owner strengthens attestation.
+The interesting result is the composition delta: which policy body changed,
+which composition roots are affected, and which proof obligations can be
+reused. Cedar already supplies authorization evaluation and validation; this
+example uses those operations as evidence for a POO evolution claim.
+
+The model combines a data subscription, owner approval, enclave measurement,
+and organizational region rule. It is a composite reference scenario, not a
+claim that these AWS products expose one Cedar policy interface. All people,
+projects, datasets, and measurements in the Lean file are fictitious.
+
+* Published sources and model boundaries
+
+| Source | Real mechanism | Projection in this example |
+|--------+----------------+----------------------------|
+| [[https://docs.aws.amazon.com/datazone/latest/userguide/approve-reject-subscription-request.html][Amazon DataZone subscription approval]] | An asset subscription request can be approved or rejected by an owning-project member; some requests are automatically approved. | =subscriptionActive= and =ownerApproved= are externally established facts. The model requires an independent approver as an additional enterprise rule; it does not assert that DataZone always enforces one. |
+| [[https://csrc.nist.gov/CSRC/media/Projects/risk-management/800-53%20Downloads/800-53r5/SP_800-53_v5_1-derived-OSCAL.pdf][NIST SP 800-53 AC-5]] | Separation of duties is a security control for separating conflicting responsibilities. | =ownerVeto= requires the projected approver to differ from the operator. Identity binding and approval authenticity are outside this Lean model. |
+| [[https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave-concepts.html][AWS Nitro Enclaves attestation]] | A signed attestation document contains enclave measurements and a nonce; an external party can use its values in an authorization decision. | =platformVetoV1= checks projected verification and measurement; =platformVetoV2= additionally requires projected freshness. Neither policy verifies a signature, nonce, or PCR. |
+| [[https://docs.aws.amazon.com/kms/latest/developerguide/conditions-nitro-enclave.html][AWS KMS enclave conditions]] | KMS condition keys can constrain cryptographic operations using attestation values. | Measurement is a model input, not a KMS key policy or proof that decryption succeeded. |
+| [[https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html][AWS Organizations SCPs]] | SCPs limit maximum permissions and grant none themselves. | =regionVeto= is an analogous organization-wide restriction. It is a Cedar forbid, not an implementation of SCP evaluation. |
+
+* Composition and evolution
+
+=Base= has a project subscription permit and an inherited legacy broad permit.
+=DataOwner=, =Platform=, and =Compliance= extend separate vetoes. =Governed=
+composes those owners, overlays the project permit with an analytics-purpose
+condition, and removes the legacy permit. =PlatformV2= overlays the attestation
+veto to require freshness; =GovernedV2= composes the updated platform branch.
+
+These three owners are now =ControlObject= values with a stable policy ID and
+an owner-local denial condition. The object's =policy= and =module= methods
+derive the Cedar policy and the LeanPOO edit together. =PlatformV2= uses the
+same policy ID with a revised condition, so proof reuse tracks one changed
+object slot. The project grant remains a separate positive permit: grouping
+it into a veto object would obscure Cedar's permit/forbid semantics.
+
+=compositionTraceConformsFully= checks the C4 order, eight applied edits, the
+final removal, and the provenance of the platform policy: introduced by
+=Platform=, last edited by =PlatformV2=. =broadPermitRiskDetected= shows why
+removal is substantive: the owner branch alone can allow another project's
+dataset through the legacy permit, while the integrated module denies it.
+
+=impactIsLocalFully= computes affected roots from the module graph. The
+platform revision affects =PlatformV2=, =GovernedV2=, and its =AuditView=
+descendant, plus =GovernedV2Reordered=; =Governed=, =DataOwner=,
+=Compliance=, and =Sandbox= remain
+outside that dependency cone. =policyDeltaExact= checks that only the
+=attested-platform= policy body differs between the two governed roots.
+=proofReuseFootprintExact= shows that the policy patch touches only the policy
+validation obligation. =Revision.authorizationPatch_object= proves that the
+patch materializes the exact revised proof object. =patchedCertificate= uses
+the public =Revision.patchedAuthorizationCertificate= API to reuse the
+baseline Cedar premises and reclose policy validation; =certificate=
+transports that result to the revised snapshot and applies Cedar's soundness
+theorem.
+The policy-validation premise is itself reclosed through
+=Revision.validateAfter=: =freshPoliciesExact= identifies just the revised
+attestation policy body, =freshPoliciesValidate= checks that body with Cedar's
+validator, and =freshPoliciesCertified= closes its Lean-POO policy proof
+object. The other policy proof objects are reused from the baseline through
+=PolicyValidation.Bundle.reviseSameSchema=. No second whole-set validation
+computation is used in this proof.
+
+=AuditView= adds no edits. Its compiled policy list is exactly the same as
+=GovernedV2=. =auditRevisionHasNoPolicyDelta= reports no changed policy IDs;
+=auditRevisionHasNoPendingProofs= and =auditCertificate= show that this
+metadata-only extension needs no Cedar premise recheck. The patch uses exact
+ordered policy-list equality before choosing an empty write footprint:
+policy-ID diff alone would miss a reordering. These are checked proof reuse
+constructions, not timing or LOC benchmarks.
+
+=GovernedV2Reordered= changes C4 parent precedence while retaining every
+policy body. =reorderHasNoFreshPolicies= and =reorderedPoliciesValidate=
+prove that Cedar typechecking needs no fresh body check. Nevertheless,
+=reorderChangesOrderedList= and =reorderStillTouchesPolicyKey= prove that the
+authorization proof object's ordered policy list must be patched. This keeps
+the state truthful while reusing the validation proofs.
+
+The =OwnerSplit= variant exercises Lean-POO's optional C4 suffix constraint
+through =PolicyModules.Module.suffix=. It places an independent compliance
+branch between =DataOwner= and its inherited =Base=. Ordinary C4 accepts the
+ordering (=ordinaryOrderAcceptsInterleaving=). Marking the owner chain as a
+suffix rejects that same order with =suffixOrderViolation=
+(=ownerSuffixRejectsInterleavingExact=). The main governed policy modules keep
+their existing order and decisions; the variant shows where an enterprise
+owner can require its inherited baseline to remain contiguous.
+
+=schemaV2= adds an optional dataset classification attribute as an explicit
+model evolution, without claiming that any cited service made this change.
+=schemaChanged= proves that the attribute projection differs from the old
+schema. =schemaChangeFootprintExact= shows that the revision invalidates
+every Cedar authorization premise and each per-policy validation obligation.
+=combinedSchemaFootprintExact= checks the policy-plus-schema patch footprint.
+=schemaV2Bundle= closes the current policies against the new schema;
+=schemaV2PatchedCertificate= closes the combined Lean-POO patch, and
+=schemaV2Certificate= transports that result to the exact updated snapshot.
+No old-schema policy certificate is reused for this transition.
+The [[file:AttestedSchemaEvolutionExport.lean][schema-evolution exporter]]
+replays six identical requests under both schemas through the official Rust
+Cedar validator and authorizer. =just check-attested-schema-evolution=
+requires different schema digests and identical policy, entity, request,
+decision, and diagnostic receipts. This concrete check complements the Lean
+proof-obligation reclosure; it covers the exported requests only. See
+[[file:../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
+
+** Runtime validation probe
+
+=validatedBase= carries Cedar's validation premise for the baseline set.
+=incrementalMatchesCedar= proves exact result equality for the revision;
+=incrementalAccepted= executes the incremental path and =refreshedAccepted=
+checks that a new cache is issued only after success.
+=invalidSameIdRejected= changes a policy body without changing its ID and
+checks that the indexed cache still calls Cedar and rejects the invalid body.
+
+[[file:../../Benchmarks/PolicyReuse.lean][PolicyReuse.lean]] measures a generated 1,000-policy set for a single
+changed body and a runtime-chosen reorder. It warms both paths and prints
+three full and incremental durations in nanoseconds for each scenario. This
+is a local timing probe, not a performance guarantee for other policy shapes,
+schemas, or hardware. The timed region excludes Lean compilation and baseline
+validation; it includes building the lookup index from the trusted baseline.
+=staticAfterBundle= is a separate proof-scale receipt: it closes a concrete
+1,000-policy Cedar validation bundle using 999 unchanged bodies and one new
+policy certificate. =staticFreshExact= and =staticReuseCount= make that split
+machine-checkable. The timed runs and this certificate prove different claims.
+
+#+begin_src sh
+just check-policy-reuse
+just bench-policy-reuse
+#+end_src
+
+The five =unchangedCases= keep the same decision across the revision.
+=staleAttestationDeltaExact= isolates the intended difference: a stale
+attestation was allowed by the baseline policy and is denied after the
+platform overlay. The finite cases help inspect the evolution but are not a
+claim of complete real-world authorization coverage.
+
+* Ticket-sharing template revision
+
+The [[file:AuthorizationDelta.lean][authorization-delta example]] compares two
+revisions of this same C4 graph with upstream Cedar SymCC. The posture overlay
+has no new Allow within the schema; the later ticket grant yields a concrete
+new-Allow/old-Deny witness. The witness is replayed by official Rust Cedar.
+See [[file:../../docs/rfc/0004-authorization-delta.org][RFC 0004]] for the
+analysis scope and solver trust boundary.
+
+[[file:TicketSharing.lean][TicketSharing.lean]] adapts Cedar's published
+[[https://docs.cedarpolicy.com/overview/patterns.html][discretionary ticket-sharing pattern]]: an application links a user and
+an open ticket to a policy template. The
+[[https://docs.cedarpolicy.com/policies/templates.html][Cedar template specification]] says a template edit affects every linked
+policy. The principals, tickets, and device-posture requirement in this
+example are fictive additions for exercising a revision; they are not
+reported as a deployed ticket system.
+
+Here the reusable object is already Cedar's =TemplateLinkedPolicy= with its
+template and slot bindings. =LinkedSet= owns the validated materialization,
+and LeanPOO owns the reconciled revision. Adding a parallel custom ticket
+object would duplicate those authorities. Export files serialize these
+objects; they do not introduce additional governance owners.
+
+=TemplateValidation.LinkedSet= calls upstream =Cedar.Spec.link?= before
+using the certified policy cache. A revised contributor template changes
+two linked bodies while the viewer link stays identical. =Edit.reconcile=
+derives exact overlay edits from the linked policy revision, then a descendant
+derives a remove edit when one link is revoked. A further descendant links
+Alice to another ticket and derives an extend edit. Its replay receipt proves
+each generated edit sequence yields Cedar's exact linked policy list. The
+checked decisions distinguish the template update, an unchanged viewer,
+closed-ticket denial, revocation, and a later new share.
+=revokedAligned= proves the POO removal produces exactly the same policy list
+as deleting the link and calling upstream Cedar's linker again, so the two
+revision paths do not create competing authorization snapshots.
+=missingSlotRejected= and =invalidTemplateRejected= show that linking and
+validation failures stay distinct. =revisedCertificate= reuses the baseline
+authorization certificate and requires fresh per-policy certificates only
+for the two changed linked bodies. =revokedCertificate= then closes the
+removal revision without a new policy-body certificate.
+
+[[file:TemplateSourceExport.lean][TemplateSourceExport.lean]] retains the
+editable revised templates and three slot bindings in
+[[file:TemplateSources/posture.json][posture.json]]. Rust Cedar parses that
+source and compares the linked policy IDs and canonical bodies with Lean's
+separately materialized policies. Both exports come from the same validated
+=LinkedSet=. A template-body change or missing binding
+fails the boundary check. This lets a downstream application retain the
+template source while using the POO-composed materialized artifact for
+authorization and proof reuse.
+The [[file:TemplateSources/posture-mixed.json][mixed source]] keeps the viewer
+grant static while contributor grants remain template-linked. It exports only
+the contributor template, since an unused viewer template has no materialized
+policy body to compare. Its Rust comparison reaches the same validated policy
+set. The Lean exporter rejects unused templates and static/link ID collisions;
+the Rust gate independently rejects unused templates and catches static-body
+drift. A later link requires a new Lean materialization and boundary check.
+
+[[file:TicketSharingExport.lean][TicketSharingExport.lean]] derives nine
+authorization receipts from this Lean model. The
+[[file:../../rust/Cargo.toml][Rust bridge]] parses the generated policies
+with the Cedar policy language implementation and checks each decision and
+policy error count.
+The resulting [[file:Policies/expanded.cedar][expanded Cedar policy file]]
+shows the final active share set; the same directory includes the three
+earlier revisions. =just export-cedar-language= regenerates these files.
+
+[[file:AttestedDataAccessExport.lean][AttestedDataAccessExport.lean]] also
+exports the data-owner, governed, and strengthened-attestation roots. Its
+thirteen Lean-computed requests include stable baseline and updated decisions,
+the stale-attestation decision change, and the inherited broad-permit risk.
+The Rust Cedar authorizer checks each JSON policy set, then parses the
+generated [[file:AttestedPolicies/attested-governedv2.cedar][governed policy
+file]] and compares its decision and error count. The three policy files live
+in =AttestedPolicies/= so each source scenario has its own checked artifact
+set.
+
+This model calls =tryRefresh= explicitly when a template changes. Actual
+applications must trigger that update, control template writes, and enforce
+the resulting Cedar decision. The example does not model a Verified
+Permissions service or its control plane.
+
+The application must verify attestation and freshness, authenticate the
+approver, establish subscription state, bind all projected facts to this
+request, and enforce the returned decision. Those actions are external to the
+proof object and to Cedar evaluation.
+
+* Trusted network revision
+
+[[file:TrustedNetworkDataAccess.lean][TrustedNetworkDataAccess.lean]] extends the
+attested governance root with an independently owned network veto. This is
+grounded in Cedar's documented [[https://docs.cedarpolicy.com/policies/syntax-operators.html][=ipaddr.isInRange= operator]] and
+[[https://docs.cedarpolicy.com/auth/entities-syntax.html][IP extension value format]]. Cedar explicitly describes a company-network
+range as a context detail for authorization. The model assumes an upstream
+gateway supplies a verified =sourceIp=; it does not verify the IP provenance,
+network routing, or access enforcement.
+
+=CorporateNetwork= extends the composed governance policy set with a veto
+outside =10.0.0.0/8=. =EnclaveNetwork= overlays that single veto with
+=10.20.0.0/16=. The old owner, platform, region, and project rules remain
+inherited. =onlyNetworkBodyChanged= checks the one-body revision;
+=NetworkBoundary= is the object behind both revisions: each value owns a
+module name, parent, CIDR, and explicit append or override operation. A
+=foldlM= stages those objects through =Model.extend=, and
+=boundaryObjectProvenance= checks that the surviving policy originated in
+CorporateNetwork and was last edited by EnclaveNetwork. The CIDR and
+parent relationship are no longer scattered across separate module literals.
+The existing network decision matrix remains the behavioral authority;
+=validatedRevisions= checks both policy sets against the extended Cedar schema;
+=externalAccessClosed= checks that an address previously admitted by the
+governed root is denied after the network veto. Nine named requests cover
+both network revisions, a different company subnet, an external address,
+stale attestation, owner rejection, and cross-project access.
+
+[[file:TrustedNetworkDataAccessExport.lean][TrustedNetworkDataAccessExport.lean]]
+exports those requests with Lean-computed policy IDs, decisions, and error
+counts. The official Cedar Rust engine checks all nine and reparses the
+generated [[file:NetworkPolicies/enclavenetwork.cedar][enclave policy source]].
+The example exercises the adapter's IP extension-value and function-call
+mapping; non-IP extension forms remain unsupported by this export path.
+The [[file:TrustedNetworkValidatedExport.lean][schema-bound exporter]] also
+validates all nine requests with Cedar's =ipaddr= context schema and official
+Rust authorizer. This checks the schema projection, not the gateway's claim
+that the supplied address is genuine. Run =just check-schema-bound-scenarios=;
+see [[file:../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
+
+#+begin_src sh
+lake env lean Examples/Governance/AttestedDataAccess.lean
+just check
+#+end_src
+
+* Country-specific approver revision
+
+[[file:CountryApproval.lean][CountryApproval.lean]] starts from Cedar's
+[[https://docs.cedarpolicy.com/bestpractices/bp-implementing-roles-groups.html][resource-specific approver role pattern]]: France, Germany, and UK have
+separate role and timesheet groups, and expansion to Japan adds another
+policy. The documented pattern leaves group membership to an external
+identity provider. The example supplies fictive membership and resource
+hierarchies as input; it does not establish their provenance.
+
+The local POO evolution assumption is a legacy Europe-wide permit that
+accidentally allows a French approver to approve a German timesheet. The
+=Integrated= root composes an =Expansion= branch with a =Sensitive= branch
+and removes that grant. The sensitive branch uses Cedar's documented
+[[https://docs.cedarpolicy.com/policies/syntax-operators.html][entity tag operators]] to forbid access when a restricted timesheet's
+classification does not match the principal's clearance. This clearance
+rule is a modeled enterprise requirement, not a claim about the published
+timesheet example.
+
+** Jurisdiction objects before composition
+
+=ApprovalObject= in [[file:CountryApproval.lean][CountryApproval.lean]] binds a
+jurisdiction's approver role, role ancestry, timesheet group, group ancestry,
+and policy ID in one value. Its methods derive both Cedar entities and the
+resource-scoped policy. =Base= appends the France and Germany objects;
+=Expansion= appends UK and Japan without another handwritten role/group/policy
+triple. =Sensitive= is an independent classification owner. =Integrated=
+mixes those branches and removes the broad Europe grant. The object is the
+unit of ownership and extension; the C4 mix resolves the resulting owners.
+Lean checks that every listed object's role and group are present in the
+entity set and its policy survives in =Integrated=. The existing thirteen
+schema-bound Cedar requests still check the published behavior.
+
+#+begin_src mermaid
+flowchart LR
+    J[ApprovalObject: role + group + ancestry + policy] --> B[Base: France and Germany]
+    J --> E[Expansion: UK and Japan]
+    B --> I[Integrated]
+    E --> I
+    S[Sensitive classification owner] --> I
+    I --> R[Remove legacy Europe grant]
+#+end_src
+
+=sensitive-cross-country= shows that the clearance branch alone still
+inherits the Europe-wide grant; =restricted-before-veto= shows that the
+expansion branch alone still admits a restricted timesheet without clearance.
+The composed root closes both paths. =expansionEditLocal= identifies only the
+UK and Japan policies as new; =sensitiveEditLocal= identifies only the
+clearance veto. =integratedEditLocal= isolates the final removal and veto,
+while =originalCountriesPreservedFully= checks that the France and Germany
+policy bodies are identical before and after composition. This is the
+maintenance claim of the example: a new country and a new sensitivity rule
+do not require rewriting existing country policies.
+
+The scenario checks nested role membership, nested resource containers,
+an action group, a new country, cross-country denial, and the clearance
+veto before and after composition. =incompleteHierarchyRejected= records
+the adapter boundary: the Lean entity model reads supplied ancestor sets,
+while Rust Cedar computes closure while loading JSON entities. Export
+rejects a locally visible ancestry chain whose transitive members are
+missing. [[file:CountryApprovalExport.lean][CountryApprovalExport.lean]]
+feeds the named requests into Rust Cedar; the generated
+[[file:CountryPolicies/integrated.cedar][integrated policy source]] is
+reparsed and checked with the same requests. This is finite conformance
+evidence for the modeled requests, not a proof about all possible requests.
+The [[file:CountryApprovalValidatedExport.lean][schema-bound exporter]]
+also checks all thirteen requests through Cedar's strict schema boundary.
+=schemaValidationFully= checks the schema and four POO roots in Lean;
+=just check-schema-bound-scenarios= checks tag types and the
+=ApproverActions= hierarchy in the exported schema before Rust replay.
+See [[file:../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
+
+#+begin_src sh
+just example governance country-approval
+just example governance country-approval-validated
+just check-cedar-language
+just check-schema-bound-scenarios
+#+end_src

@@ -1,0 +1,70 @@
+#+TITLE: AgentCore Lakehouse Gateway Policy Composition
+#+OPTIONS: toc:nil
+
+* Source and modeled boundary
+
+The [[https://aws.amazon.com/blogs/machine-learning/secure-ai-agents-with-policy-and-lambda-interceptors-in-amazon-bedrock-agentcore-gateway/][AWS AgentCore lakehouse example]] (June 2026) describes an insurance
+data agent whose Gateway evaluates Cedar policy after a request interceptor.
+Its Design 1 denies =get_claims_summary= to policyholders. Design 3 denies
+=query_claims= and =get_claim_details= for =EU= geography, and all five
+lakehouse tools for =RESTRICTED= geography. The article publishes a six-row
+decision table. [[file:LakehouseGateway.lean][LakehouseGateway.lean]] models those Cedar rules and rows.
+
+The source's interceptor retrieves geography and injects it before Cedar
+authorization. The sample lookup uses =UNKNOWN= when no mapping is found.
+The source policies use =has geography= and compare only =EU= and
+=RESTRICTED=. This example separately checks what the *modeled policy set*
+does for =UNKNOWN= and an absent field. =FailClosed= adds a proposed veto
+for both values; it is this project's extension, not a rule attributed to
+AWS. An absent field represents a failed or bypassed projection, not the
+normal behavior of the published interceptor.
+
+#+begin_src mermaid
+flowchart LR
+    JWT[Gateway JWT validation] --> Interceptor[Request interceptor: geography lookup]
+    Interceptor --> Cedar[Cedar Gateway policy]
+    Cedar --> Tool[MCP lakehouse tool]
+    Tool --> Lake[Lake Formation row and column controls]
+    POO[Lean-POO policy construction] --> Cedar
+#+end_src
+
+JWT authentication, the DynamoDB lookup, token exchange, response filtering,
+and Lake Formation enforcement are external to this Lean/Cedar projection.
+The schema projects only the geography input needed by these policies, not
+the complete AgentCore-generated schema or tool arguments. The example does
+not claim that a policy decision proves those systems ran.
+
+* Why POO is used
+
+This model gives the three AWS restrictions independent POO owners over one
+broad Gateway permit. =Role= owns the policyholder summary veto; =EU= owns the
+individual-claims restriction; =Restricted= owns the restricted-geography
+rule. =SourceCombined= C4-composes those three sibling branches. Lean proves
+that each isolated owner leaves another owner's denial case allowed, while
+the combined root matches the source's full decision matrix. =FailClosed=
+extends only one additional policy ID; the six source decisions remain
+unchanged. This is the concrete maintenance unit POO supplies: an owner can
+change one restriction without copying the other policy bodies.
+
+| Source row | Tool | Geography | SourceCombined |
+|------------+------+-----------+----------------|
+| Policyholder 001 | =query_claims= | US | Allow |
+| Policyholder 002 | =query_claims= | EU | Deny |
+| Policyholder 002 | =get_claims_summary= | EU | Deny |
+| Adjuster 001 | =get_claims_summary= | US | Allow |
+| Adjuster 002 | =get_claim_details= | EU | Deny |
+| Any modeled user | =query_login_audit= | RESTRICTED | Deny |
+
+The final row projects the source's “any tool” rule to one of its five named
+tools. The Lean theorem checks all six rows and checks each policy root
+against the Cedar schema. The [[file:ValidatedExport.lean][strict exporter]] adds the six
+=FailClosed= comparison rows and four =UNKNOWN=/absent-field rows. The
+official Cedar Rust parser, validator, and authorizer replay all sixteen
+requests; the Just recipe checks their exact decisions and empty policy
+error lists. It also regenerates and compares the committed
+[[file:Policies/source-combined.cedar][source-aligned Cedar]] and
+[[file:Policies/fail-closed.cedar][extended Cedar]] artifacts.
+
+#+begin_src sh
+just example aws financial-services lakehouse
+#+end_src
