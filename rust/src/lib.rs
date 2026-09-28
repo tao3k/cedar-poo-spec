@@ -10,6 +10,8 @@ pub mod cli;
 #[cfg(feature = "cedar-runtime")]
 pub mod google_sdp;
 #[cfg(feature = "cedar-runtime")]
+pub mod google_sdp_host;
+#[cfg(feature = "cedar-runtime")]
 mod schema;
 
 #[cfg(feature = "cedar-runtime")]

@@ -7,10 +7,16 @@ pseudonymization-google-contract:
     lake build Examples.Manifests
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-tabular > .lake/build/pseudonymization-tabular.json
     cmp .lake/build/pseudonymization-tabular.json Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json
-    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml --example pseudonymization_google_contract -- Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json Examples/Health/Pseudonymization/Fixtures/google-deidentify-response.json Examples/Health/Pseudonymization/Fixtures/google-reidentify-response.json > .lake/build/pseudonymization-google-contract-receipt.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml --example pseudonymization_google_contract -- Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json Examples/Health/Pseudonymization/Fixtures/GoogleSdp/deidentify-response.json Examples/Health/Pseudonymization/Fixtures/GoogleSdp/reidentify-response.json > .lake/build/pseudonymization-google-contract-receipt.json
     jq -e '.kind == "offline-google-sdp-rest-contract" and .providerCalled == false and .contextSwapRejected == true and .keyLineageMismatchRejected == true and .malformedTokenRejected == true and .syntheticRoundTripShapeChecked == true and ([.deidentifyRequestSha256, .deidentifyResponseSha256, .reidentifyRequestSha256, .reidentifyResponseSha256] | all(.[]; test("^[0-9a-f]{64}$")))' .lake/build/pseudonymization-google-contract-receipt.json > /dev/null
 
-pseudonymization: pseudonymization-google-contract
+pseudonymization-google-admission:
+    lake build Examples.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-validated > .lake/build/pseudonymization-validated-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml --example pseudonymization_google_admission -- .lake/build/pseudonymization-validated-manifest.json Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json Examples/Health/Pseudonymization/Fixtures/GoogleSdp/deidentify-response.json Examples/Health/Pseudonymization/Fixtures/GoogleSdp/reidentify-response.json > .lake/build/pseudonymization-google-admission-receipt.json
+    jq -e '.kind == "offline-google-sdp-admission" and .providerCalled == false and .staleRaceRejected == true and .deniedAgentRejected == true and .wrongScopeRejected == true and .revokedRejected == true and .auditFailureRejected == true and .responseSwapRejected == true and .endpointSwapRejected == true and .policyChangeRejected == true and .auditEntries == 2 and ([.audits[] | .schemaSha256, .policiesSha256, .cedarRequestSha256, .googleRequestSha256, .googleResponseSha256] | all(.[]; test("^[0-9a-f]{64}$")))' .lake/build/pseudonymization-google-admission-receipt.json > /dev/null
+
+pseudonymization: pseudonymization-google-contract pseudonymization-google-admission
     just build-examples
     timeout --signal=TERM --kill-after=3s 20s lake env lean -M 2048 -T 10000000 Examples/Health/Pseudonymization/Lifecycle.lean
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-tabular > .lake/build/pseudonymization-tabular.json

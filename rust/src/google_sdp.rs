@@ -28,7 +28,7 @@ pub struct SurrogateInfoType(pub String);
 
 /// The selected Lean table input, including catalog lineage. A Host must
 /// authenticate its origin before using it as an execution instruction.
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectedTabularInput {
     pub dataset: String,

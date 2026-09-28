@@ -36,6 +36,11 @@ name = "pseudonymization_google_contract"
 path = "examples/pseudonymization_google_contract.rs"
 required-features = ["cedar-runtime"]
 
+[[example]]
+name = "pseudonymization_google_admission"
+path = "examples/pseudonymization_google_admission.rs"
+required-features = ["cedar-runtime"]
+
 [[test]]
 name = "pseudonymization_crypto"
 path = "tests/integration/pseudonymization_crypto.rs"

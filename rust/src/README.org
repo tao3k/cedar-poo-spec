@@ -27,6 +27,13 @@ arbitrary JSON document can satisfy the shape check; it is not itself proof
 of Google execution, a persisted audit, or atomic Host admission.
 The [[file:../examples/pseudonymization_google_contract.rs][offline example runner]] consumes two explicitly synthetic provider-shape
 responses from the hospital scenario and emits request/response digests.
+The [[file:google_sdp_host.rs][in-memory admission API]] replays a schema-validated Cedar case,
+binds the selected row, Google endpoint, and exact request body, and releases a caller-supplied
+response only after a digest audit entry is appended. The
+[[file:../examples/pseudonymization_google_admission.rs][hospital consumer]] owns synthetic responses in its scenario directory.
+The API has no embedded fixture. Its audit and approval revision live only in
+process memory, so this does not establish durable or provider-authenticated
+execution.
 
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/deidentify][Google de-identify REST method]],
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/reidentify][Google re-identify REST method]], and

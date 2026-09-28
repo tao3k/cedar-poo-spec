@@ -1,0 +1,12 @@
+#+TITLE: Synthetic Google SDP Response Fixtures
+#+OPTIONS: toc:nil
+
+These two JSON files are fabricated Google Sensitive Data Protection table
+response shapes for the hospital pseudonymization example. They contain no
+provider receipt, credential, real patient data, or cryptographic output.
+
+[[file:deidentify-response.json][deidentify-response.json]] supplies a synthetic AES-SIV-shaped token.
+[[file:reidentify-response.json][reidentify-response.json]] supplies the selected synthetic input
+value. Both are consumed by the offline REST-contract and Host-admission
+examples. Their location under the hospital scenario makes their ownership
+explicit; generic Rust runtime APIs receive response bytes from a caller.
