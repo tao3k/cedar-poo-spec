@@ -32,6 +32,7 @@ check-docs:
 
 check: check-tests check-docs
     just check-policy-reuse
+    just example governance attested-views
     just check-cedar-language
     just check-mission-comparison
     just check-replay-receipts

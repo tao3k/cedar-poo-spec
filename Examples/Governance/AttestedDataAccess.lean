@@ -159,23 +159,52 @@ def dataOwner : Module := ownerControl.module "Base" .extend
 def platform : Module := platformControl.module "Base" .extend
 def platformV2 : Module := platformControlV2.module "Platform" .overlay
 def compliance : Module := complianceControl.module "Base" .extend
-def governed : Module :=
-  { name := "Governed", parentOrders := [["DataOwner", "Platform", "Compliance"]],
+
+/-- A governed view owns its C4 precedence. Every view performs the same
+    purpose overlay and legacy-grant removal after its owners are resolved. -/
+structure GovernanceView where
+  name : String
+  owners : List String
+
+def GovernanceView.module (view : GovernanceView) : Module :=
+  { name := view.name, parentOrders := [view.owners],
     edits := [.overlay purposePermit, .remove legacyPermit.id] }
-def governedV2 : Module :=
-  { name := "GovernedV2", parentOrders := [["DataOwner", "PlatformV2", "Compliance"]],
-    edits := [.overlay purposePermit, .remove legacyPermit.id] }
-def governedV2Reordered : Module :=
-  { name := "GovernedV2Reordered",
-    parentOrders := [["Compliance", "DataOwner", "PlatformV2"]],
-    edits := [.overlay purposePermit, .remove legacyPermit.id] }
+
+def GovernanceView.reviseOwner (view : GovernanceView) (name oldOwner newOwner : String)
+    (_present : oldOwner ∈ view.owners) : GovernanceView :=
+  ⟨name, view.owners.map (fun owner => if owner == oldOwner then newOwner else owner)⟩
+
+def GovernanceView.prioritize (view : GovernanceView) (name owner : String)
+    (_present : owner ∈ view.owners) : GovernanceView :=
+  ⟨name, owner :: view.owners.filter (· != owner)⟩
+
+def baselineView : GovernanceView :=
+  ⟨"Governed", [ownerControl.moduleName, platformControl.moduleName,
+    complianceControl.moduleName]⟩
+def strengthenedView : GovernanceView :=
+  baselineView.reviseOwner "GovernedV2"
+    platformControl.moduleName platformControlV2.moduleName (by native_decide)
+def reorderedView : GovernanceView :=
+  strengthenedView.prioritize "GovernedV2Reordered"
+    complianceControl.moduleName (by native_decide)
+def governanceViews : List GovernanceView :=
+  [baselineView, strengthenedView, reorderedView]
+
+def governed : Module := baselineView.module
+def governedV2 : Module := strengthenedView.module
+def governedV2Reordered : Module := reorderedView.module
+
+theorem governanceViewsShareEdits :
+    governed.edits = governedV2.edits ∧
+    governedV2.edits = governedV2Reordered.edits := by native_decide
+
 def sandbox : Module :=
   { name := "Sandbox", parentOrders := [["Base"]] }
 def auditView : Module :=
-  { name := "AuditView", parentOrders := [["GovernedV2"]] }
+  { name := "AuditView", parentOrders := [[strengthenedView.name]] }
 def model : Model :=
-  { modules := [base, dataOwner, platform, platformV2, compliance,
-      governed, governedV2, governedV2Reordered, sandbox, auditView] }
+  { modules := [base, dataOwner, platform, platformV2, compliance] ++
+      governanceViews.map GovernanceView.module ++ [sandbox, auditView] }
 /-- An owner chain can opt into C4's indivisible inherited suffix. -/
 def strictOwner : Module := { dataOwner with suffix := true }
 def independentCompliance : Module :=
