@@ -18,7 +18,7 @@ import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Admission.SourceNetwork
 import CedarPooSpec.Data.Relation
 import CedarPooSpec.Data.Lakehouse.LocationBoundary
-import CedarPooSpec.Data.Pseudonymization.TokenCatalog
+import CedarPooSpec.Pseudonymization
 import CedarPooSpec.CompoundAuthorization
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation

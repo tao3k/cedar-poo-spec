@@ -1,0 +1,71 @@
+#+TITLE: Pseudonymization as a Composable Data Lifecycle
+#+OPTIONS: toc:nil
+
+Pseudonymization is a top-level, cross-industry capability in Cedar POO Spec.
+It connects controlled transformation, token lineage, scoped correlation,
+result release, and exceptional re-identification. The same objects can be
+composed for healthcare, finance, enterprise analytics, or AI agents without
+making one industry or cloud provider the semantic owner.
+
+Google Cloud [[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][documents]] the practical distinction between deterministic
+AES-SIV tokens, one-way HMAC tokens, and context tweaks that narrow
+correlation. This library uses those distinctions as source-grounded design
+inputs. It adds Lean-POO ownership and revision, Cedar authorization, scoped
+approval, and explicit deployment boundaries; it does not claim to implement
+Google Sensitive Data Protection.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Cataloged
+    Cataloged --> Tokenized: admitted transformation
+    Tokenized --> Joined: compatible scope and approved purpose
+    Joined --> Released: separate result approval and budget
+    Tokenized --> Reidentified: exceptional grant and durable audit
+    Joined --> Suspended: incident veto
+    Suspended --> Joined: owned veto withdrawal
+    Tokenized --> Revised: key or transformation change
+    Revised --> Cataloged: new lineage admission
+#+end_src
+
+* Public objects
+
+[[file:Mode.lean][Mode]] declares the capability boundary exercised by the
+reference scenario: AES-SIV and HMAC permit stable token joins, AES-GCM does
+not, and HMAC cannot be reversed. These declarations do not authorize key
+release or prove that a provider executed the transformation.
+
+[[file:TokenCatalog.lean][TokenCatalog]] defines explicit tenant, key-domain,
+token-key version, transformation version, and wrapping-key version metadata.
+Profiles use the public =Mode= type; only the Cedar entity projection uses
+its textual label.
+Its HMAC catalog check rejects distinct scopes that declare the same
+key-domain/version/transformation tuple. A wrapper-key change alone does not
+separate tokens. =TokenProfile.sameRecipe= compares the declared ingredients
+needed for an equality join.
+
+[[file:Compatibility.lean][TokenRelation]] expresses that same recipe
+comparison directly in Cedar's expression AST. A consumer chooses the
+source and target expressions; Cedar evaluates the resulting policy. Tenant
+admission, purpose grants, result budget, and actual key possession remain
+separate controls supplied by [[file:../Admission/README.org][Admission]] and
+[[file:../Governance/README.org][Governance]] or by a downstream Host.
+
+[[file:ResultRelease.lean][ResultRelease]] owns two Cedar policy slots: a
+scoped permit requiring the same target, actor, tenant, purpose approval, and
+available result budget; and an owner-approval veto. Its introduce, revise,
+and withdraw edits can be composed without copying tokenization or join
+policies. A Cedar permit does not consume the budget or release bytes.
+
+* Executable consumer and boundary
+
+The [[file:../../Examples/Health/Pseudonymization/README.org][hospital example]] uses this public relation and catalog. It composes
+AES-SIV, GCM, and HMAC views, then adds owner, privacy, incident, and result
+release objects through Lean-POO. It checks Cedar decisions with the official
+Rust engine, exercises a finite Host ticket-redemption model, and runs local
+synthetic-data cryptographic checks.
+
+The catalog depends on accurate Host key inventory. The finite Host model
+does not persist an audit, call a provider, or release real data. A deployment
+must authenticate facts, execute the chosen transformation, and bind a
+durable provider receipt to the exact admitted effect. Deterministic tokens
+also expose equality within their scope; pseudonymization is not anonymity.

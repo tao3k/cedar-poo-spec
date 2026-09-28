@@ -117,8 +117,8 @@ rewraps existing data. A Host must explicitly rewrap the same data key and
 retain access to versions required for older tokens. Google's HMAC method
 does not expose the AES-SIV context tweak; its =transformVersion= still
 captures input canonicalization.
-The shared =Data.sameAttribute= builder expresses the mode, scope, key-domain,
-token-key, and transform comparisons over Cedar's own expression AST. Their
+The public [[file:../../../CedarPooSpec/Pseudonymization/Compatibility.lean][Pseudonymization.TokenRelation]] expresses the mode, scope,
+key-domain, token-key, and transform comparisons over Cedar's own expression AST. Their
 schema and entity values remain Cedar-owned.
 
 =Admission.BoundOperation= derives a concrete tokenization request from a
@@ -132,7 +132,7 @@ actual Host payload or prove key possession.
 For HMAC, a scope label in Cedar cannot by itself prevent passive linkage:
 the same HMAC key and input recipe produce the same token across scopes.
 =DatasetObject= supplies the exported Cedar entity and projects a
-[[file:../../../CedarPooSpec/Data/Pseudonymization/TokenCatalog.lean][Data.Pseudonymization.TokenProfile]] for the public catalog check.
+[[file:../../../CedarPooSpec/Pseudonymization/TokenCatalog.lean][Pseudonymization.TokenProfile]] for the public catalog check.
 =hmacCatalogSeparated= rejects distinct HMAC scopes that
 reuse one key-domain/version/transform tuple. The manifest exporter refuses
 such a catalog. =unsafeHmacStudyRejected= and =isolatedHmacStudyAccepted=

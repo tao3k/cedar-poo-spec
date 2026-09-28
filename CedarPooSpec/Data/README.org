@@ -4,8 +4,9 @@
 [[file:Relation.lean][Relation]] builds Cedar attribute comparisons without a parallel entity
 model. [[file:Lakehouse/README.org][Lakehouse]] owns a location-based data-access boundary
 that can be composed with financial or other industry rules.
-[[file:Pseudonymization/README.org][Pseudonymization]] owns token-lineage metadata and a catalog separation
-check independent of healthcare identities or any cloud platform.
+The [[file:../Pseudonymization/README.org][top-level Pseudonymization capability]] composes data lineage with
+admission and governance for transformation, correlation, release, and
+exceptional recovery.
 
 The consuming application defines its dataset catalog, authenticates
 projected facts, and enforces any data-plane effect. These modules do not

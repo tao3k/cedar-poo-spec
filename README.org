@@ -20,6 +20,36 @@ specification.
   repositories. They are not part of Lean-POO or this specification
   adapter.
 
+* Core design: composable pseudonymization
+
+[[file:CedarPooSpec/Pseudonymization/README.org][Pseudonymization]] is the library's leading cross-industry capability.
+Its object boundary follows the data lifecycle: admit a transformation,
+record token and key lineage, permit a scoped join, separately approve result
+release, and govern exceptional re-identification. Lean-POO composes and
+revises the owners; Cedar decides each requested operation; the Host
+authenticates facts and executes the data effect. This lets an AI agent use
+approved derived data without inheriting tokenization or plaintext-release
+authority.
+
+Google Cloud's [[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][pseudonymization design]] shows why token context, key material,
+and reversibility must be explicit. [[https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/][OWASP LLM02]] identifies sensitive-information
+disclosure as a risk for AI applications. This project composes policy and
+proof boundaries around those concerns; pseudonymization itself is not
+anonymization and does not guarantee that an AI output is safe to release.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Admitted
+    Admitted --> Tokenized: transform under scoped key lineage
+    Tokenized --> Joined: purpose-bound grant and compatible tokens
+    Joined --> Released: independent result approval and budget
+    Tokenized --> Reidentified: emergency grant and audit
+    Joined --> Suspended: incident veto
+    Suspended --> Joined: withdraw owned veto
+    Tokenized --> Revised: key or recipe change
+    Revised --> Admitted: new catalog and policy revision
+#+end_src
+
 * Features
 
 [[file:docs/rfc/0001-certified-authorization.org][RFC 0001]] defines the
@@ -46,7 +76,8 @@ construction-time boundary for Lean-POO multiple dispatch across independently
 extensible policy profiles.
 [[file:docs/rfc/0008-composable-control-objects.org][RFC 0008]] defines an
 open, scenario-driven control-object library above Cedar's upstream semantics.
-Admission, Governance, and Data are cross-industry capability families;
+Pseudonymization, Admission, Governance, and Data are cross-industry
+capability families;
 =Vertical/Health= and =Vertical/FinancialServices= hold industry controls,
 while =Platform/AWS= holds reusable AgentCore integration projections.
 The [[file:CedarPooSpec/Data/Lakehouse/README.org][Lakehouse data boundary]] can be selected without AWS or finance; an

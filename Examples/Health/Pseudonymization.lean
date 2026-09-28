@@ -3,7 +3,7 @@ import CedarPooSpec.PolicyValidation
 import CedarPooSpec.Governance.Veto
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Data.Relation
-import CedarPooSpec.Data.Pseudonymization.TokenCatalog
+import CedarPooSpec.Pseudonymization
 
 /-!
 An authorization model for hospital pseudonymization. The cryptographic
@@ -18,7 +18,7 @@ open CedarPooSpec.PolicyModules
 open CedarPooSpec.Governance
 open CedarPooSpec.Admission
 open CedarPooSpec.Data
-open CedarPooSpec.Data.Pseudonymization
+open CedarPooSpec.Pseudonymization
 open LeanPoo.Proof
 
 def actorType : EntityType := ⟨"Actor", []⟩
@@ -79,9 +79,9 @@ def hospitalLineage : TokenLineage :=
     tokenKeyVersion := "dek-v1", transformVersion := "patient-id-v1",
     wrappingVersion := "kek-v1" }
 
-def datasetData (mode scope : String) (lineage : TokenLineage := hospitalLineage) : EntityData :=
+def datasetData (mode : Mode) (scope : String) (lineage : TokenLineage := hospitalLineage) : EntityData :=
   { attrs := Map.make [("tenant", .prim (.string lineage.tenant)),
-      ("mode", .prim (.string mode)), ("scope", .prim (.string scope)),
+      ("mode", .prim (.string mode.label)), ("scope", .prim (.string scope)),
       ("keyDomain", .prim (.string lineage.keyDomain)),
       ("tokenKeyVersion", .prim (.string lineage.tokenKeyVersion)),
       ("transformVersion", .prim (.string lineage.transformVersion)),
@@ -93,7 +93,7 @@ def datasetData (mode scope : String) (lineage : TokenLineage := hospitalLineage
     actual transformation and key inventory before publication. -/
 structure DatasetObject where
   uid : EntityUID
-  mode : String
+  mode : Mode
   scope : String
   lineage : TokenLineage := hospitalLineage
 
@@ -104,27 +104,27 @@ def DatasetObject.entity (object : DatasetObject) : EntityUID × EntityData :=
   (object.uid, datasetData object.mode object.scope object.lineage)
 
 def datasets : List DatasetObject := [
-  ⟨hospital, "aes-siv", "hospital-a", hospitalLineage⟩,
-  ⟨research, "aes-siv", "study-1", hospitalLineage⟩,
-  ⟨randomized, "aes-gcm", "hospital-a", hospitalLineage⟩,
-  ⟨oneWay, "hmac-sha256", "hospital-a", hospitalLineage⟩,
-  ⟨otherKey, "aes-siv", "hospital-a", { hospitalLineage with keyDomain := "key-b" }⟩,
-  ⟨otherTenant, "aes-siv", "hospital-a", { hospitalLineage with tenant := "hospital-b" }⟩,
-  ⟨rewrapped, "aes-siv", "hospital-a", { hospitalLineage with wrappingVersion := "kek-v2" }⟩,
-  ⟨rotatedTokenKey, "aes-siv", "hospital-a", { hospitalLineage with tokenKeyVersion := "dek-v2" }⟩,
-  ⟨revisedTransform, "aes-siv", "hospital-a",
+  ⟨hospital, .aesSiv, "hospital-a", hospitalLineage⟩,
+  ⟨research, .aesSiv, "study-1", hospitalLineage⟩,
+  ⟨randomized, .aesGcm, "hospital-a", hospitalLineage⟩,
+  ⟨oneWay, .hmacSha256, "hospital-a", hospitalLineage⟩,
+  ⟨otherKey, .aesSiv, "hospital-a", { hospitalLineage with keyDomain := "key-b" }⟩,
+  ⟨otherTenant, .aesSiv, "hospital-a", { hospitalLineage with tenant := "hospital-b" }⟩,
+  ⟨rewrapped, .aesSiv, "hospital-a", { hospitalLineage with wrappingVersion := "kek-v2" }⟩,
+  ⟨rotatedTokenKey, .aesSiv, "hospital-a", { hospitalLineage with tokenKeyVersion := "dek-v2" }⟩,
+  ⟨revisedTransform, .aesSiv, "hospital-a",
     { hospitalLineage with transformVersion := "patient-id-v2" }⟩]
 
 /-- The Google HMAC transformation has no context tweak. Separate scopes
     therefore need separate HMAC key material to prevent passive linkage. -/
 def hmacCatalogSeparated (catalog : List DatasetObject) : Bool :=
-  CedarPooSpec.Data.Pseudonymization.hmacCatalogSeparated
+  CedarPooSpec.Pseudonymization.hmacCatalogSeparated
     (catalog.map DatasetObject.profile)
 
 def unsafeHmacStudy : DatasetObject :=
-  ⟨⟨datasetType, "unsafe-hmac-study"⟩, "hmac-sha256", "study-1", hospitalLineage⟩
+  ⟨⟨datasetType, "unsafe-hmac-study"⟩, .hmacSha256, "study-1", hospitalLineage⟩
 def isolatedHmacStudy : DatasetObject :=
-  ⟨⟨datasetType, "isolated-hmac-study"⟩, "hmac-sha256", "study-1",
+  ⟨⟨datasetType, "isolated-hmac-study"⟩, .hmacSha256, "study-1",
     { hospitalLineage with keyDomain := "study-1-hmac-key" }⟩
 
 theorem publishedHmacCatalogSeparated : hmacCatalogSeparated datasets = true := by
@@ -154,21 +154,14 @@ def eqString (left : Expr) (right : String) : Expr :=
 def equal (left right : Expr) : Expr := .binaryApp .eq left right
 def not (body : Expr) : Expr := .unaryApp .not body
 def target (name : String) : Expr := .getAttr (fact "targetDataset") name
-def scopeBound : Expr := sameAttribute (fact "targetDataset") (.var .resource) "scope"
-def keyBound : Expr := sameAttribute (fact "targetDataset") (.var .resource) "keyDomain"
-def tokenKeyBound : Expr :=
-  sameAttribute (fact "targetDataset") (.var .resource) "tokenKeyVersion"
-def transformBound : Expr :=
-  sameAttribute (fact "targetDataset") (.var .resource) "transformVersion"
-def modeBound : Expr := sameAttribute (fact "targetDataset") (.var .resource) "mode"
+def tokenRelation : TokenRelation :=
+  { source := fact "targetDataset", target := .var .resource }
 def tenantBound : Expr := equal (attr .principal "tenant") (resource "tenant")
 def targetTenantBound : Expr := equal (attr .principal "tenant") (target "tenant")
 def selfBound : Expr := equal (fact "targetDataset") (.var .resource)
 def modeIs (mode : String) : Expr := eqString (resource "mode") mode
 def compatible (mode : String) : Expr :=
-  .and (modeIs mode) (.and modeBound
-    (.and scopeBound (.and keyBound
-      (.and tokenKeyBound transformBound))))
+  .and (modeIs mode) tokenRelation.sameRecipe
 def keyed (mode : String) : Expr :=
   .and (compatible mode) (.and (fact "keyAuthorized")
     (equal (fact "requestedKeyVersion") (resource "tokenKeyVersion")))
@@ -181,28 +174,9 @@ def policy (id : String) (effect : Effect) (action : EntityUID)
     resourceScope := .resourceScope .any,
     condition := [{ kind := .when, body := body }] }
 
-/-- This object states which operation a cryptographic profile can support.
-    It never claims that Cedar performs the cryptographic operation. -/
-inductive CryptoMode where
-  | aesSiv | aesGcm | hmacSha256
-  deriving DecidableEq
-
-def CryptoMode.label : CryptoMode → String
-  | .aesSiv => "aes-siv"
-  | .aesGcm => "aes-gcm"
-  | .hmacSha256 => "hmac-sha256"
-
-def CryptoMode.reversible : CryptoMode → Bool
-  | .aesSiv | .aesGcm => true
-  | .hmacSha256 => false
-
-def CryptoMode.linkable : CryptoMode → Bool
-  | .aesSiv | .hmacSha256 => true
-  | .aesGcm => false
-
 structure CryptoProfile where
   name : String
-  mode : CryptoMode
+  mode : Mode
 
 def CryptoProfile.module (profile : CryptoProfile) : Module := Id.run do
   let mode := profile.mode.label
@@ -275,19 +249,18 @@ def views : List GovernanceView := [hospitalView, randomizedView, oneWayView]
 /-- Releasing an analytical result is a distinct owned permission from
     joining stored tokens. The Host authenticates approval and consumes its
     budget in the same transaction that releases the result. -/
-def resultRelease : Module := Id.run do
-  let ownerControl : Veto :=
-    { policyId := "release-owner-approval",
-      actionScope := .actionScope (.eq releaseResult),
-      denyWhen := not (fact "ownerApproved") }
-  let edits : List Edit :=
-    [.extend (policy "release-result" .permit releaseResult
-      (.and selfBound (.and tenantBound
-        (.and (eqString (attr .principal "kind") "agent")
-          (.and targetTenantBound
-            (.and (fact "releaseApproved") (fact "budgetAvailable"))))))),
-      ownerControl.edit .introduce]
-  return { name := "ResultRelease", parentOrders := [[hospitalView.name]], edits }
+def resultReleaseControl : ResultRelease :=
+  { permitId := "release-result", ownerVetoId := "release-owner-approval",
+    actionScope := .actionScope (.eq releaseResult),
+    sameTarget := selfBound, tenantBound,
+    actorAllowed := eqString (attr .principal "kind") "agent",
+    targetTenantBound,
+    ownerApproved := fact "ownerApproved",
+    releaseApproved := fact "releaseApproved",
+    budgetAvailable := fact "budgetAvailable" }
+def resultRelease : Module :=
+  { name := "ResultRelease", parentOrders := [[hospitalView.name]],
+    edits := resultReleaseControl.edits .introduce }
 
 def incidentControl : Veto :=
   veto "agent-join-suspended" join (eqString (attr .principal "kind") "agent")
