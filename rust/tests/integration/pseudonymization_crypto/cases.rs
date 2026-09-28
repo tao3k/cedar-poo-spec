@@ -3,24 +3,11 @@ use aes_gcm::{
     aead::{Aead, KeyInit as _},
 };
 use aes_siv::siv::Aes256Siv;
+use cedar_poo_bridge::google_sdp::{SelectedTabularInput, TabularAesSiv, WrappedKeyBinding};
 use hmac::{Hmac, Mac};
-use serde::Deserialize;
 use sha2::Sha256;
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct TabularFixture {
-    dataset: String,
-    value_field: String,
-    context_field: String,
-    value: String,
-    context: String,
-    key_domain: String,
-    token_key_version: String,
-    transform_version: String,
-    wrapping_version: String,
-    surrogate_info_type: Option<String>,
-}
+type TabularFixture = SelectedTabularInput;
 
 const PATIENT_ID: &[u8] = b"synthetic-patient-0001";
 
@@ -88,6 +75,40 @@ fn lean_selected_table_fields_are_actual_siv_inputs() {
             .unwrap()
             .decrypt([b"study-two".as_slice()], &token)
             .is_err()
+    );
+}
+
+#[test]
+fn lean_selected_table_fields_build_google_sdp_request_with_bound_key_lineage() {
+    let fixture: TabularFixture = serde_json::from_str(include_str!(
+        "../../../../Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json"
+    ))
+    .unwrap();
+    let binding = WrappedKeyBinding {
+        key_domain: fixture.key_domain.clone(),
+        token_key_version: fixture.token_key_version.clone(),
+        wrapping_version: fixture.wrapping_version.clone(),
+        kms_key_name:
+            "projects/synthetic-project/locations/us-central1/keyRings/test/cryptoKeys/dek".into(),
+        wrapped_key_base64: "c3ludGhldGlj".into(),
+    };
+    let plan = TabularAesSiv::from_selected(
+        "projects/synthetic-project/locations/us-central1".into(),
+        fixture,
+        binding,
+    )
+    .unwrap();
+    let body: serde_json::Value =
+        serde_json::from_slice(&plan.deidentify_body().unwrap().to_json_bytes().unwrap()).unwrap();
+    assert_eq!(body["item"]["table"]["headers"][0]["name"], "patient_id");
+    assert_eq!(
+        body["item"]["table"]["rows"][0]["values"][1]["stringValue"],
+        "hospital-a"
+    );
+    assert_eq!(
+        body["deidentifyConfig"]["recordTransformations"]["fieldTransformations"][0]["primitiveTransformation"]
+            ["cryptoDeterministicConfig"]["context"]["name"],
+        "tenant_scope"
     );
 }
 

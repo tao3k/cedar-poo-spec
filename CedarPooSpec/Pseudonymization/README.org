@@ -78,13 +78,17 @@ The [[file:../../rust/examples/pseudonymization_local.rs][local executable]] rep
 the selected input against that case's request and dataset entity, performs
 synthetic AES-SIV encryption, and emits content hashes for both the Cedar
 decision and local effect. Changed context or token-key version is rejected.
+The separate [[file:../../rust/src/README.org][Google SDP REST boundary]] constructs a table field transformation
+and checks a caller-supplied response against the selected row and KMS key
+lineage. It does not send a Google request. RustCrypto's local AES-SIV token
+is not asserted to match Google's token bytes.
 
 Google Sensitive Data Protection also supports FPE-FFX, which this library
 does not currently model. The AES-GCM branch is a separate randomized
-encryption scenario, not a Google pseudonymization method. The fixture is
-not a Google API request, authenticated provider receipt, or durable Host
-transaction. The local receipt is reproducible evidence for this example,
-not an admission token for production effects.
+encryption scenario, not a Google pseudonymization method. The fixture and
+local receipt are reproducible evidence for this example. Neither is an
+authenticated provider receipt, durable Host transaction, or admission
+token for production effects.
 
 The catalog depends on accurate Host key inventory. The finite Host model
 does not persist an audit, call a provider, or release real data. A deployment

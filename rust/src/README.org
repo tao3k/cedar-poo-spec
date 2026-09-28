@@ -1,0 +1,41 @@
+#+TITLE: Rust Bridge and Google Sensitive Data Protection Boundary
+#+OPTIONS: toc:nil
+
+* Google table transformation contract
+
+[[file:google_sdp.rs][google_sdp.rs]] maps the selected Lean table input to the official Google
+Sensitive Data Protection =projects.locations.content.deidentify= and
+=reidentify= REST body shapes. It selects one entire table column through
+=RecordTransformations.FieldTransformation=, takes the context from a second
+column, and uses a Host-resolved KMS-wrapped data key. The same transformation
+configuration is used in the reverse request. The [[file:../../CedarPooSpec/Pseudonymization/README.org][public Lean capability]]
+owns the generic recipe; the [[file:../../Examples/Health/Pseudonymization/README.org][hospital example]] supplies a synthetic selected row.
+
+The =SelectedTabularInput= and =WrappedKeyBinding= must agree on key domain,
+token-key version, and wrapping version before a request is constructed. The
+Host must authenticate both inputs and resolve the actual key. This check
+does not prove that the wrapped bytes contain that version of the data key.
+
+The caller supplies a provider response through an authenticated transport.
+=check_deidentify_response= and =check_reidentify_response= require the
+expected table shape, unchanged context, one reported successful field
+transformation, and the expected transformation or recovery of the selected
+cell. De-identification also checks the Base64 AES-SIV token and any declared
+surrogate name and encoded length. Their output binds hashes of the request
+and response JSON. An
+arbitrary JSON document can satisfy the shape check; it is not itself proof
+of Google execution, a persisted audit, or atomic Host admission.
+
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/deidentify][Google de-identify REST method]],
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/reidentify][Google re-identify REST method]], and
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.deidentifyTemplates#CryptoDeterministicConfig][CryptoDeterministicConfig reference]] define the wire format.
+
+* Local cryptographic check
+
+[[file:../examples/pseudonymization_local.rs][pseudonymization_local.rs]] uses RustCrypto with a synthetic key to check
+deterministic encryption, context separation, and local reversal after
+governed Cedar decisions. Google internally expands its supplied key and
+specifies its own context handling. The local RustCrypto output is therefore
+not asserted to be byte-for-byte interchangeable with a Google token. The
+Google request and response boundary above is kept separate from this local
+check.

@@ -333,6 +333,7 @@ dependencies = [
  "aes-gcm",
  "aes-siv",
  "asp-rust",
+ "base64",
  "cedar-policy",
  "hmac",
  "serde",

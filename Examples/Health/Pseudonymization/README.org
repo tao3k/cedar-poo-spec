@@ -42,6 +42,12 @@ round-trip result without emitting plaintext. =just example health
 pseudonymization= checks it and rejects a swapped context or key version.
 Both approvals still come from synthetic request facts; this is not a durable
 Host transaction or a Google provider execution receipt.
+The [[file:../../../rust/src/google_sdp.rs][Google SDP request boundary]] consumes the same selected fixture and a
+Host-resolved wrapped key descriptor. Its test checks the official table
+=RecordTransformation= shape, context field, and key lineage. It can check a
+caller-supplied response shape, but the example does not authenticate a
+Google response or run the Google API. The local RustCrypto token must not be
+treated as a Google token.
 
 * Object composition
 
