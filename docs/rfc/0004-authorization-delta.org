@@ -68,15 +68,17 @@ IDs, the number of schema environments checked, and any expansion witnesses.
 Applications decide whether an expansion is authorized; the library exposes
 the change without making that governance decision.
 
-Set =CVC5= to an absolute path to the cvc5 executable and run:
+The repository devenv provides cvc5 and sets =CVC5= to its absolute executable
+path. After activating the repository through =direnv=, run the gate through
+the cached profile entrypoint:
 
 #+begin_src sh
-just check-authorization-delta
+./.devenv/devenv-profile-exec just check-authorization-delta
 #+end_src
 
 The recipe limits Lean time and memory, checks both expected outcomes, and
 replays the witness through Rust Cedar. =just check= includes this gate. CI
-downloads CVC5 1.4.0, checks its SHA-256 digest, and runs the same command.
+downloads CVC5 1.4.0, checks its SHA-256 digest, and runs the same checks.
 No solver binary is committed.
 The payment case has its own =just check-payment-delta= gate.
 
