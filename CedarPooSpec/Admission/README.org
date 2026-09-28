@@ -1,0 +1,13 @@
+#+TITLE: Reusable Admission Controls
+#+OPTIONS: toc:nil
+
+[[file:BoundOperation.lean][BoundOperation]] binds one proposed effect and state snapshot to the
+Cedar request used for admission. A downstream Host authenticates the facts,
+serializes the state transition, and enforces the decision.
+
+[[file:SourceNetwork.lean][SourceNetwork]] owns a Cedar IP-range forbid slot. Its =introduce=,
+=revise=, and =withdraw= edits let a consumer narrow a source network
+without copying unrelated policies. The
+[[file:../../Examples/Governance/README.org][trusted-network governance example]] chooses the corporate and enclave
+CIDRs and proves that only this slot changes. A verified source address
+must still be projected by an external gateway.

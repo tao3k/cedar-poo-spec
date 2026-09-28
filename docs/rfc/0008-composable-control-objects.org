@@ -238,9 +238,11 @@ a downstream composition.
 | Module | First-class object | Cedar API used | POO extension axis |
 |--------+--------------------+----------------+--------------------|
 | =Admission/= | An attempted operation, authenticated evidence projection, bound effect, state version, and admission receipt. | =Cedar.Spec.Request=, =Entities=, =isAuthorized=, request and entity validation. | Inherit a base admission boundary; extend independent vetoes; revise one evidence projection without copying the policy set. |
+| =Admission.SourceNetwork= | A request IP range restriction for one owned policy slot. | Cedar IP and =isInRange= extension expressions, policy scopes, and forbid effect. | Introduce, revise, or withdraw the source-network boundary independently of the accessed data. |
 | =Governance/= | Scoped approval, responsible owner, revocation, and policy-control contribution. | =Policy=, =Template=, =link?=, =validate=, permit and forbid effects. | Compose owner, platform, privacy, and incident controls; overlay or remove a specific policy ID. |
 | =Data/= | Classified asset, lineage, transformation version, and source/target relation. | Cedar schema/entity definitions, entity validation, attribute and extension expressions. | Extend classifications or transformation profiles and invalidate only dependent controls. |
 | =Data/Lakehouse/= | A request-bound location restriction for a lakehouse data access path. | Cedar input expressions, action and resource scopes, forbid policies. | Introduce, revise, or withdraw a single geographic boundary independent of platform and industry. |
+| =Data/Pseudonymization/= | Token key and transformation lineage catalog, with cross-scope HMAC key separation. | The catalog check precedes Cedar policy construction; Cedar still owns authorization decisions. | Compose independent dataset profiles while keeping a reused key domain visible across scopes. |
 | =Platform/AWS/= | AgentCore Gateway entity and action projection. | Cedar entity types, action schema entries, scoped policies. | Share a platform surface among separately owned insurance, banking, and reconciliation policies. |
 | =Vertical/FinancialServices/= | Claims-summary restriction, LOB tool ownership, and controller payment release. | Cedar policy scopes, decimal expressions, entity membership. | Revise one owned slot while independent financial controls compose through C4. |
 
@@ -339,11 +341,18 @@ consumer that uses the public object directly.
 | AgentCore Gateway types and policy scope in insurance, banking, and reconciliation | =Platform.AWS.AgentCore.Gateway= | Three sourced cases share one platform projection without making their financial policies platform-owned. |
 | Retail, Transaction, and Lending tool grants in multi-account banking | =Vertical.FinancialServices.BankingToolOwner= | Each LOB owns one grant slot; an incident revises Transaction alone. |
 | Controller amount threshold in payment release | =Vertical.FinancialServices.ControllerRelease= | The broad grant and bounded overlay share one stable policy ID. |
+| CIDR source-network veto in trusted data access | =Admission.SourceNetwork= | The Cedar IP expression and slot edits are reusable; the corporate and enclave ranges stay in the example. |
+| Token lineage and HMAC catalog separation in health pseudonymization | =Data.Pseudonymization.TokenCatalog= | Key-domain separation is independent of the hospital; the example supplies its dataset records and key identifiers. |
 | Preparer/releaser and requester/approver conflicts | =Governance.SeparationOfDuties= | Procurement and payment share the actor-conflict semantics with different resource attributes. |
 | Country role and timesheet ancestry in =ApprovalObject= | Example | The jurisdiction graph and fictive identities are scenario input, not a library grant. |
 | Procurement amount limit and concrete payment threshold | Example | The reusable release rule accepts a chosen threshold; the actual value and authenticated payment state belong to each workflow. |
-| Cryptographic profile and key lineage in health pseudonymization | Example, composed through native =Model.extend= and =Model.mix= | The profile represents a particular synthetic dataset, transformation, and key catalog; the crypto operation remains outside Cedar. |
+| Cryptographic operations and hospital dataset profile in health pseudonymization | Example, composed through native =Model.extend= and =Model.mix= | The actual transformation, keys, and synthetic records remain case inputs; the shared lineage catalog check is now public. |
 | Agent fanout ticket and concrete Host port | Example | Its state and effect projection is a useful candidate, but one synthetic Host does not establish a reusable authentication contract. |
+| Cross-agent egress and department synthesis | Example | These cases currently import other examples; a reusable control needs a stable authenticated ledger and effect contract before their graph is promoted. |
+| Vehicle mission successor and VLA command | Example | Their successor and command facts are illustrative scenario inputs; a reusable automotive interface needs a proved Host evidence boundary. |
+| Uptane supplier transition | Example | Its two-repository cutover is a plausible automotive object, but the current example does not authenticate the external repository state. |
+| AWS expense and procurement profiles | Example | Existing public governance and finance controls own the reusable slots; the concrete approval chain and vendor state belong to each profile. |
+| Language coverage and scenario fixtures | Example | These witness Cedar syntax and composition behavior rather than introduce a separately owned control. |
 
 This is a placement decision for the inspected cases, not a permanent
 exclusion. A later independently sourced case can supply the missing
@@ -433,12 +442,14 @@ not that receipt.
 | =CompoundAuthorization= | Multiple Cedar requests against an exact compiled root and entity snapshot. |
 | =TemplateValidation= | Cedar template linking and validated refresh. |
 | =Admission.BoundOperation= | Derives the exact Cedar request from typed effect and state values, rejects a changed effect or state at its public =authorize= call, then delegates evaluation to =CompoundAuthorization=. Value equality does not authenticate Host facts. |
+| =Admission.SourceNetwork= | Emits a Cedar IP-range forbid and owned introduce, revise, or withdraw edits. |
 | =Governance.Veto= | Emits a forbid policy and explicit extend, overlay, or remove edit. |
 | =Governance.MemberGrant= | Emits a membership-scoped permit and explicit introduce, revise, or withdraw edit. |
 | =Governance.SeparationOfDuties= | Emits a Cedar forbid when the current principal equals a recorded prior actor; the workflow owns that actor fact. |
 | =Vertical.Health.DisclosureChannel= | Emits a broad and minimum-disclosure permit and the edits that evolve one channel slot. |
 | =Vertical.Health.EmergencyAccess= | Emits provisional and bounded patient-specific emergency permits for one owned slot. |
 | =Data.Lakehouse.LocationBoundary= | Emits a request-location forbid and its owned slot edits. |
+| =Data.Pseudonymization.TokenCatalog= | Holds explicit token lineage and rejects HMAC key-domain reuse across distinct scopes. |
 | =Platform.AWS.AgentCore.Gateway= | Defines shared AgentCore entity and action projections and scoped Cedar policy constructors. |
 | =Vertical.FinancialServices.ClaimSummaryVeto= | Emits an insurance claims-summary forbid and its owned slot edits. |
 | =Vertical.FinancialServices.BankingToolOwner= | Emits an action-scoped LOB permit and introduce, revise, or withdraw edits. |

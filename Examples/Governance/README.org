@@ -288,8 +288,10 @@ network routing, or access enforcement.
 outside =10.0.0.0/8=. =EnclaveNetwork= overlays that single veto with
 =10.20.0.0/16=. The old owner, platform, region, and project rules remain
 inherited. =onlyNetworkBodyChanged= checks the one-body revision;
-=NetworkBoundary= is the object behind both revisions: each value owns a
-module name, parent, CIDR, and explicit append or override operation. A
+=NetworkBoundary= is the scenario topology behind both revisions: each
+value owns a module name, parent, and a public
+[[file:../../CedarPooSpec/Admission/SourceNetwork.lean][Admission.SourceNetwork]] control with its CIDR and introduce/revise
+operation. A
 =foldlM= stages those objects through =Model.extend=, and
 =boundaryObjectProvenance= checks that the surviving policy originated in
 CorporateNetwork and was last edited by EnclaveNetwork. The CIDR and

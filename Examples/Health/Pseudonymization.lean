@@ -3,6 +3,7 @@ import CedarPooSpec.PolicyValidation
 import CedarPooSpec.Governance.Veto
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Data.Relation
+import CedarPooSpec.Data.Pseudonymization.TokenCatalog
 
 /-!
 An authorization model for hospital pseudonymization. The cryptographic
@@ -17,6 +18,7 @@ open CedarPooSpec.PolicyModules
 open CedarPooSpec.Governance
 open CedarPooSpec.Admission
 open CedarPooSpec.Data
+open CedarPooSpec.Data.Pseudonymization
 open LeanPoo.Proof
 
 def actorType : EntityType := ⟨"Actor", []⟩
@@ -69,16 +71,12 @@ def actorData (kind : String) : EntityData :=
   { attrs := Map.make [("tenant", .prim (.string "hospital-a")),
       ("kind", .prim (.string kind))], ancestors := Set.empty, tags := Map.empty }
 
-/-- Public metadata needed to compare token compatibility. A wrapping-key
-    version is recorded for recovery, but does not identify token key bytes. -/
-structure TokenLineage where
-  tenant : String := "hospital-a"
-  keyDomain : String := "key-a"
-  tokenKeyVersion : String := "dek-v1"
-  transformVersion : String := "patient-id-v1"
-  wrappingVersion : String := "kek-v1"
+def hospitalLineage : TokenLineage :=
+  { tenant := "hospital-a", keyDomain := "key-a",
+    tokenKeyVersion := "dek-v1", transformVersion := "patient-id-v1",
+    wrappingVersion := "kek-v1" }
 
-def datasetData (mode scope : String) (lineage : TokenLineage := {}) : EntityData :=
+def datasetData (mode scope : String) (lineage : TokenLineage := hospitalLineage) : EntityData :=
   { attrs := Map.make [("tenant", .prim (.string lineage.tenant)),
       ("mode", .prim (.string mode)), ("scope", .prim (.string scope)),
       ("keyDomain", .prim (.string lineage.keyDomain)),
@@ -94,41 +92,37 @@ structure DatasetObject where
   uid : EntityUID
   mode : String
   scope : String
-  lineage : TokenLineage := {}
+  lineage : TokenLineage := hospitalLineage
+
+def DatasetObject.profile (object : DatasetObject) : TokenProfile :=
+  { mode := object.mode, scope := object.scope, lineage := object.lineage }
 
 def DatasetObject.entity (object : DatasetObject) : EntityUID × EntityData :=
   (object.uid, datasetData object.mode object.scope object.lineage)
 
 def datasets : List DatasetObject := [
-  ⟨hospital, "aes-siv", "hospital-a", {}⟩,
-  ⟨research, "aes-siv", "study-1", {}⟩,
-  ⟨randomized, "aes-gcm", "hospital-a", {}⟩,
-  ⟨oneWay, "hmac-sha256", "hospital-a", {}⟩,
-  ⟨otherKey, "aes-siv", "hospital-a", { keyDomain := "key-b" }⟩,
-  ⟨otherTenant, "aes-siv", "hospital-a", { tenant := "hospital-b" }⟩,
-  ⟨rewrapped, "aes-siv", "hospital-a", { wrappingVersion := "kek-v2" }⟩,
-  ⟨rotatedTokenKey, "aes-siv", "hospital-a", { tokenKeyVersion := "dek-v2" }⟩,
+  ⟨hospital, "aes-siv", "hospital-a", hospitalLineage⟩,
+  ⟨research, "aes-siv", "study-1", hospitalLineage⟩,
+  ⟨randomized, "aes-gcm", "hospital-a", hospitalLineage⟩,
+  ⟨oneWay, "hmac-sha256", "hospital-a", hospitalLineage⟩,
+  ⟨otherKey, "aes-siv", "hospital-a", { hospitalLineage with keyDomain := "key-b" }⟩,
+  ⟨otherTenant, "aes-siv", "hospital-a", { hospitalLineage with tenant := "hospital-b" }⟩,
+  ⟨rewrapped, "aes-siv", "hospital-a", { hospitalLineage with wrappingVersion := "kek-v2" }⟩,
+  ⟨rotatedTokenKey, "aes-siv", "hospital-a", { hospitalLineage with tokenKeyVersion := "dek-v2" }⟩,
   ⟨revisedTransform, "aes-siv", "hospital-a",
-    { transformVersion := "patient-id-v2" }⟩]
+    { hospitalLineage with transformVersion := "patient-id-v2" }⟩]
 
 /-- The Google HMAC transformation has no context tweak. Separate scopes
     therefore need separate HMAC key material to prevent passive linkage. -/
-def hmacKeyReuseAcrossScopes (left right : DatasetObject) : Bool :=
-  left.mode == "hmac-sha256" && right.mode == "hmac-sha256" &&
-  left.scope != right.scope &&
-  left.lineage.keyDomain == right.lineage.keyDomain &&
-  left.lineage.tokenKeyVersion == right.lineage.tokenKeyVersion &&
-  left.lineage.transformVersion == right.lineage.transformVersion
-
 def hmacCatalogSeparated (catalog : List DatasetObject) : Bool :=
-  catalog.all fun left =>
-    catalog.all fun right => !hmacKeyReuseAcrossScopes left right
+  CedarPooSpec.Data.Pseudonymization.hmacCatalogSeparated
+    (catalog.map DatasetObject.profile)
 
 def unsafeHmacStudy : DatasetObject :=
-  ⟨⟨datasetType, "unsafe-hmac-study"⟩, "hmac-sha256", "study-1", {}⟩
+  ⟨⟨datasetType, "unsafe-hmac-study"⟩, "hmac-sha256", "study-1", hospitalLineage⟩
 def isolatedHmacStudy : DatasetObject :=
   ⟨⟨datasetType, "isolated-hmac-study"⟩, "hmac-sha256", "study-1",
-    { keyDomain := "study-1-hmac-key" }⟩
+    { hospitalLineage with keyDomain := "study-1-hmac-key" }⟩
 
 theorem publishedHmacCatalogSeparated : hmacCatalogSeparated datasets = true := by
   native_decide

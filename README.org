@@ -54,7 +54,8 @@ The [[file:CedarPooSpec/Data/Lakehouse/README.org][Lakehouse data boundary]] can
 AgentCore projection.
 The current APIs bind typed operations to Cedar requests, revise owned
 permit and forbid slots, compare data attributes through Cedar's expression
-AST, and strengthen healthcare disclosure and emergency-access controls.
+AST, check source-network and token-catalog boundaries, and strengthen
+healthcare disclosure and emergency-access controls.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.

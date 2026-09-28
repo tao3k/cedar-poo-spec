@@ -102,8 +102,9 @@ actual Host payload or prove key possession.
 
 For HMAC, a scope label in Cedar cannot by itself prevent passive linkage:
 the same HMAC key and input recipe produce the same token across scopes.
-=DatasetObject= supplies both the exported Cedar entity and a catalog
-admission check. =hmacCatalogSeparated= rejects distinct HMAC scopes that
+=DatasetObject= supplies the exported Cedar entity and projects a
+[[file:../../../CedarPooSpec/Data/Pseudonymization/TokenCatalog.lean][Data.Pseudonymization.TokenProfile]] for the public catalog check.
+=hmacCatalogSeparated= rejects distinct HMAC scopes that
 reuse one key-domain/version/transform tuple. The manifest exporter refuses
 such a catalog. =unsafeHmacStudyRejected= and =isolatedHmacStudyAccepted=
 exercise the two outcomes. This check relies on the Host's key inventory

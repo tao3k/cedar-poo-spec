@@ -1,0 +1,14 @@
+#+TITLE: Pseudonymization Token Catalog
+#+OPTIONS: toc:nil
+
+[[file:TokenCatalog.lean][TokenCatalog]] defines explicit tenant, key-domain, token-key version,
+transformation version, and wrapping-key version metadata. Its HMAC
+catalog check rejects two distinct scopes that declare the same
+key-domain/version/transformation tuple. Changing only the wrapping key
+does not separate token values.
+
+The [[file:../../../Examples/Health/Pseudonymization/README.org][health pseudonymization example]] supplies the hospital-specific catalog
+and checks an unsafe shared-key study against an isolated study. It also
+exports the declared dataset attributes for Cedar authorization. The
+catalog check depends on accurate Host key inventory; it cannot prove
+actual key separation or execute a cryptographic transformation.

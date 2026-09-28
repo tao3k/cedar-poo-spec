@@ -1,5 +1,6 @@
 import Examples.Governance.AttestedDataAccess
 import CedarPooSpec.PolicyJson
+import CedarPooSpec.Admission.SourceNetwork
 
 /-!
 A network-boundary revision of the attested-data scenario. An upstream gateway
@@ -12,31 +13,30 @@ namespace CedarPooSpec.TrustedNetworkDataAccessExample
 open Cedar.Spec Cedar.Validation Cedar.Data CedarPooSpec.PolicyModules
 open CedarPooSpec.AttestedDataAccessExample
 open CedarPooSpec.AttestedManifest
+open CedarPooSpec.Admission
 
-def networkCondition (range : String) : Expr :=
-  .call .isInRange [
-    .getAttr (.var .context) "sourceIp",
-    .call .ip [.lit (.string range)]]
+def networkControl (range : String) : SourceNetwork :=
+  { policyId := "network-boundary",
+    principalScope := .principalScope .any,
+    actionScope := .actionScope (.eq queryAction),
+    resourceScope := .resourceScope .any,
+    acceptedRange := range }
 
 /-- A named network boundary owns its parent and accepted CIDR. Narrowing
     the same policy object overlays its body without copying its ancestor. -/
 structure NetworkBoundary where
   name : String
   parent : String
-  range : String
-  change : Policy → Edit
-
-def NetworkBoundary.policy (boundary : NetworkBoundary) : Policy :=
-  queryPolicy "network-boundary" .forbid
-    (.unaryApp .not (networkCondition boundary.range))
+  control : SourceNetwork
+  change : SourceNetwork.Change
 
 def NetworkBoundary.edit (boundary : NetworkBoundary) : Edit :=
-  boundary.change boundary.policy
+  boundary.control.edit boundary.change
 
 def corporate : NetworkBoundary :=
-  ⟨"CorporateNetwork", Root.strengthened.name, "10.0.0.0/8", .extend⟩
+  ⟨"CorporateNetwork", Root.strengthened.name, networkControl "10.0.0.0/8", .introduce⟩
 def enclave : NetworkBoundary :=
-  ⟨"EnclaveNetwork", "CorporateNetwork", "10.20.0.0/16", .overlay⟩
+  ⟨"EnclaveNetwork", "CorporateNetwork", networkControl "10.20.0.0/16", .revise⟩
 def boundaries : List NetworkBoundary := [corporate, enclave]
 
 def networkModelResult : Except LeanPoo.C4.Error Model :=
