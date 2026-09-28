@@ -21,9 +21,20 @@ risk, and legacy-retirement branches. The application chooses the decimal
 threshold and authenticates payment attributes, actor membership, and the
 effectful transfer.
 
+* Insurance claims summary
+
+[[file:ClaimSummaryVeto.lean][ClaimSummaryVeto]] owns one forbid slot for a claims-summary action when
+the principal satisfies a supplied policyholder condition. The
+[[file:../../../Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/README.org][insurance lakehouse example]] supplies its AgentCore Gateway action and
+Cognito group projection, then composes the insurance rule with independent
+Lakehouse location controls. The public object neither assumes Cognito nor
+imports an AWS module.
+
 * Boundary
 
 =Vertical/FinancialServices/= holds finance-specific reusable controls.
 =Platform/AWS/= holds AWS AgentCore projection helpers; finance controls
-do not import that platform adapter. Scenario records, source quotations,
-policy artifacts, and complete workflows remain in =Examples/=.
+do not import that platform adapter. =Data/Lakehouse/= holds the general
+location boundary. A downstream AWS financial-services profile selects all
+three layers. Scenario records, source quotations, policy artifacts, and
+complete workflows remain in =Examples/=.

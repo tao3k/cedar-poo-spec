@@ -12,8 +12,10 @@ import CedarPooSpec.Vertical.Health.DisclosureChannel
 import CedarPooSpec.Vertical.Health.EmergencyAccess
 import CedarPooSpec.Vertical.FinancialServices.ControllerRelease
 import CedarPooSpec.Vertical.FinancialServices.BankingToolOwner
+import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Data.Relation
+import CedarPooSpec.Data.Lakehouse.LocationBoundary
 import CedarPooSpec.CompoundAuthorization
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation

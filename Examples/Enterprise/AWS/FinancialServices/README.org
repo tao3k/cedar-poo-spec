@@ -16,7 +16,9 @@ must be evidenced independently.
 
 * Lean module dependency
 
-The cases share the [[file:../AgentCore/Gateway.lean][AgentCore Gateway projection]]. The cross-domain scenario imports
+The cases share the [[file:../../../../CedarPooSpec/Platform/AWS/AgentCore/Gateway.lean][AgentCore Gateway projection]]. The insurance lakehouse case also
+combines [[file:../../../../CedarPooSpec/Data/Lakehouse/LocationBoundary.lean][a general data-location boundary]] with
+[[file:../../../../CedarPooSpec/Vertical/FinancialServices/ClaimSummaryVeto.lean][a financial-services claims rule]]. The cross-domain scenario imports
 both case models through their actual Lean modules and reuses banking's
 C4/multimethod lineage; imports are acyclic. A direct import from one
 business model into the other would make its local Cedar policy depend on
@@ -28,8 +30,9 @@ LOB requirements for each call.
 
 #+begin_src mermaid
 flowchart TB
-    G[Gateway.lean: shared entities, schema entry, policy scope]
-    G --> L[LakehouseGateway.lean: claims owner rules]
+    D[Data.Lakehouse: reusable location boundary] --> L[LakehouseGateway: AWS insurance composition]
+    F[Vertical.FinancialServices: claims rule] --> L
+    G[Platform.AWS.AgentCore: Gateway projection] --> L
     G --> B[MultiAccountBanking.lean: banking LOB rules]
     B --> R[Lineage.lean: C4 and multimethod route]
     L --> C[ClaimSettlement.lean: cross-domain plan]

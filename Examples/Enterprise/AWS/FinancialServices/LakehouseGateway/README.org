@@ -48,6 +48,13 @@ unchanged. The model constructs these branches with =Model.extend= and
 This is the concrete maintenance unit POO supplies: an owner can
 change one restriction without copying the other policy bodies.
 
+The ownership layers are explicit in the Lean imports:
+[[file:../../../../../CedarPooSpec/Data/Lakehouse/LocationBoundary.lean][Data.Lakehouse.LocationBoundary]] provides the reusable location veto;
+[[file:../../../../../CedarPooSpec/Vertical/FinancialServices/ClaimSummaryVeto.lean][Vertical.FinancialServices.ClaimSummaryVeto]] provides the insurance rule;
+[[file:../../../../../CedarPooSpec/Platform/AWS/AgentCore/Gateway.lean][Platform.AWS.AgentCore.Gateway]] supplies the provider projection. This
+case chooses concrete actions, group tags, identities, policy IDs, and the
+C4 root for an AWS-hosted insurance workflow.
+
 | Source row | Tool | Geography | SourceCombined |
 |------------+------+-----------+----------------|
 | Policyholder 001 | =query_claims= | US | Allow |

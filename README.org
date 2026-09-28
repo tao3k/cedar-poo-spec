@@ -49,6 +49,9 @@ open, scenario-driven control-object library above Cedar's upstream semantics.
 Admission, Governance, and Data are cross-industry capability families;
 =Vertical/Health= and =Vertical/FinancialServices= hold industry controls,
 while =Platform/AWS= holds reusable AgentCore integration projections.
+The [[file:CedarPooSpec/Data/Lakehouse/README.org][Lakehouse data boundary]] can be selected without AWS or finance; an
+[[file:Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/README.org][AWS insurance profile]] composes it with a financial claims rule and the
+AgentCore projection.
 The current APIs bind typed operations to Cedar requests, revise owned
 permit and forbid slots, compare data attributes through Cedar's expression
 AST, and strengthen healthcare disclosure and emergency-access controls.
@@ -111,7 +114,8 @@ and keep their assumptions explicit.
 
 Industry-specific scenario facts and Host execution remain in Examples or
 downstream projects. Reusable healthcare and finance controls live under
-=Vertical/=; platform-specific projections live under =Platform/=.
+=Vertical/=; platform-specific projections live under =Platform/=, and
+cross-industry data capabilities live under =Data/=.
 
 * Verification
 

@@ -240,8 +240,24 @@ a downstream composition.
 | =Admission/= | An attempted operation, authenticated evidence projection, bound effect, state version, and admission receipt. | =Cedar.Spec.Request=, =Entities=, =isAuthorized=, request and entity validation. | Inherit a base admission boundary; extend independent vetoes; revise one evidence projection without copying the policy set. |
 | =Governance/= | Scoped approval, responsible owner, revocation, and policy-control contribution. | =Policy=, =Template=, =link?=, =validate=, permit and forbid effects. | Compose owner, platform, privacy, and incident controls; overlay or remove a specific policy ID. |
 | =Data/= | Classified asset, lineage, transformation version, and source/target relation. | Cedar schema/entity definitions, entity validation, attribute and extension expressions. | Extend classifications or transformation profiles and invalidate only dependent controls. |
+| =Data/Lakehouse/= | A request-bound location restriction for a lakehouse data access path. | Cedar input expressions, action and resource scopes, forbid policies. | Introduce, revise, or withdraw a single geographic boundary independent of platform and industry. |
 | =Platform/AWS/= | AgentCore Gateway entity and action projection. | Cedar entity types, action schema entries, scoped policies. | Share a platform surface among separately owned insurance, banking, and reconciliation policies. |
-| =Vertical/FinancialServices/= | LOB tool ownership and controller payment release. | Cedar policy scopes, decimal expressions, entity membership. | Revise one permit slot while independent financial controls compose through C4. |
+| =Vertical/FinancialServices/= | Claims-summary restriction, LOB tool ownership, and controller payment release. | Cedar policy scopes, decimal expressions, entity membership. | Revise one owned slot while independent financial controls compose through C4. |
+
+For a financial company deploying on AWS, the reusable data and financial
+controls are selected first; the AgentCore projection supplies concrete
+provider types and request shape. The downstream profile composes all three
+as Lean-POO owners. The file hierarchy represents semantic ownership;
+platform specialization is expressed by imports and model composition, not
+by copying the finance library into an AWS directory.
+
+#+begin_src mermaid
+flowchart BT
+    D[Data.Lakehouse: location boundary] --> C[AWS insurance profile]
+    F[Vertical.FinancialServices: claims rule] --> C
+    P[Platform.AWS.AgentCore: Gateway projection] --> C
+    C --> O[Lean-POO C4 root and Cedar publication]
+#+end_src
 
 The first library object, [[file:../../CedarPooSpec/Governance/Veto.lean][Governance.Veto]],
 retains Cedar's =PolicyID=, =ActionScope=, =PrincipalScope=,
@@ -289,6 +305,15 @@ Gateway's Cedar entity and action shapes, used by three independently
 sourced financial-services cases. Its AWS-specific shape is not a banking
 control; the business policies remain independently owned.
 
+[[file:../../CedarPooSpec/Data/Lakehouse/LocationBoundary.lean][Data.Lakehouse.LocationBoundary]] owns a platform-neutral location forbid
+slot. The insurance example instantiates it for =EU= individual claims,
+=RESTRICTED= geography, and a proposed =UNKNOWN=/missing-input hardening.
+[[file:../../CedarPooSpec/Vertical/FinancialServices/ClaimSummaryVeto.lean][Vertical.FinancialServices.ClaimSummaryVeto]] owns the separate
+policyholder summary restriction. The example supplies its AWS Cognito tag
+expression and AgentCore action to that financial rule; neither public
+object imports AWS. Their C4 composition is checked against the source
+decision table and the official Cedar authorizer.
+
 [[file:../../CedarPooSpec/Vertical/FinancialServices/BankingToolOwner.lean][Vertical.FinancialServices.BankingToolOwner]] owns one LOB tool permit
 slot and its =introduce=, =revise=, and =withdraw= edits. Retail,
 Transaction, and Lending instantiate it with separate action sets. A
@@ -301,8 +326,7 @@ through =PolicyModules.Model=; actual account and payment state is external.
 ** Example-to-library boundary applied
 
 Example file count is not a capability count: several files export or extend
-the same scenario. This
-cut promotes only objects with an observable edit contract and at least one
+the same scenario. This cut promotes only objects with an observable edit contract and at least one
 consumer that uses the public object directly.
 
 | Example object or pattern | Placement | Reason |
@@ -310,6 +334,8 @@ consumer that uses the public object directly.
 | Membership-scoped approver permit in country approval and procurement | =Governance.MemberGrant= | The same stable policy slot supports introduction, revision, and withdrawal across two unrelated entity graphs. |
 | Verification and memory disclosure channels in prior authorization | =Vertical.Health.DisclosureChannel= | Two healthcare communication boundaries share one strengthen/withdraw contract while retaining separate actions and destinations. |
 | Patient-bound emergency permit in clinical break-glass | =Vertical.Health.EmergencyAccess= | A hospital can strengthen one permit slot while composing separate privacy and device owners. |
+| Lakehouse location restrictions in AWS insurance | =Data.Lakehouse.LocationBoundary= | A data-location veto is reusable across industries and providers; the example binds the actual field and values. |
+| Policyholder claims-summary restriction in AWS insurance | =Vertical.FinancialServices.ClaimSummaryVeto= | Insurance owns this policy slot; AWS supplies a principal tag projection. |
 | AgentCore Gateway types and policy scope in insurance, banking, and reconciliation | =Platform.AWS.AgentCore.Gateway= | Three sourced cases share one platform projection without making their financial policies platform-owned. |
 | Retail, Transaction, and Lending tool grants in multi-account banking | =Vertical.FinancialServices.BankingToolOwner= | Each LOB owns one grant slot; an incident revises Transaction alone. |
 | Controller amount threshold in payment release | =Vertical.FinancialServices.ControllerRelease= | The broad grant and bounded overlay share one stable policy ID. |
@@ -412,7 +438,9 @@ not that receipt.
 | =Governance.SeparationOfDuties= | Emits a Cedar forbid when the current principal equals a recorded prior actor; the workflow owns that actor fact. |
 | =Vertical.Health.DisclosureChannel= | Emits a broad and minimum-disclosure permit and the edits that evolve one channel slot. |
 | =Vertical.Health.EmergencyAccess= | Emits provisional and bounded patient-specific emergency permits for one owned slot. |
+| =Data.Lakehouse.LocationBoundary= | Emits a request-location forbid and its owned slot edits. |
 | =Platform.AWS.AgentCore.Gateway= | Defines shared AgentCore entity and action projections and scoped Cedar policy constructors. |
+| =Vertical.FinancialServices.ClaimSummaryVeto= | Emits an insurance claims-summary forbid and its owned slot edits. |
 | =Vertical.FinancialServices.BankingToolOwner= | Emits an action-scoped LOB permit and introduce, revise, or withdraw edits. |
 | =Vertical.FinancialServices.ControllerRelease= | Emits broad and bounded controller permits and their owned slot edits. |
 | =Data.sameAttribute= | Compares named attributes through Cedar's expression AST; schema and entity truth remain Cedar-owned. |
