@@ -44,7 +44,7 @@ fn bootstrap(
     Ok(serde_json::from_value(json!({
         "schema_id": "poo-flow.cedar-authority-snapshot.v1",
         "producer": "poo-flow.scheme-control",
-        "source": "src/modules/authorization/providers/cedar/objects.ss",
+        "source": "modules/authorization/providers/cedar/objects.ss",
         "object_kind": "cedar-authority-snapshot",
         "provenance": {
             "composition_identity": "conformance.health.pseudonymization",

@@ -1108,7 +1108,7 @@ dependencies = [
 [[package]]
 name = "poo-flow-cedar-authority"
 version = "0.1.0"
-source = "git+https://github.com/tao3k/poo-flow?rev=61b3625ddacbc5e9c3e8002f13275e1d98ca5d5e#61b3625ddacbc5e9c3e8002f13275e1d98ca5d5e"
+source = "git+https://github.com/tao3k/poo-flow?rev=c22ffdeda2597d54835ecfca939055c18b29af05#c22ffdeda2597d54835ecfca939055c18b29af05"
 dependencies = [
  "cedar-policy",
  "ed25519-dalek",
