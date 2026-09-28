@@ -91,10 +91,12 @@ token-key, and transform comparisons over Cedar's own expression AST. Their
 schema and entity values remain Cedar-owned.
 
 =Admission.BoundOperation= derives a concrete tokenization request from a
-dataset identifier and token-key revision. The Lean example checks that a
-changed dataset or key revision does not match the original operation, and
-that the changed revision is denied by the composed Cedar policies. This
-does not authenticate the actual Host payload or prove key possession.
+dataset identifier and token-key revision. Its public =authorize= call takes
+the current dataset and revision, and returns a distinct mismatch error
+before Cedar evaluation if either changed. The Lean example checks both
+substitutions and separately checks that a newly bound key revision is denied
+by the composed Cedar policies. This value check does not authenticate the
+actual Host payload or prove key possession.
 
 For HMAC, a scope label in Cedar cannot by itself prevent passive linkage:
 the same HMAC key and input recipe produce the same token across scopes.

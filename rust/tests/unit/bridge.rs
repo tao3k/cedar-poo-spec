@@ -417,6 +417,14 @@ fn rejects_unsafe_revision_names_before_artifact_generation() {
 }
 
 #[test]
+fn accepts_dotted_versions_but_not_empty_segments_or_paths() {
+    assert!(super::valid_revision_name("attested-governed-0.1"));
+    for invalid in ["", ".0.1", "0.1.", "0..1", "../escape", "0/1"] {
+        assert!(!super::valid_revision_name(invalid), "{invalid}");
+    }
+}
+
+#[test]
 fn rejects_reason_drift_with_unchanged_decision() {
     let mut case = receipt();
     case.expected_reasons.clear();

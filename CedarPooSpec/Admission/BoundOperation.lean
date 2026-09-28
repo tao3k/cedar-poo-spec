@@ -29,14 +29,29 @@ def BoundOperation.matches {Effect State : Type}
     (effect : Effect) (state : State) : Bool :=
   decide (operation.effect = effect ∧ operation.state = state)
 
-/-- Reuse the existing proof-bearing Cedar evaluation for the request derived
-    from one bound operation and one POO root. -/
+/-- A value mismatch is distinct from Cedar compilation or evaluation failure. -/
+inductive Error where
+  | effectMismatch
+  | stateMismatch
+  | policy (error : PolicyModules.Error)
+  deriving Repr, BEq
+
+/-- Compare the values supplied at admission with the bound operation before
+    reusing the proof-bearing Cedar evaluation of its request. The Host must
+    authenticate those values and bind any eventual execution to them. -/
 def BoundOperation.authorize {Effect State : Type}
     {project : Effect → State → Request}
+    [DecidableEq Effect] [DecidableEq State]
     (operation : BoundOperation Effect State project)
+    (effect : Effect) (state : State)
     (model : Model) (root : String) (entities : Entities) :
-    Except PolicyModules.Error
+    Except Error
       (CompoundAuthorization.Receipt model root [operation.request] entities) :=
-  CompoundAuthorization.authorizeAll model root [operation.request] entities
+  if !decide (operation.effect = effect) then
+    .error .effectMismatch
+  else if !decide (operation.state = state) then
+    .error .stateMismatch
+  else
+    (CompoundAuthorization.authorizeAll model root [operation.request] entities).mapError .policy
 
 end CedarPooSpec.Admission

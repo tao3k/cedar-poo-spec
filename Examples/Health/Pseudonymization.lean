@@ -324,14 +324,30 @@ theorem tokenizationBindsEffectAndRevision :
   native_decide
 
 theorem tokenizationAuthorizationUsesBoundRequest :
-    (match tokenization.authorize model "HospitalSiv" entities with
+    (match tokenization.authorize "hospital-patients" "dek-v1"
+        model "HospitalSiv" entities with
     | .ok receipt => receipt.allowed
     | .error _ => false) = true := by
   native_decide
 
+theorem substitutedEffectRejectedBeforeCedar :
+    (match tokenization.authorize "research-patients" "dek-v1"
+        model "HospitalSiv" entities with
+    | .error .effectMismatch => true
+    | _ => false) = true := by
+  native_decide
+
+theorem staleStateRejectedBeforeCedar :
+    (match tokenization.authorize "hospital-patients" "dek-v2"
+        model "HospitalSiv" entities with
+    | .error .stateMismatch => true
+    | _ => false) = true := by
+  native_decide
+
 theorem changedKeyRevisionCannotReuseTokenizationDecision :
     (match (⟨"hospital-patients", "dek-v2"⟩ :
-        BoundOperation String String tokenizeRequest).authorize model "HospitalSiv" entities with
+        BoundOperation String String tokenizeRequest).authorize
+          "hospital-patients" "dek-v2" model "HospitalSiv" entities with
     | .ok receipt => receipt.allowed
     | .error _ => false) = false := by
   native_decide

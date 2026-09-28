@@ -11,6 +11,7 @@ namespace CedarPooSpec.TrustedNetworkDataAccessExample
 
 open Cedar.Spec Cedar.Validation Cedar.Data CedarPooSpec.PolicyModules
 open CedarPooSpec.AttestedDataAccessExample
+open CedarPooSpec.AttestedManifest
 
 def networkCondition (range : String) : Expr :=
   .call .isInRange [
@@ -33,7 +34,7 @@ def NetworkBoundary.edit (boundary : NetworkBoundary) : Edit :=
   boundary.change boundary.policy
 
 def corporate : NetworkBoundary :=
-  ⟨"CorporateNetwork", "GovernedV2", "10.0.0.0/8", .extend⟩
+  ⟨"CorporateNetwork", Root.strengthened.name, "10.0.0.0/8", .extend⟩
 def enclave : NetworkBoundary :=
   ⟨"EnclaveNetwork", "CorporateNetwork", "10.20.0.0/16", .overlay⟩
 def boundaries : List NetworkBoundary := [corporate, enclave]
@@ -59,7 +60,7 @@ def networkActionEntry : ActionSchemaEntry :=
   ⟨Set.make [workerType], Set.make [datasetType], Set.empty, networkContextType⟩
 
 def networkSchema : Schema :=
-  ⟨schemaV2.ets, Map.make [(queryAction, networkActionEntry)]⟩
+  ⟨schemaWithClassification.ets, Map.make [(queryAction, networkActionEntry)]⟩
 
 def networkEntities : Entities := Map.make
   (entities.toList.map fun (uid, data) =>
@@ -123,7 +124,7 @@ theorem validatedRevisions :
   native_decide
 
 def earlierRootAllowsExternal : Bool :=
-  match networkModel.compile "GovernedV2" with
+  match networkModel.compile Root.strengthened.name with
   | .error _ => false
   | .ok policies =>
       (isAuthorized (requestWithIp customerDataset {} outsideIp)

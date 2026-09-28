@@ -19,11 +19,20 @@ foundation. The =Admission/=, =Governance/=, and =Data/= modules described
 below are candidate capability families, not a complete taxonomy.
 =Governance.Veto= supports introduction, revision, and withdrawal of a Cedar
 forbid policy. =Admission.BoundOperation= projects a typed effect and state to
-one Cedar request and reuses =CompoundAuthorization= for evaluation;
+one Cedar request; its =authorize= API first checks the supplied effect and
+state against that operation, then reuses =CompoundAuthorization=;
 =Data.sameAttribute= builds a Cedar relation expression without a parallel
 entity catalog. These are initial public cuts, not implementations of every
 control described below. Host authentication and effect execution remain
 outside the Lean library.
+
+Revision selection belongs to a scenario-owned manifest. The attested-data
+example fixes root names and exported Cedar revision IDs in
+[[file:../../Examples/Governance/AttestedManifest.lean][AttestedManifest.lean]]; its ordinary bound operation selects the
+baseline =0.1= root. An explicit freshness revision selects =0.2=; the
+composition roots themselves use semantic names without version suffixes.
+Only explicit comparison and descendant examples select the strengthened
+root. This manifest does not authenticate deployment state.
 
 * Ownership and dependency direction
 
@@ -302,7 +311,7 @@ not that receipt.
 | =Revision= and =AuthorizationDelta= | Changed-policy and proof impact evidence. |
 | =CompoundAuthorization= | Multiple Cedar requests against an exact compiled root and entity snapshot. |
 | =TemplateValidation= | Cedar template linking and validated refresh. |
-| =Admission.BoundOperation= | Derives the exact Cedar request from typed effect and state values, then delegates evaluation to =CompoundAuthorization=. |
+| =Admission.BoundOperation= | Derives the exact Cedar request from typed effect and state values, rejects a changed effect or state at its public =authorize= call, then delegates evaluation to =CompoundAuthorization=. Value equality does not authenticate Host facts. |
 | =Governance.Veto= | Emits a forbid policy and explicit extend, overlay, or remove edit. |
 | =Data.sameAttribute= | Compares named attributes through Cedar's expression AST; schema and entity truth remain Cedar-owned. |
 

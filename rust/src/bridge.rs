@@ -136,10 +136,12 @@ pub(crate) fn check_manifest_inner(
 }
 
 fn valid_revision_name(revision: &str) -> bool {
-    !revision.is_empty()
-        && revision
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '-')
+    revision.split('.').all(|segment| {
+        !segment.is_empty()
+            && segment
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '-')
+    })
 }
 
 /// Recompute official Cedar decisions and reject any drift from stored records.

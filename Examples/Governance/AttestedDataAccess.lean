@@ -2,6 +2,8 @@ import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
 import CedarPooSpec.Soundness
 import CedarPooSpec.Governance.Veto
+import CedarPooSpec.Admission.BoundOperation
+import Examples.Governance.AttestedManifest
 
 /-!
 An enterprise data-access model combining a project subscription, an
@@ -15,6 +17,8 @@ namespace CedarPooSpec.AttestedDataAccessExample
 open Cedar.Spec Cedar.Validation Cedar.Data
 open CedarPooSpec.PolicyModules CedarPooSpec.Soundness
 open CedarPooSpec.Governance
+open CedarPooSpec.Admission
+open CedarPooSpec.AttestedManifest
 open LeanPoo.Proof
 
 def workerType : EntityType := ⟨"DataWorker", []⟩
@@ -45,24 +49,24 @@ def actionEntry : ActionSchemaEntry :=
 def schema : Schema :=
   ⟨Map.make [(workerType, workerEntry), (datasetType, datasetEntry)],
    Map.make [(queryAction, actionEntry)]⟩
-def datasetEntryV2 : EntitySchemaEntry :=
+def datasetEntryWithClassification : EntitySchemaEntry :=
   .standard ⟨Set.empty, Map.make [
     ("project", .required .string),
     ("region", .required .string),
     ("measurement", .required .string),
     ("classification", .optional .string)], none⟩
-def schemaV2 : Schema :=
-  ⟨Map.make [(workerType, workerEntry), (datasetType, datasetEntryV2)],
+def schemaWithClassification : Schema :=
+  ⟨Map.make [(workerType, workerEntry), (datasetType, datasetEntryWithClassification)],
    Map.make [(queryAction, actionEntry)]⟩
 def hasClassification (candidate : Schema) : Bool :=
   match candidate.ets.find? datasetType with
   | some (.standard entry) => entry.attrs.contains "classification"
   | _ => false
-theorem schemaChanged : schema ≠ schemaV2 := by
+theorem schemaChanged : schema ≠ schemaWithClassification := by
   intro same
   have projected := congrArg hasClassification same
   have old : hasClassification schema = false := by native_decide
-  have new : hasClassification schemaV2 = true := by native_decide
+  have new : hasClassification schemaWithClassification = true := by native_decide
   rw [old, new] at projected
   cases projected
 
@@ -100,7 +104,7 @@ def attestationValid : Expr :=
   .and (contextFact "attestationVerified")
     (.and (contextFact "attestationFresh")
       (.binaryApp .eq (contextFact "measurement") (resourceFact "measurement")))
-def attestationV1 : Expr :=
+def attestationBaseline : Expr :=
   .and (contextFact "attestationVerified")
     (.binaryApp .eq (contextFact "measurement") (resourceFact "measurement"))
 def regionMatches : Expr :=
@@ -130,16 +134,16 @@ def ownerControl : Veto :=
     denyWhen := .unaryApp .not (.and ownerApproved independentApprover) }
 def platformControl : Veto :=
   { policyId := "attested-platform", actionScope := .actionScope (.eq queryAction),
-    denyWhen := .unaryApp .not attestationV1 }
-def platformControlV2 : Veto :=
+    denyWhen := .unaryApp .not attestationBaseline }
+def platformControlFreshness : Veto :=
   { platformControl with denyWhen := .unaryApp .not attestationValid }
 def complianceControl : Veto :=
   { policyId := "region-boundary", actionScope := .actionScope (.eq queryAction),
     denyWhen := .unaryApp .not regionMatches }
 
 def ownerVeto : Policy := ownerControl.policy
-def platformVetoV1 : Policy := platformControl.policy
-def platformVetoV2 : Policy := platformControlV2.policy
+def platformVetoBaseline : Policy := platformControl.policy
+def platformVetoFreshness : Policy := platformControlFreshness.policy
 def regionVeto : Policy := complianceControl.policy
 
 def base : Module :=
@@ -147,7 +151,7 @@ def base : Module :=
     edits := [.extend projectPermit, .extend legacyPermit] }
 def dataOwner : Module := ownerControl.module "DataOwner" "Base" .introduce
 def platform : Module := platformControl.module "Platform" "Base" .introduce
-def platformV2 : Module := platformControlV2.module "PlatformV2" "Platform" .revise
+def platformFreshness : Module := platformControlFreshness.module "PlatformFreshness" "Platform" .revise
 def compliance : Module := complianceControl.module "Compliance" "Base" .introduce
 
 /-- A governed view owns its C4 precedence. Every view performs the same
@@ -169,30 +173,30 @@ def GovernanceView.prioritize (view : GovernanceView) (name owner : String)
   ⟨name, owner :: view.owners.filter (· != owner)⟩
 
 def baselineView : GovernanceView :=
-  ⟨"Governed", [dataOwner.name, platform.name, compliance.name]⟩
+  ⟨Root.baseline.name, [dataOwner.name, platform.name, compliance.name]⟩
 def strengthenedView : GovernanceView :=
-  baselineView.reviseOwner "GovernedV2"
-    platform.name platformV2.name (by native_decide)
+  baselineView.reviseOwner Root.strengthened.name
+    platform.name platformFreshness.name (by native_decide)
 def reorderedView : GovernanceView :=
-  strengthenedView.prioritize "GovernedV2Reordered"
+  strengthenedView.prioritize Root.reordered.name
     compliance.name (by native_decide)
 def governanceViews : List GovernanceView :=
   [baselineView, strengthenedView, reorderedView]
 
 def governed : Module := baselineView.module
-def governedV2 : Module := strengthenedView.module
-def governedV2Reordered : Module := reorderedView.module
+def freshAttestation : Module := strengthenedView.module
+def complianceFirst : Module := reorderedView.module
 
 theorem governanceViewsShareEdits :
-    governed.edits = governedV2.edits ∧
-    governedV2.edits = governedV2Reordered.edits := by native_decide
+    governed.edits = freshAttestation.edits ∧
+    freshAttestation.edits = complianceFirst.edits := by native_decide
 
 def sandbox : Module :=
   { name := "Sandbox", parentOrders := [["Base"]] }
 def auditView : Module :=
-  { name := "AuditView", parentOrders := [[strengthenedView.name]] }
+  { name := Root.audit.name, parentOrders := [[strengthenedView.name]] }
 def model : Model :=
-  { modules := [base, dataOwner, platform, platformV2, compliance] ++
+  { modules := [base, dataOwner, platform, platformFreshness, compliance] ++
       governanceViews.map GovernanceView.module ++ [sandbox, auditView] }
 /-- An owner chain can opt into C4's indivisible inherited suffix. -/
 def strictOwner : Module := { dataOwner with suffix := true }
@@ -213,7 +217,8 @@ theorem ordinaryOrderAcceptsInterleaving :
     ((ownerSuffixModel false).compile "OwnerSplit").isOk = true := by
   native_decide
 def revision : Revision :=
-  (model.compileRevision "Governed" "GovernedV2").toOption.get (by native_decide)
+  (model.compileRevision Root.baseline.name Root.strengthened.name).toOption.get
+    (by native_decide)
 def compilation : Compilation :=
   revision.after
 def updatedPolicies : Policies := revision.afterPolicies
@@ -224,11 +229,12 @@ theorem policyListsDiffer :
     revision.beforePolicies ≠ revision.afterPolicies := by
   native_decide
 def auditRevision : Revision :=
-  (model.compileRevision "GovernedV2" "AuditView").toOption.get (by native_decide)
+  (model.compileRevision Root.strengthened.name Root.audit.name).toOption.get
+    (by native_decide)
 theorem auditRevisionHasNoPolicyDelta : auditRevision.changedPolicyIds = [] := by
   native_decide
 def reorderRevision : Revision :=
-  (model.compileRevision "GovernedV2" "GovernedV2Reordered").toOption.get
+  (model.compileRevision Root.strengthened.name Root.reordered.name).toOption.get
     (by native_decide)
 theorem reorderHasNoFreshPolicies : reorderRevision.freshPolicies = [] := by
   native_decide
@@ -252,6 +258,7 @@ structure Facts where
   measurement : String := "approved-image"
   region : String := "eu-west-1"
   purpose : String := "analytics"
+  deriving DecidableEq
 
 def request (dataset : EntityUID) (facts : Facts) : Request :=
   ⟨analyst, queryAction, dataset, Map.make [
@@ -263,6 +270,32 @@ def request (dataset : EntityUID) (facts : Facts) : Request :=
     ("measurement", .prim (.string facts.measurement)),
     ("region", .prim (.string facts.region)),
     ("purpose", .prim (.string facts.purpose))]⟩
+
+/-- The proposed query binds its target and all projected context facts.
+    External owners must still attest the dataset, approver, and enclave. -/
+def approvedQuery : BoundOperation EntityUID Facts request :=
+  ⟨customerDataset, {}⟩
+
+theorem approvedQueryUsesBoundFacts :
+    (match approvedQuery.authorize customerDataset {}
+        model Root.baseline.name entities with
+    | .ok receipt => receipt.allowed
+    | .error _ => false) = true := by
+  native_decide
+
+theorem substitutedQueryDatasetRejected :
+    (match approvedQuery.authorize financeDataset {}
+        model Root.baseline.name entities with
+    | .error .effectMismatch => true
+    | _ => false) = true := by
+  native_decide
+
+theorem staleAttestationFactsRejected :
+    (match approvedQuery.authorize customerDataset { attestationFresh := false }
+        model Root.baseline.name entities with
+    | .error .stateMismatch => true
+    | _ => false) = true := by
+  native_decide
 
 def unchangedCases : List (String × Request × Decision) := [
   ("approved-attested-query", request customerDataset {}, .allow),
@@ -291,7 +324,7 @@ def staleAttestationDelta : Bool :=
 theorem staleAttestationDeltaExact : staleAttestationDelta = true := by native_decide
 
 def broadPermitRisk : Bool :=
-  match model.compile "DataOwner" with
+  match model.compile Root.ownerOnly.name with
   | .error _ => false
   | .ok inherited =>
     (validate inherited schema).isOk &&
@@ -300,23 +333,23 @@ def broadPermitRisk : Bool :=
 theorem broadPermitRiskDetected : broadPermitRisk = true := by native_decide
 
 def compositionTraceConforms : Bool :=
-  (LeanPoo.C4.linearize model.graph "GovernedV2").toOption ==
-    some ["GovernedV2", "DataOwner", "PlatformV2", "Platform", "Compliance", "Base"] &&
+  (LeanPoo.C4.linearize model.graph "FreshAttestation").toOption ==
+    some ["FreshAttestation", "DataOwner", "PlatformFreshness", "Platform", "Compliance", "Base"] &&
   compilation.applied.length == 8 &&
   (match compilation.applied.getLast? with
-   | some { moduleName := "GovernedV2", edit := .remove "legacy-subscription" } => true
+   | some { moduleName := "FreshAttestation", edit := .remove "legacy-subscription" } => true
    | _ => false) &&
   (match compilation.policies.find? (fun item => item.policy.id == "attested-platform") with
-   | some item => item.introducedBy == "Platform" && item.lastEditedBy == "PlatformV2"
+   | some item => item.introducedBy == "Platform" && item.lastEditedBy == "PlatformFreshness"
    | none => false)
 theorem compositionTraceConformsFully : compositionTraceConforms = true := by
   native_decide
 
 def impactIsLocal : Bool :=
-  let affected := invalidatedNodes model.graph ["PlatformV2"]
+  let affected := invalidatedNodes model.graph ["PlatformFreshness"]
   affected.length == 4 &&
-  affected.contains "PlatformV2" && affected.contains "GovernedV2" &&
-  affected.contains "GovernedV2Reordered" &&
+  affected.contains "PlatformFreshness" && affected.contains "FreshAttestation" &&
+  affected.contains "ComplianceFirst" &&
   affected.contains "AuditView" &&
   !affected.contains "Governed" && !affected.contains "DataOwner" &&
   !affected.contains "Compliance" && !affected.contains "Sandbox"
@@ -349,13 +382,13 @@ private theorem okOfIsOk {ε : Type} (result : Except ε Unit)
 theorem baselineCertificate : Certificate baselineSnapshot.proofObject :=
   baselineSnapshot.certificateOfChecks (by native_decide)
 theorem freshPoliciesExact :
-    revision.freshPolicies = [platformVetoV2] := by
+    revision.freshPolicies = [platformVetoFreshness] := by
   native_decide
 theorem freshPoliciesValidate :
     ∀ policy ∈ revision.freshPolicies,
       PolicyValidation.check policy schema = .ok () := by
   intro policy membership
-  have same : policy = platformVetoV2 := by
+  have same : policy = platformVetoFreshness := by
     simpa [freshPoliciesExact] using membership
   subst policy
   exact okOfIsOk _ (by native_decide)
@@ -413,18 +446,18 @@ theorem certificate : Certificate snapshot.proofObject := by
   rw [← revision.authorizationPatch_object]
   exact patchedCertificate
 def schemaRevision : Patch AuthorizationKey AuthorizationValue :=
-  Patch.set .schema schemaV2
+  Patch.set .schema schemaWithClassification
 def schemaChangeFootprint : Bool :=
   (changedDependencies schemaObligation schemaRevision == [.schema]) &&
   (changedDependencies policiesObligation schemaRevision == [.schema]) &&
   (changedDependencies requestObligation schemaRevision == [.schema]) &&
   (changedDependencies entitiesObligation schemaRevision == [.schema]) &&
   (changedDependencies PolicyValidation.policyObligation
-    (PolicyValidation.replaceSchema schemaV2) == [.schema])
+    (PolicyValidation.replaceSchema schemaWithClassification) == [.schema])
 theorem schemaChangeFootprintExact : schemaChangeFootprint = true := by
   native_decide
 def combinedSchemaRevision : Patch AuthorizationKey AuthorizationValue :=
-  revision.authorizationPatchWithSchema schemaV2
+  revision.authorizationPatchWithSchema schemaWithClassification
 def combinedSchemaFootprint : Bool :=
   (changedDependencies schemaObligation combinedSchemaRevision == [.schema]) &&
   (changedDependencies policiesObligation combinedSchemaRevision ==
@@ -433,19 +466,19 @@ def combinedSchemaFootprint : Bool :=
   (changedDependencies entitiesObligation combinedSchemaRevision == [.schema])
 theorem combinedSchemaFootprintExact : combinedSchemaFootprint = true := by
   native_decide
-theorem schemaV2Bundle : PolicyValidation.Bundle updatedPolicies schemaV2 :=
-  PolicyValidation.Bundle.ofValidate updatedPolicies schemaV2
+theorem schemaWithClassificationBundle : PolicyValidation.Bundle updatedPolicies schemaWithClassification :=
+  PolicyValidation.Bundle.ofValidate updatedPolicies schemaWithClassification
     (okOfIsOk _ (by native_decide))
-theorem schemaV2PatchedCertificate :
+theorem schemaWithClassificationPatchedCertificate :
     Certificate (append baselineSnapshot.proofObject combinedSchemaRevision) :=
-  revision.patchedAuthorizationCertificateWithSchema schema schemaV2
+  revision.patchedAuthorizationCertificateWithSchema schema schemaWithClassification
     authorizedRequest entities
-    (okOfIsOk _ (by native_decide)) schemaV2Bundle
+    (okOfIsOk _ (by native_decide)) schemaWithClassificationBundle
     (okOfIsOk _ (by native_decide)) (okOfIsOk _ (by native_decide))
-theorem schemaV2Certificate :
-    Certificate (revision.afterSnapshot schemaV2 authorizedRequest entities).proofObject := by
+theorem schemaWithClassificationCertificate :
+    Certificate (revision.afterSnapshot schemaWithClassification authorizedRequest entities).proofObject := by
   rw [← revision.authorizationPatchWithSchema_object]
-  exact schemaV2PatchedCertificate
+  exact schemaWithClassificationPatchedCertificate
 theorem auditCertificate :
     Certificate (append snapshot.proofObject auditRevision.authorizationPatch) := by
   apply closePending snapshot.proofObject auditRevision.authorizationPatch certificate
