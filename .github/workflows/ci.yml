@@ -112,6 +112,37 @@ jobs:
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
 
+  poo-flow-handoff:
+    needs: [lean, rust]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@just
+      - name: Restore Lean and Lake cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/packages
+            .lake/build
+          key: lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('CedarPooSpec.lean', 'CedarPooSpec/**/*.lean', 'Examples/**/*.lean') }}
+          restore-keys: |
+            lean-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
+        with:
+          shared-key: cedar-poo-flow-handoff
+          add-job-id-key: "false"
+          workspaces: ". -> rust/target"
+      - run: just check-poo-flow-handoff
+
   authorization-delta:
     needs: [lean, rust]
     runs-on: ubuntu-latest

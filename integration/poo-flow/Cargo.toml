@@ -1,0 +1,12 @@
+[package]
+name = "cedar-poo-flow-conformance"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+cedar-poo-bridge = { path = "../../rust", features = ["cedar-runtime"] }
+poo-flow-cedar-authority = { git = "https://github.com/tao3k/poo-flow", rev = "61b3625ddacbc5e9c3e8002f13275e1d98ca5d5e" }
+serde_json = "1"
+
+[workspace]

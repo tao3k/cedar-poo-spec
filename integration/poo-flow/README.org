@@ -1,0 +1,35 @@
+#+TITLE: POO Flow Cedar Projection Conformance
+#+OPTIONS: toc:nil
+
+* Boundary
+
+This isolated Rust package pins =poo-flow-cedar-authority= at an immutable
+revision. It is a conformance consumer of the public
+=cedar-poo-bridge= library; the bridge's normal Rust package does not depend
+on POO Flow. The [[file:../../docs/rfc/0008-composable-control-objects.org][control-object RFC]] defines ownership and deployment limits.
+
+The input is the generated, schema-bearing pseudonymization manifest. The
+package selects =hospital-tokenize=, validates its policies and entities
+through official Cedar, and renders ten individually identified sources.
+It then constructs a synthetic POO Flow =Bootstrap= to check that the pinned
+receiver accepts those sources after injecting its reserved context and can
+prepare the request. The synthetic producer and provenance fields are test
+inputs: this check does not establish their authenticity or authorize a Host
+effect.
+
+* Discriminators
+
+The receiver's domain-separated policy digest is compared with an
+independently derived digest of the materialized Cedar policy JSON by ID.
+Changing a source body or policy ID must change that digest. Changing the
+entity snapshot must change its entity digest. Defining =context.poo_flow=
+in the input schema must be rejected by the receiver. These checks qualify
+the parser and projection seam at the pinned revisions; runtime admission,
+revocation, signatures, and execution receipts remain POO Flow and Host
+responsibilities.
+
+Run from the repository root:
+
+#+begin_src sh
+just check-poo-flow-handoff
+#+end_src

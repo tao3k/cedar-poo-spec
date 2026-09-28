@@ -188,8 +188,13 @@ and one forbid, official Cedar allow/deny replay, and rejection of a schema,
 entity, or empty-policy mismatch. It checks the build-side contract only.
 The health pseudonymization recipe also derives identified sources from a
 governed, ten-policy root through the =identified-sources= Rust command.
-The pinned POO Flow receiver test and the Host effect-binding case remain
-open.
+The isolated [[file:../../integration/poo-flow/README.org][POO Flow conformance package]] now pins the receiver and checks
+that it accepts the ten-policy health root, injects its reserved context,
+and prepares the request. A source-body or ID change changes its policy
+digest; an entity change changes its entity digest; a reserved-context
+collision fails. The synthetic =Bootstrap= only qualifies the parser and
+projection seam. A POO Flow-owned artifact dependency, authenticated
+producer handoff, and Host effect-binding case remain open.
 
 An open-source contribution belongs to the module that owns its semantics.
 There is no separate =Contrib/= namespace. Industry-specific policies and
