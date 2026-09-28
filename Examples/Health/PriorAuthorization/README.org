@@ -1,0 +1,98 @@
+#+TITLE: Provider-to-Payer AI Prior Authorization
+#+OPTIONS: toc:nil
+
+* Evidence and bounded problem
+
+[[https://pubmed.ncbi.nlm.nih.gov/42217263/][Clinical agents fail silently on patient identity]] (2026) tested agents
+copying medical codes into EHR records after patient-identity faults were
+introduced. Its authors report that agents often wrote through a swapped
+patient header or subtle identifier change. This example projects that
+failure mode onto a proposed provider-to-payer authorization workflow; the
+paper did not test this exact workflow.
+
+[[https://arxiv.org/abs/2603.29366][AI-Generated Prior Authorization Letters]] (2026) evaluated 45
+physician-validated synthetic cases. It found clinically strong letters but
+recurrent administrative gaps, including billing codes, requested duration,
+and follow-up plans. Here those three fields are separate host-validated
+facts at the submission boundary. Cedar does not inspect the letter text or
+establish its clinical accuracy.
+
+[[https://aws.amazon.com/blogs/publicsector/architecting-hipaa-compliant-ai-agents-to-safeguard-health-data-with-aws/][AWS's 2026 healthcare agent architecture]] traces a lumbar-MRI prior
+authorization through retrieval, model output, memory, submission, and logs,
+showing where PHI can spread. [[https://www.cms.gov/newsroom/fact-sheets/cms-interoperability-prior-authorization-final-rule-cms-0057-f][CMS-0057-F]] calls for impacted payers'
+Prior Authorization APIs to expose documentation requirements and support
+requests and responses. This example models only a finite authorization
+decision at the provider's reads and outbound submission. It does not claim
+HIPAA or FHIR conformance, a payer decision, or a live EHR integration.
+
+* Connected workflow and POO ownership
+
+[[file:PriorAuthorization.lean][PriorAuthorization.lean]] uses synthetic patient,
+record, agent, and payer identifiers. The provider agent reads a clinical
+record and a billing record for the same patient, prepares an AI-assisted
+draft, and proposes a submission to the payer. Five owners extend the same
+=Base= root through =Model.extend= and compose through =Model.mix=:
+
+| Owner | Local control | Gap if used alone |
+|-------+---------------+-------------------|
+| =Identity= | Deny wrong-patient reads and submission without clinical evidence. | It does not validate billing requirements. |
+| =Administration= | Require billing evidence, code, requested duration, and follow-up. | It does not bind the patient or limit disclosure. |
+| =Privacy= | Deny a draft marked as containing a raw record. | It does not validate administrative fields. |
+| =PayerRules= | Deny submission against stale payer requirements. | It does not govern record access. |
+| =Temporal= | Deny reads or submission after delegation expires. | It does not validate the draft. |
+
+=Governed= combines these owners. =Incident= adds one submission freeze;
+=Recovered= removes only that freeze and retains every other owner. The
+=composedOwnersPresent= Lean result checks that all five owner contributions
+survive compilation. =Governed= also overlays the three inherited read and
+submit permits with positive predicates. This closes the missing-context
+case where a Cedar =forbid= could error and be skipped while a broad permit
+still grants. =missingDisclosureFactCannotGrant= checks a request with the
+disclosure fact omitted. The official Rust authorizer separately replays this
+malformed request and confirms Deny despite the expected policy errors. This
+is a proposed POO decomposition, not the reported
+organization of any cited hospital or payer.
+
+#+begin_src mermaid
+flowchart LR
+    E[Provider EHR clinical record] --> C[Identity and clinical evidence]
+    B[Billing department record] --> A[Administration]
+    C --> M[Governed C4 mix]
+    A --> M
+    P[Disclosure owner] --> M
+    R[Payer requirements owner] --> M
+    T[Delegation owner] --> M
+    M --> S[AI-assisted prior-authorization draft]
+    S --> G[Cedar check before payer submission]
+    G --> Y[Payer endpoint]
+#+end_src
+
+* Executable contrast
+
+| Workflow change | =Base= or partial root | =Governed= |
+|-----------------+--------------------------+------------|
+| Clinical record belongs to another patient. | =Base= allows the read. | Identity owner denies the read. |
+| Clinical and billing reads complete, but a billing code is absent. | =Identity= allows submission. | Administration owner denies submission. |
+| Code, duration, and follow-up are present, but raw clinical record is in the draft. | The other owners do not reject this fact. | Privacy owner denies submission. |
+| Payer requirements became stale or delegation expired after evidence retrieval. | Earlier reads remain recorded. | The later submission is denied. |
+| Incident freezes a valid submission, then recovery removes the freeze. | Other owner policies remain. | Recovered submission allows; raw-record disclosure still denies. |
+
+=casesExact= checks the finite Lean decisions. The
+[[file:ValidatedExport.lean][schema-bound exporter]] sends all 45
+pre-admission requests to the official Cedar Rust validator and authorizer;
+the checked generated Cedar files are under [[file:Policies/][Policies/]].
+These checks establish agreement for the modeled facts and requests, not
+clinical safety, model-output correctness, or production compliance.
+
+The records are synthetic identifiers and projected facts. A downstream
+application must build the real EHR and billing connectors, verify patient
+identity independently of the agent, validate the letter fields and payer
+requirements, classify or minimize disclosure, authenticate delegation,
+persist the admitted history, and bind the checked draft to the actual
+submission. [[https://arxiv.org/abs/2602.11510][AgentLeak]] reports internal-channel leakage through inter-agent
+messages and shared memory; those channels are an additional research and
+integration boundary outside this finite submission example.
+
+#+begin_src sh
+just example health prior-authorization
+#+end_src

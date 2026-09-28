@@ -1,6 +1,12 @@
 #+TITLE: Health Authorization Examples
 #+OPTIONS: toc:nil
 
+The [[file:PriorAuthorization/README.org][provider-to-payer prior-authorization
+example]] connects clinical and billing records, patient identity, AI draft
+requirements, disclosure, payer rules, and delegation in one POO-composed
+workflow. Its own ORG page maps the 2026 research and CMS/AWS sources to the
+finite model.
+
 * Clinical break-glass and patient preferences
 
 [[file:ClinicalBreakGlass.lean][ClinicalBreakGlass.lean]] is an executable,

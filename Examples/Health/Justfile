@@ -5,3 +5,20 @@ clinical-break-glass:
 
 wearable-triage:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/WearableTriage.lean
+
+prior-authorization-lean:
+    timeout --signal=TERM --kill-after=3s 120s lake build Examples.Health.PriorAuthorization.PriorAuthorization
+
+prior-authorization:
+    just build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean prior-authorization-validated > .lake/build/prior-authorization-validated-manifest.json
+    jq -e '(.cases | length) == 45 and (.schema[""].actions | keys) == ["read-billing", "read-clinical", "submit-prior-authorization"]' .lake/build/prior-authorization-validated-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/prior-authorization-validated-manifest.json > .lake/build/prior-authorization-validated-receipts.json
+    jq -e 'length == 45 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["delegation-revoked-after-reads-step-0","governed-wrong-patient-stops-submission-step-0","governed-wrong-patient-stops-submission-step-2","incident-freezes-valid-submission-step-2","missing-billing-code-step-2","missing-billing-evidence-step-1","missing-clinical-evidence-step-1","missing-duration-step-2","missing-follow-up-step-2","raw-record-in-draft-step-2","recovered-keeps-privacy-step-2","stale-payer-requirements-step-2","swapped-billing-patient-step-0","swapped-clinical-patient-step-0"]' .lake/build/prior-authorization-validated-receipts.json > /dev/null
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean prior-authorization-malformed > .lake/build/prior-authorization-malformed-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < .lake/build/prior-authorization-malformed-manifest.json > .lake/build/prior-authorization-malformed-receipts.json
+    jq -e 'length == 1 and .[0].case_name == "missing-disclosure-fact" and .[0].decision == "deny" and .[0].error_policy_ids == ["raw-record-in-draft", "submit-draft"]' .lake/build/prior-authorization-malformed-receipts.json > /dev/null
+    jq '[.cases[] | select(.revision == "Governed")][0].policies' .lake/build/prior-authorization-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/prior-authorization-governed.cedar
+    cmp .lake/build/prior-authorization-governed.cedar Examples/Health/PriorAuthorization/Policies/governed.cedar
+    jq '[.cases[] | select(.revision == "Incident")][0].policies' .lake/build/prior-authorization-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/prior-authorization-incident.cedar
+    cmp .lake/build/prior-authorization-incident.cedar Examples/Health/PriorAuthorization/Policies/incident.cedar

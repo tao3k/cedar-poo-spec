@@ -1,6 +1,7 @@
 import Examples.Governance.TicketSharingExport
 import Examples.Health.ClinicalBreakGlassExport
 import Examples.Health.WearableTriageExport
+import Examples.Health.PriorAuthorization.ValidatedExport
 import Examples.Governance.AttestedDataAccessExport
 import Examples.Governance.AttestedSchemaEvolutionExport
 import Examples.Language.ScopeAndPatternExport
@@ -42,6 +43,8 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("ticket-sharing", fun _ => TicketSharingExport.manifest),
   ("clinical", fun _ => ClinicalBreakGlassExport.manifest),
   ("wearable-triage", fun _ => WearableTriageExport.manifest),
+  ("prior-authorization-validated", fun _ => PriorAuthorizationValidatedExport.manifest),
+  ("prior-authorization-malformed", fun _ => PriorAuthorizationValidatedExport.malformedManifest),
   ("attested", fun _ => AttestedDataAccessExport.manifest),
   ("attested-schema-evolution", fun _ => AttestedSchemaEvolutionExport.bundle),
   ("scope-pattern", fun _ => ScopeAndPatternExport.manifest),

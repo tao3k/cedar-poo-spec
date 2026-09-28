@@ -54,6 +54,9 @@ probes. The [[file:Examples/Health/README.org][health example]] connects a clini
 emergency-access diamond to published EHR studies and HL7 guidance. It also
 composes consent, monitor quarantine, AI model eligibility, and clinician review
 for a remote-monitoring alert workflow.
+The same area now includes a provider-to-payer AI prior-authorization chain
+with separate patient-identity, administrative, disclosure, payer, and
+delegation owners.
 The [[file:Examples/Governance/README.org][governance example]] uses a
 source-grounded attestation revision to show policy provenance, local
 invalidation, and certificate reuse across C4 composition. It also includes
