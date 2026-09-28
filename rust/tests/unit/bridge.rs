@@ -1,7 +1,7 @@
 use super::{
     Case, Manifest, check_direct_sources, check_manifest, check_template_source, json_sha256,
-    load_policy_set, load_template_source, render_artifacts, replay_manifest,
-    verify_replay_receipts,
+    load_policy_set, load_template_source, render_artifacts, render_identified_policy_sources,
+    replay_manifest, verify_replay_receipts,
 };
 use crate::schema::{
     SchemaEvolutionBundle, ValidatedManifest, replay_schema_only_revision,
@@ -39,6 +39,29 @@ fn receipt() -> Case {
         "expected_error_policies": []
     }))
     .expect("valid local receipt")
+}
+
+#[test]
+fn identified_sources_preserve_each_cedar_policy_id_and_body() {
+    let mut case = receipt();
+    let mut artifact = case.policies.as_value().clone();
+    artifact["staticPolicies"]["second"] = artifact["staticPolicies"]["base"].clone();
+    case.policies = serde_json::from_value(artifact).expect("two-policy artifact");
+
+    let sources = render_identified_policy_sources(&case.policies)
+        .expect("render individually identified policies");
+    assert_eq!(
+        sources.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["base", "second"]
+    );
+    let loaded = load_policy_set(&case.policies).expect("Cedar policy set");
+    for policy in loaded.policies() {
+        let source = &sources[&policy.id().to_string()];
+        let reparsed = cedar_policy::Policy::parse(Some(policy.id().clone()), source)
+            .expect("explicit-ID Cedar source");
+        assert_eq!(reparsed.id(), policy.id());
+        assert_eq!(reparsed.to_json().unwrap(), policy.to_json().unwrap());
+    }
 }
 
 fn validated(case: Case) -> ValidatedManifest {

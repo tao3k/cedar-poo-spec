@@ -14,7 +14,8 @@ mod schema;
 pub use bridge::{
     Case, Manifest, ReplayReceipt, RequestInput, check_direct_sources, check_manifest,
     check_template_source, load_policy_set, load_template_source, render_artifacts,
-    render_loaded_policy_set, render_policy_source, replay_manifest, verify_replay_receipts,
+    render_identified_policy_sources, render_loaded_policy_set, render_policy_source,
+    replay_manifest, verify_replay_receipts,
 };
 #[cfg(feature = "cedar-runtime")]
 pub use schema::{

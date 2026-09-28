@@ -49,20 +49,60 @@ digests. The proposed artifact handoff should map into those existing
 types and preserve their ownership, rather than adding a second runtime
 authorization protocol inside =cedar-poo-bridge=.
 
-The wire seam is specific. This repository currently validates a compiled
-Cedar policy-set JSON artifact and can render Cedar source. POO Flow's
-=Bootstrap.policies= expects individually identified =PolicySource=
-entries and parses each with its explicit policy ID; it also injects a
-reserved =context.poo_flow= record into the Cedar schema. A future
-integration must derive the per-policy source, IDs, schema, and entity
-snapshot from the same pinned artifact, then check the reserved context
-projection and digest equality in the authority's native Rust tests.
+The wire seam is specific. This repository validates a compiled Cedar
+policy-set JSON artifact. Its Rust
+=render_identified_policy_sources= API renders each policy separately,
+retains its explicit ID, and reparses the source through official Cedar to
+check the ID and body. This formatting API does not itself validate a
+policy against a schema or authorize its publication; its caller must
+pair it with =PolicyJson.publish= and strict Cedar validation evidence.
+POO Flow's =Bootstrap.policies= expects
+individually identified =PolicySource= entries and parses each with its
+explicit policy ID; it also injects a reserved =context.poo_flow= record
+into the Cedar schema. A future integration must derive those entries,
+schema, and entity snapshot from one pinned artifact, then check the
+reserved context projection and digest equality in the authority's native
+Rust tests.
 Matching =cedar-policy= dependency versions alone does not establish this
 contract. The current library and FFI can be qualified independently
 while that join remains open.
 TLA+/TLC model receipts, Lean theorem receipts, Cedar decisions, and Host
 effect receipts remain distinct. This library can carry or relate them but
 cannot substitute one for another.
+
+** Rust dependency seam and acceptance
+
+The intended Rust dependency direction is from POO Flow's
+=poo-flow-cedar-authority= to this repository's =cedar-poo-bridge= library
+at an immutable revision. The bridge supplies checked Cedar policy sources
+and artifact evidence; POO Flow remains the sole owner of =Bootstrap=,
+=Proposal=, authority admission, signing, revocation, and FFI/runtime
+effects. In particular, the bridge cannot mint a POO Flow =Bootstrap=:
+the authority currently requires a fixed POO Flow producer and source.
+
+| Boundary | Current evidence | Further cross-repository evidence required |
+|----------+------------------+--------------------------------------------|
+| Lean C4 root to Cedar artifact | =PolicyJson.publish= carries compilation and Cedar validation premises. | Bind the selected Lambda Case and accepted root to an immutable artifact identity. |
+| Artifact to individually identified Cedar sources | =render_identified_policy_sources= reparses each source with its original ID and checks body equality. | POO Flow maps the returned IDs and sources into its existing =PolicySource= entries without changing ownership. |
+| Schema and entity projection | This bridge performs strict Cedar replay against the exported schema. | POO Flow validates the schema after injecting =context.poo_flow=; compare the resulting effective schema, not its raw pre-injection digest. |
+| Runtime authority | POO Flow already has =Bootstrap=, =Proposal=, =AuthorizationSubject=, revocation epochs, and single-use handoff checks. | Prove the admitted bundle names the same policy bodies, entities, Lambda provenance, and accepted epoch as the build artifact. |
+
+The bridge's human-readable whole-file renderer sorts by policy ID and
+places original IDs in comments. It is useful for review, but neither its
+comments nor its text order are the authority's identity binding. Lean-POO
+tracks the C4-ordered policy list for proof-reuse claims; the runtime
+authority admits a Cedar policy set with explicit IDs. Their separate
+digests should be related by a checked projection rather than asserted
+equal merely because both contain Cedar text.
+
+The cross-repository acceptance case must reject a missing or changed
+policy ID, body mutation, duplicate ID, reserved-context collision,
+schema mismatch after injection, stale revision or revocation epoch,
+changed Lambda Profile or Source digest, and effect-payload substitution.
+It must also show the positive path with a pinned artifact and two
+independent Cedar decisions. These are integration requirements, not
+claims discharged by the current bridge unit test or finite scenario
+replays.
 
 An open-source contribution belongs to the module that owns its semantics.
 There is no separate =Contrib/= namespace. Industry-specific policies and
@@ -198,13 +238,14 @@ crates already exchange one end-to-end manifest.
 | Source and threat evidence | Supplies explicit provenance and unresolved admission obligations. | Source admission and TLA+/TLC receipts remain separate from Cedar Allow. |
 | Concrete Case selection | Selects a POO Flow Cedar Provider projection and a pinned Cedar artifact; exposes negative cases for wrong scope, stale state, or missing evidence. | The Rust authority authenticates its admitted snapshot; the Host binds the decision to the actual effect. |
 
-This makes a vertical change observable at every boundary. For example, a
+The completed integration should make a vertical change observable at every
+boundary. For example, a
 Healthcare Profile may strengthen a re-identification approval or an Agent
 Profile may add a cross-tool egress veto. Lambda identifies the changed
-Profile and affected Cases; Lean-POO reuses unaffected objects and proofs;
+Profile and affected Cases; Lean-POO can reuse unaffected objects and proofs;
 this library recompiles and validates the changed Cedar policy bodies;
 official Cedar Rust replays the concrete requests; the Host rejects stale
-effect tickets. The value is local evolution of a large related Scenario,
+effect tickets. The intended value is local evolution of a large related Scenario,
 not merely fewer lines in one policy file. Each receipt must retain its
 own version and claim; a successful TLC run is not a Lean theorem, and a
 Lean/Cedar conformance result is not a production Host execution receipt.
