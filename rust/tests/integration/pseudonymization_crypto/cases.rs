@@ -1,5 +1,3 @@
-#![cfg(feature = "cedar-runtime")]
-
 use aes_gcm::{
     Aes256Gcm, Nonce,
     aead::{Aead, KeyInit as _},

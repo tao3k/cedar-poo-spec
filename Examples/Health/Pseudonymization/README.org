@@ -19,7 +19,7 @@ grant cannot be inherited merely because two datasets belong to one tenant.
 
 The people, datasets, keys, and decisions are synthetic. No patient record or
 real cryptographic key appears in the example.
-The [[file:../../../rust/tests/pseudonymization_crypto.rs][RustCrypto synthetic-data checks]] execute AES-SIV with a context value,
+The [[file:../../../rust/tests/integration/pseudonymization_crypto.rs][RustCrypto synthetic-data checks]] execute AES-SIV with a context value,
 HMAC-SHA-256, and AES-GCM. They distinguish stable same-scope tokens, changed
 context or data key, unchanged tokens after a wrapper-only change, HMAC
 cross-scope key reuse, and GCM nonce-dependent ciphertext and recovery. They
