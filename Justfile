@@ -28,7 +28,7 @@ build-examples: build
     lake build Examples
 
 check-docs:
-    emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$") (directory-files-recursively "Tests" "\\.org$") (directory-files-recursively "Benchmarks" "\\.org$") (directory-files-recursively "integration" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
+    emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$") (directory-files-recursively "Tests" "\\.org$") (directory-files-recursively "Benchmarks" "\\.org$") (directory-files-recursively "conformance" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
 
 check: check-tests check-docs
     just check-policy-reuse
@@ -239,9 +239,9 @@ check-rust:
     cargo test --locked --manifest-path rust/Cargo.toml --features cedar-runtime
 
 check-poo-flow-handoff: example::health::pseudonymization
-    cargo fmt --manifest-path integration/poo-flow/Cargo.toml --check
-    cargo clippy --locked --manifest-path integration/poo-flow/Cargo.toml --all-targets -- -D warnings
-    cargo run --locked --manifest-path integration/poo-flow/Cargo.toml --quiet -- .lake/build/pseudonymization-validated-manifest.json
+    cargo fmt --manifest-path conformance/poo-flow/Cargo.toml --check
+    cargo clippy --locked --manifest-path conformance/poo-flow/Cargo.toml --all-targets -- -D warnings
+    cargo run --locked --manifest-path conformance/poo-flow/Cargo.toml --quiet -- .lake/build/pseudonymization-validated-manifest.json
 
 check-cedar-language: check-rust check-cedar-artifacts
 

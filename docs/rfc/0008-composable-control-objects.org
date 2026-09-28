@@ -43,10 +43,12 @@ The Lean library and vertical POO contribution meet through an explicit
 artifact and runtime admission boundary. Lambda does not import Lean
 declarations into Gerbil at runtime. A Profile or Case contributes meaning;
 the Host authenticates the actual inputs and selects the accepted composition.
-The dashed Rust artifact edge is a proposed cross-repository integration:
-the current =cedar-poo-bridge= and POO Flow =cedar-authority= crates both
-depend on official =cedar-policy=, but neither currently depends on the
-other. This RFC must not be read as proof of that missing integration.
+The dashed Rust artifact edge is a proposed production binding. The current
+=cedar-poo-bridge= and POO Flow =cedar-authority= crates both depend on
+official =cedar-policy=, but neither production crate currently depends on
+the other. The test-only =conformance/poo-flow= package in this repository
+depends on both at pinned revisions to qualify their common Cedar seam. Its
+synthetic =Bootstrap= cannot establish an admitted POO Flow composition.
 POO Flow's Rust =Bootstrap= already carries policy sources, schema and
 entities, Profile provenance, a revision, and revocation epoch; its
 =Proposal= and =AuthorizationSubject= bind a request and authority
@@ -92,18 +94,22 @@ ownership, and internal representation changes without improving the
 deployment contract. POO Flow's existing FFI is its own runtime interface;
 it does not imply a Lean FFI here. If a future in-process use case needs one,
 it requires a separate measured proposal with a stable operation-level API.
-The current integration continues to use Cedar's public formats and official
+The current conformance check uses Cedar's public formats and official
 parsers.
 
 ** Rust dependency seam and acceptance
 
-The intended Rust dependency direction is from POO Flow's
-=poo-flow-cedar-authority= to this repository's =cedar-poo-bridge= library
-at an immutable revision. The bridge supplies checked Cedar policy sources
-and artifact evidence; POO Flow remains the sole owner of =Bootstrap=,
-=Proposal=, authority admission, signing, revocation, and FFI/runtime
-effects. In particular, the bridge cannot mint a POO Flow =Bootstrap=:
-the authority currently requires a fixed POO Flow producer and source.
+The production binding belongs in POO Flow's =bindings/cedar-gerbil=
+workspace, alongside =cedar-authority= and the Gerbil projection. Its
+intended Rust dependency direction is from that POO Flow binding to this
+repository's =cedar-poo-bridge= library at an immutable revision. The bridge
+supplies checked Cedar policy sources and artifact evidence; POO Flow remains
+the sole owner of =Bootstrap=, =Proposal=, authority admission, signing,
+revocation, and FFI/runtime effects. In particular, the bridge cannot mint a
+POO Flow =Bootstrap=: the authority currently requires a fixed POO Flow
+producer and source. This repository's =conformance/poo-flow= is a
+development-only consumer of both crates, not the production binding and not
+a new member of POO Flow's Cargo workspace.
 
 | Boundary | Current evidence | Further cross-repository evidence required |
 |----------+------------------+--------------------------------------------|
@@ -188,13 +194,13 @@ and one forbid, official Cedar allow/deny replay, and rejection of a schema,
 entity, or empty-policy mismatch. It checks the build-side contract only.
 The health pseudonymization recipe also derives identified sources from a
 governed, ten-policy root through the =identified-sources= Rust command.
-The isolated [[file:../../integration/poo-flow/README.org][POO Flow conformance package]] now pins the receiver and checks
+The isolated [[file:../../conformance/poo-flow/README.org][POO Flow conformance package]] pins the receiver and checks
 that it accepts the ten-policy health root, injects its reserved context,
-and prepares the request. A source-body or ID change changes its policy
-digest; an entity change changes its entity digest; a reserved-context
-collision fails. The synthetic =Bootstrap= only qualifies the parser and
-projection seam. A POO Flow-owned artifact dependency, authenticated
-producer handoff, and Host effect-binding case remain open.
+and prepares the request. The candidate binding rejects changed source
+bodies, IDs, schema, entities, and duplicate IDs; the receiver rejects a
+reserved-context collision. The synthetic =Bootstrap= only qualifies the
+parser and projection seam. A POO Flow-owned artifact dependency,
+authenticated producer handoff, and Host effect-binding case remain open.
 
 An open-source contribution belongs to the module that owns its semantics.
 There is no separate =Contrib/= namespace. Industry-specific policies and

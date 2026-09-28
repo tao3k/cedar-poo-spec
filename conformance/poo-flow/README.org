@@ -3,12 +3,14 @@
 
 * Boundary
 
-This isolated Rust package pins =poo-flow-cedar-authority= by a full Git
+This test-only Rust package pins =poo-flow-cedar-authority= by a full Git
 =rev= in =Cargo.toml= and records the resolved commit in =Cargo.lock=.
 The Git URL only locates the source; the revision and lockfile select the
 dependency. It is a conformance consumer of the public
 =cedar-poo-bridge= library; the bridge's normal Rust package does not depend
-on POO Flow. The [[file:../../docs/rfc/0008-composable-control-objects.org][control-object RFC]] defines ownership and deployment limits.
+on POO Flow. The production Cedar/Gerbil receiver and Rust authority live in
+POO Flow's =bindings/cedar-gerbil= workspace. This package does not expose
+a deployment binding. The [[file:../../docs/rfc/0008-composable-control-objects.org][control-object RFC]] defines ownership and deployment limits.
 
 The input is the generated, schema-bearing pseudonymization manifest. The
 package selects =hospital-tokenize=, validates its policies and entities
