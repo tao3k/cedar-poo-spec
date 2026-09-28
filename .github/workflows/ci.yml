@@ -105,6 +105,7 @@ jobs:
       - run: just example enterprise agent cross-agent-egress
       - run: just example enterprise agent department-synthesis
       - run: just example health prior-authorization
+      - run: just example health prior-authorization-internal-channels
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
 

@@ -90,9 +90,88 @@ identity independently of the agent, validate the letter fields and payer
 requirements, classify or minimize disclosure, authenticate delegation,
 persist the admitted history, and bind the checked draft to the actual
 submission. [[https://arxiv.org/abs/2602.11510][AgentLeak]] reports internal-channel leakage through inter-agent
-messages and shared memory; those channels are an additional research and
-integration boundary outside this finite submission example.
+messages and shared memory. The connected example below extends this same
+workflow to those boundaries.
 
 #+begin_src sh
 just example health prior-authorization
+#+end_src
+
+* Internal agent messages and shared memory
+
+[[https://arxiv.org/html/2602.11510v3][AgentLeak]] reports a healthcare workflow in which a scheduling agent's
+user-facing appointment confirmation was clean, yet its delegation message
+to a verification agent carried the complete medical record. Its 4,979-trace
+study measured inter-agent and shared-memory exposure across several domains.
+The study distinguishes an internal data-minimization violation from an
+actual confidentiality breach; it does not claim every internal disclosure
+was an external breach. This example applies that *boundary pattern* to the
+prior-authorization workflow above. It is a proposed design, not a replay of
+the paper's scheduling trace or a measured privacy defense.
+
+[[file:InternalChannels.lean][InternalChannels.lean]] inherits the existing
+=Governed= provider-to-payer model. It first makes verification handoff and
+shared memory separate =ChannelObject= values, each owning its action,
+recipient, purpose, and minimum payload class. Two LeanPOO objects,
+=VerificationHandoff= and =SharedMemory=, append their respective policies
+by extending =Governed=. Neither object grants the other's action. Only
+then does =ChannelBase= mix them. It permits a full chart in either internal
+channel even while the inherited payer-submission
+policy denies a draft marked as carrying a raw record. =ChannelPrivacy=
+overlays both permits with different minimum payload classes and purposes;
+=ChannelTemporal= independently revokes internal delegation. Their
+=ChannelGoverned= C4 mix permits a patient-bound verification token for the
+verifier and a workflow handle for memory, while rejecting a full chart,
+patient mismatch, stale delegation, or unrelated memory purpose. The
+=ChannelPrivacy= branch alone admits a revoked but minimal delegation; the
+=ChannelTemporal= branch alone admits a full-chart delegation. The mix
+rejects both. =MemoryRemoved= removes the shared-memory policy object while
+retaining verification delegation. Separately, an incident freezes memory
+without stopping minimal verification; recovery removes only the freeze.
+
+#+begin_src mermaid
+flowchart LR
+    E[Provider EHR and billing evidence] --> G[Inherited Governed submission]
+    G --> P[Payer submission]
+    G --> D[Verification delegation]
+    G --> M[Shared memory]
+    V[ChannelPrivacy: purpose and payload] --> C[ChannelGoverned C4 mix]
+    T[ChannelTemporal: live delegation] --> C
+    C --> D
+    C --> M
+#+end_src
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> ChannelBase: append handoff and memory objects
+    ChannelBase --> ChannelGoverned: extend privacy and delegation owners; mix
+    ChannelGoverned --> MemoryRemoved: remove memory policy
+    ChannelGoverned --> ChannelIncident: append memory freeze
+    ChannelIncident --> ChannelRecovered: remove freeze
+#+end_src
+
+The [[file:InternalChannelsExport.lean][schema-bound exporter]] replays all 22
+named decisions through official Cedar Rust validation and authorization.
+The Lean proof checks their expected results, confirms the external
+submission policy survives inheritance, and checks that incident recovery
+returns to the composed policy set. A policy decision authorizes an attempted
+message or memory write; it does not prove the bytes sent match the checked
+envelope or that the receiving framework intercepts every channel.
+
+The example uses a typed, synthetic =Payload= to make the request projection
+visible. Its replaceable =Port= projects a raw payload to the authorization
+envelope and delivers that same payload only after admission; the synthetic
+port records a permitted token and no denied chart. A downstream host must
+derive classification and patient binding from actual message or memory
+content independently of the generating
+agent; bind that content to the authorized request; intercept every send,
+write, retry, log, and tool argument; enforce the decision before effect;
+and retain auditable real records under its own governance. Free text can
+paraphrase or encode sensitive data, so a label supplied by the agent is not
+a trustworthy substitute for content inspection or a constrained payload
+constructor. The example does not establish information-flow noninterference,
+semantic de-identification, HIPAA compliance, or live EHR integration.
+
+#+begin_src sh
+just example health prior-authorization-internal-channels
 #+end_src

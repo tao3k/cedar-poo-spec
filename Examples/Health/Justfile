@@ -9,6 +9,16 @@ wearable-triage:
 prior-authorization-lean:
     timeout --signal=TERM --kill-after=3s 120s lake build Examples.Health.PriorAuthorization.PriorAuthorization
 
+prior-authorization-internal-channels-lean:
+    timeout --signal=TERM --kill-after=3s 120s lake build Examples.Health.PriorAuthorization.InternalChannels
+
+prior-authorization-internal-channels:
+    just build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean prior-authorization-internal-channels > .lake/build/prior-authorization-internal-channels-manifest.json
+    jq -e '(.cases | length) == 22 and (.schema[""].actions | keys) == ["delegate-verification", "read-billing", "read-clinical", "submit-prior-authorization", "write-shared-memory"]' .lake/build/prior-authorization-internal-channels-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/prior-authorization-internal-channels-manifest.json > .lake/build/prior-authorization-internal-channels-receipts.json
+    jq -e 'length == 22 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["handoff-object-has-no-memory", "incident-freezes-memory", "memory-object-has-no-delegation", "memory-object-removed", "minimal-delegate-chart", "minimal-delegate-revoked", "minimal-delegate-wrong-patient", "minimal-memory-chart", "minimal-memory-revoked", "minimal-memory-wrong-purpose", "recovery-keeps-minimization"]' .lake/build/prior-authorization-internal-channels-receipts.json > /dev/null
+
 prior-authorization:
     just build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean prior-authorization-validated > .lake/build/prior-authorization-validated-manifest.json
