@@ -12,6 +12,9 @@ import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Vertical.Health.DisclosureChannel
 import CedarPooSpec.Vertical.Health.EmergencyAccess
 import CedarPooSpec.Vertical.Health.FHIR.ConsumerAccess
+import CedarPooSpec.Vertical.Health.ClinicalExchange
+import CedarPooSpec.Vertical.Health.Region.Australia
+import CedarPooSpec.Vertical.Health.Region.UnitedStates
 import CedarPooSpec.Vertical.FinancialServices.ControllerRelease
 import CedarPooSpec.Vertical.FinancialServices.BankingToolOwner
 import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto

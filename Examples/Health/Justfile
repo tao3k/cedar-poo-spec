@@ -1,5 +1,19 @@
 set working-directory := '../..'
 
+australian-emr:
+    lake build Examples.Health.Interoperability.Admission Examples.Health.Interoperability.ValidatedExport Examples.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean australian-emr-upload > .lake/build/australian-emr-upload-manifest.json
+    jq -e '(.cases | length) == 13 and ([.cases[].name] | unique | length) == 13' .lake/build/australian-emr-upload-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/australian-emr-upload-manifest.json > .lake/build/australian-emr-upload-receipts.json
+    jq -e 'length == 13 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["agent-cannot-upload", "document-unattested", "ihi-unverified", "incident-freezes-upload", "other-patient", "patient-declined", "recovered-still-honors-instruction", "source-swapped", "wrong-document-class", "wrong-purpose"]' .lake/build/australian-emr-upload-receipts.json > /dev/null
+
+united-states-payer:
+    lake build Examples.Health.Interoperability.UnitedStatesPayer Examples.Health.Interoperability.UnitedStatesExport Examples.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean united-states-payer-exchange > .lake/build/united-states-payer-exchange-manifest.json
+    jq -e '(.cases | length) == 16 and ([.cases[].name] | unique | length) == 16' .lake/build/united-states-payer-exchange-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/united-states-payer-exchange-manifest.json > .lake/build/united-states-payer-exchange-receipts.json
+    jq -e 'length == 16 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["incident-freezes-payer", "incident-freezes-provider", "payer-not-opted-in", "payer-swapped-source", "payer-wrong-patient", "provider-cannot-transfer", "provider-no-relationship", "provider-opted-out", "provider-unattested-content", "provider-unverified-identity", "provider-wrong-patient", "recovered-keeps-opt-in"]' .lake/build/united-states-payer-exchange-receipts.json > /dev/null
+
 my-health-record:
     lake build Examples.Health.MyHealthRecord.ConsumerPlatform Examples.Health.MyHealthRecord.Lifecycle Examples.Health.MyHealthRecord.ValidatedExport Examples.Manifests
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean my-health-record-consumer-platform > .lake/build/my-health-record-consumer-platform-manifest.json

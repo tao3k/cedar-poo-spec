@@ -5,6 +5,11 @@ The [[file:MyHealthRecord/README.org][My Health Record consumer-platform scenari
 composes reusable FHIR consumer-access objects with a synthetic AI summary,
 revocation, incident, and local-data removal lifecycle.
 
+The [[file:Interoperability/README.org][clinical interoperability boundary]]
+compares the Australian eMR/My Health Record guidance with scoped US HTI-1
+and CMS rules. Its Australian eMR example composes patient identity,
+no-upload instruction, and Host evidence before a document upload.
+
 The [[file:Pseudonymization/README.org][pseudonymization and re-identification
 scenario]] composes cryptographic capability profiles with data-owner,
 privacy, agent, and incident controls. It compares deterministic AES-SIV,

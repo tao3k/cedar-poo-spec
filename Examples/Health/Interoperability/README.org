@@ -1,0 +1,74 @@
+#+TITLE: Clinical Interoperability at the Authorization Boundary
+#+OPTIONS: toc:nil
+
+* Scope of the published requirements
+
+The sources apply to different system categories. They must not be collapsed
+into one universal healthcare compliance profile.
+
+| Source | Applicable scope and force | Boundary used here |
+|--------+----------------------------+--------------------|
+| [[https://www.digitalhealth.gov.au/healthcare-providers/initiatives-and-programs/digital-health-standards/digital-health-standards-guidelines/get-started/5-standards-for-systems-and-technologies/electronic-medical-record-emr][Australian Digital Health Agency eMR procurement guidance]] | The guide says an eMR =should= support AUCDI Release 2, authoring and consumption of FHIR clinical documents, and a FHIR API. It says the system =must= support healthcare identifiers and, where appropriate, SNOMED CT-AU for specified clinical data. It also says an eMR contributing to My Health Record must respect patient instructions not to upload at patient and document level. | The synthetic upload example checks patient identity, a patient instruction, and a Host-supplied delivery attestation. It does not implement procurement or standards conformance. |
+| [[https://www.digitalhealth.gov.au/interoperability][My Health Record 2026 interoperability requirements]] | My Health Record conformance uses applicable profiles and standards; AUCDI is a reference for FHIR content within its scope, and the relevant implementation guide or profile specifies the version. AU Core is required for My Health Record FHIR connections. | The example selects its own synthetic profile pins; it does not claim AUCDI Release 2 is the version mandated for every My Health Record connection. |
+| [[https://healthit.gov/regulations/hti-rules/hti-1-final-rule/][US HTI-1 final rule]] | USCDI v3 became the certification-program baseline on January 1, 2026. These provisions concern certified health IT and its developers, not every health application. | The [[file:../PriorAuthorization/README.org][provider-to-payer example]] is not presented as certified health IT. A US Host would need its own USCDI and US Core evidence before exchange. |
+| [[https://www.cms.gov/newsroom/fact-sheets/cms-interoperability-prior-authorization-final-rule-cms-0057-f][US CMS-0057-F final rule]] | The FHIR API duties apply to specified impacted payers, with API compliance dates generally in 2027. Provider Access includes treatment relationship and patient opt-out; Payer-to-Payer uses patient opt-in. | These are different market profiles. The existing prior-authorization example models provider submission decisions, not a payer's complete API duties. |
+
+The =should= and =must= distinctions above follow the cited publications.
+They are source descriptions, not a legal-compliance conclusion for a product.
+
+* Australian eMR upload
+
+[[file:AustralianEMR.lean][AustralianEMR.lean]] stages independent POO owners
+from the public [[file:../../../CedarPooSpec/Vertical/Health/ClinicalExchange.lean][ClinicalExchange]] and
+[[file:../../../CedarPooSpec/Vertical/Health/Region/README.org][Region.Australia]] modules. =Governed=
+mixes the owners, strengthens the upload permit, and removes an inherited
+broad agent permit. =Incident= adds one temporary veto; =Recovered= removes
+only that veto. The finite cases exercise identity swaps, missing IHI
+verification, no-upload instructions, stale document evidence, wrong purpose,
+agent submission, incident, and recovery. The patient, hospital, agent, and
+documents are synthetic.
+
+[[file:Admission.lean][Admission.lean]] uses the public
+=Admission.BoundOperation= API to bind an exact document digest and Host
+snapshot to the Cedar request. The scenario's selected content reference is
+AUCDI Release 2; its AU Core label and NCTS terminology release are explicitly
+synthetic pins. The Host must check actual implementation-guide versions,
+validate codes with the applicable terminology service, validate the IHI,
+and verify the document bytes. The equality checks here only prevent a
+different payload or evidence snapshot from reusing an earlier decision.
+
+#+begin_src mermaid
+flowchart LR
+  Doc[eMR clinical document] --> Parser[External FHIR and terminology validators]
+  Parser --> Receipt[Host evidence and digest]
+  IHI[Identifier service] --> Receipt
+  Choice[Patient upload instruction] --> Receipt
+  Receipt --> Admission[Bound operation]
+  Owners[Identity + instruction + evidence POO owners] --> Cedar[Cedar decision]
+  Admission --> Cedar
+  Cedar --> Effect[Host admission and upload]
+#+end_src
+
+[[file:ValidatedExport.lean][ValidatedExport.lean]] exports 13 cases through
+the public Cedar JSON representation. =just example health australian-emr=
+compiles the model and replays the decisions with official Cedar Rust. It
+checks the exact denial set and that no policy evaluation errors occurred.
+
+* Market separation
+
+[[file:UnitedStatesPayer.lean][UnitedStatesPayer.lean]] instantiates the public
+=Region.UnitedStates.PayerExchange= profile twice: Provider Access requires
+treatment attribution and no patient opt-out, while Payer-to-Payer requires
+patient opt-in. It composes both with the same shared patient and payload
+binding controls used by Australia. A separate patient-choice owner and
+incident veto can be revised without copying the identity or evidence rules.
+[[file:UnitedStatesExport.lean][UnitedStatesExport.lean]] exports 16 named
+requests. =just example health united-states-payer= checks the exact Cedar
+Rust decision set and absence of policy errors.
+
+The Australian no-upload instruction and IHI fact are not copied into a US
+policy. The US treatment relationship, opt-out, and opt-in premises are not
+applied to Australian eMR uploads. AUCDI, AU Core, SNOMED CT-AU, USCDI, US
+Core, and terminology versions are evidence owned by the relevant upstream
+validator and Host. Parsing, standards validation, certification, audit
+persistence, and actual exchange are outside this library.

@@ -39,6 +39,9 @@ premises are defined once.
 Reusable healthcare control definitions belong under =Vertical/Health/=.
 The [[file:FHIR/README.org][FHIR consumer-access objects]] provide reusable
 patient, read, session, and revocation controls for FHIR-consuming apps.
+[[file:ClinicalExchange.lean][ClinicalExchange]] holds shared patient and
+payload binding controls; [[file:Region/README.org][Region]] supplies distinct
+Australian eMR and US payer authorization profiles.
 Patient identifiers, hospital workflows, policy instances, synthetic
 records, and scenario-specific proofs belong to the consuming project or
 =Examples/Health/=. Cross-industry controls remain in the top-level

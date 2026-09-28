@@ -1,0 +1,39 @@
+#+TITLE: Regional Healthcare Authorization Profiles
+#+OPTIONS: toc:nil
+
+* Composition boundary
+
+[[file:../ClinicalExchange.lean][ClinicalExchange]] owns shared patient and
+payload binding controls. The regional modules configure different
+authorization choices on top of those controls:
+
+| Module | Reusable Cedar control | External evidence |
+|--------+------------------------+-------------------|
+| [[file:Australia.lean][Australia.EMRUpload]] | Patient-bound eMR document upload, patient-level no-upload instruction, and a strengthened upload permit. | IHI validation, actual patient/document instruction, FHIR content profile, AUCDI applicability, terminology release, and bytes-to-digest binding. |
+| [[file:UnitedStates.lean][UnitedStates.PayerExchange]] | Provider Access requires an attributed treatment relationship and honors opt-out; Payer-to-Payer requires opt-in. | Impacted-payer applicability, patient identity and choice, provider attribution, FHIR/US Core/USCDI validation, and bytes-to-digest binding. |
+
+The library expresses Cedar predicates and Lean-POO edits. A Boolean fact
+is not evidence that a standard or law was satisfied. The Host must obtain,
+authenticate, and version that evidence before admission. Neither regional
+module parses FHIR, implements terminology, connects to a national service,
+or certifies a product.
+
+* Source scope
+
+The [[https://www.digitalhealth.gov.au/healthcare-providers/initiatives-and-programs/digital-health-standards/digital-health-standards-guidelines/get-started/5-standards-for-systems-and-technologies/electronic-medical-record-emr][Australian eMR procurement guide]] distinguishes =should= support for
+AUCDI Release 2 and FHIR document/API capabilities from =must= support for
+healthcare identifiers and applicable terminology. Its My Health Record
+section requires respecting patient instructions not to upload.
+[[https://www.digitalhealth.gov.au/interoperability][My Health Record 2026 interoperability requirements]] assign applicable
+FHIR content versions through implementation guides and conformance
+profiles; the library does not fix a universal version.
+
+[[https://healthit.gov/regulations/hti-rules/hti-1-final-rule/][HTI-1]] governs the US certified-health-IT program and makes USCDI v3
+its baseline from January 2026. [[https://www.cms.gov/newsroom/fact-sheets/cms-interoperability-prior-authorization-final-rule-cms-0057-f][CMS-0057-F]] applies API duties to specified
+impacted payers; its Provider Access path includes treatment attribution and
+patient opt-out, while Payer-to-Payer uses opt-in. Those scopes are separate.
+The profiles here are application components, not claims of regulatory
+conformance.
+
+The [[file:../../../../Examples/Health/Interoperability/README.org][clinical interoperability examples]] instantiate both regional
+modules and check selected decisions with official Cedar Rust.
