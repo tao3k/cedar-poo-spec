@@ -17,8 +17,10 @@ This RFC defines a proposed library interface. The existing
 =CompoundAuthorization=, and =PolicyJson= modules remain the executable
 foundation. The =Admission/=, =Governance/=, and =Data/= modules described
 below are candidate capability families, not a complete taxonomy.
-=Governance.Veto= supports introduction, revision, and withdrawal of a Cedar
-forbid policy. =Admission.BoundOperation= projects a typed effect and state to
+=Governance.Veto= and =Governance.MemberGrant= expose separately owned
+deny and membership-scoped permit slots. =Vertical.Health.DisclosureChannel=
+exposes a medical disclosure channel with a broad and strengthened policy
+revision. =Admission.BoundOperation= projects a typed effect and state to
 one Cedar request; its =authorize= API first checks the supplied effect and
 state against that operation, then reuses =CompoundAuthorization=;
 =Data.sameAttribute= builds a Cedar relation expression without a parallel
@@ -218,10 +220,12 @@ exercise public APIs with synthetic records.
 
 * Open public organization
 
-Library modules are organized by the capability whose semantics and
-revision they own, not by industry, contributor, or a fixed three-part
-framework. =Admission/=, =Governance/=, and =Data/= are initial candidates
-visible in several existing cases. A new family is added when a
+Cross-industry modules are organized by the capability whose semantics and
+revision they own. =Admission/=, =Governance/=, and =Data/= are initial
+families visible in several existing cases. =Vertical/<Industry>/= contains
+industry-specific library objects that multiple applications or scenario
+instances can compose; it is not an alternate Examples tree. A new family
+is added when a
 source-grounded scenario exposes a distinct reusable object, a stable
 ownership boundary, and an observable POO extension or proof-reuse need.
 Directory placement alone neither registers a control nor activates it in
@@ -240,6 +244,46 @@ and a Lean-POO =extend= or =overlay= edit. A family of action-specific
 vetoes can share one owner module. The existing enterprise attested-data
 and health pseudonymization examples now consume that API; it does not
 attempt to represent every kind of governance control.
+
+[[file:../../CedarPooSpec/Governance/MemberGrant.lean][Governance.MemberGrant]] owns one Cedar permit slot bounded by principal
+and resource group membership and an action scope. Its conditions remain
+Cedar expressions; =introduce=, =revise=, and =withdraw= map to Lean-POO
+edits. The country-approval and procurement examples use the same object
+without sharing their group graph, monetary limits, or separation-of-duties
+facts. Both build revision branches with =Model.extend= and merge owners
+with =Model.mix=. The country object still owns local role and group entity
+ancestry; only its reusable grant projection moved into the library.
+
+[[file:../../CedarPooSpec/Vertical/Health/DisclosureChannel.lean][Vertical.Health.DisclosureChannel]] owns a disclosure action and destination,
+its purpose and minimum payload class, and the edit from a broad permit to
+a constrained one. The prior-authorization example instantiates it for
+verification handoff and shared memory. The context keys can be mapped by
+downstream healthcare applications, while actual payload classification,
+patient matching, delegation status, and delivery remain Host obligations.
+The channel's =minimum= predicate requires the delegation field to exist;
+the independent temporal veto decides whether delegation is active. This
+keeps the two owner revisions observable in isolation.
+
+** Example-to-library boundary applied
+
+The current Examples contain 91 Lean source files. File count is not a
+capability count: several files export or extend the same scenario. This
+cut promotes only objects with an observable edit contract and at least one
+consumer that uses the public object directly.
+
+| Example object or pattern | Placement | Reason |
+|---------------------------+-----------+--------|
+| Membership-scoped approver permit in country approval and procurement | =Governance.MemberGrant= | The same stable policy slot supports introduction, revision, and withdrawal across two unrelated entity graphs. |
+| Verification and memory disclosure channels in prior authorization | =Vertical.Health.DisclosureChannel= | Two healthcare communication boundaries share one strengthen/withdraw contract while retaining separate actions and destinations. |
+| Country role and timesheet ancestry in =ApprovalObject= | Example | The jurisdiction graph and fictive identities are scenario input, not a library grant. |
+| Procurement amount limit and separation-of-duties predicate | Example | The grant reuses a public object; the amount keys and purchaser facts still belong to this procurement model. |
+| Cryptographic profile and key lineage in health pseudonymization | Example | The profile represents a particular synthetic dataset, transformation, and key catalog; the crypto operation remains outside Cedar. |
+| Agent fanout ticket and concrete Host port | Example | Its state and effect projection is a useful candidate, but one synthetic Host does not establish a reusable authentication contract. |
+
+This is a placement decision for the inspected cases, not a permanent
+exclusion. A later independently sourced case can supply the missing
+semantic contract and move another object into a cross-industry or
+=Vertical/<Industry>/= module without moving its example records.
 
 The current examples expose additional candidate families. Agent
 delegation and multi-hop chains may justify =Delegation/=; bounded
@@ -313,6 +357,8 @@ not that receipt.
 | =TemplateValidation= | Cedar template linking and validated refresh. |
 | =Admission.BoundOperation= | Derives the exact Cedar request from typed effect and state values, rejects a changed effect or state at its public =authorize= call, then delegates evaluation to =CompoundAuthorization=. Value equality does not authenticate Host facts. |
 | =Governance.Veto= | Emits a forbid policy and explicit extend, overlay, or remove edit. |
+| =Governance.MemberGrant= | Emits a membership-scoped permit and explicit introduce, revise, or withdraw edit. |
+| =Vertical.Health.DisclosureChannel= | Emits a broad and minimum-disclosure permit and the edits that evolve one channel slot. |
 | =Data.sameAttribute= | Compares named attributes through Cedar's expression AST; schema and entity truth remain Cedar-owned. |
 
 The proposed objects should compose these APIs rather than fork them. A

@@ -1,0 +1,31 @@
+#+TITLE: Reusable Healthcare Controls
+#+OPTIONS: toc:nil
+
+* Disclosure channel
+
+[[file:DisclosureChannel.lean][DisclosureChannel]] is a public healthcare control object for an internal
+disclosure to a named destination. An application supplies a Cedar action,
+destination entity, permitted purpose, and minimum payload class. The
+object contributes one stable Cedar permit slot to a Lean-POO model:
+
+| Edit | Policy state |
+|------+--------------|
+| =introduce= | Broad permit for this action and destination. |
+| =strengthen= | Overlay the same slot with purpose, payload-class, and patient-match checks. |
+| =withdraw= | Remove the slot without rewriting other owners. |
+
+The [[file:../../../Examples/Health/PriorAuthorization/InternalChannels.lean][prior-authorization example]] instantiates separate verification and
+shared-memory channels, mixes them, then composes privacy and temporal
+owners. Its [[file:../../../Examples/Health/PriorAuthorization/README.org][scenario documentation]] identifies the research sources and
+the tested positive and negative cases. The library object does not infer
+payload class from bytes, authenticate a patient or delegation, deliver a
+message, or implement a hospital connector. Those facts must be projected
+from the actual operation by a downstream Host.
+
+* Organization boundary
+
+Reusable healthcare control definitions belong under =Vertical/Health/=.
+Patient identifiers, hospital workflows, policy instances, synthetic
+records, and scenario-specific proofs belong to the consuming project or
+=Examples/Health/=. Cross-industry controls remain in the top-level
+=Admission/=, =Governance/=, and =Data/= modules.

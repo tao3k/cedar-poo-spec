@@ -334,8 +334,9 @@ timesheet example.
 
 =ApprovalObject= in [[file:CountryApproval.lean][CountryApproval.lean]] binds a
 jurisdiction's approver role, role ancestry, timesheet group, group ancestry,
-and policy ID in one value. Its methods derive both Cedar entities and the
-resource-scoped policy. =Base= appends the France and Germany objects;
+and policy ID in one value. Its methods derive both Cedar entities and a
+public [[file:../../CedarPooSpec/Governance/MemberGrant.lean][Governance.MemberGrant]]. The grant owns the Cedar permit and its Lean-POO
+edit slot. =Base= appends the France and Germany objects;
 =Expansion= appends UK and Japan without another handwritten role/group/policy
 triple. =Sensitive= is an independent classification owner. =Integrated=
 mixes those branches and removes the broad Europe grant. The object is the

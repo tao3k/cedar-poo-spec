@@ -110,15 +110,17 @@ prior-authorization workflow above. It is a proposed design, not a replay of
 the paper's scheduling trace or a measured privacy defense.
 
 [[file:InternalChannels.lean][InternalChannels.lean]] inherits the existing
-=Governed= provider-to-payer model. It first makes verification handoff and
-shared memory separate =ChannelObject= values, each owning its action,
-recipient, purpose, and minimum payload class. Two LeanPOO objects,
+=Governed= provider-to-payer model. It instantiates the public
+[[file:../../../CedarPooSpec/Vertical/Health/DisclosureChannel.lean][Vertical.Health.DisclosureChannel]] twice: verification handoff and shared
+memory each own an action, destination, purpose, minimum payload class, and
+stable policy slot. Two Lean-POO objects,
 =VerificationHandoff= and =SharedMemory=, append their respective policies
 by extending =Governed=. Neither object grants the other's action. Only
 then does =ChannelBase= mix them. It permits a full chart in either internal
 channel even while the inherited payer-submission
 policy denies a draft marked as carrying a raw record. =ChannelPrivacy=
-overlays both permits with different minimum payload classes and purposes;
+uses each channel's =strengthen= edit to overlay its broad permit with a
+different minimum payload class and purpose;
 =ChannelTemporal= independently revokes internal delegation. Their
 =ChannelGoverned= C4 mix permits a patient-bound verification token for the
 verifier and a workflow handle for memory, while rejecting a full chart,
