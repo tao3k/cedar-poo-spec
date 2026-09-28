@@ -103,6 +103,19 @@ fn run() -> Result<(), String> {
         return Err("invalid local structured AES-SIV input".into());
     }
 
+    let reidentify_case = manifest
+        .cases
+        .iter()
+        .find(|case| case.name == "steward-reidentify" && case.revision == "HospitalSiv")
+        .ok_or("missing governed steward-reidentify case")?;
+    if reidentify_case.request.resource != case.request.resource
+        || reidentify_case.request.context.get("requestedKeyVersion")
+            != case.request.context.get("requestedKeyVersion")
+        || reidentify_case.request.context.get("targetDataset")
+            != case.request.context.get("targetDataset")
+    {
+        return Err("re-identification request targets a different token domain".into());
+    }
     let receipts = replay_validated_manifest(&manifest)?;
     let mut selected = receipts
         .iter()
@@ -113,11 +126,34 @@ fn run() -> Result<(), String> {
     if selected.next().is_some() || !replay.replay.error_free_allow {
         return Err("hospital-tokenize replay is ambiguous or denied".into());
     }
+    let mut recovery = receipts
+        .iter()
+        .filter(|receipt| receipt.replay.case_name == "steward-reidentify");
+    let recovery_replay = recovery
+        .next()
+        .ok_or("missing steward-reidentify Cedar replay")?;
+    if recovery.next().is_some() || !recovery_replay.replay.error_free_allow {
+        return Err("steward-reidentify replay is ambiguous or denied".into());
+    }
     let key = [7_u8; 64];
     let token = Aes256Siv::new_from_slice(&key)
         .map_err(|error| error.to_string())?
         .encrypt([input.context.as_bytes()], input.value.as_bytes())
         .map_err(|error| error.to_string())?;
+    let recovered = Aes256Siv::new_from_slice(&key)
+        .map_err(|error| error.to_string())?
+        .decrypt([input.context.as_bytes()], &token)
+        .map_err(|error| error.to_string())?;
+    if recovered != input.value.as_bytes() {
+        return Err("local AES-SIV round trip changed the selected value".into());
+    }
+    if Aes256Siv::new_from_slice(&key)
+        .map_err(|error| error.to_string())?
+        .decrypt([b"wrong-context".as_slice()], &token)
+        .is_ok()
+    {
+        return Err("local AES-SIV accepted a different context".into());
+    }
     let mut input_mac = <Hmac<Sha256> as hmac::KeyInit>::new_from_slice(&[5_u8; 32])
         .map_err(|error| error.to_string())?;
     input_mac.update(input.value.as_bytes());
@@ -125,6 +161,8 @@ fn run() -> Result<(), String> {
         "kind": "synthetic-local-aes-siv",
         "caseName": replay.replay.case_name,
         "decision": replay.replay.decision,
+        "reidentifyDecision": recovery_replay.replay.decision,
+        "reidentifyRequestSha256": recovery_replay.replay.request_sha256,
         "schemaSha256": replay.schema_sha256,
         "policiesSha256": replay.replay.policies_sha256,
         "entitiesSha256": replay.replay.entities_sha256,
@@ -139,7 +177,8 @@ fn run() -> Result<(), String> {
         "wrappingVersion": input.wrapping_version,
         "inputHmacSha256": hex(input_mac.finalize().into_bytes()),
         "tokenSha256": hex(Sha256::digest(&token)),
-        "tokenBytes": token.len()
+        "tokenBytes": token.len(),
+        "roundTripMatches": true
     });
     println!("{result}");
     Ok(())

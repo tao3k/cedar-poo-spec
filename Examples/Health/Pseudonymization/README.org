@@ -35,8 +35,13 @@ does not inspect arbitrary records or issue a Google
 Sensitive Data Protection request.
 The [[file:../../../rust/examples/pseudonymization_local.rs][local executable]] checks that this fixture matches the
 =hospital-tokenize= Cedar request and dataset entity before encrypting with a
-synthetic key. Its hash-bound output is checked by =just example health
-pseudonymization=; the same recipe rejects a swapped context or key version.
+synthetic key. It separately replays the governed =steward-reidentify=
+decision, decrypts the generated token with the same context, and rejects a
+different context. The receipt records both decision digests and a local
+round-trip result without emitting plaintext. =just example health
+pseudonymization= checks it and rejects a swapped context or key version.
+Both approvals still come from synthetic request facts; this is not a durable
+Host transaction or a Google provider execution receipt.
 
 * Object composition
 
