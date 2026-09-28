@@ -15,8 +15,7 @@ authorization choices on top of those controls:
 The library expresses Cedar predicates and Lean-POO edits. A Boolean fact
 is not evidence that a standard or law was satisfied. The Host must obtain,
 authenticate, and version that evidence before admission. Neither regional
-module parses FHIR, implements terminology, connects to a national service,
-or certifies a product.
+module parses FHIR, implements terminology, or connects to a national service.
 
 * Source scope
 
@@ -32,8 +31,8 @@ profiles; the library does not fix a universal version.
 its baseline from January 2026. [[https://www.cms.gov/newsroom/fact-sheets/cms-interoperability-prior-authorization-final-rule-cms-0057-f][CMS-0057-F]] applies API duties to specified
 impacted payers; its Provider Access path includes treatment attribution and
 patient opt-out, while Payer-to-Payer uses opt-in. Those scopes are separate.
-The profiles here are application components, not claims of regulatory
-conformance.
+The profiles here expose selected authorization decisions. The cited rules
+define a broader set of duties for the systems to which they apply.
 
 The [[file:../../../../Examples/Health/Interoperability/README.org][clinical interoperability examples]] instantiate both regional
 modules and check selected decisions with official Cedar Rust.

@@ -14,7 +14,7 @@ into one universal healthcare compliance profile.
 | [[https://www.cms.gov/newsroom/fact-sheets/cms-interoperability-prior-authorization-final-rule-cms-0057-f][US CMS-0057-F final rule]] | The FHIR API duties apply to specified impacted payers, with API compliance dates generally in 2027. Provider Access includes treatment relationship and patient opt-out; Payer-to-Payer uses patient opt-in. | These are different market profiles. The existing prior-authorization example models provider submission decisions, not a payer's complete API duties. |
 
 The =should= and =must= distinctions above follow the cited publications.
-They are source descriptions, not a legal-compliance conclusion for a product.
+They provide source context for the selected authorization cases.
 
 * Australian eMR upload
 
@@ -70,5 +70,5 @@ The Australian no-upload instruction and IHI fact are not copied into a US
 policy. The US treatment relationship, opt-out, and opt-in premises are not
 applied to Australian eMR uploads. AUCDI, AU Core, SNOMED CT-AU, USCDI, US
 Core, and terminology versions are evidence owned by the relevant upstream
-validator and Host. Parsing, standards validation, certification, audit
+validator and Host. Parsing, standards validation, audit
 persistence, and actual exchange are outside this library.

@@ -3,7 +3,7 @@ import CedarPooSpec.Governance.Veto
 /-!
 Shared authorization controls for a patient-bound clinical exchange. The
 Host supplies authenticated identifier and payload evidence. This module
-does not parse documents, verify terminology, or certify interoperability.
+does not parse documents, verify terminology, or implement exchange standards.
 -/
 
 namespace CedarPooSpec.Vertical.Health.ClinicalExchange

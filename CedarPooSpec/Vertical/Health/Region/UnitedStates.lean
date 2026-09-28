@@ -3,8 +3,8 @@ import CedarPooSpec.Vertical.Health.ClinicalExchange
 /-!
 Application control objects for two distinct CMS payer API paths. The Host
 owns payer applicability, FHIR/US Core/USCDI conformance, identity evidence,
-treatment attribution, patient choice, and actual exchange. This is not an
-implementation or certification of CMS-0057-F or HTI-1.
+treatment attribution, patient choice, and actual exchange. The module
+provides selected authorization predicates for those application paths.
 -/
 
 namespace CedarPooSpec.Vertical.Health.Region.UnitedStates
