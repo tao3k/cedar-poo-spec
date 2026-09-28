@@ -22,20 +22,11 @@ specification.
 
 * Core design: composable pseudonymization
 
-[[file:CedarPooSpec/Pseudonymization/README.org][Pseudonymization]] is the library's leading cross-industry capability.
-Its object boundary follows the data lifecycle: admit a transformation,
-record token and key lineage, permit a scoped join, separately approve result
-release, and govern exceptional re-identification. Lean-POO composes and
-revises the owners; Cedar decides each requested operation; the Host
-authenticates facts and executes the data effect. This lets an AI agent use
-approved derived data without inheriting tokenization or plaintext-release
-authority.
-
-Google Cloud's [[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][pseudonymization design]] shows why token context, key material,
-and reversibility must be explicit. [[https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/][OWASP LLM02]] identifies sensitive-information
-disclosure as a risk for AI applications. This project composes policy and
-proof boundaries around those concerns; pseudonymization itself is not
-anonymization and does not guarantee that an AI output is safe to release.
+[[file:CedarPooSpec/Pseudonymization.org][Pseudonymization]] documents the public
+[[file:CedarPooSpec/Pseudonymization.lean][Lean module]] beside its implementation.
+It is a cross-industry lifecycle: scoped transformation, correlation,
+result release, and exceptional re-identification. The adjacent ORG defines
+the source links, composition boundary, evidence, and Host responsibilities.
 
 #+begin_src mermaid
 stateDiagram-v2

@@ -40,4 +40,4 @@ Reusable healthcare control definitions belong under =Vertical/Health/=.
 Patient identifiers, hospital workflows, policy instances, synthetic
 records, and scenario-specific proofs belong to the consuming project or
 =Examples/Health/=. Cross-industry controls remain in the top-level
-=Admission/=, =Governance/=, and =Data/= modules.
+=Pseudonymization/=, =Admission/=, =Governance/=, and =Data/= modules.
