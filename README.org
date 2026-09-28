@@ -44,6 +44,10 @@ evolution receipt for unchanged concrete authorization inputs.
 [[file:docs/rfc/0007-poo-dispatch-boundary.org][RFC 0007]] defines the
 construction-time boundary for Lean-POO multiple dispatch across independently
 extensible policy profiles.
+[[file:docs/rfc/0008-composable-control-objects.org][RFC 0008]] defines an
+open, scenario-driven control-object library above Cedar's upstream semantics
+and below downstream vertical contributions. Admission, Governance, and Data
+are initial candidate families rather than a fixed taxonomy.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.

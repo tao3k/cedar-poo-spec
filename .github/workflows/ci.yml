@@ -108,6 +108,7 @@ jobs:
       - run: just example health prior-authorization-internal-channels
       - run: just example health pseudonymization
       - run: just example governance country-approval-validated
+      - run: just example governance attested-views
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
 

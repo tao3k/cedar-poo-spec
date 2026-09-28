@@ -1,6 +1,7 @@
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
 import CedarPooSpec.Soundness
+import CedarPooSpec.Governance.Veto
 
 /-!
 An enterprise data-access model combining a project subscription, an
@@ -13,6 +14,7 @@ namespace CedarPooSpec.AttestedDataAccessExample
 
 open Cedar.Spec Cedar.Validation Cedar.Data
 open CedarPooSpec.PolicyModules CedarPooSpec.Soundness
+open CedarPooSpec.Governance
 open LeanPoo.Proof
 
 def workerType : EntityType := ⟨"DataWorker", []⟩
@@ -122,30 +124,18 @@ def purposePermit : Policy :=
 def legacyPermit : Policy :=
   queryPolicy "legacy-subscription" .permit subscriptionActive
 
-/-- An independently owned governance control has a stable policy identity
-    and one denial condition. A revision changes the condition, not its ID. -/
-structure ControlObject where
-  moduleName : String
-  policyId : String
-  denyWhen : Expr
-
-def ControlObject.policy (object : ControlObject) : Policy :=
-  queryPolicy object.policyId .forbid object.denyWhen
-
-def ControlObject.module (object : ControlObject) (parent : String)
-    (change : Policy → Edit) : Module :=
-  { name := object.moduleName, parentOrders := [[parent]],
-    edits := [change object.policy] }
-
-def ownerControl : ControlObject :=
-  ⟨"DataOwner", "owner-approval",
-    .unaryApp .not (.and ownerApproved independentApprover)⟩
-def platformControl : ControlObject :=
-  ⟨"Platform", "attested-platform", .unaryApp .not attestationV1⟩
-def platformControlV2 : ControlObject :=
-  ⟨"PlatformV2", platformControl.policyId, .unaryApp .not attestationValid⟩
-def complianceControl : ControlObject :=
-  ⟨"Compliance", "region-boundary", .unaryApp .not regionMatches⟩
+/-- Owner-local vetoes use the public Cedar-backed control object. -/
+def ownerControl : Veto :=
+  { policyId := "owner-approval", actionScope := .actionScope (.eq queryAction),
+    denyWhen := .unaryApp .not (.and ownerApproved independentApprover) }
+def platformControl : Veto :=
+  { policyId := "attested-platform", actionScope := .actionScope (.eq queryAction),
+    denyWhen := .unaryApp .not attestationV1 }
+def platformControlV2 : Veto :=
+  { platformControl with denyWhen := .unaryApp .not attestationValid }
+def complianceControl : Veto :=
+  { policyId := "region-boundary", actionScope := .actionScope (.eq queryAction),
+    denyWhen := .unaryApp .not regionMatches }
 
 def ownerVeto : Policy := ownerControl.policy
 def platformVetoV1 : Policy := platformControl.policy
@@ -155,27 +145,55 @@ def regionVeto : Policy := complianceControl.policy
 def base : Module :=
   { name := "Base", suffix := true,
     edits := [.extend projectPermit, .extend legacyPermit] }
-def dataOwner : Module := ownerControl.module "Base" .extend
-def platform : Module := platformControl.module "Base" .extend
-def platformV2 : Module := platformControlV2.module "Platform" .overlay
-def compliance : Module := complianceControl.module "Base" .extend
-def governed : Module :=
-  { name := "Governed", parentOrders := [["DataOwner", "Platform", "Compliance"]],
+def dataOwner : Module := ownerControl.module "DataOwner" "Base" .introduce
+def platform : Module := platformControl.module "Platform" "Base" .introduce
+def platformV2 : Module := platformControlV2.module "PlatformV2" "Platform" .revise
+def compliance : Module := complianceControl.module "Compliance" "Base" .introduce
+
+/-- A governed view owns its C4 precedence. Every view performs the same
+    purpose overlay and legacy-grant removal after its owners are resolved. -/
+structure GovernanceView where
+  name : String
+  owners : List String
+
+def GovernanceView.module (view : GovernanceView) : Module :=
+  { name := view.name, parentOrders := [view.owners],
     edits := [.overlay purposePermit, .remove legacyPermit.id] }
-def governedV2 : Module :=
-  { name := "GovernedV2", parentOrders := [["DataOwner", "PlatformV2", "Compliance"]],
-    edits := [.overlay purposePermit, .remove legacyPermit.id] }
-def governedV2Reordered : Module :=
-  { name := "GovernedV2Reordered",
-    parentOrders := [["Compliance", "DataOwner", "PlatformV2"]],
-    edits := [.overlay purposePermit, .remove legacyPermit.id] }
+
+def GovernanceView.reviseOwner (view : GovernanceView) (name oldOwner newOwner : String)
+    (_present : oldOwner ∈ view.owners) : GovernanceView :=
+  ⟨name, view.owners.map (fun owner => if owner == oldOwner then newOwner else owner)⟩
+
+def GovernanceView.prioritize (view : GovernanceView) (name owner : String)
+    (_present : owner ∈ view.owners) : GovernanceView :=
+  ⟨name, owner :: view.owners.filter (· != owner)⟩
+
+def baselineView : GovernanceView :=
+  ⟨"Governed", [dataOwner.name, platform.name, compliance.name]⟩
+def strengthenedView : GovernanceView :=
+  baselineView.reviseOwner "GovernedV2"
+    platform.name platformV2.name (by native_decide)
+def reorderedView : GovernanceView :=
+  strengthenedView.prioritize "GovernedV2Reordered"
+    compliance.name (by native_decide)
+def governanceViews : List GovernanceView :=
+  [baselineView, strengthenedView, reorderedView]
+
+def governed : Module := baselineView.module
+def governedV2 : Module := strengthenedView.module
+def governedV2Reordered : Module := reorderedView.module
+
+theorem governanceViewsShareEdits :
+    governed.edits = governedV2.edits ∧
+    governedV2.edits = governedV2Reordered.edits := by native_decide
+
 def sandbox : Module :=
   { name := "Sandbox", parentOrders := [["Base"]] }
 def auditView : Module :=
-  { name := "AuditView", parentOrders := [["GovernedV2"]] }
+  { name := "AuditView", parentOrders := [[strengthenedView.name]] }
 def model : Model :=
-  { modules := [base, dataOwner, platform, platformV2, compliance,
-      governed, governedV2, governedV2Reordered, sandbox, auditView] }
+  { modules := [base, dataOwner, platform, platformV2, compliance] ++
+      governanceViews.map GovernanceView.module ++ [sandbox, auditView] }
 /-- An owner chain can opt into C4's indivisible inherited suffix. -/
 def strictOwner : Module := { dataOwner with suffix := true }
 def independentCompliance : Module :=

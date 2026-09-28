@@ -1,0 +1,242 @@
+#+TITLE: RFC 0008: Composable Cedar Control Objects
+#+OPTIONS: toc:nil
+
+* Purpose
+
+=cedar-poo-spec= is a Cedar-specific library above Lean-POO and Cedar's
+upstream specification. It lets independent owners contribute typed control
+objects, inherit or revise them through POO, and publish ordinary Cedar
+policies with explicit validation evidence. It does not implement a second
+policy language, validator, authorizer, entity store, or cryptographic
+runtime. Extensive use of Cedar's APIs is required: Cedar owns the policy
+AST, schema, request and entity model, evaluation, validation, template
+linking, extensions, permit/forbid aggregation, and authorization theorems.
+
+This RFC defines a proposed library interface. The existing
+=PolicyModules=, =SchemaAdmission=, =PolicyValidation=, =Revision=,
+=CompoundAuthorization=, and =PolicyJson= modules remain the executable
+foundation. The =Admission/=, =Governance/=, and =Data/= modules described
+below are candidate capability families, not a complete taxonomy.
+=Governance.Veto= is the first implemented public object; the other
+families are not yet library modules.
+
+* Ownership and dependency direction
+
+#+begin_src mermaid
+flowchart TD
+  L[Lean-POO: objects, C4, patches, proof reuse] --> P[cedar-poo-spec]
+  C[cedar-spec: language, schema, validation, authorizer, theorems] --> P
+  P --> B[cedar-poo-bridge: validated artifact and conformance]
+  V[Lambda Episteme: Scenario, Profile, Case, Source] --> F[POO Flow Cedar Provider]
+  F --> A[poo-flow-cedar-authority: Rust authority and FFI]
+  B -. proposed pinned artifact handoff .-> A
+  A --> R[Official Cedar Rust authorization]
+  A --> H[Independent runtime Host: effects and receipts]
+#+end_src
+
+The Lean library and vertical POO contribution meet through an explicit
+artifact and runtime admission boundary. Lambda does not import Lean
+declarations into Gerbil at runtime. A Profile or Case contributes meaning;
+the Host authenticates the actual inputs and selects the accepted composition.
+The dashed Rust artifact edge is a proposed cross-repository integration:
+the current =cedar-poo-bridge= and POO Flow =cedar-authority= crates both
+depend on official =cedar-policy=, but neither currently depends on the
+other. This RFC must not be read as proof of that missing integration.
+POO Flow's Rust =Bootstrap= already carries policy sources, schema and
+entities, Profile provenance, a revision, and revocation epoch; its
+=Proposal= and =AuthorizationSubject= bind a request and authority
+digests. The proposed artifact handoff should map into those existing
+types and preserve their ownership, rather than adding a second runtime
+authorization protocol inside =cedar-poo-bridge=.
+
+The wire seam is specific. This repository currently validates a compiled
+Cedar policy-set JSON artifact and can render Cedar source. POO Flow's
+=Bootstrap.policies= expects individually identified =PolicySource=
+entries and parses each with its explicit policy ID; it also injects a
+reserved =context.poo_flow= record into the Cedar schema. A future
+integration must derive the per-policy source, IDs, schema, and entity
+snapshot from the same pinned artifact, then check the reserved context
+projection and digest equality in the authority's native Rust tests.
+Matching =cedar-policy= dependency versions alone does not establish this
+contract. The current library and FFI can be qualified independently
+while that join remains open.
+TLA+/TLC model receipts, Lean theorem receipts, Cedar decisions, and Host
+effect receipts remain distinct. This library can carry or relate them but
+cannot substitute one for another.
+
+An open-source contribution belongs to the module that owns its semantics.
+There is no separate =Contrib/= namespace. Industry-specific policies and
+sources belong to downstream vertical libraries; this repository's examples
+exercise public APIs with synthetic records.
+
+* Open public organization
+
+Library modules are organized by the capability whose semantics and
+revision they own, not by industry, contributor, or a fixed three-part
+framework. =Admission/=, =Governance/=, and =Data/= are initial candidates
+visible in several existing cases. A new family is added when a
+source-grounded scenario exposes a distinct reusable object, a stable
+ownership boundary, and an observable POO extension or proof-reuse need.
+Directory placement alone neither registers a control nor activates it in
+a downstream composition.
+
+| Module | First-class object | Cedar API used | POO extension axis |
+|--------+--------------------+----------------+--------------------|
+| =Admission/= | An attempted operation, authenticated evidence projection, bound effect, state version, and admission receipt. | =Cedar.Spec.Request=, =Entities=, =isAuthorized=, request and entity validation. | Inherit a base admission boundary; extend independent vetoes; revise one evidence projection without copying the policy set. |
+| =Governance/= | Scoped approval, responsible owner, revocation, and policy-control contribution. | =Policy=, =Template=, =link?=, =validate=, permit and forbid effects. | Compose owner, platform, privacy, and incident controls; overlay or remove a specific policy ID. |
+| =Data/= | Classified asset, lineage, transformation version, and source/target relation. | Cedar schema/entity definitions, entity validation, attribute and extension expressions. | Extend classifications or transformation profiles and invalidate only dependent controls. |
+
+The first library object, [[file:../../CedarPooSpec/Governance/Veto.lean][Governance.Veto]],
+retains Cedar's =PolicyID=, =ActionScope=, =PrincipalScope=,
+=ResourceScope=, and =Expr=. It emits an ordinary Cedar =forbid= policy
+and a Lean-POO =extend= or =overlay= edit. A family of action-specific
+vetoes can share one owner module. The existing enterprise attested-data
+and health pseudonymization examples now consume that API; it does not
+attempt to represent every kind of governance control.
+
+The current examples expose additional candidate families. Agent
+delegation and multi-hop chains may justify =Delegation/=; bounded
+sessions, shared budgets, payment release, and clinical workflows may
+justify =Workflow/= or =Session/=; vehicle command, supplier transition,
+and enclave attestation may justify a device or evidence capability.
+These are *questions to test against actual cross-case reuse*, not
+reserved directories or a promise that each will become one module.
+Likewise, a community contribution may reveal a capability absent from
+today's examples. It is evaluated by its semantic contract rather than
+forced into one of the initial three families.
+
+Before promoting a capability from an example into the library, identify:
+
+1. The independently owned object and the operation that changes it.
+2. Which upstream Cedar types, functions, validation premises, and
+   extensions the object directly uses.
+3. Which Lean-POO inheritance, mix, edit, or proof-reuse operation makes
+   the object valuable across revisions.
+4. A source-grounded scenario and a discriminating negative case that
+   would fail if the abstraction lost an owner, scope, veto, or state edge.
+5. The boundary between reusable semantics and vertical facts retained
+   by Lambda Episteme or another downstream library.
+
+A compelling single scenario can establish a new capability when it has
+an explicit extension interface and failure discriminator; a superficial
+similarity across many files cannot. An initially local abstraction may
+remain in its scenario until the boundary is clear.
+
+The public values must retain upstream Cedar types at the boundary. A
+control object may *produce* a =Cedar.Spec.Policy= or
+=PolicyModules.Edit=; it must not replace Cedar's expression AST with a
+competing evaluator. Data classification is a typed projection into Cedar
+entities and schema, not a second mutable catalog of Cedar attributes.
+Admission evidence describes what the Host attests, not a Boolean supplied
+by an untrusted requester.
+
+* Contribution contract
+
+A reusable control object declares its stable identity, owning authority,
+required Cedar schema and entity attributes, policies or policy templates,
+dependency objects, and the provenance of Host-supplied facts. Its revisions
+use existing =PolicyModules.Edit= operations and preserve policy IDs when
+overriding a body. A contribution is admitted for publication only after:
+
+1. The selected C4 root compiles without missing or competing edits.
+2. Cedar validates the schema and compiled policy set.
+3. The exporter can represent the result in Cedar's public format and the
+   official Rust Cedar parser and authorizer replay the selected cases.
+4. Any claimed proof reuse names the exact changed policies, schema, and
+   obligations reclosed through the existing revision APIs.
+
+These conditions validate a *policy artifact*. A separate Host contract
+must bind the selected root, policy or artifact digest, entity snapshot,
+principal, operation, effect payload, and state version at execution time.
+One authorization response must not be reused for a different effect or
+after revocation. For operations such as GCM IV allocation and release of
+re-identified plaintext, the Host must atomically reserve or persist the
+required effect and produce a separate execution receipt. Cedar =Allow= is
+not that receipt.
+
+* API reuse rather than duplicate coverage
+
+| Existing library API | Role in the new objects |
+|----------------------+-------------------------|
+| =PolicyModules.Model=, =Module=, and =Edit= | Inheritance, C4 order, extend, overlay, remove, edit provenance. |
+| =PolicyJson.publish= | Cedar-validated publication of an explicitly selected root. |
+| =SchemaAdmission= and =PolicyValidation= | Upstream Cedar environment and policy premises. |
+| =Revision= and =AuthorizationDelta= | Changed-policy and proof impact evidence. |
+| =CompoundAuthorization= | Multiple Cedar requests against an exact compiled root and entity snapshot. |
+| =TemplateValidation= | Cedar template linking and validated refresh. |
+
+The proposed objects should compose these APIs rather than fork them. A
+new helper is justified by a distinct reusable semantic contract and an
+observable improvement in composition or proof wiring. A common spelling
+alone is insufficient: clinical consent,
+enterprise approval, and a cryptographic key grant may share a scoped-grant
+shape while retaining different owners and admission evidence.
+
+* Lambda Episteme as a vertical composition layer
+
+Lambda Episteme is more than a collection of downstream policies. It owns
+the vertical meaning of =Scenario=, inheritable =Profile=, concrete =Case=,
+and explicit =Source=. A Case composes selected Profiles and graph facts;
+the same accepted composition identifies which domain threats, relations,
+controls, and external authorities apply. Neither importing the package
+nor mounting a Profile activates a Cedar permission.
+
+The useful handoff is a versioned, identity-bound projection of a selected
+Case through POO Flow's Cedar Provider and Rust authority, alongside a
+separately validated Cedar artifact from this library's Rust bridge. The
+join must bind Case and Profile revisions, Source identities and admitted
+versions, selected control owners and C4 root, policy/schema/entity digests,
+runtime epoch, and the provenance of each request-context fact. It also
+names the separate TLA+/TLC and Lean evidence on which domain admission
+relies. These are proposed interface fields, not a claim that the two Rust
+crates already exchange one end-to-end manifest.
+
+| Lambda contribution | Effect in this library | Independent authority |
+|---------------------+------------------------+-----------------------|
+| Profile inheritance or import | Selects or revises owned control objects and identifies affected composition roots. | Lean-POO resolves C4 and changed proof dependencies. |
+| Scenario and Case graph relations | Project typed source, target, principal, and asset relations into Cedar entities and requests. | Cedar validates the schema and evaluates the resulting policies. |
+| Source and threat evidence | Supplies explicit provenance and unresolved admission obligations. | Source admission and TLA+/TLC receipts remain separate from Cedar Allow. |
+| Concrete Case selection | Selects a POO Flow Cedar Provider projection and a pinned Cedar artifact; exposes negative cases for wrong scope, stale state, or missing evidence. | The Rust authority authenticates its admitted snapshot; the Host binds the decision to the actual effect. |
+
+This makes a vertical change observable at every boundary. For example, a
+Healthcare Profile may strengthen a re-identification approval or an Agent
+Profile may add a cross-tool egress veto. Lambda identifies the changed
+Profile and affected Cases; Lean-POO reuses unaffected objects and proofs;
+this library recompiles and validates the changed Cedar policy bodies;
+official Cedar Rust replays the concrete requests; the Host rejects stale
+effect tickets. The value is local evolution of a large related Scenario,
+not merely fewer lines in one policy file. Each receipt must retain its
+own version and claim; a successful TLC run is not a Lean theorem, and a
+Lean/Cedar conformance result is not a production Host execution receipt.
+
+* Cross-scenario discriminator
+
+An initial cross-scenario discriminator can use the existing health
+pseudonymization and enterprise attested-data-access cases. Both require
+an owner-approved data operation, a target asset, trusted evidence, and an
+incident or revision path. The health case additionally has key lineage,
+re-identification, and IV allocation; the enterprise case has enclave
+attestation and organizational controls. A shared =Governance= approval
+object is useful only if both cases can instantiate it without moving
+those domain-specific facts into the library. This case probes one candidate
+family; it does not define the library's complete coverage. Agent,
+payment, and vehicle cases should independently drive subsequent
+capability decisions.
+
+The discriminating sequence is: publish the governed root; authorize an
+operation for one asset and purpose; change the target, owner grant, or
+state version; reject an old admission receipt; revise one control owner;
+revalidate the affected Cedar policy and preserve unaffected obligations.
+Lean establishes the composition and revision claims, official Cedar Rust
+replays the concrete decisions, and a Host integration separately checks
+the bound effect. Synthetic example inputs cannot establish actual Host
+authentication, key separation, durable audit, or production performance.
+
+* Sources
+
+- [[https://github.com/cedar-policy/cedar-spec][Cedar specification]] is the upstream Lean authority for language and
+  authorization semantics.
+- [[https://github.com/cedar-policy/cedar][Cedar]] supplies the official Rust parser, validator, and authorizer.
+- [[https://github.com/tao3k/lean-poo][Lean-POO]] supplies generic object composition and proof reuse.
+- [[https://github.com/tao3k/lambda-episteme][Lambda Episteme]] is a downstream vertical contribution library with
+  distinct Scenario, Profile, Case, Source, TLA+/TLC, Lean, and Host roles.

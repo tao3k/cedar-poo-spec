@@ -1,5 +1,6 @@
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
+import CedarPooSpec.Governance.Veto
 
 /-!
 An authorization model for hospital pseudonymization. The cryptographic
@@ -11,6 +12,7 @@ namespace CedarPooSpec.PseudonymizationExample
 
 open Cedar.Spec Cedar.Validation Cedar.Data
 open CedarPooSpec.PolicyModules
+open CedarPooSpec.Governance
 open LeanPoo.Proof
 
 def actorType : EntityType := ⟨"Actor", []⟩
@@ -235,26 +237,23 @@ def hmac : CryptoProfile := ⟨"Hmac", .hmacSha256⟩
 def legacyReveal : Policy :=
   policy "legacy-reidentify" .permit reidentify (.lit (.bool true))
 def base : Module := { name := "Base", edits := [.extend legacyReveal] }
+def veto (id : String) (action : EntityUID) (denyWhen : Expr) : Veto :=
+  { policyId := id, actionScope := .actionScope (.eq action), denyWhen }
+
 def owner : Module :=
-  { name := "DataOwner", parentOrders := [["Base"]],
-    edits := [.extend (policy "owner-approval" .forbid tokenize
-      (not (fact "ownerApproved"))),
-      .extend (policy "owner-join-approval" .forbid join
-        (not (fact "ownerApproved"))),
-      .extend (policy "owner-reidentify-approval" .forbid reidentify
-        (not (fact "ownerApproved")))] }
+  Veto.moduleMany "DataOwner" "Base" .introduce [
+    veto "owner-approval" tokenize (not (fact "ownerApproved")),
+    veto "owner-join-approval" join (not (fact "ownerApproved")),
+    veto "owner-reidentify-approval" reidentify (not (fact "ownerApproved"))]
 def privacy : Module :=
-  { name := "Privacy", parentOrders := [["Base"]],
-    edits := [.extend (policy "tenant-token-boundary" .forbid tokenize
-      (not tenantBound)),
-      .extend (policy "tenant-join-boundary" .forbid join
-        (not tenantBound)),
-      .extend (policy "tenant-reidentify-boundary" .forbid reidentify
-        (not tenantBound))] }
+  Veto.moduleMany "Privacy" "Base" .introduce [
+    veto "tenant-token-boundary" tokenize (not tenantBound),
+    veto "tenant-join-boundary" join (not tenantBound),
+    veto "tenant-reidentify-boundary" reidentify (not tenantBound)]
 def agentBoundary : Module :=
-  { name := "AgentBoundary", parentOrders := [["Base"]],
-    edits := [.extend (policy "agent-cannot-reidentify" .forbid reidentify
-      (eqString (attr .principal "kind") "agent"))] }
+  (veto "agent-cannot-reidentify" reidentify
+    (eqString (attr .principal "kind") "agent")).module
+      "AgentBoundary" "Base" .introduce
 
 /-- Each view inherits the same owner, privacy, and agent boundaries. Changing
     the profile changes only the cryptographic capability branch. -/

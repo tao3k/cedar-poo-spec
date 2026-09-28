@@ -33,12 +33,29 @@ composes those owners, overlays the project permit with an analytics-purpose
 condition, and removes the legacy permit. =PlatformV2= overlays the attestation
 veto to require freshness; =GovernedV2= composes the updated platform branch.
 
-These three owners are now =ControlObject= values with a stable policy ID and
-an owner-local denial condition. The object's =policy= and =module= methods
-derive the Cedar policy and the LeanPOO edit together. =PlatformV2= uses the
-same policy ID with a revised condition, so proof reuse tracks one changed
-object slot. The project grant remains a separate positive permit: grouping
-it into a veto object would obscure Cedar's permit/forbid semantics.
+These three owners use the public =Governance.Veto= object with a stable
+Cedar policy ID and an owner-local denial condition. Its =policy= and
+=module= methods derive the Cedar policy and the LeanPOO edit together.
+=PlatformV2= keeps the policy ID and revises only the condition, so proof
+reuse tracks one changed object slot. The project grant remains a separate
+positive permit: grouping it into a veto object would obscure Cedar's
+permit/forbid semantics.
+
+The three governed compositions are now =GovernanceView= objects. The
+baseline view names its owners once. =reviseOwner= replaces the platform
+owner for the strengthened view, and =prioritize= moves the existing
+compliance owner to the front for the reordered view. Both operations require
+a Lean proof that the selected owner belongs to the source view. Each view
+generates the same purpose overlay and legacy-grant removal; only its C4
+precedence varies. =governanceViewsShareEdits= checks that invariant.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Governed: mix owner objects
+    Governed --> GovernedV2: revise Platform owner
+    GovernedV2 --> GovernedV2Reordered: prioritize Compliance
+    GovernedV2 --> AuditView: extend without policy edit
+#+end_src
 
 =compositionTraceConformsFully= checks the C4 order, eight applied edits, the
 final removal, and the provenance of the platform policy: introduced by
@@ -101,6 +118,17 @@ every Cedar authorization premise and each per-policy validation obligation.
 =schemaV2PatchedCertificate= closes the combined Lean-POO patch, and
 =schemaV2Certificate= transports that result to the exact updated snapshot.
 No old-schema policy certificate is reused for this transition.
+The [[file:AttestedViewsValidatedExport.lean][governance-view exporter]] binds
+the existing thirteen request cases to the strict Cedar schema. The official
+Rust validator and authorizer replay them, and the generated baseline and
+strengthened policy sources are compared with the checked Cedar files. This
+is finite semantic conformance for the new view construction, alongside the
+Lean proof reuse results.
+
+#+begin_src sh
+just example governance attested-views
+#+end_src
+
 The [[file:AttestedSchemaEvolutionExport.lean][schema-evolution exporter]]
 replays six identical requests under both schemas through the official Rust
 Cedar validator and authorizer. =just check-attested-schema-evolution=

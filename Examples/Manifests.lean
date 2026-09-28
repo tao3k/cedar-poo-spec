@@ -5,6 +5,7 @@ import Examples.Health.WearableTriageExport
 import Examples.Health.PriorAuthorization.ValidatedExport
 import Examples.Health.PriorAuthorization.InternalChannelsExport
 import Examples.Governance.AttestedDataAccessExport
+import Examples.Governance.AttestedViewsValidatedExport
 import Examples.Governance.AttestedSchemaEvolutionExport
 import Examples.Language.ScopeAndPatternExport
 import Examples.Language.ScopeAndPatternValidatedExport
@@ -50,6 +51,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("prior-authorization-malformed", fun _ => PriorAuthorizationValidatedExport.malformedManifest),
   ("prior-authorization-internal-channels", fun _ => PriorAuthorizationInternalChannelsExport.manifest),
   ("attested", fun _ => AttestedDataAccessExport.manifest),
+  ("attested-views-validated", fun _ => AttestedViewsValidatedExport.manifest),
   ("attested-schema-evolution", fun _ => AttestedSchemaEvolutionExport.bundle),
   ("scope-pattern", fun _ => ScopeAndPatternExport.manifest),
   ("scope-pattern-validated", fun _ => ScopeAndPatternValidatedExport.manifest),
