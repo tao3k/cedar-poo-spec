@@ -10,3 +10,6 @@ these values rather than accepting an unrelated request Boolean.
 [[file:Veto.lean][Veto]], [[file:MemberGrant.lean][MemberGrant]], and
 [[file:SeparationOfDuties.lean][SeparationOfDuties]] construct owned Cedar
 policies for negative controls, membership grants, and actor conflicts.
+
+[[file:Personnel/README.org][Personnel]] owns human organization status and
+asset-operation admission, including Agent requests with a human origin.

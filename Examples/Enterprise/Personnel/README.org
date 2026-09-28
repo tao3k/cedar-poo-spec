@@ -1,0 +1,115 @@
+#+TITLE: Personnel Governance and Source Custody
+#+OPTIONS: toc:nil
+
+* Motivation and evidence
+
+The authorization model follows NIST's attribute-based access control:
+personnel assignment, asset classification, operation, and environment all
+contribute to a decision. NIST also describes just-enough, just-in-time
+access and identity governance in its zero-trust architecture. CMU SEI and
+CISA treat insider risk as an organization-wide program with critical-asset
+ownership, workforce lifecycle, response, and privacy safeguards. The
+MITRE insider-threat knowledge base and 2026 ambiguous-techniques research
+inform detection design; an individual download or archive is not proof of
+malicious intent. The Agent layer follows NIST's 2026 identity work.
+
+| Source | Role in this example |
+|--------+----------------------|
+| [[https://csrc.nist.gov/projects/attribute-based-access-control][NIST ABAC]] and [[https://csrc.nist.gov/news/2019/nist-publishes-sp-800-205][attribute assurance]] | Engagement, project, asset, and action attributes require trusted sources and fresh values. |
+| [[https://pages.nist.gov/zero-trust-architecture/VolumeB/architecture.html][NIST zero-trust architecture]] | Access can be scoped to the work and reviewed as assignments change. |
+| [[https://sei.cmu.edu/blog/the-13-key-elements-of-an-insider-threat-program/][CMU SEI: 13 program elements]] and [[https://www.cisa.gov/sites/default/files/publications/Insider%20Threat%20Mitigation%20Guide_Final_508.pdf][CISA mitigation guide]] | People, asset owners, HR, security, and privacy form a governance program; policy code is only one part. |
+| [[https://www.sei.cmu.edu/blog/insider-threat-deep-dive-theft-of-intellectual-property/][CMU SEI: theft of intellectual property]] | Authorized human access and code theft are distinct from authorization correctness. |
+| [[https://www.sei.cmu.edu/library/justification-of-a-pattern-for-detecting-intellectual-property-theft-by-departing-insiders/][CMU SEI: departing-insider pattern]] | Revocation and review have a temporal dimension. |
+| [[https://www.nist.gov/blogs/cybersecurity-insights/back-future-why-agentic-ai-needs-strong-identity-foundation][NIST: agent identity, 2026]] | The executor Agent and originating human need separate identities. |
+| [[https://ctid.mitre.org/projects/insider-threat-ttp-knowledge-base/][MITRE insider TTP knowledge base]] and [[https://ctid.mitre.org/blog/2026/02/19/ambiguous-techniques-extension/][ambiguous techniques]] | Plan contextual detection and minimize false accusations. |
+| [[https://csrc.nist.gov/glossary/term/data_aggregation][NIST data aggregation]] and [[https://csrc.nist.gov/news/2026/sp-1800-39-ipd-data-classification-practices][NIST 2026 classification draft]] | Evaluate what several code fragments may reveal together; labels alone are insufficient. |
+
+* Human and organization composition
+
+[[file:SourceCustody.lean][SourceCustody.lean]] gives an ordinary core member
+broad project access without granting restricted model weights. The same
+policy reads the personnel assignment rather than naming each person:
+
+| Person | Online read | Download to a managed computer | External transfer |
+|--------+-------------+--------------------------------+-------------------|
+| Intern | Shared library | None | None |
+| Researcher A | Shared library and project A | Project A | None |
+| Researcher B | Shared library and project B | Project B | None |
+| Core member | Assigned projects and product source | Assigned projects and product source | Only a source-, destination-, purpose-, and time-scoped approval |
+
+The core member can read and download a pricing component, but a proposed
+transfer of that component to a competitor is denied even if the member tries
+to reuse an approval issued for a different asset, destination, and purpose.
+An unapproved external repository transfer is denied separately. These cases
+model an attempted sale at an interceptable transfer boundary; they do not
+claim to observe an off-platform sale.
+
+The integration task crosses research projects. Researcher A needs their
+own implementation and project B's interface contract. A strict isolation
+root leaves the task incomplete; exposing B's full implementation completes
+the task but also reveals an owner-curated critical architecture combination.
+=SmallTeam= grants only B's interface after a scoped approval, completing the
+task without granting the full implementation. The assessment in
+[[file:../../../CedarPooSpec/Governance/Personnel/KnowledgeScope.lean][KnowledgeScope]]
+uses a synthetic fact catalog and a cumulative exposure ledger:
+
+| Access choice | Task covered | Critical combination exposed |
+|---------------+--------------+------------------------------|
+| Project A only | No | No |
+| A plus B interface | Yes | No |
+| A plus B implementation | Yes | Yes |
+
+This table is a structural proxy for the isolation/efficiency tradeoff, not
+a measured developer-latency result. Asset owners must maintain the fact
+catalog and dependency claims. A real Host must record actual views across
+sessions; policy revocation cannot erase knowledge already acquired.
+The public =KnowledgeScope.admit= API accepts the interface observation and
+rejects the full implementation after A's source has been observed. This is
+an owner-curated knowledge boundary layered over Cedar's request decision.
+Production enforcement requires an atomic Host ledger at every real source
+view, not just a policy-set export.
+[[file:../../../CedarPooSpec/Governance/Personnel/Admission.lean][Admission]]
+checks both layers on one bound operation. The example also shows the honest
+core-member tradeoff: that person's broad project assignment permits both
+implementations, but the critical-combination boundary rejects the second
+observation unless the organization deliberately selects a less restrictive
+profile. Such an exception must come from an accountable asset owner; an
+empty profile supplied by the requester would be a policy bypass.
+
+An Agent executes as its own principal and carries its human origin. A
+scoped read delegation cannot be used for transfer even when the human has
+a valid release approval. A distinct release delegation and that approval
+permit the legitimate Agent operation. In the departure window, the human
+and Agent can continue internal reads while downloads and transfers stop. After
+separation, both lose mediated access. The same POO graph adds a separately
+owned personnel-status rule, device veto, Agent delegation veto, asset
+boundary, and incident rule. =LargeTeam= extends =SmallTeam= with a scoped
+partner-team read grant. The incident revision freezes transfers while
+leaving ordinary reads intact; =Recovered= removes only that freeze. This
+shows small-team collaboration and large-team growth without duplicating
+policy bodies.
+
+The external release approval binds the human, operation, purpose, source,
+destination, revision, and expiry. Changing its epoch or asset does not
+authorize a transfer. [[file:../../../Tests/Enterprise/Personnel/SourceCustody.lean][Tests]]
+check the decision matrix, Cedar schema validation, and operation/snapshot
+mismatch. [[file:ValidatedExport.lean][ValidatedExport]] feeds the same
+40 cases and schema to the official Cedar Rust authorizer; the conformance
+assertions live under =Tests/Conformance=.
+
+* Execution boundary
+
+All identities, roster stages, device posture, incident state, delegations,
+and approvals in this example are synthetic Host inputs. In production, a
+source gateway, managed development environment, or egress gateway must
+authenticate them and mediate the actual effect. The Host must select the
+published policy revision, atomically bind execution to the admitted
+operation, and retain an effect receipt. This example does not claim that
+Cedar can revoke an existing source copy, detect every external upload, or
+judge employee intent. Review of personnel signals must be proportionate and
+subject to the organization's privacy and due-process rules.
+
+#+begin_src sh
+just example enterprise personnel
+just check-personnel-governance
+#+end_src

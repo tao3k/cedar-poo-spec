@@ -8,6 +8,12 @@ import CedarPooSpec.Governance.Veto
 import CedarPooSpec.Governance.MemberGrant
 import CedarPooSpec.Governance.SeparationOfDuties
 import CedarPooSpec.Governance.ScopedApproval
+import CedarPooSpec.Governance.Personnel.AssetAccess
+import CedarPooSpec.Governance.Personnel.Status
+import CedarPooSpec.Governance.Personnel.Delegation
+import CedarPooSpec.Governance.Personnel.Assignment
+import CedarPooSpec.Governance.Personnel.KnowledgeScope
+import CedarPooSpec.Governance.Personnel.Admission
 import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Vertical.Health.DisclosureChannel
 import CedarPooSpec.Vertical.Health.EmergencyAccess

@@ -2,3 +2,6 @@ mod agent 'Agent/Justfile'
 mod payment 'Payment/Justfile'
 mod procurement 'Procurement/Justfile'
 mod vehicle 'Vehicle/Justfile'
+
+personnel:
+    lake build Examples.Enterprise.Personnel.SourceCustody
