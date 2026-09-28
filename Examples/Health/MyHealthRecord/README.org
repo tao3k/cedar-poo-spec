@@ -61,9 +61,15 @@ owners rather than copy a complete Cedar policy set for each state.
 
 [[file:Lifecycle.lean][Lifecycle.lean]] projects a finite Host state for
 fetch, summary, release, revocation, and purge. Tickets bind a policy root,
-state epoch, policy revision, consent revision, and an effect digest. The
-finite checks reject stale, replayed, or revoked tickets and reject release
-after audit failure. This is a pure admission model. A production Host must
+the exact effect, and the state snapshot (including epoch, policy revision,
+and consent revision) through the public =Admission.BoundOperation= API. The
+finite checks distinguish effect and state mismatches before Cedar evaluation,
+reject stale, replayed, or revoked tickets, and reject release after audit
+failure. The Host state selects one of three deployable POO roots;
+=Base= cannot be selected for admission. Switching to the incident root
+invalidates outstanding tickets, blocks the assistant, and preserves
+consumer read. Recovery selects the recovered root and re-admits the
+assistant under the preserved controls. This is a pure admission model. A production Host must
 atomically persist audit, enforce response effects, invalidate caches, and
 prove actual deletion.
 

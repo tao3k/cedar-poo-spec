@@ -1,4 +1,5 @@
 import Examples.Health.MyHealthRecord.ConsumerPlatform
+import CedarPooSpec.Admission.BoundOperation
 
 /-!
 Finite Host projection for a consumer-platform workflow. These transitions do
@@ -7,11 +8,11 @@ not call the Australian FHIR Gateway, persist records, or prove deletion.
 
 namespace CedarPooSpec.MyHealthRecordExample.Lifecycle
 
-open Cedar.Spec CedarPooSpec.MyHealthRecordExample
+open Cedar.Spec CedarPooSpec.MyHealthRecordExample CedarPooSpec.Admission
 
 inductive Step where
   | fetch | summarize | release | purge
-  deriving BEq
+  deriving BEq, DecidableEq
 
 structure Effect where
   step : Step
@@ -19,10 +20,20 @@ structure Effect where
   sourceDigest : String := ""
   summaryDigest : String := ""
   payloadDigest : String
-  deriving BEq
+  deriving BEq, DecidableEq
+
+inductive Root where
+  | consumerPlatform | agentIncident | recovered
+  deriving BEq, DecidableEq
+
+def Root.name : Root → String
+  | .consumerPlatform => "ConsumerPlatform"
+  | .agentIncident => "AgentIncident"
+  | .recovered => "Recovered"
 
 structure State where
   epoch : Nat := 0
+  deployedRoot : Root := .consumerPlatform
   policyRevision : Nat := 0
   consentRevision : Nat := 0
   accessActive : Bool := true
@@ -37,14 +48,7 @@ structure State where
   intermediaryCached : Bool := false
   removed : Bool := false
   audit : List String := []
-
-structure Ticket where
-  root : String
-  epoch : Nat
-  policyRevision : Nat
-  consentRevision : Nat
-  effect : Effect
-  deriving BEq
+  deriving DecidableEq
 
 def Step.action : Step → EntityUID
   | .fetch => MyHealthRecordExample.fetch
@@ -73,24 +77,33 @@ def projectedFacts (state : State) (effect : Effect) : Facts :=
     humanReviewed := state.humanReviewed,
     auditReady := state.auditAvailable }
 
-def allowed (root : String) (state : State) (effect : Effect) : Bool :=
-  if !state.auditAvailable then false else
-    let req := request effect.step.actor effect.step.action effect.step.resource
-      (projectedFacts state effect)
-    let result := observed root req
-    result.1 == .allow && result.2
+def operationRequest (effect : Effect) (state : State) : Request :=
+  request effect.step.actor effect.step.action effect.step.resource
+    (projectedFacts state effect)
 
-def prepare (root : String) (state : State) (effect : Effect) : Option Ticket :=
-  if effect.payloadDigest.isEmpty || !allowed root state effect then none
-  else some ⟨root, state.epoch, state.policyRevision,
-    state.consentRevision, effect⟩
+structure Ticket where
+  root : Root
+  operation : BoundOperation Effect State operationRequest
+
+def authorized (root : Root) (operation : BoundOperation Effect State operationRequest)
+    (state : State) (effect : Effect) : Bool :=
+  if root != state.deployedRoot || !state.auditAvailable then false else
+    match operation.authorize effect state model root.name entities with
+    | .ok receipt => receipt.allowed
+    | .error _ => false
+
+def allowed (state : State) (effect : Effect) : Bool :=
+  authorized state.deployedRoot ⟨effect, state⟩ state effect
+
+def prepare (state : State) (effect : Effect) : Option Ticket :=
+  let operation : BoundOperation Effect State operationRequest := ⟨effect, state⟩
+  if effect.payloadDigest.isEmpty ||
+      !authorized state.deployedRoot operation state effect then none
+  else some ⟨state.deployedRoot, operation⟩
 
 /-- A pure admission model; the Host must atomically write its real audit. -/
 def redeem (state : State) (ticket : Ticket) (effect : Effect) : Option State :=
-  if ticket.epoch != state.epoch ||
-      ticket.policyRevision != state.policyRevision ||
-      ticket.consentRevision != state.consentRevision ||
-      ticket.effect != effect || !allowed ticket.root state effect then none
+  if !authorized ticket.root ticket.operation state effect then none
   else
     let next := { state with
       epoch := state.epoch + 1,
@@ -106,14 +119,26 @@ def redeem (state : State) (ticket : Ticket) (effect : Effect) : Option State :=
           intermediaryCached := false, removed := true }
     some next
 
-def step (root : String) (state : State) (effect : Effect) : Option State := do
-  let ticket ← prepare root state effect
+def step (state : State) (effect : Effect) : Option State := do
+  let ticket ← prepare state effect
   redeem state ticket effect
 
 def revoke (state : State) : State :=
   { state with
     accessActive := false
     consentRevision := state.consentRevision + 1
+    epoch := state.epoch + 1 }
+
+def enterAgentIncident (state : State) : State :=
+  { state with
+    deployedRoot := .agentIncident
+    policyRevision := state.policyRevision + 1
+    epoch := state.epoch + 1 }
+
+def recoverAgent (state : State) : State :=
+  { state with
+    deployedRoot := .recovered
+    policyRevision := state.policyRevision + 1
     epoch := state.epoch + 1 }
 
 def fetched : Effect :=
@@ -128,10 +153,10 @@ def purged : Effect :=
   { step := .purge, payloadDigest := "purge-a-digest" }
 
 def lifecycle : Option State := do
-  let afterFetch ← step "ConsumerPlatform" {} fetched
-  let afterSummary ← step "ConsumerPlatform" afterFetch summarized
-  let afterRelease ← step "ConsumerPlatform" afterSummary released
-  step "ConsumerPlatform" (revoke afterRelease) purged
+  let afterFetch ← step {} fetched
+  let afterSummary ← step afterFetch summarized
+  let afterRelease ← step afterSummary released
+  step (revoke afterRelease) purged
 
 theorem revocationStillAllowsPurge :
     (lifecycle.map fun state =>
@@ -140,35 +165,71 @@ theorem revocationStillAllowsPurge :
       some (true, false, none, none, 4) := by native_decide
 
 def beforeRevocation : Option State := do
-  let afterFetch ← step "ConsumerPlatform" {} fetched
-  step "ConsumerPlatform" afterFetch summarized
+  let afterFetch ← step {} fetched
+  step afterFetch summarized
 
 theorem staleReleaseTicketRejected :
     (beforeRevocation.bind fun state => do
-      let ticket ← prepare "ConsumerPlatform" state released
+      let ticket ← prepare state released
       redeem (revoke state) ticket released) = none := by native_decide
+
+theorem changedPolicyRevisionRejectsTicket :
+    (prepare {} fetched).bind (fun ticket =>
+      redeem { ({} : State) with policyRevision := 1 } ticket fetched) = none := by
+  native_decide
+
+theorem incidentSwitchRejectsOldTicket :
+    (beforeRevocation.bind fun state => do
+      let ticket ← prepare state released
+      redeem (enterAgentIncident state) ticket released) = none := by
+  native_decide
+
+theorem incidentBlocksAgentButKeepsConsumerRead :
+    (beforeRevocation.map fun state =>
+      let incident := enterAgentIncident state
+      (prepare incident summarized).isNone &&
+      (prepare incident fetched).isSome) = some true := by native_decide
+
+theorem recoveryRestoresAgentAdmission :
+    (beforeRevocation.map fun state =>
+      (prepare (recoverAgent (enterAgentIncident state)) summarized).isSome) =
+      some true := by native_decide
+
+theorem substitutedEffectRejectedBeforeCedar :
+    (match (⟨fetched, {}⟩ : BoundOperation Effect State operationRequest).authorize
+        { fetched with payloadDigest := "substituted-record" } {}
+        model "ConsumerPlatform" entities with
+    | .error .effectMismatch => true
+    | _ => false) = true := by native_decide
+
+theorem changedStateRejectedBeforeCedar :
+    (match (⟨fetched, {}⟩ : BoundOperation Effect State operationRequest).authorize
+        fetched { ({} : State) with policyRevision := 1 }
+        model "ConsumerPlatform" entities with
+    | .error .stateMismatch => true
+    | _ => false) = true := by native_decide
 
 theorem revokedDataOperationsDenied :
     (beforeRevocation.map fun state =>
       let revoked := revoke state
-      (prepare "ConsumerPlatform" revoked fetched).isNone &&
-      (prepare "ConsumerPlatform" revoked summarized).isNone &&
-      (prepare "ConsumerPlatform" revoked released).isNone) =
+      (prepare revoked fetched).isNone &&
+      (prepare revoked summarized).isNone &&
+      (prepare revoked released).isNone) =
       some true := by native_decide
 
 theorem replayedTicketRejected :
-    (prepare "ConsumerPlatform" {} fetched).bind (fun ticket =>
+    (prepare {} fetched).bind (fun ticket =>
       (redeem {} ticket fetched).bind fun state =>
         redeem state ticket fetched) = none := by native_decide
 
 theorem staleSourceCannotSummarize :
-    (step "ConsumerPlatform" {} fetched).bind
-      (fun state => step "ConsumerPlatform" state
+    (step {} fetched).bind
+      (fun state => step state
         { summarized with sourceDigest := "other-record" }) = none := by native_decide
 
 theorem auditFailureBlocksRelease :
     (beforeRevocation.bind fun state =>
-      prepare "ConsumerPlatform" { state with auditAvailable := false }
+      prepare { state with auditAvailable := false }
         released) = none := by native_decide
 
 end CedarPooSpec.MyHealthRecordExample.Lifecycle
