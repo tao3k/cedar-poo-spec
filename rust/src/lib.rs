@@ -20,8 +20,8 @@ pub use bridge::{
 #[cfg(feature = "cedar-runtime")]
 pub use schema::{
     SchemaBoundReceipt, SchemaEvolutionBundle, SchemaOnlyRevisionReceipt, ValidatedManifest,
-    replay_schema_only_revision, replay_validated_manifest, verify_schema_only_revision,
-    verify_validated_replay_receipts,
+    render_validated_policy_sources, replay_schema_only_revision, replay_validated_manifest,
+    verify_schema_only_revision, verify_validated_replay_receipts,
 };
 
 #[cfg(test)]

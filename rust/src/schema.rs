@@ -1,16 +1,58 @@
 //! Strict Cedar schema validation and schema-bound replay records.
 
-use crate::bridge::{Case, ReplayReceipt, check_manifest_inner, json_sha256, load_policy_set};
-use cedar_policy::{Schema, ValidationMode, Validator};
+use crate::bridge::{
+    Case, ReplayReceipt, check_manifest_inner, json_sha256, load_policy_set,
+    render_identified_policy_sources,
+};
+use cedar_policy::{Entities, Schema, ValidationMode, Validator};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// A schema-bearing manifest intended for admission as a deployment candidate.
 #[derive(Debug, Deserialize)]
 pub struct ValidatedManifest {
     pub schema: Value,
     pub cases: Vec<Case>,
+}
+
+/// Render identified sources from one schema-bearing case after strict Cedar
+/// validation and schema-bound entity parsing. The receiver must validate
+/// again after injecting any reserved request context.
+pub fn render_validated_policy_sources(
+    manifest: &ValidatedManifest,
+    case_name: &str,
+) -> Result<BTreeMap<String, String>, String> {
+    let mut matches = manifest.cases.iter().filter(|case| case.name == case_name);
+    let case = matches
+        .next()
+        .ok_or_else(|| format!("missing Cedar candidate case: {case_name}"))?;
+    if matches.next().is_some() {
+        return Err(format!("duplicate Cedar candidate case: {case_name}"));
+    }
+    let policies = load_policy_set(&case.policies)?;
+    if policies.policies().next().is_none() {
+        return Err("policy source candidate is empty".into());
+    }
+    let actual_ids = policies
+        .policies()
+        .map(|policy| policy.id().to_string())
+        .collect::<BTreeSet<_>>();
+    let declared_ids = case.policy_ids.iter().cloned().collect::<BTreeSet<_>>();
+    if case.policy_ids.len() != declared_ids.len() || declared_ids != actual_ids {
+        return Err("candidate policy IDs differ from the Lean compilation".into());
+    }
+    let schema = Schema::from_json_value(manifest.schema.clone())
+        .map_err(|error| format!("Cedar schema: {error}"))?;
+    let validation = Validator::new(schema.clone()).validate(&policies, ValidationMode::Strict);
+    if !validation.validation_passed() {
+        return Err(format!(
+            "Cedar strict policy validation failed: {validation:?}"
+        ));
+    }
+    Entities::from_json_value(case.entities.clone(), Some(&schema))
+        .map_err(|error| format!("Cedar schema entities: {error}"))?;
+    render_identified_policy_sources(&case.policies)
 }
 
 /// Two schema-checked projections of the same policies and concrete inputs.

@@ -229,6 +229,7 @@ export-cedar-language: prepare-all-manifests
 
 check-rust:
     mkdir -p .lake/build
+    command -v rg > /dev/null
     cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features -e normal -p cedar-poo-bridge > .lake/build/bridge-default-tree.txt
     ! rg -q 'cedar-policy' .lake/build/bridge-default-tree.txt
     cargo fmt --manifest-path rust/Cargo.toml --check

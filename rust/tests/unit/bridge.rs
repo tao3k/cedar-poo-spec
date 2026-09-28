@@ -4,8 +4,9 @@ use super::{
     replay_manifest, verify_replay_receipts,
 };
 use crate::schema::{
-    SchemaEvolutionBundle, ValidatedManifest, replay_schema_only_revision,
-    replay_validated_manifest, verify_schema_only_revision, verify_validated_replay_receipts,
+    SchemaEvolutionBundle, ValidatedManifest, render_validated_policy_sources,
+    replay_schema_only_revision, replay_validated_manifest, verify_schema_only_revision,
+    verify_validated_replay_receipts,
 };
 use serde_json::json;
 
@@ -62,6 +63,84 @@ fn identified_sources_preserve_each_cedar_policy_id_and_body() {
         assert_eq!(reparsed.id(), policy.id());
         assert_eq!(reparsed.to_json().unwrap(), policy.to_json().unwrap());
     }
+}
+
+#[test]
+fn validated_sources_bind_one_schema_and_entity_snapshot_for_permit_and_forbid() {
+    let mut allow = receipt();
+    let mut artifact = allow.policies.as_value().clone();
+    artifact["staticPolicies"]["blocked"] = json!({
+        "effect": "forbid",
+        "principal": {"op": "All"},
+        "action": {"op": "All"},
+        "resource": {"op": "All"},
+        "conditions": [{"kind": "when", "body": {
+            ".": {"left": {"Var": "context"}, "attr": "blocked"}
+        }}]
+    });
+    allow.policies = serde_json::from_value(artifact).unwrap();
+    allow.policy_ids = vec!["base".into(), "blocked".into()];
+    allow.request.context = json!({"blocked": false});
+    let mut deny = allow.clone();
+    deny.name = "blocked".into();
+    deny.request.context = json!({"blocked": true});
+    deny.expected = "deny".into();
+    deny.expected_reasons = vec!["blocked".into()];
+    let mut manifest = validated(allow.clone());
+    manifest.schema[""]["actions"]["view"]["appliesTo"]["context"]["attributes"]["blocked"] =
+        json!({"type": "Boolean"});
+    manifest.cases.push(deny);
+
+    let sources = render_validated_policy_sources(&manifest, "allow-all")
+        .expect("strictly validated sources");
+    assert_eq!(
+        sources.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["base", "blocked"]
+    );
+    let receipts = replay_validated_manifest(&manifest).expect("official Cedar decisions");
+    assert_eq!(
+        receipts
+            .iter()
+            .map(|row| row.replay.decision.as_str())
+            .collect::<Vec<_>>(),
+        ["allow", "deny"]
+    );
+
+    let mut invalid_schema = validated(allow.clone());
+    invalid_schema.schema = manifest.schema.clone();
+    invalid_schema.schema[""]["actions"]["view"]["appliesTo"]["context"]["attributes"] = json!({});
+    assert!(
+        render_validated_policy_sources(&invalid_schema, "allow-all")
+            .unwrap_err()
+            .contains("strict policy validation")
+    );
+    let mut invalid_entities = validated(allow.clone());
+    invalid_entities.schema = manifest.schema.clone();
+    invalid_entities.cases[0].entities = json!({});
+    assert!(
+        render_validated_policy_sources(&invalid_entities, "allow-all")
+            .unwrap_err()
+            .contains("schema entities")
+    );
+    let mut changed_ids = validated(allow.clone());
+    changed_ids.schema = manifest.schema.clone();
+    changed_ids.cases[0].policy_ids = vec!["base".into()];
+    assert!(
+        render_validated_policy_sources(&changed_ids, "allow-all")
+            .unwrap_err()
+            .contains("policy IDs")
+    );
+    let mut empty = validated(allow);
+    empty.schema = manifest.schema;
+    empty.cases[0].policies = serde_json::from_value(json!({
+        "staticPolicies": {}, "templates": {}, "templateLinks": []
+    }))
+    .unwrap();
+    assert!(
+        render_validated_policy_sources(&empty, "allow-all")
+            .unwrap_err()
+            .contains("empty")
+    );
 }
 
 fn validated(case: Case) -> ValidatedManifest {

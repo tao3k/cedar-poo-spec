@@ -1,6 +1,8 @@
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
 import CedarPooSpec.Governance.Veto
+import CedarPooSpec.Admission.BoundOperation
+import CedarPooSpec.Data.Relation
 
 /-!
 An authorization model for hospital pseudonymization. The cryptographic
@@ -13,6 +15,8 @@ namespace CedarPooSpec.PseudonymizationExample
 open Cedar.Spec Cedar.Validation Cedar.Data
 open CedarPooSpec.PolicyModules
 open CedarPooSpec.Governance
+open CedarPooSpec.Admission
+open CedarPooSpec.Data
 open LeanPoo.Proof
 
 def actorType : EntityType := ⟨"Actor", []⟩
@@ -152,13 +156,13 @@ def eqString (left : Expr) (right : String) : Expr :=
 def equal (left right : Expr) : Expr := .binaryApp .eq left right
 def not (body : Expr) : Expr := .unaryApp .not body
 def target (name : String) : Expr := .getAttr (fact "targetDataset") name
-def scopeBound : Expr := equal (target "scope") (resource "scope")
-def keyBound : Expr := equal (target "keyDomain") (resource "keyDomain")
+def scopeBound : Expr := sameAttribute (fact "targetDataset") (.var .resource) "scope"
+def keyBound : Expr := sameAttribute (fact "targetDataset") (.var .resource) "keyDomain"
 def tokenKeyBound : Expr :=
-  equal (target "tokenKeyVersion") (resource "tokenKeyVersion")
+  sameAttribute (fact "targetDataset") (.var .resource) "tokenKeyVersion"
 def transformBound : Expr :=
-  equal (target "transformVersion") (resource "transformVersion")
-def modeBound : Expr := equal (target "mode") (resource "mode")
+  sameAttribute (fact "targetDataset") (.var .resource) "transformVersion"
+def modeBound : Expr := sameAttribute (fact "targetDataset") (.var .resource) "mode"
 def tenantBound : Expr := equal (attr .principal "tenant") (resource "tenant")
 def targetTenantBound : Expr := equal (attr .principal "tenant") (target "tenant")
 def selfBound : Expr := equal (fact "targetDataset") (.var .resource)
@@ -270,13 +274,16 @@ def randomizedView : GovernanceView := ⟨"RandomizedGcm", gcm⟩
 def oneWayView : GovernanceView := ⟨"OneWayHmac", hmac⟩
 def views : List GovernanceView := [hospitalView, randomizedView, oneWayView]
 
+def incidentControl : Veto :=
+  veto "agent-join-suspended" join (eqString (attr .principal "kind") "agent")
 def incident : Module :=
-  { name := "AgentIncident", parentOrders := [[hospitalView.name]],
-    edits := [.extend (policy "agent-join-suspended" .forbid join
-      (eqString (attr .principal "kind") "agent"))] }
+  incidentControl.module "AgentIncident" hospitalView.name .introduce
+def recovered : Module :=
+  incidentControl.module "Recovered" incident.name .withdraw
 def model : Model :=
   { modules := [base, siv.module, gcm.module, hmac.module,
-      owner, privacy, agentBoundary] ++ views.map GovernanceView.module ++ [incident] }
+      owner, privacy, agentBoundary] ++ views.map GovernanceView.module ++
+      [incident, recovered] }
 
 structure Facts where
   targetDataset : EntityUID := hospital
@@ -298,6 +305,36 @@ def request (who action dataset : EntityUID) (facts : Facts) : Request :=
     ("reidentifyApproved", .prim (.bool facts.reidentifyApproved)),
     ("auditReady", .prim (.bool facts.auditReady)),
     ("ivUnique", .prim (.bool facts.ivUnique))]⟩
+
+/-- The operation names the dataset and key revision used for a concrete
+    tokenization request. The Host must verify these values against its key
+    inventory and actual execution payload. -/
+def tokenizeRequest (datasetId keyVersion : String) : Request :=
+  let dataset : EntityUID := ⟨datasetType, datasetId⟩
+  request ingest tokenize dataset
+    { targetDataset := dataset, requestedKeyVersion := keyVersion }
+
+def tokenization : BoundOperation String String tokenizeRequest :=
+  ⟨"hospital-patients", "dek-v1"⟩
+
+theorem tokenizationBindsEffectAndRevision :
+    tokenization.matches "hospital-patients" "dek-v1" = true ∧
+    tokenization.matches "research-patients" "dek-v1" = false ∧
+    tokenization.matches "hospital-patients" "dek-v2" = false := by
+  native_decide
+
+theorem tokenizationAuthorizationUsesBoundRequest :
+    (match tokenization.authorize model "HospitalSiv" entities with
+    | .ok receipt => receipt.allowed
+    | .error _ => false) = true := by
+  native_decide
+
+theorem changedKeyRevisionCannotReuseTokenizationDecision :
+    (match (⟨"hospital-patients", "dek-v2"⟩ :
+        BoundOperation String String tokenizeRequest).authorize model "HospitalSiv" entities with
+    | .ok receipt => receipt.allowed
+    | .error _ => false) = false := by
+  native_decide
 
 def reveal : Facts := { reidentifyApproved := true, auditReady := true }
 def cases : List (String × String × Request × Decision) := [
@@ -362,7 +399,8 @@ def cases : List (String × String × Request × Decision) := [
   ("hmac-no-reidentification", "OneWayHmac", request steward reidentify oneWay
     { reveal with targetDataset := oneWay }, .deny),
   ("incident-agent-join", "AgentIncident", request agent join hospital {}, .deny),
-  ("incident-steward-join", "AgentIncident", request steward join hospital {}, .allow)]
+  ("incident-steward-join", "AgentIncident", request steward join hospital {}, .allow),
+  ("recovered-agent-join", "Recovered", request agent join hospital {}, .allow)]
 
 def scenarioConforms : Bool := cases.all fun (_, root, req, expected) =>
   match model.compile root with
@@ -388,7 +426,9 @@ def compositionIsLocal : Bool :=
   sivAffected.contains incident.name &&
   !sivAffected.contains randomizedView.name &&
   !sivAffected.contains oneWayView.name &&
-  incidentAffected == [incident.name]
+  incidentAffected.contains incident.name &&
+  incidentAffected.contains recovered.name &&
+  !incidentAffected.contains randomizedView.name
 theorem compositionIsLocalFully : compositionIsLocal = true := by native_decide
 
 def incidentOnlyAddsAgentVeto : Bool :=
@@ -398,6 +438,17 @@ def incidentOnlyAddsAgentVeto : Bool :=
     suspended.filter (fun p => p.id != "agent-join-suspended") == baseline
   | _, _ => false
 theorem incidentOnlyAddsAgentVetoFully : incidentOnlyAddsAgentVeto = true := by
+  native_decide
+
+/-- Recovery removes the inherited incident veto while retaining the other
+    owner and privacy policies. -/
+theorem recoveryWithdrawsIncidentVeto :
+    (match model.compile recovered.name, model.compile hospitalView.name with
+    | .ok policies, .ok baseline =>
+      decide (policies = baseline) &&
+      !policies.any (fun p => p.id == incidentControl.policyId) &&
+      (isAuthorized (request agent join hospital {}) entities policies).decision == .allow
+    | _, _ => false) = true := by
   native_decide
 
 end CedarPooSpec.PseudonymizationExample

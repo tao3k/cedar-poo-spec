@@ -5,6 +5,8 @@ import CedarPooSpec.Soundness
 import CedarPooSpec.Slicing
 import CedarPooSpec.PolicyModules
 import CedarPooSpec.Governance.Veto
+import CedarPooSpec.Admission.BoundOperation
+import CedarPooSpec.Data.Relation
 import CedarPooSpec.CompoundAuthorization
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation

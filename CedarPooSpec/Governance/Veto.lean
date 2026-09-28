@@ -27,10 +27,12 @@ def Veto.policy (control : Veto) : Policy :=
 inductive Veto.Change where
   | introduce
   | revise
+  | withdraw
 
 def Veto.edit (control : Veto) : Veto.Change → Edit
   | .introduce => .extend control.policy
   | .revise => .overlay control.policy
+  | .withdraw => .remove control.policyId
 
 /-- Several action-specific vetoes can share one independent owner module. -/
 def Veto.moduleMany (name parent : String) (change : Veto.Change)

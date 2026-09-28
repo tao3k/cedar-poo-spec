@@ -17,8 +17,13 @@ This RFC defines a proposed library interface. The existing
 =CompoundAuthorization=, and =PolicyJson= modules remain the executable
 foundation. The =Admission/=, =Governance/=, and =Data/= modules described
 below are candidate capability families, not a complete taxonomy.
-=Governance.Veto= is the first implemented public object; the other
-families are not yet library modules.
+=Governance.Veto= supports introduction, revision, and withdrawal of a Cedar
+forbid policy. =Admission.BoundOperation= projects a typed effect and state to
+one Cedar request and reuses =CompoundAuthorization= for evaluation;
+=Data.sameAttribute= builds a Cedar relation expression without a parallel
+entity catalog. These are initial public cuts, not implementations of every
+control described below. Host authentication and effect execution remain
+outside the Lean library.
 
 * Ownership and dependency direction
 
@@ -136,11 +141,13 @@ record the selected root, artifact revision, and provenance outside the Cedar
 policy JSON, under the authority that admits them. It must not insert
 POO-specific fields into Cedar's public policy-set format.
 
-1. Load the materialized policy JSON through =load_policy_set= and derive
-   individually identified Cedar sources with
-   =render_identified_policy_sources=. Reject an empty or duplicate ID before
-   creating =PolicySource= entries. Compare each source reparsed under its
-   explicit ID with the corresponding official Cedar policy JSON body.
+1. Select one case from an existing =ValidatedManifest= and call
+   =render_validated_policy_sources=. It loads the materialized policy JSON,
+   strictly validates policies under that manifest's schema, parses that
+   case's entities against the schema, and derives individually identified
+   sources. The underlying =render_identified_policy_sources= reparses each
+   source under its ID and compares its official Cedar JSON body. Reject an
+   empty or duplicate ID before creating =PolicySource= entries.
 2. Carry the exact source set, schema JSON, and entity JSON to the POO Flow
    projection owner. This bridge does not construct =Bootstrap= or set its
    fixed producer, source, revision, epoch, or governance-admission fields.
@@ -175,6 +182,14 @@ Changing an epoch or effect payload must fail in the authority/Host path,
 not be presented as a policy-parser failure. This case qualifies the
 projection; it does not claim universal semantic equivalence or a deployed
 Host receipt.
+
+The current bridge unit case exercises the source projection with one permit
+and one forbid, official Cedar allow/deny replay, and rejection of a schema,
+entity, or empty-policy mismatch. It checks the build-side contract only.
+The health pseudonymization recipe also derives identified sources from a
+governed, ten-policy root through the =identified-sources= Rust command.
+The pinned POO Flow receiver test and the Host effect-binding case remain
+open.
 
 An open-source contribution belongs to the module that owns its semantics.
 There is no separate =Contrib/= namespace. Industry-specific policies and
@@ -276,6 +291,9 @@ not that receipt.
 | =Revision= and =AuthorizationDelta= | Changed-policy and proof impact evidence. |
 | =CompoundAuthorization= | Multiple Cedar requests against an exact compiled root and entity snapshot. |
 | =TemplateValidation= | Cedar template linking and validated refresh. |
+| =Admission.BoundOperation= | Derives the exact Cedar request from typed effect and state values, then delegates evaluation to =CompoundAuthorization=. |
+| =Governance.Veto= | Emits a forbid policy and explicit extend, overlay, or remove edit. |
+| =Data.sameAttribute= | Compares named attributes through Cedar's expression AST; schema and entity truth remain Cedar-owned. |
 
 The proposed objects should compose these APIs rather than fork them. A
 new helper is justified by a distinct reusable semantic contract and an
