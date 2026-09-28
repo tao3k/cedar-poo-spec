@@ -23,6 +23,7 @@ structure AesSivTableRecipe where
   valueField : String
   contextField : String
   profile : TokenProfile
+  admittedContext : Option String := none
   surrogateInfoType : Option String := none
 
 structure AesSivTableInput where
@@ -34,17 +35,16 @@ inductive TableSelectionError where
   | invalidRecipe
   | missingOrDuplicateValue
   | missingOrDuplicateContext
-  | contextOutsideScope
+  | contextNotAdmitted
   deriving DecidableEq, Repr
 
 /-- Select the exact value and context used by a structured AES-SIV
-    operation. The scope is an admitted context partition, not a substitute
-    for the column value passed to the cryptographic provider. -/
+    operation. A scenario may restrict the context, but a general table can
+    contain different context values under one declared recipe. -/
 def AesSivTableRecipe.select (recipe : AesSivTableRecipe)
     (row : TableRow) : Except TableSelectionError AesSivTableInput := do
   if recipe.profile.mode != .aesSiv || recipe.dataset.isEmpty ||
       recipe.valueField.isEmpty || recipe.contextField.isEmpty ||
-      recipe.profile.scope.isEmpty ||
       recipe.valueField == recipe.contextField then
     throw .invalidRecipe
   let value ← match row.readUnique recipe.valueField with
@@ -54,7 +54,14 @@ def AesSivTableRecipe.select (recipe : AesSivTableRecipe)
   let context ← match row.readUnique recipe.contextField with
     | some context => pure context
     | none => throw .missingOrDuplicateContext
-  if context != recipe.profile.scope then throw .contextOutsideScope
+  if context.isEmpty || recipe.admittedContext.any (· != context) then
+    throw .contextNotAdmitted
   return ⟨value, context⟩
+
+/-- A matching catalog recipe is insufficient for a deterministic join when
+    the actual per-record context values differ. -/
+def AesSivTableRecipe.compatibleInputs (left right : AesSivTableRecipe)
+    (leftInput rightInput : AesSivTableInput) : Bool :=
+  left.profile.sameRecipe right.profile && leftInput.context == rightInput.context
 
 end CedarPooSpec.Pseudonymization

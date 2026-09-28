@@ -46,7 +46,10 @@ needed for an equality join.
 
 [[file:Tabular.lean][Tabular]] selects one named value column and one named AES-SIV context
 column from a structured record. It rejects missing or duplicate columns,
-empty values, and a context value outside the admitted token scope. The
+empty values, and any optional scenario context restriction. Its
+=compatibleInputs= check requires both matching token recipes and equal
+per-record context values. Google context fields may vary by row, so a
+dataset-level =scope= declaration alone cannot establish token equality. The
 selection remains a pure input projection; the Host must authenticate the
 record and execute the cryptographic operation.
 

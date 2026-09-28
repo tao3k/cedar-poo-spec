@@ -13,7 +13,8 @@ def tokenProfile : TokenProfile :=
 
 def recipe : AesSivTableRecipe :=
   { dataset := "hospital-patients", valueField := "patient_id",
-    contextField := "tenant_scope", profile := tokenProfile }
+    contextField := "tenant_scope", profile := tokenProfile,
+    admittedContext := some "hospital-a" }
 
 def row : TableRow :=
   { fields := [("patient_id", "synthetic-patient-0001"),
@@ -25,7 +26,20 @@ theorem selectedContextComesFromTenantScopeColumn :
 
 theorem changedContextCannotUsePublishedScope :
     recipe.select { fields := [("patient_id", "synthetic-patient-0001"),
-      ("tenant_scope", "study-two")] } = .error .contextOutsideScope := by
+      ("tenant_scope", "study-two")] } = .error .contextNotAdmitted := by
+  native_decide
+
+theorem unrestrictedRecipeSelectsAnotherContext :
+    { recipe with admittedContext := none }.select
+      { fields := [("patient_id", "synthetic-patient-0001"),
+        ("tenant_scope", "study-two")] } =
+      .ok ⟨"synthetic-patient-0001", "study-two"⟩ := by
+  native_decide
+
+theorem differentRecordContextsAreNotJoinCompatible :
+    recipe.compatibleInputs recipe
+      ⟨"synthetic-patient-0001", "hospital-a"⟩
+      ⟨"synthetic-patient-0001", "study-two"⟩ = false := by
   native_decide
 
 theorem duplicatePatientColumnCannotSelect :

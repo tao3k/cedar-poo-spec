@@ -28,8 +28,10 @@ Protection API receipts or evidence of a persistent hospital Host.
 The [[file:Tabular.lean][tabular selection]] reads =patient_id= and =tenant_scope= from a synthetic
 row using the public [[file:../../../CedarPooSpec/Pseudonymization/Tabular.lean][AesSivTableRecipe]] boundary. Lean exports
 [[file:Fixtures/tabular-aes-siv.json][the selected input]]; the Rust AES-SIV test consumes the same fixture.
-The recipe rejects duplicate columns and a context value that differs from
-the admitted scope. It does not inspect arbitrary records or issue a Google
+The hospital recipe rejects duplicate columns and a context value that
+differs from its admitted context. The public recipe permits per-row contexts
+and compares actual context values before claiming join compatibility. It
+does not inspect arbitrary records or issue a Google
 Sensitive Data Protection request.
 The [[file:../../../rust/examples/pseudonymization_local.rs][local executable]] checks that this fixture matches the
 =hospital-tokenize= Cedar request and dataset entity before encrypting with a
