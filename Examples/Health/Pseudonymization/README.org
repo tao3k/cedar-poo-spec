@@ -27,6 +27,8 @@ real cryptographic key appears in the example.
 derives the tokenization, join, re-identification, and prohibition policies
 from the mode's declared capabilities. A =GovernanceView= mixes one profile
 with independent =DataOwner=, =Privacy=, and =AgentBoundary= objects. Every
+profile and owner is staged through =Model.extend=; each view uses
+=Model.mix= so the C4 topology is built by Lean-POO's public API. Every
 view removes the inherited legacy re-identification grant. The incident
 object extends the AES-SIV view with a =Governance.Veto= and suspends only
 agent joins; steward joins remain available. The =Recovered= object withdraws

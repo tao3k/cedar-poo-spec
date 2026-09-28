@@ -1,4 +1,5 @@
 import CedarPooSpec.PolicyJson
+import CedarPooSpec.Governance.SeparationOfDuties
 import CedarPooSpec.CompoundAuthorization
 
 /-!
@@ -10,6 +11,7 @@ are fictive application assumptions.
 namespace CedarPooSpec.PaymentReleaseExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
+open CedarPooSpec.Governance
 
 def userType : EntityType := ⟨"User", []⟩
 def roleType : EntityType := ⟨"Role", []⟩
@@ -116,24 +118,27 @@ def thresholdRelease : Policy :=
 def legacyBypass : Policy :=
   policy "legacy-matched-release" .permit release .any matched
 
-def dutiesVeto : Policy :=
-  policy "separate-preparer-and-releaser" .forbid release .any selfRelease
+def dutiesControl : SeparationOfDuties :=
+  { policyId := "separate-preparer-and-releaser",
+    actionScope := .actionScope (.eq release),
+    priorActorAttribute := "preparedBy",
+    resourceScope := .resourceScope (.mem operations) }
+def dutiesVeto : Policy := dutiesControl.veto.policy
 
 def riskVeto : Policy :=
   policy "block-frozen-payment" .forbid release .any blocked
 
-def model : Model := { modules := [
-  { name := "Base", edits := [.extend preparePermit, .extend baseRelease,
-      .extend legacyBypass] },
-  { name := "Threshold", parentOrders := [["Base"]],
-    edits := [.overlay thresholdRelease] },
-  { name := "Duties", parentOrders := [["Base"]],
-    edits := [.extend dutiesVeto] },
-  { name := "Risk", parentOrders := [["Base"]],
-    edits := [.extend riskVeto] },
-  { name := "Retired", parentOrders := [["Base"]],
-    edits := [.remove "legacy-matched-release"] },
-  { name := "Integrated", parentOrders := [["Threshold", "Duties", "Risk", "Retired"]] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "Base", edits := [.extend preparePermit, .extend baseRelease,
+        .extend legacyBypass] }] }
+  let threshold ← base.extend "Threshold" "Base" [.overlay thresholdRelease]
+  let duties ← threshold.extend "Duties" "Base" [dutiesControl.edit .introduce]
+  let risk ← duties.extend "Risk" "Base" [.extend riskVeto]
+  let retired ← risk.extend "Retired" "Base" [.remove legacyBypass.id]
+  retired.mix "Integrated" ["Threshold", "Duties", "Risk", "Retired"]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def request (principal action resource : EntityUID) : Request :=
   ⟨principal, action, resource, Map.empty⟩

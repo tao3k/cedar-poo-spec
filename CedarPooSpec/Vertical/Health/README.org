@@ -22,6 +22,18 @@ payload class from bytes, authenticate a patient or delegation, deliver a
 message, or implement a hospital connector. Those facts must be projected
 from the actual operation by a downstream Host.
 
+* Emergency access
+
+[[file:EmergencyAccess.lean][EmergencyAccess]] is a second independent healthcare object. It owns a
+patient-bound emergency read slot. =introduce= adds a provisional grant;
+=strengthen= overlays the same slot with active-session, incapacity,
+treatment-purpose, patient, and device premises. The
+[[file:../../../Examples/Health/ClinicalBreakGlass.lean][clinical break-glass example]] mixes that emergency owner with privacy and
+security owners, then retires an unrelated broad permit. The object does not
+issue a clinical grant or write an audit event. Its =valid= expression is
+also reused by the independent patient-preference veto, so the emergency
+premises are defined once.
+
 * Organization boundary
 
 Reusable healthcare control definitions belong under =Vertical/Health/=.

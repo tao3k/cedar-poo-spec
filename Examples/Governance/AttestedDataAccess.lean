@@ -195,9 +195,19 @@ def sandbox : Module :=
   { name := "Sandbox", parentOrders := [["Base"]] }
 def auditView : Module :=
   { name := Root.audit.name, parentOrders := [[strengthenedView.name]] }
-def model : Model :=
-  { modules := [base, dataOwner, platform, platformFreshness, compliance] ++
-      governanceViews.map GovernanceView.module ++ [sandbox, auditView] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let initial : Model := { modules := [base] }
+  let owned ← initial.extend dataOwner.name "Base" dataOwner.edits
+  let platformOwned ← owned.extend platform.name "Base" platform.edits
+  let fresh ← platformOwned.extend platformFreshness.name platform.name
+    platformFreshness.edits
+  let compliant ← fresh.extend compliance.name "Base" compliance.edits
+  let viewed ← governanceViews.foldlM (fun current view =>
+    current.mix view.name view.owners view.module.edits) compliant
+  let isolated ← viewed.extend sandbox.name "Base" sandbox.edits
+  isolated.extend auditView.name strengthenedView.name auditView.edits
+
+def model : Model := modelResult.toOption.get (by native_decide)
 /-- An owner chain can opt into C4's indivisible inherited suffix. -/
 def strictOwner : Module := { dataOwner with suffix := true }
 def independentCompliance : Module :=

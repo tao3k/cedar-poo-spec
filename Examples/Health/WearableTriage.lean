@@ -1,5 +1,6 @@
 import CedarPooSpec.PolicyJson
 import CedarPooSpec.CompoundAuthorization
+import CedarPooSpec.Governance.Veto
 import Cedar.Validation.RequestEntityValidator
 
 /-!
@@ -12,6 +13,7 @@ posture, model approval, and review facts into Cedar inputs.
 namespace CedarPooSpec.WearableTriageExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
+open CedarPooSpec.Governance
 
 def serviceType : EntityType := ⟨"TriageService", []⟩
 def clinicianType : EntityType := ⟨"Clinician", []⟩
@@ -89,12 +91,14 @@ def analyzeBase : Policy :=
   policy "analyze-vitals" .permit (.eq analyze) (.and vitalSign treatment)
 def releaseBase : Policy :=
   policy "release-alert" .permit (.eq release) (.and sameFacility treatment)
-def consentVeto : Policy :=
-  policy "consent-withdrawn" .forbid .any
-    (.unaryApp .not (resourceFact "consentActive"))
-def deviceVeto : Policy :=
-  policy "untrusted-monitor" .forbid .any
-    (.unaryApp .not (contextFact "deviceTrusted"))
+def consentControl : Veto :=
+  { policyId := "consent-withdrawn", actionScope := .actionScope .any,
+    denyWhen := .unaryApp .not (resourceFact "consentActive") }
+def consentVeto : Policy := consentControl.policy
+def deviceControl : Veto :=
+  { policyId := "untrusted-monitor", actionScope := .actionScope .any,
+    denyWhen := .unaryApp .not (contextFact "deviceTrusted") }
+def deviceVeto : Policy := deviceControl.policy
 def analyzeApproved : Policy :=
   { analyzeBase with condition := [
       { kind := .when,
@@ -103,21 +107,25 @@ def releaseReviewed : Policy :=
   { releaseBase with condition := [
       { kind := .when,
         body := .and (.and sameFacility treatment) (contextFact "clinicianReviewed") }] }
-def quarantineVeto : Policy :=
-  policy "quarantine-monitor-q" .forbid .any
-    (eq (resourceFact "source") (.lit (.string "monitor-q")))
+def quarantineControl : Veto :=
+  { policyId := "quarantine-monitor-q", actionScope := .actionScope .any,
+    denyWhen := eq (resourceFact "source") (.lit (.string "monitor-q")) }
+def quarantineVeto : Policy := quarantineControl.policy
 
-def model : Model := { modules := [
-  { name := "Base", edits := [.extend analyzeBase, .extend releaseBase] },
-  { name := "Privacy", parentOrders := [["Base"]], edits := [.extend consentVeto] },
-  { name := "DeviceSecurity", parentOrders := [["Base"]], edits := [.extend deviceVeto] },
-  { name := "ClinicalAI", parentOrders := [["Base"]],
-    edits := [.overlay analyzeApproved, .overlay releaseReviewed] },
-  { name := "Integrated", parentOrders := [["Privacy", "DeviceSecurity", "ClinicalAI"]] },
-  { name := "Quarantined", parentOrders := [["Integrated"]],
-    edits := [.extend quarantineVeto] },
-  { name := "Recovered", parentOrders := [["Quarantined"]],
-    edits := [.remove quarantineVeto.id] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "Base", edits := [.extend analyzeBase, .extend releaseBase] }] }
+  let privacy ← base.extend "Privacy" "Base" [consentControl.edit .introduce]
+  let device ← privacy.extend "DeviceSecurity" "Base" [deviceControl.edit .introduce]
+  let clinical ← device.extend "ClinicalAI" "Base"
+    [.overlay analyzeApproved, .overlay releaseReviewed]
+  let integrated ← clinical.mix "Integrated"
+    ["Privacy", "DeviceSecurity", "ClinicalAI"]
+  let quarantined ← integrated.extend "Quarantined" "Integrated"
+    [quarantineControl.edit .introduce]
+  quarantined.extend "Recovered" "Quarantined" [quarantineControl.edit .withdraw]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 structure Facts where
   treatmentPurpose : Bool := true

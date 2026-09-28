@@ -38,6 +38,12 @@ The split into Privacy, Security, and Emergency policy owners is a design
 assumption for exploring composition. It is not reported as the organization
 of any cited deployment.
 
+The Emergency owner instantiates the public
+[[file:../../CedarPooSpec/Vertical/Health/EmergencyAccess.lean][Vertical.Health.EmergencyAccess]] object. Its provisional and bounded
+policies occupy one Cedar policy slot. =Model.extend= stages the three
+independent owners, and =Model.mix= applies the emergency overlay and
+legacy-grant removal at the integrated root.
+
 ** Why POO is needed
 
 The clinical base, privacy rule, device rule, and emergency rule have separate
@@ -143,7 +149,10 @@ baseline would even allow a withdrawn-consent observation. =Privacy= adds a
 consent veto, =DeviceSecurity= adds a device-trust veto, and =ClinicalAI=
 overlays the two inherited permits with model-approval and clinician-review
 requirements. =Integrated= combines these independently owned branches using
-C4. No branch repeats the other's policy body.
+C4 through =Model.extend= and =Model.mix=. The Privacy and DeviceSecurity
+owners use public =Governance.Veto= objects, so quarantine and recovery
+introduce and withdraw one owned slot. No branch repeats the other's policy
+body.
 
 When a monitor source becomes suspect, =Quarantined= extends a single forbid.
 The source's observation is denied at both flow layers; another monitor's

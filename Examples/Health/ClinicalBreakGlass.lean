@@ -1,5 +1,6 @@
 import CedarPooSpec.Revision
 import CedarPooSpec.Soundness
+import CedarPooSpec.Vertical.Health.EmergencyAccess
 
 /-!
 Clinical record access derived from published Careweb and French DMP
@@ -12,12 +13,15 @@ namespace CedarPooSpec.ClinicalBreakGlassExample
 
 open Cedar.Spec Cedar.Validation Cedar.Data
 open CedarPooSpec.PolicyModules CedarPooSpec.Soundness
+open CedarPooSpec.Vertical.Health
 open LeanPoo.Proof
 
 def clinicianType : EntityType := ⟨"Clinician", []⟩
 def recordType : EntityType := ⟨"PatientRecord", []⟩
 def actionType : EntityType := ⟨"Action", []⟩
 def readAction : EntityUID := ⟨actionType, "read"⟩
+def emergencyControl : EmergencyAccess :=
+  { policyId := "break-glass", action := readAction }
 
 def clinicianEntry : EntitySchemaEntry :=
   .standard ⟨Set.empty, Map.make [("facility", .required .string)], none⟩
@@ -63,18 +67,10 @@ def contextFact (name : String) : Expr := .getAttr (.var .context) name
 def principalFacility : Expr := .getAttr (.var .principal) "facility"
 def resourceFact (name : String) : Expr := .getAttr (.var .resource) name
 def sameFacility : Expr := .binaryApp .eq principalFacility (resourceFact "facility")
-def patientMatches : Expr :=
-  .binaryApp .eq (contextFact "sessionPatient") (resourceFact "patient")
 def trusted : Expr := contextFact "deviceTrusted"
 def stronglyAuthenticated : Expr := contextFact "strongAuth"
-def granted : Expr := contextFact "breakGlassGranted"
-def sessionIsActive : Expr := contextFact "sessionActive"
-def unableToConsent : Expr := contextFact "patientUnableToConsent"
-def treatment : Expr := contextFact "treatmentPurpose"
 def restricted : Expr := resourceFact "restricted"
-def breakGlassValid : Expr :=
-  .and granted (.and sessionIsActive
-    (.and unableToConsent (.and treatment patientMatches)))
+def breakGlassValid : Expr := emergencyControl.valid
 
 def readPolicy (id : String) (effect : Effect) (body : Expr) : Policy :=
   { id := id, effect := effect,
@@ -93,28 +89,19 @@ def privacyForbid : Policy :=
 def deviceForbid : Policy :=
   readPolicy "untrusted-device-or-identity" .forbid
     (.or (.unaryApp .not trusted) (.unaryApp .not stronglyAuthenticated))
-def emergencyPermitV1 : Policy :=
-  readPolicy "break-glass" .permit (.and granted patientMatches)
-def emergencyPermitV2 : Policy :=
-  readPolicy "break-glass" .permit
-    (.and breakGlassValid trusted)
+def emergencyPermitV1 : Policy := emergencyControl.provisional
+def emergencyPermitV2 : Policy := emergencyControl.bounded
 
-def base : Module :=
-  { name := "Base", edits := [.extend routinePermit, .extend legacyPermit] }
-def privacy : Module :=
-  { name := "Privacy", parentOrders := [["Base"]],
-    edits := [.extend privacyForbid] }
-def security : Module :=
-  { name := "Security", parentOrders := [["Base"]],
-    edits := [.extend deviceForbid] }
-def emergency : Module :=
-  { name := "Emergency", parentOrders := [["Base"]],
-    edits := [.extend emergencyPermitV1] }
-def integrated : Module :=
-  { name := "Integrated", parentOrders := [["Privacy", "Security", "Emergency"]],
-    edits := [.overlay emergencyPermitV2, .remove legacyPermit.id] }
-def model : Model :=
-  { modules := [base, privacy, security, emergency, integrated] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "Base", edits := [.extend routinePermit, .extend legacyPermit] }] }
+  let privacy ← base.extend "Privacy" "Base" [.extend privacyForbid]
+  let security ← privacy.extend "Security" "Base" [.extend deviceForbid]
+  let emergency ← security.extend "Emergency" "Base" [emergencyControl.introduce]
+  emergency.mix "Integrated" ["Privacy", "Security", "Emergency"]
+    [emergencyControl.strengthen, .remove legacyPermit.id]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def compilation : Compilation :=
   (model.compileWithTrace "Integrated").toOption.get (by native_decide)

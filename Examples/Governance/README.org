@@ -61,6 +61,9 @@ compliance owner to the front for the reordered view. Both operations require
 a Lean proof that the selected owner belongs to the source view. Each view
 generates the same purpose overlay and legacy-grant removal; only its C4
 precedence varies. =governanceViewsShareEdits= checks that invariant.
+The owners are staged with =Model.extend= and the views with =Model.mix=;
+the separate =OwnerSplit= negative example still constructs its graph
+directly to exercise the C4 suffix-order rejection.
 
 #+begin_src mermaid
 stateDiagram-v2
@@ -211,6 +214,9 @@ derives exact overlay edits from the linked policy revision, then a descendant
 derives a remove edit when one link is revoked. A further descendant links
 Alice to another ticket and derives an extend edit. Its replay receipt proves
 each generated edit sequence yields Cedar's exact linked policy list. The
+Posture, Revoked, and Expanded descendants are staged through
+=Model.extend=, preserving the native Lean-POO schema rather than manually
+appending module records. The
 checked decisions distinguish the template update, an unchanged viewer,
 closed-ticket denial, revocation, and a later new share.
 =revokedAligned= proves the POO removal produces exactly the same policy list

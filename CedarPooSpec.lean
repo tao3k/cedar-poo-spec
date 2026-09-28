@@ -6,7 +6,9 @@ import CedarPooSpec.Slicing
 import CedarPooSpec.PolicyModules
 import CedarPooSpec.Governance.Veto
 import CedarPooSpec.Governance.MemberGrant
+import CedarPooSpec.Governance.SeparationOfDuties
 import CedarPooSpec.Vertical.Health.DisclosureChannel
+import CedarPooSpec.Vertical.Health.EmergencyAccess
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Data.Relation
 import CedarPooSpec.CompoundAuthorization

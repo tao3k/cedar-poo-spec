@@ -1,6 +1,7 @@
 import CedarPooSpec.PolicyJson
 import CedarPooSpec.Governance.MemberGrant
 import CedarPooSpec.Governance.Veto
+import CedarPooSpec.Governance.SeparationOfDuties
 
 /-!
 A procurement authorization model combining Cedar decimal amounts with
@@ -70,9 +71,6 @@ def limit : Expr := .getAttr (.var .resource) "limit"
 def withinLimit : Expr := .call .lessThanOrEqual [amount, limit]
 def positiveAmount : Expr := .call .greaterThan [amount, .call .decimal [.lit (.string "0.0000")]]
 def withinBudget : Expr := .and positiveAmount withinLimit
-def selfApproval : Expr :=
-  .binaryApp .eq (.var .principal) (.getAttr (.var .resource) "requester")
-
 def operationsGrant : MemberGrant :=
   ⟨"operations-approval", approver, .actionScope (.eq approve), operations, []⟩
 
@@ -81,9 +79,10 @@ def legacyPermit : Policy := operationsGrant.policy
 def boundedPermit : Policy :=
   { operationsGrant with condition := [{ kind := .when, body := withinBudget }] }.policy
 
-def dutiesControl : Veto :=
+def dutiesControl : SeparationOfDuties :=
   { policyId := "no-self-approval", actionScope := .actionScope (.eq approve),
-    denyWhen := selfApproval, principalScope := .principalScope (.mem approver),
+    priorActorAttribute := "requester",
+    principalScope := .principalScope (.mem approver),
     resourceScope := .resourceScope (.is orderType) }
 def modelResult : Except LeanPoo.C4.Error Model := do
   let base : Model := { modules := [{ name := "Base", edits := [operationsGrant.edit .introduce] }] }

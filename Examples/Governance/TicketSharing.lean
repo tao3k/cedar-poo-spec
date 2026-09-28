@@ -129,13 +129,11 @@ def revokedReconciliation : Reconciliation policiesV2 revokedPolicies :=
 
 def published : Module :=
   { name := "Published", edits := Edit.extendAll policiesV1 }
-def posture : Module :=
-  { name := "Posture", parentOrders := [["Published"]],
-    edits := postureReconciliation.edits }
-def revoked : Module :=
-  { name := "Revoked", parentOrders := [["Posture"]],
-    edits := revokedReconciliation.edits }
-def model : Model := { modules := [published, posture, revoked] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let initial : Model := { modules := [published] }
+  let posture ← initial.extend "Posture" "Published" postureReconciliation.edits
+  posture.extend "Revoked" "Posture" revokedReconciliation.edits
+def model : Model := modelResult.toOption.get (by native_decide)
 def finalPolicies : Policies :=
   (model.compile "Revoked").toOption.get (by native_decide)
 def revokedLinked : LinkedSet schema :=
@@ -147,11 +145,9 @@ def expandedPolicies : Policies :=
   (Cedar.Spec.link? templatesV2 expandedLinks).toOption.get (by native_decide)
 def expandedReconciliation : Reconciliation finalPolicies expandedPolicies :=
   (Edit.reconcile finalPolicies expandedPolicies).toOption.get (by native_decide)
-def expanded : Module :=
-  { name := "Expanded", parentOrders := [["Revoked"]],
-    edits := expandedReconciliation.edits }
 def expandedModel : Model :=
-  { modules := [published, posture, revoked, expanded] }
+  (model.extend "Expanded" "Revoked" expandedReconciliation.edits).toOption.get
+    (by native_decide)
 def expandedLinked : LinkedSet schema :=
   (revokedLinked.tryRefresh templatesV2 expandedLinks).toOption.get (by native_decide)
 

@@ -280,10 +280,21 @@ def incident : Module :=
   incidentControl.module "AgentIncident" hospitalView.name .introduce
 def recovered : Module :=
   incidentControl.module "Recovered" incident.name .withdraw
-def model : Model :=
-  { modules := [base, siv.module, gcm.module, hmac.module,
-      owner, privacy, agentBoundary] ++ views.map GovernanceView.module ++
-      [incident, recovered] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let initial : Model := { modules := [base] }
+  let profiles ← [siv, gcm, hmac].foldlM (fun current profile =>
+    current.extend profile.name "Base" profile.module.edits) initial
+  let dataOwner ← profiles.extend owner.name "Base" owner.edits
+  let privateView ← dataOwner.extend privacy.name "Base" privacy.edits
+  let agentView ← privateView.extend agentBoundary.name "Base" agentBoundary.edits
+  let governed ← views.foldlM (fun current view =>
+    current.mix view.name
+      [view.profile.name, "DataOwner", "Privacy", "AgentBoundary"]
+      view.module.edits) agentView
+  let suspended ← governed.extend incident.name hospitalView.name incident.edits
+  suspended.extend recovered.name incident.name recovered.edits
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 structure Facts where
   targetDataset : EntityUID := hospital
