@@ -76,6 +76,40 @@ fn bootstrap(
     }))?)
 }
 
+/// Require the receiver input to name exactly the Lean-exported candidate.
+/// Snapshot::new still owns Cedar parsing and reserved-context validation.
+fn prepare_identified_candidate(
+    bootstrap: Bootstrap,
+    manifest: &ValidatedManifest,
+    case: &cedar_poo_bridge::Case,
+    sources: &BTreeMap<String, String>,
+    expected_policy_digest: &str,
+    proposal: &Proposal,
+) -> Result<(), Box<dyn Error>> {
+    if serde_json::from_str::<serde_json::Value>(&bootstrap.schema_json)? != manifest.schema
+        || serde_json::from_str::<serde_json::Value>(&bootstrap.entities_json)? != case.entities
+    {
+        return Err("receiver schema or entities differ from the Lean artifact".into());
+    }
+    let mut projected = BTreeMap::new();
+    for policy in &bootstrap.policies {
+        if projected
+            .insert(policy.identity.clone(), policy.source.clone())
+            .is_some()
+        {
+            return Err("receiver contains a duplicate policy identity".into());
+        }
+    }
+    if &projected != sources {
+        return Err("receiver policies differ from the Lean artifact".into());
+    }
+    let prepared = Snapshot::new(bootstrap)?.prepare(proposal)?;
+    if prepared.subject.policy_set_digest != expected_policy_digest {
+        return Err("receiver changed the materialized Cedar policy set".into());
+    }
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let path = std::env::args()
         .nth(1)
@@ -95,9 +129,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let expected_digest = canonical::digest("poo-flow/cedar/policy-set", &by_id)?;
     let base = bootstrap(&manifest, case, &sources)?;
     let request = proposal(case)?;
-    let prepared = Snapshot::new(base.clone())?.prepare(&request)?;
-    if prepared.subject.policy_set_digest != expected_digest || sources.len() != 10 {
-        return Err("receiver changed the identified Cedar policy set".into());
+    prepare_identified_candidate(
+        base.clone(),
+        &manifest,
+        case,
+        &sources,
+        &expected_digest,
+        &request,
+    )?;
+    if sources.len() != 10 {
+        return Err("expected ten materialized policies".into());
     }
 
     let mut changed_body = base.clone();
@@ -110,23 +151,36 @@ fn main() -> Result<(), Box<dyn Error>> {
     if token.source == sources["tokenize"] {
         return Err("policy-body mutation did not take effect".into());
     }
-    let changed = Snapshot::new(changed_body)?.prepare(&request)?;
-    if changed.subject.policy_set_digest == expected_digest {
-        return Err("policy-body mutation retained the admitted digest".into());
-    }
-
     let mut changed_id = base.clone();
     changed_id.policies[0].identity.push_str("-changed");
-    let changed = Snapshot::new(changed_id)?.prepare(&request)?;
-    if changed.subject.policy_set_digest == expected_digest {
-        return Err("policy-ID mutation retained the admitted digest".into());
-    }
-
     let mut changed_entities = base.clone();
     changed_entities.entities_json = "[]".into();
-    let changed = Snapshot::new(changed_entities)?.prepare(&request)?;
-    if changed.subject.entity_store_digest == prepared.subject.entity_store_digest {
-        return Err("entity mutation retained the admitted digest".into());
+    let mut changed_schema = base.clone();
+    let mut schema: serde_json::Value = serde_json::from_str(&changed_schema.schema_json)?;
+    schema["ConformanceOnly"] = json!({"entityTypes": {}, "actions": {}});
+    changed_schema.schema_json = schema.to_string();
+
+    let mut duplicate_id = base.clone();
+    duplicate_id.policies.push(duplicate_id.policies[0].clone());
+    for (label, candidate) in [
+        ("policy body", changed_body),
+        ("policy ID", changed_id),
+        ("entities", changed_entities),
+        ("schema", changed_schema),
+        ("duplicate policy ID", duplicate_id),
+    ] {
+        if prepare_identified_candidate(
+            candidate,
+            &manifest,
+            case,
+            &sources,
+            &expected_digest,
+            &request,
+        )
+        .is_ok()
+        {
+            return Err(format!("{label} drift was accepted").into());
+        }
     }
 
     let mut collided_schema = base;

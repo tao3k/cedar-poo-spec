@@ -3,8 +3,10 @@
 
 * Boundary
 
-This isolated Rust package pins =poo-flow-cedar-authority= at an immutable
-revision. It is a conformance consumer of the public
+This isolated Rust package pins =poo-flow-cedar-authority= by a full Git
+=rev= in =Cargo.toml= and records the resolved commit in =Cargo.lock=.
+The Git URL only locates the source; the revision and lockfile select the
+dependency. It is a conformance consumer of the public
 =cedar-poo-bridge= library; the bridge's normal Rust package does not depend
 on POO Flow. The [[file:../../docs/rfc/0008-composable-control-objects.org][control-object RFC]] defines ownership and deployment limits.
 
@@ -19,11 +21,12 @@ effect.
 
 * Discriminators
 
-The receiver's domain-separated policy digest is compared with an
-independently derived digest of the materialized Cedar policy JSON by ID.
-Changing a source body or policy ID must change that digest. Changing the
-entity snapshot must change its entity digest. Defining =context.poo_flow=
-in the input schema must be rejected by the receiver. These checks qualify
+The candidate handoff requires exact identified sources, schema, and entities
+from the Lean artifact. The receiver's domain-separated policy digest is
+compared with an independently derived digest of the materialized Cedar
+policy JSON by ID. A changed source body, policy ID, entity snapshot, or
+schema must fail candidate binding. Defining =context.poo_flow= in the input
+schema must be rejected by the receiver. These checks qualify
 the parser and projection seam at the pinned revisions; runtime admission,
 revocation, signatures, and execution receipts remain POO Flow and Host
 responsibilities.
