@@ -92,17 +92,16 @@ def unresolvedGeographyVeto : Policy :=
     [{ kind := .when, body :=
       (.or (.unaryApp .not hasGeography) (locationIs "UNKNOWN")) }]
 
-def model : Model := { modules := [
-  { name := "GatewayBase", edits := [.extend baselinePermit] },
-  { name := "Role", parentOrders := [["GatewayBase"]],
-    edits := [.extend roleVeto] },
-  { name := "EU", parentOrders := [["GatewayBase"]],
-    edits := [.extend euVeto] },
-  { name := "Restricted", parentOrders := [["GatewayBase"]],
-    edits := [.extend restrictedVeto] },
-  { name := "SourceCombined", parentOrders := [["Role", "EU", "Restricted"]] },
-  { name := "FailClosed", parentOrders := [["SourceCombined"]],
-    edits := [.extend unresolvedGeographyVeto] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "GatewayBase", edits := [.extend baselinePermit] }] }
+  let role ← base.extend "Role" "GatewayBase" [.extend roleVeto]
+  let eu ← role.extend "EU" "GatewayBase" [.extend euVeto]
+  let restricted ← eu.extend "Restricted" "GatewayBase" [.extend restrictedVeto]
+  let combined ← restricted.mix "SourceCombined" ["Role", "EU", "Restricted"]
+  combined.extend "FailClosed" "SourceCombined" [.extend unresolvedGeographyVeto]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def sourceCases : List (String × EntityUID × EntityUID × Option String × Decision) := [
   ("policyholder-us-query", policyholderUS, queryClaims, some "US", .allow),

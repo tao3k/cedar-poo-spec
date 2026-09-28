@@ -43,7 +43,9 @@ rule. =SourceCombined= C4-composes those three sibling branches. Lean proves
 that each isolated owner leaves another owner's denial case allowed, while
 the combined root matches the source's full decision matrix. =FailClosed=
 extends only one additional policy ID; the six source decisions remain
-unchanged. This is the concrete maintenance unit POO supplies: an owner can
+unchanged. The model constructs these branches with =Model.extend= and
+=Model.mix=, which stage the corresponding Lean-POO extension and C4 mix.
+This is the concrete maintenance unit POO supplies: an owner can
 change one restriction without copying the other policy bodies.
 
 | Source row | Tool | Geography | SourceCombined |

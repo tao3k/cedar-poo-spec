@@ -34,7 +34,9 @@ Removing a supplier from only one repository leaves a stale authority on
 the other side. The example therefore checks each authorization decision
 separately and their conjunction. =ImageRemoval= and =DirectorRemoval= are
 independent Lean-POO branches; =Retired= composes both via C4; =Replacement=
-extends the result with the new supplier's permissions. The old publication
+extends the result with the new supplier's permissions. These transitions
+use =Model.extend= for each branch and =Model.mix= for the retirement join.
+The old publication
 and assignment permissions do not return in =Replacement=.
 
 The retirement revision changes exactly the two old policy IDs, introduces

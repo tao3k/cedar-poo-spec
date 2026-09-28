@@ -138,17 +138,16 @@ def currentNominal : Policy :=
           (.and (ctx "successorMissionFeasible")
             (.and witnessBinding horizonFresh)) }] }
 
-def model : Model := { modules := [
-  { name := "Base", edits := [.extend nominal, .extend safeFallback] },
-  { name := "Platform", parentOrders := [["Base"]],
-    edits := [.overlay platformChecked] },
-  { name := "Mission", parentOrders := [["Base"]],
-    edits := [.extend missionVeto] },
-  { name := "Evidence", parentOrders := [["Base"]],
-    edits := [.extend evidenceVeto] },
-  { name := "Integrated", parentOrders := [["Platform", "Mission", "Evidence"]] },
-  { name := "Current", parentOrders := [["Integrated"]],
-    edits := [.overlay currentNominal] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "Base", edits := [.extend nominal, .extend safeFallback] }] }
+  let platform ← base.extend "Platform" "Base" [.overlay platformChecked]
+  let mission ← platform.extend "Mission" "Base" [.extend missionVeto]
+  let evidence ← mission.extend "Evidence" "Base" [.extend evidenceVeto]
+  let integrated ← evidence.mix "Integrated" ["Platform", "Mission", "Evidence"]
+  integrated.extend "Current" "Integrated" [.overlay currentNominal]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def authorizedRequest (root : String) (req : Request) : Bool :=
   match CedarPooSpec.CompoundAuthorization.authorizeLayers model

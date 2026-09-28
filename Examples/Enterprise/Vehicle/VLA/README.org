@@ -55,7 +55,9 @@ official Rust Cedar authorizer.
 | =Recovered= | D | A | D | A | A |
 
 The =Safety= and =Provenance= rows each leave a different hole. Their C4
-composition closes both for the modeled inputs. =Incident= affects only
+composition closes both for the modeled inputs. =Model.extend= stages the
+independent safety and provenance branches; =Model.mix= constructs the
+=Integrated= root. =Incident= affects only
 the marked cohort and leaves braking and hazard reporting available.
 =Recovered= removes only the cohort veto; the pedestrian and provenance
 rules remain. A false =sceneTextPromoted= value can miss an injected sign;

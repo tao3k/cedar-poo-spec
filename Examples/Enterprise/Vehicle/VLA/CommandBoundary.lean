@@ -85,18 +85,18 @@ def affectedModelQuarantine : Policy :=
   policy "affected-vla-quarantine" .forbid accelerate
     (.and (ctx "modelAffected") (segmentFact "affectedCohort"))
 
-def model : Model := { modules := [
-  { name := "Base", edits := [
-      .extend accelerationBase, .extend braking, .extend hazardReport] },
-  { name := "Safety", parentOrders := [["Base"]],
-    edits := [.overlay accelerationWithIndependentSafety] },
-  { name := "Provenance", parentOrders := [["Base"]],
-    edits := [.extend untrustedSceneText] },
-  { name := "Integrated", parentOrders := [["Safety", "Provenance"]] },
-  { name := "Incident", parentOrders := [["Integrated"]],
-    edits := [.extend affectedModelQuarantine] },
-  { name := "Recovered", parentOrders := [["Incident"]],
-    edits := [.remove affectedModelQuarantine.id] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "Base", edits := [
+        .extend accelerationBase, .extend braking, .extend hazardReport] }] }
+  let safety ← base.extend "Safety" "Base" [.overlay accelerationWithIndependentSafety]
+  let provenance ← safety.extend "Provenance" "Base" [.extend untrustedSceneText]
+  let integrated ← provenance.mix "Integrated" ["Safety", "Provenance"]
+  let incident ← integrated.extend "Incident" "Integrated"
+    [.extend affectedModelQuarantine]
+  incident.extend "Recovered" "Incident" [.remove affectedModelQuarantine.id]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 structure Facts where
   routeApproved : Bool := true

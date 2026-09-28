@@ -304,8 +304,10 @@ semantic contract and move another object into a cross-industry or
 
 The migrated production models in country approval, procurement, payment,
 clinical break-glass, wearable triage, pseudonymization, attested data
-access, and ticket sharing build their revisions with =Model.extend= and
-=Model.mix=. Those methods call Lean-POO's =extendSchema= and =mix=, and
+access, ticket sharing, AWS Lakehouse Gateway, vehicle supplier transition,
+mission successor, VLA command, and tenant-device evolution build their
+revisions with =Model.extend= and =Model.mix=. Those methods call
+Lean-POO's =extendSchema= and =mix=, and
 publication compiles a Lean-POO object plan before Cedar edit validation.
 The =OwnerSplit= graph in attested data access is deliberately constructed
 directly to test rejection of an invalid C4 suffix order. This migration
