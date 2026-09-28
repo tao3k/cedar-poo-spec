@@ -25,6 +25,8 @@ surrogate name and encoded length. Their output binds hashes of the request
 and response JSON. An
 arbitrary JSON document can satisfy the shape check; it is not itself proof
 of Google execution, a persisted audit, or atomic Host admission.
+The [[file:../examples/pseudonymization_google_contract.rs][offline example runner]] consumes two explicitly synthetic provider-shape
+responses from the hospital scenario and emits request/response digests.
 
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/deidentify][Google de-identify REST method]],
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/reidentify][Google re-identify REST method]], and

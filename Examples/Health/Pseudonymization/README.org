@@ -48,6 +48,16 @@ Host-resolved wrapped key descriptor. Its test checks the official table
 caller-supplied response shape, but the example does not authenticate a
 Google response or run the Google API. The local RustCrypto token must not be
 treated as a Google token.
+Run =just example health pseudonymization-google-contract= for the minimal
+offline path. It checks the Lean-selected fixture, creates both Google REST
+bodies, and consumes [[file:Fixtures/google-deidentify-response.json][synthetic de-identification]] and
+[[file:Fixtures/google-reidentify-response.json][synthetic re-identification]] responses. The
+[[file:../../../rust/examples/pseudonymization_google_contract.rs][example runner]] emits only request/response digests and boundary checks;
+it also rejects a changed context, malformed token, or mismatched token-key
+version. These response files
+are deliberately fabricated wire-shape fixtures, not evidence of an actual
+Google transformation. The broader =pseudonymization= recipe includes this
+minimal path alongside Cedar replay and local cryptographic execution.
 
 * Object composition
 

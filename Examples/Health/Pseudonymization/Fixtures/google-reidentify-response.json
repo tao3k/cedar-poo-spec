@@ -1,0 +1,17 @@
+{
+  "item": {
+    "table": {
+      "headers": [{"name": "patient_id"}, {"name": "tenant_scope"}],
+      "rows": [{"values": [
+        {"stringValue": "synthetic-patient-0001"},
+        {"stringValue": "hospital-a"}
+      ]}]
+    }
+  },
+  "overview": {
+    "transformationSummaries": [{
+      "field": {"name": "patient_id"},
+      "results": [{"count": "1", "code": "SUCCESS"}]
+    }]
+  }
+}
