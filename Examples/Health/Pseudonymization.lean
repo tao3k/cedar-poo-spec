@@ -441,15 +441,9 @@ def scenarioConforms : Bool := cases.all fun (_, root, req, expected) =>
     (validate policies schema).isOk &&
     let response := isAuthorized req entities policies
     response.decision == expected && response.erroringPolicies.isEmpty
-theorem scenarioConformsFully : scenarioConforms = true := by native_decide
-
-theorem caseNamesUnique : (cases.map (fun (name, _, _, _) => name)).Nodup := by
-  native_decide
 
 def composedViewsShareRemoval : Bool :=
   views.all (fun view => view.module.edits == [.remove legacyReveal.id])
-theorem composedViewsShareRemovalFully : composedViewsShareRemoval = true := by
-  native_decide
 
 def compositionIsLocal : Bool :=
   let sivAffected := invalidatedNodes model.graph [siv.name]
@@ -461,7 +455,6 @@ def compositionIsLocal : Bool :=
   incidentAffected.contains incident.name &&
   incidentAffected.contains recovered.name &&
   !incidentAffected.contains randomizedView.name
-theorem compositionIsLocalFully : compositionIsLocal = true := by native_decide
 
 def incidentOnlyAddsAgentVeto : Bool :=
   match model.compile hospitalView.name, model.compile incident.name with
@@ -469,18 +462,5 @@ def incidentOnlyAddsAgentVeto : Bool :=
     suspended.length == baseline.length + 1 &&
     suspended.filter (fun p => p.id != "agent-join-suspended") == baseline
   | _, _ => false
-theorem incidentOnlyAddsAgentVetoFully : incidentOnlyAddsAgentVeto = true := by
-  native_decide
-
-/-- Recovery removes the inherited incident veto while retaining the other
-    owner and privacy policies. -/
-theorem recoveryWithdrawsIncidentVeto :
-    (match model.compile recovered.name, model.compile hospitalView.name with
-    | .ok policies, .ok baseline =>
-      decide (policies = baseline) &&
-      !policies.any (fun p => p.id == incidentControl.policyId) &&
-      (isAuthorized (request agent join hospital {}) entities policies).decision == .allow
-    | _, _ => false) = true := by
-  native_decide
 
 end CedarPooSpec.PseudonymizationExample

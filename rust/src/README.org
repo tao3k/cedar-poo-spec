@@ -42,7 +42,13 @@ responses from the hospital scenario and emits request/response digests.
 The [[file:google_sdp_host.rs][in-memory admission API]] replays a schema-validated Cedar case,
 binds the selected row, Google endpoint, and exact request body, and releases a caller-supplied
 response only after a digest audit entry is appended. The
-[[file:../examples/pseudonymization_google_admission.rs][hospital consumer]] supplies synthetic responses. Its audit and approval revision live only in
+[[file:../examples/pseudonymization_google_admission.rs][hospital consumer]] owns synthetic responses in its scenario directory.
+The in-memory Host records a digest of each admitted token with its dataset,
+tenant, context, token-key version, and transformation revision. Recovery requires
+that lineage; a token with no prior admitted issuance is rejected. This
+registry is process-local evidence and does not authenticate a Google response
+or replace a durable token catalog in a deployed Host.
+The API has no embedded fixture. Its audit and approval revision live only in
 process memory, so this does not establish durable or provider-authenticated
 execution.
 

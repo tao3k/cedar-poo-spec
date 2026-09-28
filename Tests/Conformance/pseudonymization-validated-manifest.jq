@@ -1,0 +1,1 @@
+(.cases | length) == 41 and (.schema[""].actions | keys) == ["join", "reidentify", "release-result", "tokenize"] and ([.cases[] | select(.revision == "Recovered")][0].policies == [.cases[] | select(.revision == "HospitalSiv")][0].policies)

@@ -13,6 +13,9 @@ sibling vetoes, and the difference between an absent policy slot and an
 explicit removal tombstone. [[file:Language/SchemaProjection.lean][SchemaProjection.lean]] checks invalid schema
 admission. [[file:ReuseScale.lean][ReuseScale.lean]] checks proof dependency
 impact at scale.
+[[file:Health/Pseudonymization.lean][Health/Pseudonymization.lean]] checks hospital Cedar decisions and
+local POO composition. Rust unit tests remain in the Rust crate's
+=rust/tests/unit/= directory.
 [[file:Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]] checks two-axis
 C4 method selection for the Data Flow policy builder, proves exact ordered
 policy equality with the owner-composed root, and ties both paths to Cedar's

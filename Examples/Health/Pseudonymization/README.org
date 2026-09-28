@@ -62,6 +62,7 @@ Run =just example health pseudonymization-google-admission= to replay the
 official Cedar decisions, bind the selected row to the Cedar dataset and
 Google request, then exercise an in-memory admission ticket. The
 [[file:../../../rust/examples/pseudonymization_google_admission.rs][offline Host example]] rejects a racing ticket, approval revision change,
+an unissued recovery token both before and after tokenization,
 policy deployment, failed audit sink, changed endpoint, and changed response context before
 releasing a transformed cell. Its audit contains digests only. This example
 uses synthetic Google response fixtures owned by this hospital scenario.

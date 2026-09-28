@@ -1,0 +1,1 @@
+.kind == "offline-google-sdp-rest-contract" and .providerCalled == false and .contextSwapRejected == true and .keyLineageMismatchRejected == true and .malformedTokenRejected == true and .syntheticRoundTripShapeChecked == true and ([.deidentifyRequestSha256, .deidentifyResponseSha256, .reidentifyRequestSha256, .reidentifyResponseSha256] | all(.[]; test("^[0-9a-f]{64}$")))

@@ -54,6 +54,13 @@ fn run() -> Result<(), String> {
         };
     let (first, endpoint, request_bytes) =
         prepare(&host, "hospital-tokenize", TableEffect::Deidentify, None)?;
+    let unissued_before_tokenization_rejected = prepare(
+        &host,
+        "steward-reidentify",
+        TableEffect::Reidentify,
+        Some("bG9uZy1zeW50aGV0aWMtY2lwaGVydGV4dA==".into()),
+    )
+    .is_err();
     let (racing, _, _) = prepare(&host, "hospital-tokenize", TableEffect::Deidentify, None)?;
     if !endpoint.ends_with("/content:deidentify") {
         return Err("wrong Google operation endpoint".into());
@@ -67,6 +74,13 @@ fn run() -> Result<(), String> {
         return Err("prepared request changed the selected input".into());
     }
     let checked = host.commit(first, &endpoint, &deidentified)?;
+    let unissued_token_rejected = prepare(
+        &host,
+        "steward-reidentify",
+        TableEffect::Reidentify,
+        Some("bG9uZy1zeW50aGV0aWMtY2lwaGVydGV4dA==".into()),
+    )
+    .is_err();
     let stale_race_rejected = host.commit(racing, &endpoint, &deidentified).is_err();
     let denied_agent_rejected = prepare(
         &host,
@@ -157,12 +171,31 @@ fn run() -> Result<(), String> {
     if recovered.value != selected.value || host.audit().len() != 2 {
         return Err("offline recovery or digest audit differs".into());
     }
+    if ![
+        stale_race_rejected,
+        unissued_before_tokenization_rejected,
+        unissued_token_rejected,
+        denied_agent_rejected,
+        wrong_scope_rejected,
+        revoked_rejected,
+        audit_failure_rejected,
+        response_swap_rejected,
+        endpoint_swap_rejected,
+        policy_change_rejected,
+    ]
+    .into_iter()
+    .all(|rejected| rejected)
+    {
+        return Err("offline admission accepted a rejected scenario".into());
+    }
     println!(
         "{}",
         json!({
             "kind": "offline-google-sdp-admission",
             "providerCalled": false,
             "staleRaceRejected": stale_race_rejected,
+            "unissuedBeforeTokenizationRejected": unissued_before_tokenization_rejected,
+            "unissuedTokenRejected": unissued_token_rejected,
             "deniedAgentRejected": denied_agent_rejected,
             "wrongScopeRejected": wrong_scope_rejected,
             "revokedRejected": revoked_rejected,

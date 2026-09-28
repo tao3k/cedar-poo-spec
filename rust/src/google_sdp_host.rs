@@ -8,6 +8,7 @@ use crate::{Case, ValidatedManifest, replay_validated_manifest};
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet};
 
 /// The Google table operation authorized by a concrete Cedar request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -46,6 +47,42 @@ pub struct PreparedTableEffect {
     effect: TableEffect,
     plan: TabularAesSiv,
     token: Option<String>,
+    provenance: TokenProvenance,
+}
+
+/// Catalog lineage of a token issued by this Host. The token itself is stored
+/// only as a digest; wrapping revisions may change without changing the DEK.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct TokenProvenance {
+    dataset: String,
+    tenant: String,
+    context: String,
+    key_domain: String,
+    token_key_version: String,
+    transform_version: String,
+}
+
+impl TokenProvenance {
+    fn same_recipe(&self, other: &Self) -> bool {
+        self.tenant == other.tenant
+            && self.context == other.context
+            && self.key_domain == other.key_domain
+            && self.token_key_version == other.token_key_version
+            && self.transform_version == other.transform_version
+    }
+}
+
+impl TokenProvenance {
+    fn from_selected(selected: &SelectedTabularInput, tenant: String) -> Self {
+        Self {
+            dataset: selected.dataset.clone(),
+            tenant,
+            context: selected.context.clone(),
+            key_domain: selected.key_domain.clone(),
+            token_key_version: selected.token_key_version.clone(),
+            transform_version: selected.transform_version.clone(),
+        }
+    }
 }
 
 /// An audit record containing digests, without a token or recovered plaintext.
@@ -69,6 +106,7 @@ pub struct InMemoryGoogleSdpHost {
     policies_sha256: String,
     audit_ready: bool,
     audit: Vec<TableEffectAudit>,
+    issued_tokens: HashMap<String, HashSet<TokenProvenance>>,
 }
 
 fn digest(bytes: &[u8]) -> String {
@@ -91,7 +129,7 @@ fn check_selected(
     case: &Case,
     selected: &SelectedTabularInput,
     effect: TableEffect,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let dataset_uid = format!("Dataset::\"{}\"", selected.dataset);
     let target = case
         .request
@@ -127,10 +165,37 @@ fn check_selected(
     {
         return Err("selected table input differs from Cedar request or dataset".into());
     }
-    Ok(())
+    let tenant = attr("tenant").ok_or("missing admitted dataset tenant")?;
+    if tenant.is_empty() {
+        return Err("missing admitted dataset tenant".into());
+    }
+    Ok(tenant.to_owned())
 }
 
 impl InMemoryGoogleSdpHost {
+    fn token_issued_for(&self, token: &str, provenance: &TokenProvenance) -> bool {
+        self.issued_tokens
+            .get(&digest(token.as_bytes()))
+            .is_some_and(|issued| issued.contains(provenance))
+    }
+
+    fn token_compatible_with_catalog(&self, token: &str, provenance: &TokenProvenance) -> bool {
+        self.issued_tokens
+            .get(&digest(token.as_bytes()))
+            .is_none_or(|issued| {
+                issued
+                    .iter()
+                    .all(|existing| existing.same_recipe(provenance))
+            })
+    }
+
+    fn catalog_token(&mut self, token: &str, provenance: TokenProvenance) {
+        self.issued_tokens
+            .entry(digest(token.as_bytes()))
+            .or_default()
+            .insert(provenance);
+    }
+
     /// Start at a deployed policy digest and approval revision chosen by the Host.
     pub fn new(policies_sha256: String, approval_revision: u64) -> Self {
         Self {
@@ -139,6 +204,7 @@ impl InMemoryGoogleSdpHost {
             policies_sha256,
             audit_ready: true,
             audit: Vec::new(),
+            issued_tokens: HashMap::new(),
         }
     }
 
@@ -177,7 +243,8 @@ impl InMemoryGoogleSdpHost {
             token,
         } = input;
         let case = unique_case(manifest, case_name)?;
-        check_selected(case, &selected, effect)?;
+        let tenant = check_selected(case, &selected, effect)?;
+        let provenance = TokenProvenance::from_selected(&selected, tenant);
         let receipts = replay_validated_manifest(manifest)?;
         let receipt = receipts
             .iter()
@@ -187,6 +254,11 @@ impl InMemoryGoogleSdpHost {
             || receipt.replay.policies_sha256 != self.policies_sha256
         {
             return Err("Cedar decision is denied or its policy revision is stale".into());
+        }
+        if effect == TableEffect::Reidentify {
+            if !self.token_issued_for(token.as_deref().ok_or("missing token")?, &provenance) {
+                return Err("token was not issued for this dataset and key lineage".into());
+            }
         }
         let plan = TabularAesSiv::from_selected(parent, selected, key)?;
         let request = match effect {
@@ -210,6 +282,7 @@ impl InMemoryGoogleSdpHost {
                 effect,
                 plan,
                 token,
+                provenance,
             },
             endpoint,
             bytes,
@@ -244,6 +317,11 @@ impl InMemoryGoogleSdpHost {
         if checked.request_sha256 != ticket.google_request_sha256 {
             return Err("Google request changed after admission".into());
         }
+        if ticket.effect == TableEffect::Deidentify
+            && !self.token_compatible_with_catalog(&checked.value, &ticket.provenance)
+        {
+            return Err("token collides with another dataset or key lineage".into());
+        }
         self.audit.push(TableEffectAudit {
             epoch: self.epoch,
             approval_revision: self.approval_revision,
@@ -254,6 +332,9 @@ impl InMemoryGoogleSdpHost {
             endpoint: ticket.endpoint,
             google_response_sha256: checked.response_sha256.clone(),
         });
+        if ticket.effect == TableEffect::Deidentify {
+            self.catalog_token(&checked.value, ticket.provenance);
+        }
         self.epoch += 1;
         Ok(checked)
     }
@@ -263,3 +344,7 @@ impl InMemoryGoogleSdpHost {
         &self.audit
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/google_sdp_host.rs"]
+mod tests;
