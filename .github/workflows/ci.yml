@@ -106,6 +106,7 @@ jobs:
       - run: just example enterprise agent department-synthesis
       - run: just example health prior-authorization
       - run: just example health prior-authorization-internal-channels
+      - run: just example health pseudonymization
       - run: just example governance country-approval-validated
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison

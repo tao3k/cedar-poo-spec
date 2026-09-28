@@ -3,6 +3,21 @@ set working-directory := '../..'
 clinical-break-glass:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/ClinicalBreakGlass.lean
 
+pseudonymization:
+    just build-examples
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-validated > .lake/build/pseudonymization-validated-manifest.json
+    jq -e '(.cases | length) == 24 and (.schema[""].actions | keys) == ["join", "reidentify", "tokenize"]' .lake/build/pseudonymization-validated-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/pseudonymization-validated-manifest.json > .lake/build/pseudonymization-validated-receipts.json
+    jq -e 'length == 24 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["agent-reidentify", "audit-unavailable", "cross-study-join", "gcm-no-deterministic-join", "gcm-reused-iv", "hmac-no-reidentification", "incident-agent-join", "incompatible-token-mode", "no-reidentify-approval", "operator-reidentify", "other-tenant-join", "owner-rejected", "reidentify-other-dataset", "tokenize-other-dataset", "wrong-key-domain"]' .lake/build/pseudonymization-validated-receipts.json > /dev/null
+    jq '[.cases[] | select(.revision == "HospitalSiv")][0].policies' .lake/build/pseudonymization-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/hospital-siv.cedar
+    cmp .lake/build/hospital-siv.cedar Examples/Health/Pseudonymization/Policies/hospital-siv.cedar
+    jq '[.cases[] | select(.revision == "RandomizedGcm")][0].policies' .lake/build/pseudonymization-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/randomized-gcm.cedar
+    cmp .lake/build/randomized-gcm.cedar Examples/Health/Pseudonymization/Policies/randomized-gcm.cedar
+    jq '[.cases[] | select(.revision == "OneWayHmac")][0].policies' .lake/build/pseudonymization-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/one-way-hmac.cedar
+    cmp .lake/build/one-way-hmac.cedar Examples/Health/Pseudonymization/Policies/one-way-hmac.cedar
+    jq '[.cases[] | select(.revision == "AgentIncident")][0].policies' .lake/build/pseudonymization-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/agent-incident.cedar
+    cmp .lake/build/agent-incident.cedar Examples/Health/Pseudonymization/Policies/agent-incident.cedar
+
 wearable-triage:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/WearableTriage.lean
 

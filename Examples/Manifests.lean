@@ -1,5 +1,6 @@
 import Examples.Governance.TicketSharingExport
 import Examples.Health.ClinicalBreakGlassExport
+import Examples.Health.PseudonymizationExport
 import Examples.Health.WearableTriageExport
 import Examples.Health.PriorAuthorization.ValidatedExport
 import Examples.Health.PriorAuthorization.InternalChannelsExport
@@ -43,6 +44,7 @@ namespace CedarPooSpec.Manifests
 def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("ticket-sharing", fun _ => TicketSharingExport.manifest),
   ("clinical", fun _ => ClinicalBreakGlassExport.manifest),
+  ("pseudonymization-validated", fun _ => PseudonymizationExport.manifest),
   ("wearable-triage", fun _ => WearableTriageExport.manifest),
   ("prior-authorization-validated", fun _ => PriorAuthorizationValidatedExport.manifest),
   ("prior-authorization-malformed", fun _ => PriorAuthorizationValidatedExport.malformedManifest),

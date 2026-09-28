@@ -1,0 +1,100 @@
+#+TITLE: Pseudonymization and Re-identification Governance
+#+OPTIONS: toc:nil
+
+* Problem and published basis
+
+An analytics agent needs to join patient records within an approved study,
+while a clinical steward may sometimes recover an identity. A hospital also
+keeps records that require randomized encryption or irreversible tokens.
+These are different capabilities. A shared key, token scope, or re-identification
+grant cannot be inherited merely because two datasets belong to one tenant.
+
+| Source | Published property | Boundary modeled here |
+|--------+--------------------+-----------------------|
+| [[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][Google Cloud Sensitive Data Protection pseudonymization]] | Deterministic AES-SIV tokens support referential integrity and re-identification; a context tweak narrows the token correlation scope. HMAC tokens are one-way. | =CryptoProfile= selects deterministic reversible or one-way capability. Dataset =scope= and =keyDomain= must match on both sides of a join. |
+| [[https://www.rfc-editor.org/rfc/rfc5297][RFC 5297, AES-SIV]] | SIV specifies authenticated encryption, including deterministic operation. Repeated inputs under the same key and associated data remain linkable. | The AES-SIV branch permits scoped joins but does not claim anonymity or implement encryption in Lean. |
+| [[https://csrc.nist.gov/pubs/sp/800/38/d/final][NIST SP 800-38D, GCM]] | GCM is authenticated encryption with an IV whose uniqueness under a key matters. | The randomized AES-GCM branch requires a trusted =ivUnique= admission fact and offers no deterministic join. This is a design alternative, not a claim that Google Sensitive Data Protection exposes GCM pseudonymization. |
+
+The people, datasets, keys, and decisions are synthetic. No patient record or
+real cryptographic key appears in the example.
+
+* Object composition
+
+[[file:../Pseudonymization.lean][Pseudonymization.lean]] defines three
+=CryptoProfile= objects: =AesSiv=, =AesGcm=, and =Hmac=. Their module method
+derives the tokenization, join, re-identification, and prohibition policies
+from the mode's declared capabilities. A =GovernanceView= mixes one profile
+with independent =DataOwner=, =Privacy=, and =AgentBoundary= objects. Every
+view removes the inherited legacy re-identification grant. The incident
+object extends the AES-SIV view and suspends only agent joins; steward joins
+remain available. This isolates a local emergency revision without copying
+the full policy set. =compositionIsLocalFully= proves that changing =AesSiv=
+does not invalidate the GCM or HMAC views; changing =AgentIncident= affects
+only that descendant. =incidentOnlyAddsAgentVetoFully= checks that the compiled
+policy list differs by exactly one added agent-join veto.
+
+=Base= deliberately contains a synthetic legacy grant to model a migration
+hazard. =pre-governance-broad-reidentify= demonstrates the unsafe intermediate
+root; =HospitalSiv= removes that grant. Only governed views should be
+published. The example does not claim that a named hospital deployed this
+legacy rule.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Base
+    Base --> AesSiv
+    Base --> AesGcm
+    Base --> Hmac
+    AesSiv --> HospitalSiv: mix Owner, Privacy, AgentBoundary; remove legacy grant
+    AesGcm --> RandomizedGcm: same governance view
+    Hmac --> OneWayHmac: same governance view
+    HospitalSiv --> AgentIncident: extend agent join suspension
+#+end_src
+
+| Profile | Stable scoped join | Re-identification | Tokenization condition |
+|---------+--------------------+-------------------+------------------------|
+| AES-SIV | Yes, with approval and matching mode, scope, and key domain | Approved steward with an audit-ready workflow | Key authorization |
+| AES-GCM with unique IV | No deterministic join | Approved steward with stored IV and audit-ready workflow | Host attests IV uniqueness |
+| HMAC-SHA-256 | Yes, within the same scope and key domain | Never | Key authorization |
+
+The term “AES-IV” alone does not identify a cipher mode. This example uses
+AES-GCM with a unique IV as its randomized authenticated-encryption choice.
+AES-SIV uses a synthetic IV and is modeled separately.
+
+* Executable boundary
+
+The source and target datasets are Cedar entities. A request names the target
+entity; Cedar reads both entities' =mode=, =scope=, =keyDomain=, and =tenant=
+rather than trusting caller-supplied strings. Tokenization and recovery also
+require the named target to be the resource itself. The twenty-four finite
+cases cover local and cross-study joins, a different key domain, incompatible
+modes, another tenant, an agent's
+re-identification attempt, a steward's approved recovery, missing approval or
+audit readiness, reused-IV rejection, one-way tokens, and incident suspension.
+=scenarioConformsFully= checks Lean Cedar authorization and policy validation.
+[[file:../PseudonymizationExport.lean][PseudonymizationExport.lean]] sends the
+same cases through the official Rust Cedar validator and authorizer under the
+exported schema. The recipe checks exact denied cases and empty policy errors.
+It also renders and compares all four checked [[file:Policies/hospital-siv.cedar][Cedar policy]]
+revisions, so a changed Lean composition cannot silently leave the published
+policy text stale.
+
+#+begin_src sh
+just example health pseudonymization
+#+end_src
+
+This is an authorization example. The Host must authenticate the actor,
+resolve and protect the dataset entity store, establish owner and key grants,
+allocate and persist a unique IV for GCM, retain it for authorized recovery,
+perform the cryptographic operation with an approved library, and durably
+record the audit event before releasing plaintext. The =auditReady= and
+=ivUnique= fields are projected Host evidence, not proof that those effects
+occurred. The Host must bind the target entity to the actual join input and
+prevent an agent from replacing it after authorization. In particular, Cedar
+Allow does not itself authorize KMS key release or prove that two ciphertexts
+are cryptographically compatible.
+
+Deterministic tokens reveal equality within their scope and can enable
+frequency or auxiliary-data inference. Separating studies by context and key
+domain limits correlation but does not make pseudonymized data anonymous.
+Re-identification should therefore remain a separately governed operation.

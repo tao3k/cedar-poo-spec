@@ -46,6 +46,7 @@ check: check-tests check-docs
     just example enterprise agent department-synthesis
     just example health prior-authorization
     just example health prior-authorization-internal-channels
+    just example health pseudonymization
     just check-attested-schema-evolution
     just check-authorization-delta
     just check-authorization-delta-proof
