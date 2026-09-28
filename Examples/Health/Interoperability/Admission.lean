@@ -1,5 +1,6 @@
 import Examples.Health.Interoperability.AustralianEMR
 import CedarPooSpec.Admission.BoundOperation
+import CedarPooSpec.Vertical.Health.Region.PackageMetadata
 
 /-!
 Synthetic Host projection. A real parser, terminology service, identifier
@@ -36,7 +37,7 @@ structure Snapshot where
 
 def selectedProfile : ProfilePins :=
   { contentReference := "AUCDI Release 2",
-    fhirProfile := "AU Core scenario profile",
+    fhirProfile := CedarPooSpec.Vertical.Health.Region.PackageMetadata.australia.reference,
     terminologyRelease := "NCTS synthetic release" }
 def document : Effect :=
   { document := dischargeA, patient := "patient-a",

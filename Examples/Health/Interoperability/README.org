@@ -9,7 +9,7 @@ into one universal healthcare compliance profile.
 | Source | Applicable scope and force | Boundary used here |
 |--------+----------------------------+--------------------|
 | [[https://www.digitalhealth.gov.au/healthcare-providers/initiatives-and-programs/digital-health-standards/digital-health-standards-guidelines/get-started/5-standards-for-systems-and-technologies/electronic-medical-record-emr][Australian Digital Health Agency eMR procurement guidance]] | The guide says an eMR =should= support AUCDI Release 2, authoring and consumption of FHIR clinical documents, and a FHIR API. It says the system =must= support healthcare identifiers and, where appropriate, SNOMED CT-AU for specified clinical data. It also says an eMR contributing to My Health Record must respect patient instructions not to upload at patient and document level. | The synthetic upload example checks patient identity, a patient instruction, and a Host-supplied delivery attestation. It does not implement procurement or standards conformance. |
-| [[https://www.digitalhealth.gov.au/interoperability][My Health Record 2026 interoperability requirements]] | My Health Record conformance uses applicable profiles and standards; AUCDI is a reference for FHIR content within its scope, and the relevant implementation guide or profile specifies the version. AU Core is required for My Health Record FHIR connections. | The example selects its own synthetic profile pins; it does not claim AUCDI Release 2 is the version mandated for every My Health Record connection. |
+| [[https://www.digitalhealth.gov.au/interoperability][My Health Record 2026 interoperability requirements]] | My Health Record conformance uses applicable profiles and standards; AUCDI is a reference for FHIR content within its scope, and the relevant implementation guide or profile specifies the version. AU Core is required for My Health Record FHIR connections. | The example selects a pinned AU Core package publication; it does not claim AUCDI Release 2 or that AU Core version is mandated for every My Health Record connection. |
 | [[https://healthit.gov/regulations/hti-rules/hti-1-final-rule/][US HTI-1 final rule]] | USCDI v3 became the certification-program baseline on January 1, 2026. These provisions concern certified health IT and its developers, not every health application. | The [[file:../PriorAuthorization/README.org][provider-to-payer example]] is not presented as certified health IT. A US Host would need its own USCDI and US Core evidence before exchange. |
 | [[https://www.cms.gov/newsroom/fact-sheets/cms-interoperability-prior-authorization-final-rule-cms-0057-f][US CMS-0057-F final rule]] | The FHIR API duties apply to specified impacted payers, with API compliance dates generally in 2027. Provider Access includes treatment relationship and patient opt-out; Payer-to-Payer uses patient opt-in. | These are different market profiles. The existing prior-authorization example models provider submission decisions, not a payer's complete API duties. |
 
@@ -31,8 +31,10 @@ documents are synthetic.
 [[file:Admission.lean][Admission.lean]] uses the public
 =Admission.BoundOperation= API to bind an exact document digest and Host
 snapshot to the Cedar request. The scenario's selected content reference is
-AUCDI Release 2; its AU Core label and NCTS terminology release are explicitly
-synthetic pins. The Host must check actual implementation-guide versions,
+AUCDI Release 2. Its AU Core package reference comes from the
+[[file:../../../CedarPooSpec/Vertical/Health/Region/README.org][pinned publication metadata]];
+the NCTS terminology release is explicitly synthetic. The Host must check the
+applicable implementation-guide version for its deployment,
 validate codes with the applicable terminology service, validate the IHI,
 and verify the document bytes. The equality checks here only prevent a
 different payload or evidence snapshot from reusing an earlier decision.

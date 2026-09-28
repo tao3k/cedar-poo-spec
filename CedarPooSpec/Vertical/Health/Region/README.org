@@ -17,6 +17,25 @@ is not evidence that a standard or law was satisfied. The Host must obtain,
 authenticate, and version that evidence before admission. Neither regional
 module parses FHIR, implements terminology, or connects to a national service.
 
+* Pinned implementation-guide packages
+
+[[file:PackageMetadata.lean][PackageMetadata]] reads the official FHIR NPM
+=package.json= format, checks package name, version, canonical, jurisdiction,
+FHIR base version, and the matching FHIR core dependency. The package metadata
+used by the examples is kept beside this module:
+
+| Publication | Official package | Local metadata | Archive SHA-256 |
+|-------------+------------------+----------------+----------------|
+| AU Core 2.0.0 | [[https://hl7.org.au/fhir/core/package.tgz][HL7 Australia package]] | [[file:Packages/au-core-2.0.0.json][package.json]] | =ddda8aa0d41678a3009c98ae348c6ecc1a4e051a4077232996c2255fd51ec733= |
+| US Core 9.0.0 | [[https://hl7.org/fhir/us/core/package.tgz][HL7 US package]] | [[file:Packages/us-core-9.0.0.json][package.json]] | =af873979a019c9336f8e07882463f5ca6286b5bd20dc2529b80e15cc25f1c0f5= |
+
+The JSON files are the unchanged =package/package.json= members of those
+archives. =just example health package-metadata= checks them offline. These
+pins identify selected publications for the examples; deployment must select
+the version required by its applicable profile. AUCDI, USCDI, terminology
+releases, patient identity, and resource-level conformance require distinct
+Host evidence. A package identity is not a FHIR validation receipt.
+
 * Source scope
 
 The [[https://www.digitalhealth.gov.au/healthcare-providers/initiatives-and-programs/digital-health-standards/digital-health-standards-guidelines/get-started/5-standards-for-systems-and-technologies/electronic-medical-record-emr][Australian eMR procurement guide]] distinguishes =should= support for
