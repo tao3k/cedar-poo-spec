@@ -36,7 +36,7 @@ cross-agent-egress:
     cmp .lake/build/cross-agent-egress-incident.cedar Examples/Enterprise/Agent/Fanout/CrossAgentEgressPolicies/incident.cedar
 
 department-synthesis-lean:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Department/DepartmentSynthesis.lean
+    timeout --signal=TERM --kill-after=3s 120s lake build Examples.Enterprise.Agent.Department.Simulation
 
 department-synthesis:
     just build-examples

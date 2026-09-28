@@ -1,4 +1,4 @@
-import Examples.Enterprise.Agent.Department.DepartmentSynthesis
+import Examples.Enterprise.Agent.Department.Simulation
 
 namespace CedarPooSpec.DepartmentSynthesisValidatedExport
 

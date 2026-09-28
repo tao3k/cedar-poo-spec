@@ -81,12 +81,37 @@ pre-admission request to the official Rust Cedar validator and authorizer.
 This is a proposed finite policy for one pair of departments, not a general
 solution to inference from arbitrary data combinations.
 
-The host must authenticate the origin and worker lineage, derive the two
-read-history facts from durable evidence, update delegation validity before
-the next admission, and bind the checked output to the actual send. The
-versioned ticket contract in the inherited cross-agent example specifies
-stale-check rejection; this example does not implement a distributed host
-transaction or classify model-generated content.
+* Data and delivery interface
+
+[[file:Simulation.lean][Simulation.lean]] defines =Port m= with =fetch= and
+=publish= operations, and =run= accepts any implementation of that port.
+The workflow checks Cedar authorization before it calls either operation.
+Only =syntheticPort= is implemented here. Its fictional Sales contract and
+Finance invoice demonstrate what an admitted read places in the draft and
+what an admitted send passes to the delivery operation. A denied read never
+enters the draft, and a denied send never calls =publish=. Lean checks a
+single-department send, a blocked joint result, a cross-department read, and
+a revocation between read and send. An instrumented port additionally checks
+that the denied joint-result send does not invoke =publish=.
+
+#+begin_src lean
+import Examples.Enterprise.Agent.Department.Simulation
+
+open CedarPooSpec.DepartmentSynthesisExample.Simulation
+
+def demo := run syntheticPort "DepartmentGoverned" "Joint"
+  [.readSales, .readFinance, .sendReport]
+#+end_src
+
+A downstream application can implement =Port IO= against its real record
+source and delivery service. The port is an example integration shape, not a
+production host: the downstream application must map real record identities
+and attributes into its Cedar entity store, authenticate the origin and
+worker lineage, derive read-history facts from durable evidence, update
+delegation validity before each admission, and bind an authorization decision
+to the exact effect it executes. The inherited versioned ticket contract
+specifies stale-check rejection. This example does not implement a
+distributed host transaction or classify model-generated content.
 
 #+begin_src sh
 just example enterprise agent department-synthesis
