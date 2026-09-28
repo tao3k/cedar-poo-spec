@@ -12,6 +12,7 @@
 | [[file:Session/README.org][Bounded session]] | Prior actions, delegated intent, export budgets, and incident recovery for AI agents. |
 | [[file:Fanout/README.org][Shared budget fanout]] | Concurrent sub-agents, parent-wide budget aggregation, and atomic admission boundary. |
 | [[file:Fanout/README.org::*Cross-agent sensitive-read and egress composition][Cross-agent egress]] | Sensitive read by one worker, external send by another, shared lineage history, and combined budget controls. |
+| [[file:Department/README.org][Cross-department synthesis]] | Sales and Finance source scopes, joint-result egress, delegation validity, and inherited fanout controls. |
 
 * Platform reference cases
 

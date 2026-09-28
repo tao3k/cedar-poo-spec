@@ -27,6 +27,7 @@ import Examples.Enterprise.AWS.AgenticPlatform.Expense.ValidatedExport
 import Examples.Enterprise.Agent.Session.BoundedSessionExport
 import Examples.Enterprise.Agent.Fanout.SharedBudgetExport
 import Examples.Enterprise.Agent.Fanout.CrossAgentEgressValidatedExport
+import Examples.Enterprise.Agent.Department.ValidatedExport
 import Examples.Enterprise.Vehicle.Uptane.SupplierTransitionExport
 import Examples.Enterprise.Vehicle.VLA.CommandBoundaryExport
 import Examples.Enterprise.Vehicle.Mission.SuccessorBoundaryExport
@@ -67,6 +68,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("bounded-session", fun _ => BoundedSessionExport.manifest),
   ("shared-budget", fun _ => SharedBudgetExport.manifest),
   ("cross-agent-egress-validated", fun _ => CrossAgentEgressValidatedExport.manifest),
+  ("department-synthesis-validated", fun _ => DepartmentSynthesisValidatedExport.manifest),
   ("supplier-transition", fun _ => SupplierTransitionExport.manifest),
   ("vla-command", fun _ => VlaCommandBoundaryExport.manifest),
   ("mission-successor", fun _ => SuccessorBoundaryExport.manifest),

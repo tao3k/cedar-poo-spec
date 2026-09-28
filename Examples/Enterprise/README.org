@@ -17,4 +17,5 @@ and source and modeling notes in its own directory.
 | [[file:AWS/README.org][AWS AgentCore references]] | Source-backed lakehouse and multi-account banking examples, with platform, Gateway, LOB, and data-plane boundaries separated. |
 | [[file:Agent/Session/README.org][Bounded agent session]] | Stateful authorization of delegated tasks and cross-tool action sequences. |
 | [[file:Agent/Fanout/README.org][Shared agent budget]] | Parent-wide budget across concurrent sub-agents and a visible stale-read race. |
+| [[file:Agent/Department/README.org][Cross-department synthesis]] | One agent workflow joins Sales and Finance data under separate owners, then checks aggregate egress and temporal delegation. |
 | [[file:Vehicle/README.org][Vehicle]] | AI-mediated command hijacking, successor-safe mission authorization, a composable TARA treatment matrix, and Uptane supplier transition. |

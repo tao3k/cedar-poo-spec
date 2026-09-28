@@ -74,6 +74,9 @@ case exposes cross-worker budget aggregation and a stale-check race. The
 same area now composes a sensitive read by one worker with external egress by
 another, showing why worker-local history misses a delegation-wide data
 flow and where a shared lineage ledger changes the Cedar decision. The
+[[file:Examples/Enterprise/Agent/Department/README.org][cross-department synthesis]]
+case extends that lineage model with separate Sales and Finance owners,
+joint-result egress, and delegation validity. The
 [[file:Examples/Enterprise/Vehicle/README.org][vehicle examples]] include
 AI-mediated command hijacking, successor-safe mission authorization, and
 an Uptane supplier transition. They use separate source-grounded cases
