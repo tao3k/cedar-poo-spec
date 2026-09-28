@@ -64,11 +64,31 @@ schema, and entity snapshot from one pinned artifact, then check the
 reserved context projection and digest equality in the authority's native
 Rust tests.
 Matching =cedar-policy= dependency versions alone does not establish this
-contract. The current library and FFI can be qualified independently
-while that join remains open.
+contract. The current bridge and POO Flow authority FFI can be qualified
+independently while that join remains open.
 TLA+/TLC model receipts, Lean theorem receipts, Cedar decisions, and Host
 effect receipts remain distinct. This library can carry or relate them but
 cannot substitute one for another.
+
+** AST export boundary
+
+The =cedar-poo-spec= AST is a Lean implementation detail. Its public
+deployment boundary is Cedar's policy-set JSON format, with the original
+policy IDs and Cedar schema, entity, and request formats where applicable.
+=PolicyJson.publish= compiles the selected POO root and records its Cedar
+validation premises before export. Rust loads the resulting artifact through
+the official =cedar-policy= API. Changes to Lean object layout, C4
+composition, or internal AST constructors therefore do not require Rust
+type changes while the public artifact contract stays the same.
+
+This project does not expose its Lean AST through a new Lean/Rust FFI. Such an
+interface would make Rust depend on Lean runtime initialization, object
+ownership, and internal representation changes without improving the
+deployment contract. POO Flow's existing FFI is its own runtime interface;
+it does not imply a Lean FFI here. If a future in-process use case needs one,
+it requires a separate measured proposal with a stable operation-level API.
+The current integration continues to use Cedar's public formats and official
+parsers.
 
 ** Rust dependency seam and acceptance
 
