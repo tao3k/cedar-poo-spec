@@ -107,6 +107,8 @@ jobs:
       - run: just example health prior-authorization
       - run: just example health prior-authorization-internal-channels
       - run: just example health pseudonymization
+      - run: just example health australian-emr
+      - run: just example health united-states-payer
       - run: just example governance country-approval-validated
       - run: just example governance attested-views
       - run: just check-attested-schema-evolution

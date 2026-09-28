@@ -24,6 +24,9 @@ module parses FHIR, implements terminology, or connects to a national service.
 FHIR base version, and the matching FHIR core dependency. The package metadata
 used by the examples is kept beside this module:
 
+The public =loadFile= API imports the JSON into a typed =Pin=; =checkFile=
+checks that pin against the publication selected by an application.
+
 | Publication | Official package | Local metadata | Archive SHA-256 |
 |-------------+------------------+----------------+----------------|
 | AU Core 2.0.0 | [[https://hl7.org.au/fhir/core/package.tgz][HL7 Australia package]] | [[file:Packages/au-core-2.0.0.json][package.json]] | =ddda8aa0d41678a3009c98ae348c6ecc1a4e051a4077232996c2255fd51ec733= |
@@ -35,6 +38,14 @@ pins identify selected publications for the examples; deployment must select
 the version required by its applicable profile. AUCDI, USCDI, terminology
 releases, patient identity, and resource-level conformance require distinct
 Host evidence. A package identity is not a FHIR validation receipt.
+
+[[file:../ClinicalEvidence.lean][ClinicalEvidence.Attestation]] is the public
+projection of a Host validation result. It carries the selected package,
+patient, resource digest, validation identifier, and result. Its =ready= and
+=covers= operations reject mismatched publications, patients, and payloads
+before an authorization fact is sent to Cedar. The Host must authenticate the
+validator result and the exact bytes; a caller can freely construct this Lean
+value, so it is not a signed receipt or a FHIR validator.
 
 * Source scope
 

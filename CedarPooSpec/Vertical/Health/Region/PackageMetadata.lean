@@ -49,13 +49,19 @@ def check (expected : Pin) (json : Lean.Json) : Except String Unit := do
   if actual != expected then
     throw s!"unexpected FHIR package: {repr actual}"
 
-def checkFile (expected : Pin) (path : System.FilePath) : IO Unit := do
+/-- Import the publication identity from an official FHIR package.json file. -/
+def loadFile (path : System.FilePath) : IO Pin := do
   let content ← IO.FS.readFile path
   let json ← match Lean.Json.parse content with
     | .ok json => pure json
     | .error err => throw <| IO.userError s!"{path}: {err}"
-  match check expected json with
-  | .ok () => pure ()
+  match decode json with
+  | .ok pin => pure pin
   | .error err => throw <| IO.userError s!"{path}: {err}"
+
+def checkFile (expected : Pin) (path : System.FilePath) : IO Unit := do
+  let actual ← loadFile path
+  if actual != expected then
+    throw <| IO.userError s!"{path}: unexpected FHIR package: {repr actual}"
 
 end CedarPooSpec.Vertical.Health.Region.PackageMetadata

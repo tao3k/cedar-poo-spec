@@ -36,7 +36,10 @@ AUCDI Release 2. Its AU Core package reference comes from the
 the NCTS terminology release is explicitly synthetic. The Host must check the
 applicable implementation-guide version for its deployment,
 validate codes with the applicable terminology service, validate the IHI,
-and verify the document bytes. The equality checks here only prevent a
+and verify the document bytes. The public
+[[file:../../../CedarPooSpec/Vertical/Health/ClinicalEvidence.lean][ClinicalEvidence.Attestation]]
+binds the package, patient, digest, and validation identifier to this operation.
+The equality checks here only prevent a
 different payload or evidence snapshot from reusing an earlier decision.
 
 #+begin_src mermaid
@@ -51,7 +54,7 @@ flowchart LR
   Cedar --> Effect[Host admission and upload]
 #+end_src
 
-[[file:ValidatedExport.lean][ValidatedExport.lean]] exports 13 cases through
+[[file:ValidatedExport.lean][ValidatedExport.lean]] exports 17 cases through
 the public Cedar JSON representation. =just example health australian-emr=
 compiles the model and replays the decisions with official Cedar Rust. It
 checks the exact denial set and that no policy evaluation errors occurred.
@@ -64,9 +67,17 @@ treatment attribution and no patient opt-out, while Payer-to-Payer requires
 patient opt-in. It composes both with the same shared patient and payload
 binding controls used by Australia. A separate patient-choice owner and
 incident veto can be revised without copying the identity or evidence rules.
-[[file:UnitedStatesExport.lean][UnitedStatesExport.lean]] exports 16 named
+[[file:UnitedStatesExport.lean][UnitedStatesExport.lean]] exports 22 named
 requests. =just example health united-states-payer= checks the exact Cedar
 Rust decision set and absence of policy errors.
+
+[[file:UnitedStatesAdmission.lean][UnitedStatesAdmission.lean]] binds Provider
+Access and Payer-to-Payer operations to one US Core package attestation and
+their respective patient-choice snapshots. Its positive and negative Lean
+cases cover another package, another patient, changed resource bytes,
+patient opt-out, missing payer opt-in, and changed evidence after preparation.
+This is an admission projection, not proof that a
+Host actually validated a FHIR resource or authenticated patient consent.
 
 The Australian no-upload instruction and IHI fact are not copied into a US
 policy. The US treatment relationship, opt-out, and opt-in premises are not
