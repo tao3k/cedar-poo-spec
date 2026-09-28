@@ -124,6 +124,58 @@ independent Cedar decisions. These are integration requirements, not
 claims discharged by the current bridge unit test or finite scenario
 replays.
 
+** Artifact projection protocol
+
+The proposed join consumes one selected, immutable Lean publication and its
+associated Cedar schema and entity snapshot. The publication result carries
+Lean's compilation and validation premises; its serialized JSON alone does
+not transport those proofs. The existing =ValidatedManifest= and replay
+receipts can qualify concrete Rust Cedar behavior, but a replay receipt is
+neither a signature nor POO Flow runtime admission. The integration must
+record the selected root, artifact revision, and provenance outside the Cedar
+policy JSON, under the authority that admits them. It must not insert
+POO-specific fields into Cedar's public policy-set format.
+
+1. Load the materialized policy JSON through =load_policy_set= and derive
+   individually identified Cedar sources with
+   =render_identified_policy_sources=. Reject an empty or duplicate ID before
+   creating =PolicySource= entries. Compare each source reparsed under its
+   explicit ID with the corresponding official Cedar policy JSON body.
+2. Carry the exact source set, schema JSON, and entity JSON to the POO Flow
+   projection owner. This bridge does not construct =Bootstrap= or set its
+   fixed producer, source, revision, epoch, or governance-admission fields.
+   Those values must come from the authorized POO Flow composition and Host.
+3. Have the authority parse the sources with explicit IDs, inject its
+   reserved =context.poo_flow= schema record, perform strict Cedar validation,
+   and parse entities against that effective schema. Compare canonical policy
+   bodies by ID and Cedar-parsed entities across the two sides. The authority
+   computes its own domain-separated policy, entity, and effective-schema
+   digests; raw Lean artifact hashes are not interchangeable with them.
+4. Bind the admitted authority subject to the selected Lambda Case/Profile,
+   source admission, request, revision, epoch, and actual effect through the
+   existing POO Flow and Host protocols. A Cedar Allow alone cannot complete
+   that binding.
+
+The current authority admits at most 256 static policies, each source at most
+65,536 bytes, and direct Record request contexts. These are current receiver
+limits, not Cedar language limits. A candidate outside them must fail the
+handoff explicitly. The authority currently deduplicates repeated IDs when
+their bodies agree; the proposed projection rejects repeated IDs earlier so
+that an accidental duplicate cannot silently change the composition input.
+Any change to the receiver limits or duplicate handling requires this
+integration case to be rerun at pinned revisions.
+
+The first executable cross-repository case should use a selected POO root
+whose policies contain both permit and forbid effects. It should compare the
+bridge-loaded and authority-loaded policy maps by ID and canonical Cedar
+body, then replay the same concrete requests on both sides, including one
+denial caused by the forbid. Mutating an ID, a policy body, the entity store,
+or the reserved context must fail at the boundary where it is admitted.
+Changing an epoch or effect payload must fail in the authority/Host path,
+not be presented as a policy-parser failure. This case qualifies the
+projection; it does not claim universal semantic equivalence or a deployed
+Host receipt.
+
 An open-source contribution belongs to the module that owns its semantics.
 There is no separate =Contrib/= namespace. Industry-specific policies and
 sources belong to downstream vertical libraries; this repository's examples
@@ -299,5 +351,6 @@ authentication, key separation, durable audit, or production performance.
   authorization semantics.
 - [[https://github.com/cedar-policy/cedar][Cedar]] supplies the official Rust parser, validator, and authorizer.
 - [[https://github.com/tao3k/lean-poo][Lean-POO]] supplies generic object composition and proof reuse.
+- [[https://github.com/tao3k/poo-flow][POO Flow]] owns the runtime Cedar authority and Host admission boundary.
 - [[https://github.com/tao3k/lambda-episteme][Lambda Episteme]] is a downstream vertical contribution library with
   distinct Scenario, Profile, Case, Source, TLA+/TLC, Lean, and Host roles.
