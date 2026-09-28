@@ -1,6 +1,7 @@
 import CedarPooSpec.PolicyJson
 import CedarPooSpec.Governance.SeparationOfDuties
 import CedarPooSpec.CompoundAuthorization
+import CedarPooSpec.Vertical.FinancialServices.ControllerRelease
 
 /-!
 Two authorization queries form one payment release. The controls illustrate
@@ -12,6 +13,7 @@ namespace CedarPooSpec.PaymentReleaseExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
 open CedarPooSpec.Governance
+open CedarPooSpec.Vertical.FinancialServices
 
 def userType : EntityType := ⟨"User", []⟩
 def roleType : EntityType := ⟨"Role", []⟩
@@ -95,11 +97,6 @@ def matched : Expr := paymentFact "matched"
 def blocked : Expr := paymentFact "blocked"
 def selfRelease : Expr :=
   .binaryApp .eq (.var .principal) (paymentFact "preparedBy")
-def withinThreshold : Expr :=
-  .call .lessThanOrEqual [paymentFact "amount", .call .decimal [.lit (.string "500.0000")]]
-def isSenior : Expr :=
-  .binaryApp .mem (.var .principal) (.lit (.entityUID senior))
-
 def policy (id : String) (effect : Effect) (action : EntityUID)
     (scope : Scope) (body : Expr) : Policy :=
   { id, effect,
@@ -111,10 +108,10 @@ def policy (id : String) (effect : Effect) (action : EntityUID)
 def preparePermit : Policy :=
   policy "prepare-matched-payment" .permit prepare (.mem clerk)
     (.and selfRelease (.and matched positive))
-def baseRelease : Policy :=
-  policy "controller-release" .permit release (.mem controller) (.lit (.bool true))
-def thresholdRelease : Policy :=
-  { baseRelease with condition := [{ kind := .when, body := .and matched (.or withinThreshold isSenior) }] }
+def controllerRelease : ControllerRelease :=
+  { policyId := "controller-release", action := release,
+    controllerGroup := controller, seniorGroup := senior,
+    resourceScope := .resourceScope (.mem operations), threshold := "500.0000" }
 def legacyBypass : Policy :=
   policy "legacy-matched-release" .permit release .any matched
 
@@ -130,9 +127,9 @@ def riskVeto : Policy :=
 
 def modelResult : Except LeanPoo.C4.Error Model := do
   let base : Model := { modules := [
-    { name := "Base", edits := [.extend preparePermit, .extend baseRelease,
+    { name := "Base", edits := [.extend preparePermit, controllerRelease.introduce,
         .extend legacyBypass] }] }
-  let threshold ← base.extend "Threshold" "Base" [.overlay thresholdRelease]
+  let threshold ← base.extend "Threshold" "Base" [controllerRelease.strengthen]
   let duties ← threshold.extend "Duties" "Base" [dutiesControl.edit .introduce]
   let risk ← duties.extend "Risk" "Base" [.extend riskVeto]
   let retired ← risk.extend "Retired" "Base" [.remove legacyBypass.id]

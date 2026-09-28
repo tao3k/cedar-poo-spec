@@ -1,0 +1,29 @@
+#+TITLE: Reusable Financial Services Controls
+#+OPTIONS: toc:nil
+
+* Banking tool ownership
+
+[[file:BankingToolOwner.lean][BankingToolOwner]] owns one Cedar permit slot for a banking line of
+business and its selected Gateway actions. =introduce=, =revise=, and
+=withdraw= expose the slot's Lean-POO edits. The
+[[file:../../../Examples/Enterprise/AWS/FinancialServices/MultiAccountBanking/README.org][multi-account banking example]] uses separate Retail, Transaction, and
+Lending objects; its incident revision narrows only Transaction's actions.
+The published tool names, customer identities, cross-account credentials,
+and data-plane checks remain with the example or a consuming application.
+
+* Controller payment release
+
+[[file:ControllerRelease.lean][ControllerRelease]] owns a controller permit slot. Its broad grant can
+be strengthened in place with a matched-payment requirement and either a
+decimal amount threshold or senior-controller membership. The
+[[file:../../../Examples/Enterprise/Payment/README.org][payment release example]] composes this owner with independent duties,
+risk, and legacy-retirement branches. The application chooses the decimal
+threshold and authenticates payment attributes, actor membership, and the
+effectful transfer.
+
+* Boundary
+
+=Vertical/FinancialServices/= holds finance-specific reusable controls.
+=Platform/AWS/= holds AWS AgentCore projection helpers; finance controls
+do not import that platform adapter. Scenario records, source quotations,
+policy artifacts, and complete workflows remain in =Examples/=.

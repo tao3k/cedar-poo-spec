@@ -28,7 +28,10 @@ The POO roots keep independent control changes visible:
 | =Retired= | The legacy broad release permit is removed. |
 | =Integrated= | All four changes compose; four policies survive. |
 
-The Duties owner instantiates the same public
+The Threshold owner instantiates the public
+[[file:../../../CedarPooSpec/Vertical/FinancialServices/ControllerRelease.lean][Vertical.FinancialServices.ControllerRelease]] object. Its stable policy ID
+is overlaid through =strengthen=, while the amount and workflow facts remain
+local to this example. The Duties owner instantiates the same public
 [[file:../../../CedarPooSpec/Governance/SeparationOfDuties.lean][Governance.SeparationOfDuties]] object as procurement, but binds it to
 =preparedBy= on a payment instead of =requester= on an order. Each owner is
 staged with =Model.extend= and the Integrated root uses =Model.mix=; payment

@@ -1,4 +1,4 @@
-import Examples.Enterprise.AWS.AgentCore.Gateway
+import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Revision
 
 /-! A Cedar projection of the AWS AgentCore lakehouse Policy + Interceptor
@@ -9,13 +9,13 @@ forbids; the final unresolved-geography veto is a locally proposed hardening. -/
 namespace CedarPooSpec.LakehouseGatewayExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
-open CedarPooSpec.AWS.AgentCore
+open CedarPooSpec.Platform.AWS.AgentCore
 
 def policyholderUS : EntityUID := user "policyholder001"
 def policyholderEU : EntityUID := user "policyholder002"
 def adjusterUS : EntityUID := user "adjuster001"
 def adjusterEU : EntityUID := user "adjuster002"
-def gateway : EntityUID := CedarPooSpec.AWS.AgentCore.gateway "lakehouse-gateway"
+def gateway : EntityUID := CedarPooSpec.Platform.AWS.AgentCore.gateway "lakehouse-gateway"
 def queryClaims : EntityUID :=
   action "lakehouse-mcp-target___query_claims"
 def claimDetails : EntityUID :=
@@ -32,7 +32,7 @@ def tools : List EntityUID :=
 
 def inputType : RecordType := Map.make [("geography", .optional .string)]
 def actionEntry : ActionSchemaEntry :=
-  CedarPooSpec.AWS.AgentCore.actionEntry
+  CedarPooSpec.Platform.AWS.AgentCore.actionEntry
     (Map.make [("input", .required (.record inputType))])
 def schema : Schema :=
   ⟨Map.make [

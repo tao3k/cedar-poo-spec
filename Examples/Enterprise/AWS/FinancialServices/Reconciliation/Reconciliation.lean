@@ -1,4 +1,4 @@
-import Examples.Enterprise.AWS.AgentCore.Gateway
+import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Revision
 
 /-! Cedar Gateway projection of the AWS reconciliation-agent sample. The
@@ -9,13 +9,13 @@ request interceptor and are not asserted by this model. -/
 namespace CedarPooSpec.AWS.Reconciliation
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
-open CedarPooSpec.AWS.AgentCore
+open CedarPooSpec.Platform.AWS.AgentCore
 
 def iamType : EntityType := ⟨"IamEntity", ["AgentCore"]⟩
 def agent : EntityUID := ⟨iamType, "recon-agent"⟩
 def worker : EntityUID := ⟨iamType, "recon-worker"⟩
 def platform : EntityUID := ⟨iamType, "recon-bff"⟩
-def gateway : EntityUID := CedarPooSpec.AWS.AgentCore.gateway "recon-egress-gateway"
+def gateway : EntityUID := CedarPooSpec.Platform.AWS.AgentCore.gateway "recon-egress-gateway"
 
 def searchLedger : EntityUID := action "general-ledger___search_ledger"
 def searchNotices : EntityUID := action "notices___search_notices"

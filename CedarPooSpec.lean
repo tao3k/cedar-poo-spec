@@ -7,8 +7,11 @@ import CedarPooSpec.PolicyModules
 import CedarPooSpec.Governance.Veto
 import CedarPooSpec.Governance.MemberGrant
 import CedarPooSpec.Governance.SeparationOfDuties
+import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Vertical.Health.DisclosureChannel
 import CedarPooSpec.Vertical.Health.EmergencyAccess
+import CedarPooSpec.Vertical.FinancialServices.ControllerRelease
+import CedarPooSpec.Vertical.FinancialServices.BankingToolOwner
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Data.Relation
 import CedarPooSpec.CompoundAuthorization

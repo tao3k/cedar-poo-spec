@@ -1,0 +1,12 @@
+#+TITLE: AWS AgentCore Gateway Projection
+#+OPTIONS: toc:nil
+
+[[file:Gateway.lean][Gateway.lean]] defines reusable AgentCore entity types,
+Gateway action schema entries, entity data, and scoped Cedar policy
+constructors. The [[file:../../../../Examples/Enterprise/AWS/FinancialServices/README.org][financial-services examples]] instantiate this platform projection for
+insurance, banking, and reconciliation. Their tool catalogs, policies,
+credentials, runtime evidence, and business workflows remain scenario-owned.
+
+This module does not call AWS services or establish the authenticity of
+Gateway request fields. Its namespace identifies the platform integration
+surface; financial controls belong under =Vertical/FinancialServices/=.

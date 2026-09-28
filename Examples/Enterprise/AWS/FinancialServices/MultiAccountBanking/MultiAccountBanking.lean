@@ -1,4 +1,5 @@
-import Examples.Enterprise.AWS.AgentCore.Gateway
+import CedarPooSpec.Platform.AWS.AgentCore.Gateway
+import CedarPooSpec.Vertical.FinancialServices.BankingToolOwner
 
 /-! Projection of the Gateway Cedar boundary in the AWS multi-account banking
 sample. LOB JWT authorization, M2M exchange, IAM, and data access remain outside
@@ -8,11 +9,12 @@ named actions below, not a claim about the sample's deployed policy structure. -
 namespace CedarPooSpec.MultiAccountBankingExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
-open CedarPooSpec.AWS.AgentCore
+open CedarPooSpec.Platform.AWS.AgentCore
+open CedarPooSpec.Vertical.FinancialServices
 
 def banker : EntityUID := user "relationship-manager"
 def colleague : EntityUID := user "colleague"
-def gateway : EntityUID := CedarPooSpec.AWS.AgentCore.gateway "lobfederation-gateway"
+def gateway : EntityUID := CedarPooSpec.Platform.AWS.AgentCore.gateway "lobfederation-gateway"
 def customer : EntityUID := ⟨actionType, "retail-banking___get_customer"⟩
 def accounts : EntityUID := ⟨actionType, "retail-banking___get_accounts"⟩
 def balance : EntityUID := ⟨actionType, "retail-banking___get_balance"⟩
@@ -43,7 +45,7 @@ def namedActions : List EntityUID :=
   retailTools ++ transactionTools ++ lendingTools ++ protocolActions
 
 def actionEntry : ActionSchemaEntry :=
-  CedarPooSpec.AWS.AgentCore.actionEntry Map.empty
+  CedarPooSpec.Platform.AWS.AgentCore.actionEntry Map.empty
 def schema : Schema :=
   ⟨Map.make [
     (userType, .standard ⟨Set.empty, Map.empty, none⟩),
@@ -60,16 +62,15 @@ def request (user action : EntityUID) : Request :=
 def permitActions (id : String) (actions : List EntityUID) : Policy :=
   scopedPolicy id .permit gateway (.actionInAny actions)
 
-def retailPermit : Policy :=
-  permitActions "retail-owned-tools" (retailTools.filter (· != deleteCustomer))
-def transactionPermit : Policy :=
-  permitActions "transaction-owned-tools" transactionTools
-/-- A proposed incident overlay pauses only transfer while preserving the
-    Transaction owner's read and scheduling tools. -/
-def pausedTransactionPermit : Policy :=
-  permitActions transactionPermit.id (transactionTools.filter (· != transfer))
-def lendingPermit : Policy :=
-  permitActions "lending-owned-tools" lendingTools
+def retailOwner : BankingToolOwner :=
+  { policyId := "retail-owned-tools", principalType := userType,
+    gateway, actions := retailTools.filter (· != deleteCustomer) }
+def transactionOwner : BankingToolOwner :=
+  { policyId := "transaction-owned-tools", principalType := userType,
+    gateway, actions := transactionTools }
+def lendingOwner : BankingToolOwner :=
+  { policyId := "lending-owned-tools", principalType := userType,
+    gateway, actions := lendingTools }
 def protocolPermit : Policy :=
   permitActions "gateway-protocol" protocolActions
 def broadPermit : Policy :=
@@ -86,13 +87,13 @@ def modelResult : Except LeanPoo.C4.Error Model := do
     { modules := [{ name := "Gateway", edits := [.extend deleteVeto] }] }
   let source ← gateway.extend "SampleBroad" "Gateway" [.extend broadPermit]
   let protocol ← source.extend "Protocol" "Gateway" [.extend protocolPermit]
-  let retail ← protocol.extend "Retail" "Gateway" [.extend retailPermit]
-  let transaction ← retail.extend "Transaction" "Gateway" [.extend transactionPermit]
-  let lending ← transaction.extend "Lending" "Gateway" [.extend lendingPermit]
+  let retail ← protocol.extend "Retail" "Gateway" [retailOwner.introduce]
+  let transaction ← retail.extend "Transaction" "Gateway" [transactionOwner.introduce]
+  let lending ← transaction.extend "Lending" "Gateway" [lendingOwner.introduce]
   let owners ← lending.mix "OwnerCombined" ["Retail", "Transaction", "Lending", "Protocol"]
   let paused ← owners.extend "TransferPaused" "OwnerCombined"
-    [.overlay pausedTransactionPermit]
-  paused.extend "TransferResumed" "TransferPaused" [.overlay transactionPermit]
+    [{ transactionOwner with actions := transactionTools.filter (· != transfer) }.revise]
+  paused.extend "TransferResumed" "TransferPaused" [transactionOwner.revise]
 
 def model : Model := modelResult.toOption.get (by native_decide)
 
@@ -145,7 +146,7 @@ theorem transferOverlayIsLocal :
     Gateway policy bodies are candidates for reuse by revision consumers. -/
 theorem pausedRevisionTouchesOnlyTransaction :
     ((model.compileRevision "OwnerCombined" "TransferPaused").toOption.get
-      (by native_decide)).changedPolicyIds = [transactionPermit.id] := by
+      (by native_decide)).changedPolicyIds = [transactionOwner.policyId] := by
   native_decide
 
 theorem allRootsValidated :

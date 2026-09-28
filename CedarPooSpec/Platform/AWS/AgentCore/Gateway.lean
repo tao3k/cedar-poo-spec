@@ -1,9 +1,9 @@
 import CedarPooSpec.PolicyJson
 
-/-! Shared AgentCore Gateway projection used by the insurance and banking
-examples. Business-specific Cedar rules remain with their owning examples. -/
+/-! Reusable AgentCore Gateway projection. Business-specific Cedar rules and
+authenticated AWS runtime evidence remain with consumers. -/
 
-namespace CedarPooSpec.AWS.AgentCore
+namespace CedarPooSpec.Platform.AWS.AgentCore
 
 open Cedar.Spec Cedar.Data Cedar.Validation
 
@@ -38,4 +38,4 @@ def scopedPolicy (id : String) (effect : Effect) (gatewayUID : EntityUID)
     (actions : ActionScope) (conditions : Conditions := []) : Policy :=
   gatewayPolicy id effect (.principalScope (.is userType)) gatewayUID actions conditions
 
-end CedarPooSpec.AWS.AgentCore
+end CedarPooSpec.Platform.AWS.AgentCore
