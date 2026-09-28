@@ -10,6 +10,8 @@ namespace CedarPooSpec.PseudonymizationExport
 open CedarPooSpec.PseudonymizationExample
 
 def manifest : Except String Lean.Json := do
+  unless hmacCatalogSeparated datasets do
+    throw "cross-scope HMAC key reuse in published dataset catalog"
   let rows ← cases.mapM fun (name, root, req, _) =>
     CedarPooSpec.PolicyJson.authorizationCase name root model root req entities
   CedarPooSpec.SchemaJson.validatedManifest schema rows

@@ -14,6 +14,8 @@ grant cannot be inherited merely because two datasets belong to one tenant.
 | [[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][Google Cloud Sensitive Data Protection pseudonymization]] | Deterministic AES-SIV tokens support referential integrity and re-identification; a context tweak narrows the token correlation scope. HMAC tokens are one-way. | =CryptoProfile= selects deterministic reversible or one-way capability. Dataset =scope= and =keyDomain= must match on both sides of a join. |
 | [[https://www.rfc-editor.org/rfc/rfc5297][RFC 5297, AES-SIV]] | SIV specifies authenticated encryption, including deterministic operation. Repeated inputs under the same key and associated data remain linkable. | The AES-SIV branch permits scoped joins but does not claim anonymity or implement encryption in Lean. |
 | [[https://csrc.nist.gov/pubs/sp/800/38/d/final][NIST SP 800-38D, GCM]] | GCM is authenticated encryption with an IV whose uniqueness under a key matters. | The randomized AES-GCM branch requires a trusted =ivUnique= admission fact and offers no deterministic join. This is a design alternative, not a claim that Google Sensitive Data Protection exposes GCM pseudonymization. |
+| [[https://docs.cloud.google.com/kms/docs/key-rotation][Google Cloud KMS key rotation]] | Rotating a KMS key creates a new active version; it does not automatically re-encrypt existing data. | The model distinguishes the token key version from its wrapping key version. An explicit rewrap of the same token key leaves join compatibility unchanged; replacing token key material does not. |
+| [[https://www.microsoft.com/en-us/research/publication/inference-attacks-property-preserving-encrypted-databases/][Inference Attacks Against Property-Preserving Encrypted Databases]] | Deterministically encrypted columns can reveal information through frequency patterns and auxiliary data. | Tokenization is limited to trusted ingestion, while the remaining passive leakage is stated as an unresolved deployment risk. |
 
 The people, datasets, keys, and decisions are synthetic. No patient record or
 real cryptographic key appears in the example.
@@ -53,9 +55,48 @@ stateDiagram-v2
 
 | Profile | Stable scoped join | Re-identification | Tokenization condition |
 |---------+--------------------+-------------------+------------------------|
-| AES-SIV | Yes, with approval and matching mode, scope, and key domain | Approved steward with an audit-ready workflow | Key authorization |
-| AES-GCM with unique IV | No deterministic join | Approved steward with stored IV and audit-ready workflow | Host attests IV uniqueness |
-| HMAC-SHA-256 | Yes, within the same scope and key domain | Never | Key authorization |
+| AES-SIV | Yes, with approval and matching mode, scope, and key domain | Approved steward with an audit-ready workflow | Trusted ingestion and key authorization |
+| AES-GCM with unique IV | No deterministic join | Approved steward with stored IV and audit-ready workflow | Trusted ingestion, key authorization, and Host IV uniqueness evidence |
+| HMAC-SHA-256 | Yes, within the same scope and key domain | Never | Trusted ingestion and key authorization |
+
+Only the trusted ingestion principal can request tokenization. The analytics
+agent can request an approved join but cannot use tokenization as a
+chosen-input lookup oracle for patient identifiers. This is an authorization
+boundary; the Host must also keep the ingestion interface private and bind
+its inputs to approved source records.
+
+Joining existing deterministic tokens does not require releasing the token
+key to the analytics agent. =join-without-key-release= is allowed when the
+source and target metadata match and the join is approved. In contrast,
+=tokenize-without-key= and =reidentify-without-key= are denied. This assumes
+the Host performs an equality join on stored tokens and does not compute a
+new token as part of the query.
+
+The join additionally compares =tokenKeyVersion= and =transformVersion=.
+The latter names the input canonicalization and, for AES-SIV, the context-tweak
+recipe. Matching scope strings alone would not make tokens comparable after
+one of these changes. The =rewrapped-same-token-key= case changes only
+=wrappingVersion= and remains joinable; =rotated-token-key= and
+=revised-transform= deny the join. This does not claim KMS rotation itself
+rewraps existing data. A Host must explicitly rewrap the same data key and
+retain access to versions required for older tokens. Google's HMAC method
+does not expose the AES-SIV context tweak; its =transformVersion= still
+captures input canonicalization.
+
+For HMAC, a scope label in Cedar cannot by itself prevent passive linkage:
+the same HMAC key and input recipe produce the same token across scopes.
+=DatasetObject= supplies both the exported Cedar entity and a catalog
+admission check. =hmacCatalogSeparated= rejects distinct HMAC scopes that
+reuse one key-domain/version/transform tuple. The manifest exporter refuses
+such a catalog. =unsafeHmacStudyRejected= and =isolatedHmacStudyAccepted=
+exercise the two outcomes. This check relies on the Host's key inventory
+matching the declared metadata; it does not prove actual key separation.
+
+Tokenization and recovery also bind the requested token-key version to the
+stored dataset version. =wrong-reidentification-key-version= denies a recovery
+request using another version; =rotated-key-reidentify= allows recovery of a
+new-version dataset only when the Host has authorized that version. The
+version labels are metadata and do not prove possession of key material.
 
 The term “AES-IV” alone does not identify a cipher mode. This example uses
 AES-GCM with a unique IV as its randomized authenticated-encryption choice.
@@ -66,10 +107,11 @@ AES-SIV uses a synthetic IV and is modeled separately.
 The source and target datasets are Cedar entities. A request names the target
 entity; Cedar reads both entities' =mode=, =scope=, =keyDomain=, and =tenant=
 rather than trusting caller-supplied strings. Tokenization and recovery also
-require the named target to be the resource itself. The twenty-four finite
+require the named target to be the resource itself. The thirty-four finite
 cases cover local and cross-study joins, a different key domain, incompatible
-modes, another tenant, an agent's
-re-identification attempt, a steward's approved recovery, missing approval or
+modes, key and transformation revisions, another tenant, an agent's
+tokenization-oracle and re-identification attempts, a steward's approved
+recovery, missing approval or
 audit readiness, reused-IV rejection, one-way tokens, and incident suspension.
 =scenarioConformsFully= checks Lean Cedar authorization and policy validation.
 [[file:../PseudonymizationExport.lean][PseudonymizationExport.lean]] sends the
@@ -86,6 +128,7 @@ just example health pseudonymization
 This is an authorization example. The Host must authenticate the actor,
 resolve and protect the dataset entity store, establish owner and key grants,
 allocate and persist a unique IV for GCM, retain it for authorized recovery,
+bind the actual token key and transformation recipe to each stored token,
 perform the cryptographic operation with an approved library, and durably
 record the audit event before releasing plaintext. The =auditReady= and
 =ivUnique= fields are projected Host evidence, not proof that those effects
@@ -98,3 +141,7 @@ Deterministic tokens reveal equality within their scope and can enable
 frequency or auxiliary-data inference. Separating studies by context and key
 domain limits correlation but does not make pseudonymized data anonymous.
 Re-identification should therefore remain a separately governed operation.
+The ingestion role restriction does not eliminate inference from already
+released token columns or repeated aggregate queries. Query-result release,
+volume controls, and statistical disclosure review are separate controls that
+the downstream analytics service must supply.

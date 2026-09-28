@@ -50,7 +50,7 @@ permit(
   action == Action::"reidentify",
   resource
 ) when {
-  (((resource.mode) == "aes-gcm") && ((((context.targetDataset).mode) == (resource.mode)) && ((((context.targetDataset).scope) == (resource.scope)) && ((((context.targetDataset).keyDomain) == (resource.keyDomain)) && (context.keyAuthorized))))) && (((context.targetDataset) == resource) && (((principal.kind) == "steward") && ((context.reidentifyApproved) && (context.auditReady))))
+  ((((resource.mode) == "aes-gcm") && ((((context.targetDataset).mode) == (resource.mode)) && ((((context.targetDataset).scope) == (resource.scope)) && ((((context.targetDataset).keyDomain) == (resource.keyDomain)) && ((((context.targetDataset).tokenKeyVersion) == (resource.tokenKeyVersion)) && (((context.targetDataset).transformVersion) == (resource.transformVersion))))))) && ((context.keyAuthorized) && ((context.requestedKeyVersion) == (resource.tokenKeyVersion)))) && (((context.targetDataset) == resource) && (((principal.kind) == "steward") && ((context.reidentifyApproved) && (context.auditReady))))
 };
 
 // POO policy ID: tenant-join-boundary
@@ -86,5 +86,5 @@ permit(
   action == Action::"tokenize",
   resource
 ) when {
-  (((resource.mode) == "aes-gcm") && ((((context.targetDataset).mode) == (resource.mode)) && ((((context.targetDataset).scope) == (resource.scope)) && ((((context.targetDataset).keyDomain) == (resource.keyDomain)) && (context.keyAuthorized))))) && (((context.targetDataset) == resource) && (context.ivUnique))
+  ((((resource.mode) == "aes-gcm") && ((((context.targetDataset).mode) == (resource.mode)) && ((((context.targetDataset).scope) == (resource.scope)) && ((((context.targetDataset).keyDomain) == (resource.keyDomain)) && ((((context.targetDataset).tokenKeyVersion) == (resource.tokenKeyVersion)) && (((context.targetDataset).transformVersion) == (resource.transformVersion))))))) && ((context.keyAuthorized) && ((context.requestedKeyVersion) == (resource.tokenKeyVersion)))) && (((context.targetDataset) == resource) && (((principal.kind) == "ingest") && (context.ivUnique)))
 };
