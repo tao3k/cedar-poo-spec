@@ -1,6 +1,18 @@
 #+TITLE: Rust Bridge and Google Sensitive Data Protection Boundary
 #+OPTIONS: toc:nil
 
+* Cargo features
+
+| Feature | Provides | Heavy dependency |
+|---------+----------+------------------|
+| =cedar-runtime= | Official Cedar validation and replay | =cedar-policy= |
+| =google-sdp= | Google table request and response contract | =base64= and =sha2= |
+| =google-sdp-host= | In-memory Cedar-to-Google admission example API | Both features above |
+
+The Google wire contract compiles without =cedar-policy=. A consumer that
+only renders and checks Google SDP table bodies enables =google-sdp=; the
+admission boundary needs =google-sdp-host=.
+
 * Google table transformation contract
 
 [[file:google_sdp.rs][google_sdp.rs]] maps the selected Lean table input to the official Google
@@ -30,8 +42,7 @@ responses from the hospital scenario and emits request/response digests.
 The [[file:google_sdp_host.rs][in-memory admission API]] replays a schema-validated Cedar case,
 binds the selected row, Google endpoint, and exact request body, and releases a caller-supplied
 response only after a digest audit entry is appended. The
-[[file:../examples/pseudonymization_google_admission.rs][hospital consumer]] owns synthetic responses in its scenario directory.
-The API has no embedded fixture. Its audit and approval revision live only in
+[[file:../examples/pseudonymization_google_admission.rs][hospital consumer]] supplies synthetic responses. Its audit and approval revision live only in
 process memory, so this does not establish durable or provider-authenticated
 execution.
 

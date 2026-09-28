@@ -7,9 +7,9 @@ pub use artifact::{CompiledPolicyJson, TemplateSourceJson};
 mod bridge;
 #[cfg(feature = "cedar-runtime")]
 pub mod cli;
-#[cfg(feature = "cedar-runtime")]
+#[cfg(feature = "google-sdp")]
 pub mod google_sdp;
-#[cfg(feature = "cedar-runtime")]
+#[cfg(feature = "google-sdp-host")]
 pub mod google_sdp_host;
 #[cfg(feature = "cedar-runtime")]
 mod schema;

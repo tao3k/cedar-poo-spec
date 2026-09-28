@@ -50,8 +50,8 @@ Google response or run the Google API. The local RustCrypto token must not be
 treated as a Google token.
 Run =just example health pseudonymization-google-contract= for the minimal
 offline path. It checks the Lean-selected fixture, creates both Google REST
-bodies, and consumes [[file:Fixtures/GoogleSdp/deidentify-response.json][synthetic de-identification]] and
-[[file:Fixtures/GoogleSdp/reidentify-response.json][synthetic re-identification]] responses. The
+bodies, and consumes [[file:Fixtures/google-deidentify-response.json][synthetic de-identification]] and
+[[file:Fixtures/google-reidentify-response.json][synthetic re-identification]] responses. The
 [[file:../../../rust/examples/pseudonymization_google_contract.rs][example runner]] emits only request/response digests and boundary checks;
 it also rejects a changed context, malformed token, or mismatched token-key
 version. These response files
@@ -64,8 +64,7 @@ Google request, then exercise an in-memory admission ticket. The
 [[file:../../../rust/examples/pseudonymization_google_admission.rs][offline Host example]] rejects a racing ticket, approval revision change,
 policy deployment, failed audit sink, changed endpoint, and changed response context before
 releasing a transformed cell. Its audit contains digests only. This example
-uses the [[file:Fixtures/GoogleSdp/README.org][hospital-owned Google fixture set]]; the public
-Rust module contains no response fixture.
+uses synthetic Google response fixtures owned by this hospital scenario.
 
 * Object composition
 

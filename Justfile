@@ -231,9 +231,15 @@ check-rust:
     ! grep -q 'cedar-policy' .lake/build/bridge-default-tree.txt
     cargo fmt --manifest-path rust/Cargo.toml --check
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --no-default-features -- -D warnings
+    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features google-sdp -e normal -p cedar-poo-bridge > .lake/build/bridge-google-sdp-tree.txt
+    ! grep -q 'cedar-policy' .lake/build/bridge-google-sdp-tree.txt
+    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features google-sdp -- -D warnings
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features cedar-runtime -- -D warnings
+    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features google-sdp-host -- -D warnings
     cargo test --locked --manifest-path rust/Cargo.toml --no-default-features
+    cargo test --locked --manifest-path rust/Cargo.toml --features google-sdp
     cargo test --locked --manifest-path rust/Cargo.toml --features cedar-runtime
+    cargo test --locked --manifest-path rust/Cargo.toml --features google-sdp-host
 
 check-cedar-language: check-rust check-cedar-artifacts
 
