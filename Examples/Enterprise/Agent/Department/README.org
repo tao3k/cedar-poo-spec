@@ -15,7 +15,9 @@ transitive delegation, aggregation inference, and temporal validity as
 workflow-level problems. [[https://arxiv.org/abs/2609.08472][Beyond Agent Harnesses]] presents evidence that
 execution-time authority can differ from a planner's visible state and that
 an execution guard can prevent unauthorized effects in its tested setting.
-These papers motivate the boundary here; neither supplies this Cedar policy
+The [[https://arxiv.org/abs/2609.15906][2026 authorization architecture review]] identifies runtime enforcement
+and aggregation bounds as remaining gaps across the surveyed literature.
+These papers motivate the boundary here; none supplies this Cedar policy
 or proves the scenario's proposed restriction.
 
 The proposed enterprise workflow has an authorized joint analyst delegate
