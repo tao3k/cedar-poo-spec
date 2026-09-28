@@ -27,6 +27,7 @@ def actionType : EntityType := ⟨"Action", []⟩
 def tokenize : EntityUID := ⟨actionType, "tokenize"⟩
 def join : EntityUID := ⟨actionType, "join"⟩
 def reidentify : EntityUID := ⟨actionType, "reidentify"⟩
+def releaseResult : EntityUID := ⟨actionType, "release-result"⟩
 
 def actorEntry : EntitySchemaEntry :=
   .standard ⟨Set.empty, Map.make [
@@ -44,6 +45,8 @@ def contextType : RecordType := Map.make [
   ("keyAuthorized", .required (.bool .anyBool)),
   ("requestedKeyVersion", .required .string),
   ("joinApproved", .required (.bool .anyBool)),
+  ("releaseApproved", .required (.bool .anyBool)),
+  ("budgetAvailable", .required (.bool .anyBool)),
   ("reidentifyApproved", .required (.bool .anyBool)),
   ("auditReady", .required (.bool .anyBool)),
   ("ivUnique", .required (.bool .anyBool))]
@@ -52,7 +55,7 @@ def actionEntry : ActionSchemaEntry :=
 def schema : Schema :=
   ⟨Map.make [(actorType, actorEntry), (datasetType, datasetEntry)],
    Map.make [(tokenize, actionEntry), (join, actionEntry),
-     (reidentify, actionEntry)]⟩
+     (reidentify, actionEntry), (releaseResult, actionEntry)]⟩
 
 def agent : EntityUID := ⟨actorType, "analytics-agent"⟩
 def steward : EntityUID := ⟨actorType, "clinical-steward"⟩
@@ -140,7 +143,8 @@ def entities : Entities := Map.make ([
   datasets.map DatasetObject.entity ++ [
   (tokenize, actionSchemaEntryToEntityData actionEntry),
   (join, actionSchemaEntryToEntityData actionEntry),
-  (reidentify, actionSchemaEntryToEntityData actionEntry)])
+  (reidentify, actionSchemaEntryToEntityData actionEntry),
+  (releaseResult, actionSchemaEntryToEntityData actionEntry)])
 
 def attr (source : Var) (name : String) : Expr := .getAttr (.var source) name
 def fact (name : String) : Expr := attr .context name
@@ -268,6 +272,23 @@ def randomizedView : GovernanceView := ⟨"RandomizedGcm", gcm⟩
 def oneWayView : GovernanceView := ⟨"OneWayHmac", hmac⟩
 def views : List GovernanceView := [hospitalView, randomizedView, oneWayView]
 
+/-- Releasing an analytical result is a distinct owned permission from
+    joining stored tokens. The Host authenticates approval and consumes its
+    budget in the same transaction that releases the result. -/
+def resultRelease : Module := Id.run do
+  let ownerControl : Veto :=
+    { policyId := "release-owner-approval",
+      actionScope := .actionScope (.eq releaseResult),
+      denyWhen := not (fact "ownerApproved") }
+  let edits : List Edit :=
+    [.extend (policy "release-result" .permit releaseResult
+      (.and selfBound (.and tenantBound
+        (.and (eqString (attr .principal "kind") "agent")
+          (.and targetTenantBound
+            (.and (fact "releaseApproved") (fact "budgetAvailable"))))))),
+      ownerControl.edit .introduce]
+  return { name := "ResultRelease", parentOrders := [[hospitalView.name]], edits }
+
 def incidentControl : Veto :=
   veto "agent-join-suspended" join (eqString (attr .principal "kind") "agent")
 def incident : Module :=
@@ -286,7 +307,8 @@ def modelResult : Except LeanPoo.C4.Error Model := do
       [view.profile.name, "DataOwner", "Privacy", "AgentBoundary"]
       view.module.edits) agentView
   let suspended ← governed.extend incident.name hospitalView.name incident.edits
-  suspended.extend recovered.name incident.name recovered.edits
+  let restored ← suspended.extend recovered.name incident.name recovered.edits
+  restored.extend resultRelease.name hospitalView.name resultRelease.edits
 
 def model : Model := modelResult.toOption.get (by native_decide)
 
@@ -296,6 +318,8 @@ structure Facts where
   keyAuthorized : Bool := true
   requestedKeyVersion : String := "dek-v1"
   joinApproved : Bool := true
+  releaseApproved : Bool := false
+  budgetAvailable : Bool := false
   reidentifyApproved : Bool := false
   auditReady : Bool := false
   ivUnique : Bool := true
@@ -307,6 +331,8 @@ def request (who action dataset : EntityUID) (facts : Facts) : Request :=
     ("keyAuthorized", .prim (.bool facts.keyAuthorized)),
     ("requestedKeyVersion", .prim (.string facts.requestedKeyVersion)),
     ("joinApproved", .prim (.bool facts.joinApproved)),
+    ("releaseApproved", .prim (.bool facts.releaseApproved)),
+    ("budgetAvailable", .prim (.bool facts.budgetAvailable)),
     ("reidentifyApproved", .prim (.bool facts.reidentifyApproved)),
     ("auditReady", .prim (.bool facts.auditReady)),
     ("ivUnique", .prim (.bool facts.ivUnique))]⟩
@@ -371,6 +397,18 @@ def cases : List (String × String × Request × Decision) := [
     { keyAuthorized := false }, .allow),
   ("research-local-join", "HospitalSiv", request agent join research
     { targetDataset := research }, .allow),
+  ("approved-result-release", "ResultRelease", request agent releaseResult hospital
+    { releaseApproved := true, budgetAvailable := true }, .allow),
+  ("result-release-without-approval", "ResultRelease", request agent releaseResult hospital
+    { budgetAvailable := true }, .deny),
+  ("result-release-budget-exhausted", "ResultRelease", request agent releaseResult hospital
+    { releaseApproved := true }, .deny),
+  ("result-release-owner-revoked", "ResultRelease", request agent releaseResult hospital
+    { releaseApproved := true, budgetAvailable := true, ownerApproved := false }, .deny),
+  ("result-release-other-dataset", "ResultRelease", request agent releaseResult hospital
+    { releaseApproved := true, budgetAvailable := true, targetDataset := research }, .deny),
+  ("result-release-wrong-actor", "ResultRelease", request operator releaseResult hospital
+    { releaseApproved := true, budgetAvailable := true }, .deny),
   ("cross-study-join", "HospitalSiv", request agent join research {}, .deny),
   ("wrong-key-domain", "HospitalSiv", request agent join hospital
     { targetDataset := otherKey }, .deny),

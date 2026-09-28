@@ -344,9 +344,11 @@ consumer that uses the public object directly.
 | CIDR source-network veto in trusted data access | =Admission.SourceNetwork= | The Cedar IP expression and slot edits are reusable; the corporate and enclave ranges stay in the example. |
 | Token lineage and HMAC catalog separation in health pseudonymization | =Data.Pseudonymization.TokenCatalog= | Key-domain separation is independent of the hospital; the example supplies its dataset records and key identifiers. |
 | Preparer/releaser and requester/approver conflicts | =Governance.SeparationOfDuties= | Procurement and payment share the actor-conflict semantics with different resource attributes. |
+| Purpose-bound patient-study and emergency approvals | =Governance.ScopedApproval= | The public value binds approver, actor, operation, purpose, source/target, revision, and expiry; the hospital example supplies authenticated facts and a finite redemption model. |
 | Country role and timesheet ancestry in =ApprovalObject= | Example | The jurisdiction graph and fictive identities are scenario input, not a library grant. |
 | Procurement amount limit and concrete payment threshold | Example | The reusable release rule accepts a chosen threshold; the actual value and authenticated payment state belong to each workflow. |
 | Cryptographic operations and hospital dataset profile in health pseudonymization | Example, composed through native =Model.extend= and =Model.mix= | The actual transformation, keys, and synthetic records remain case inputs; the shared lineage catalog check is now public. |
+| Result release and ticket redemption in health pseudonymization | Example | A separate POO root and finite Host state bind one study's approval and budget; a real provider and persistent transaction are still deployment responsibilities. |
 | Agent fanout ticket and concrete Host port | Example | Its state and effect projection is a useful candidate, but one synthetic Host does not establish a reusable authentication contract. |
 | Cross-agent egress and department synthesis | Example | These cases currently import other examples; a reusable control needs a stable authenticated ledger and effect contract before their graph is promoted. |
 | Vehicle mission successor and VLA command | Example | Their successor and command facts are illustrative scenario inputs; a reusable automotive interface needs a proved Host evidence boundary. |
@@ -446,6 +448,7 @@ not that receipt.
 | =Governance.Veto= | Emits a forbid policy and explicit extend, overlay, or remove edit. |
 | =Governance.MemberGrant= | Emits a membership-scoped permit and explicit introduce, revise, or withdraw edit. |
 | =Governance.SeparationOfDuties= | Emits a Cedar forbid when the current principal equals a recorded prior actor; the workflow owns that actor fact. |
+| =Governance.ScopedApproval= | Checks a purpose-bound, source/target-bound approval at a Host-supplied revision and time; the Host authenticates its provenance. |
 | =Vertical.Health.DisclosureChannel= | Emits a broad and minimum-disclosure permit and the edits that evolve one channel slot. |
 | =Vertical.Health.EmergencyAccess= | Emits provisional and bounded patient-specific emergency permits for one owned slot. |
 | =Data.Lakehouse.LocationBoundary= | Emits a request-location forbid and its owned slot edits. |

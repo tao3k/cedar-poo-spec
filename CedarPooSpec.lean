@@ -7,6 +7,7 @@ import CedarPooSpec.PolicyModules
 import CedarPooSpec.Governance.Veto
 import CedarPooSpec.Governance.MemberGrant
 import CedarPooSpec.Governance.SeparationOfDuties
+import CedarPooSpec.Governance.ScopedApproval
 import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Vertical.Health.DisclosureChannel
 import CedarPooSpec.Vertical.Health.EmergencyAccess

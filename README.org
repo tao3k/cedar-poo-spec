@@ -56,6 +56,9 @@ The current APIs bind typed operations to Cedar requests, revise owned
 permit and forbid slots, compare data attributes through Cedar's expression
 AST, check source-network and token-catalog boundaries, and strengthen
 healthcare disclosure and emergency-access controls.
+The [[file:Examples/Health/Pseudonymization/README.org][hospital pseudonymization case]] composes scoped approvals, separate
+join and result-release roots, typed deployment selection, and a finite
+ticket-redemption lifecycle with synthetic-data cryptographic checks.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.
