@@ -25,6 +25,11 @@ name = "export_latency"
 path = "examples/export_latency.rs"
 required-features = ["cedar-runtime"]
 
+[[example]]
+name = "pseudonymization_local"
+path = "examples/pseudonymization_local.rs"
+required-features = ["cedar-runtime"]
+
 [[test]]
 name = "pseudonymization_crypto"
 path = "tests/integration/pseudonymization_crypto.rs"

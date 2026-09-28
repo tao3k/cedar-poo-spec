@@ -1,0 +1,1 @@
+{"context":"hospital-a","contextField":"tenant_scope","dataset":"hospital-patients","keyDomain":"key-a","surrogateInfoType":null,"tokenKeyVersion":"dek-v1","transformVersion":"patient-id-v1","value":"synthetic-patient-0001","valueField":"patient_id","wrappingVersion":"kek-v1"}

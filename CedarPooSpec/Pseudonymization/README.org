@@ -44,6 +44,12 @@ key-domain/version/transformation tuple. A wrapper-key change alone does not
 separate tokens. =TokenProfile.sameRecipe= compares the declared ingredients
 needed for an equality join.
 
+[[file:Tabular.lean][Tabular]] selects one named value column and one named AES-SIV context
+column from a structured record. It rejects missing or duplicate columns,
+empty values, and a context value outside the admitted token scope. The
+selection remains a pure input projection; the Host must authenticate the
+record and execute the cryptographic operation.
+
 [[file:Compatibility.lean][TokenRelation]] expresses that same recipe
 comparison directly in Cedar's expression AST. A consumer chooses the
 source and target expressions; Cedar evaluates the resulting policy. Tenant
@@ -63,7 +69,19 @@ The [[file:../../Examples/Health/Pseudonymization/README.org][hospital example]]
 AES-SIV, GCM, and HMAC views, then adds owner, privacy, incident, and result
 release objects through Lean-POO. It checks Cedar decisions with the official
 Rust engine, exercises a finite Host ticket-redemption model, and runs local
-synthetic-data cryptographic checks.
+synthetic-data cryptographic checks. Its [[file:../../Examples/Health/Pseudonymization/Tabular.lean][tabular input]] exports a selected
+patient ID and tenant-scope context to a fixture consumed by the local AES-SIV test.
+The [[file:../../rust/examples/pseudonymization_local.rs][local executable]] replays the corresponding official Cedar case, checks
+the selected input against that case's request and dataset entity, performs
+synthetic AES-SIV encryption, and emits content hashes for both the Cedar
+decision and local effect. Changed context or token-key version is rejected.
+
+Google Sensitive Data Protection also supports FPE-FFX, which this library
+does not currently model. The AES-GCM branch is a separate randomized
+encryption scenario, not a Google pseudonymization method. The fixture is
+not a Google API request, authenticated provider receipt, or durable Host
+transaction. The local receipt is reproducible evidence for this example,
+not an admission token for production effects.
 
 The catalog depends on accurate Host key inventory. The finite Host model
 does not persist an audit, call a provider, or release real data. A deployment

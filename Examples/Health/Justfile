@@ -6,6 +6,8 @@ clinical-break-glass:
 pseudonymization:
     just build-examples
     timeout --signal=TERM --kill-after=3s 20s lake env lean -M 2048 -T 10000000 Examples/Health/Pseudonymization/Lifecycle.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-tabular > .lake/build/pseudonymization-tabular.json
+    cmp .lake/build/pseudonymization-tabular.json Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-validated > .lake/build/pseudonymization-validated-manifest.json
     jq -e '(.cases | length) == 41 and (.schema[""].actions | keys) == ["join", "reidentify", "release-result", "tokenize"] and ([.cases[] | select(.revision == "Recovered")][0].policies == [.cases[] | select(.revision == "HospitalSiv")][0].policies)' .lake/build/pseudonymization-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/pseudonymization-validated-manifest.json > .lake/build/pseudonymization-validated-receipts.json
@@ -13,6 +15,12 @@ pseudonymization:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-deployable > .lake/build/pseudonymization-deployable.json
     jq -e '([.[].root] | sort) == ["AgentIncident", "HospitalSiv", "OneWayHmac", "RandomizedGcm", "Recovered", "ResultRelease"] and all(.[]; (.policies.staticPolicies | has("legacy-reidentify") | not))' .lake/build/pseudonymization-deployable.json > /dev/null
     cargo test --locked --features cedar-runtime --manifest-path rust/Cargo.toml --test pseudonymization_crypto
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml --example pseudonymization_local -- .lake/build/pseudonymization-validated-manifest.json Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json > .lake/build/pseudonymization-local-receipt.json
+    jq -e '.kind == "synthetic-local-aes-siv" and .caseName == "hospital-tokenize" and .decision == "allow" and .dataset == "hospital-patients" and .context == "hospital-a" and .tokenBytes > 0 and ([.schemaSha256, .policiesSha256, .entitiesSha256, .requestSha256, .inputHmacSha256, .tokenSha256] | all(.[]; test("^[0-9a-f]{64}$")))' .lake/build/pseudonymization-local-receipt.json > /dev/null
+    jq '.context = "study-two"' Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json > .lake/build/pseudonymization-wrong-context.json
+    ! cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml --example pseudonymization_local -- .lake/build/pseudonymization-validated-manifest.json .lake/build/pseudonymization-wrong-context.json > .lake/build/pseudonymization-rejected-output.json
+    jq '.tokenKeyVersion = "dek-v2"' Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json > .lake/build/pseudonymization-wrong-key.json
+    ! cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml --example pseudonymization_local -- .lake/build/pseudonymization-validated-manifest.json .lake/build/pseudonymization-wrong-key.json > .lake/build/pseudonymization-rejected-output.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- identified-sources hospital-tokenize < .lake/build/pseudonymization-validated-manifest.json > .lake/build/hospital-siv-sources.json
     jq -e '(keys | length) == 10 and has("join") and has("tokenize") and has("agent-cannot-reidentify")' .lake/build/hospital-siv-sources.json > /dev/null
     jq '[.cases[] | select(.revision == "HospitalSiv")][0].policies' .lake/build/pseudonymization-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/hospital-siv.cedar

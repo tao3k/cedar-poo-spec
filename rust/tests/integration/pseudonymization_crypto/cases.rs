@@ -4,7 +4,23 @@ use aes_gcm::{
 };
 use aes_siv::siv::Aes256Siv;
 use hmac::{Hmac, Mac};
+use serde::Deserialize;
 use sha2::Sha256;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TabularFixture {
+    dataset: String,
+    value_field: String,
+    context_field: String,
+    value: String,
+    context: String,
+    key_domain: String,
+    token_key_version: String,
+    transform_version: String,
+    wrapping_version: String,
+    surrogate_info_type: Option<String>,
+}
 
 const PATIENT_ID: &[u8] = b"synthetic-patient-0001";
 
@@ -45,6 +61,32 @@ fn aes_siv_context_and_key_lineage_change_actual_tokens() {
         Aes256Siv::new_from_slice(&data_key)
             .unwrap()
             .decrypt([b"study-two".as_slice()], &local)
+            .is_err()
+    );
+}
+
+#[test]
+fn lean_selected_table_fields_are_actual_siv_inputs() {
+    let fixture: TabularFixture = serde_json::from_str(include_str!(
+        "../../../../Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture.dataset, "hospital-patients");
+    assert_eq!(fixture.value_field, "patient_id");
+    assert_eq!(fixture.context_field, "tenant_scope");
+    assert_eq!(fixture.key_domain, "key-a");
+    assert_eq!(fixture.token_key_version, "dek-v1");
+    assert_eq!(fixture.transform_version, "patient-id-v1");
+    assert_eq!(fixture.wrapping_version, "kek-v1");
+    assert!(fixture.surrogate_info_type.is_none());
+
+    let key = [7_u8; 64];
+    let token = siv_token(&key, &fixture.context, fixture.value.as_bytes());
+    assert_eq!(token, siv_token(&key, "hospital-a", PATIENT_ID));
+    assert!(
+        Aes256Siv::new_from_slice(&key)
+            .unwrap()
+            .decrypt([b"study-two".as_slice()], &token)
             .is_err()
     );
 }
