@@ -29,7 +29,7 @@ Protection API receipts or evidence of a persistent hospital Host.
 * Object composition
 
 The public capability and its source map live in
-[[file:../../../CedarPooSpec/Pseudonymization.org][Pseudonymization.org]], adjacent to the Lean module. This section describes
+[[file:../../../CedarPooSpec/Pseudonymization/README.org][the public Pseudonymization README]], in the implementation directory. This section describes
 the hospital's concrete composition.
 
 [[file:../Pseudonymization.lean][Pseudonymization.lean]] defines three
