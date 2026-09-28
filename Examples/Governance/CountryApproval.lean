@@ -62,17 +62,34 @@ def data (parents : List EntityUID := []) (tags : List (String × Value) := []) 
     EntityData :=
   { attrs := Map.empty, ancestors := Set.make parents, tags := Map.make tags }
 
-def entities : Entities := Map.make [
+/-- One jurisdiction owns its role, resource group, ancestry, and policy ID.
+    Adding a jurisdiction appends one value rather than parallel declarations. -/
+structure ApprovalObject where
+  policyId : String
+  approverRole : EntityUID
+  roleParents : List EntityUID
+  sheetGroup : EntityUID
+  groupParents : List EntityUID
+
+def baseApprovals : List ApprovalObject := [
+  ⟨"france", france, [europe], frenchSheets, [europeanSheets]⟩,
+  ⟨"germany", germany, [europe], germanSheets, [europeanSheets]⟩]
+def expandedApprovals : List ApprovalObject := [
+  ⟨"uk", uk, [europe], ukSheets, [europeanSheets]⟩,
+  ⟨"japan", japan, [], japaneseSheets, []⟩]
+def approvals : List ApprovalObject := baseApprovals ++ expandedApprovals
+
+def ApprovalObject.entities (object : ApprovalObject) : List (EntityUID × EntityData) := [
+  (object.approverRole, data object.roleParents),
+  (object.sheetGroup, data object.groupParents)]
+
+def entities : Entities := Map.make ([
   (alice, data [frenchTeam, france, europe] [("clearance", .prim (.string "restricted"))]),
   (bob, data [germany, uk, japan, europe]),
   (charlie, data [france, europe]),
   (frenchTeam, data [france, europe]),
-  (france, data [europe]), (germany, data [europe]),
-  (uk, data [europe]), (japan, data), (europe, data),
-  (frenchSheets, data [europeanSheets]),
-  (germanSheets, data [europeanSheets]),
-  (ukSheets, data [europeanSheets]),
-  (japaneseSheets, data), (europeanSheets, data),
+  (europe, data), (europeanSheets, data)] ++
+  approvals.flatMap ApprovalObject.entities ++ [
   (parisSheets, data [frenchSheets, europeanSheets]),
   (frenchSheet, data [parisSheets, frenchSheets, europeanSheets]),
   (restrictedSheet, data [parisSheets, frenchSheets, europeanSheets]
@@ -81,13 +98,13 @@ def entities : Entities := Map.make [
   (ukSheet, data [ukSheets, europeanSheets]),
   (japaneseSheet, data [japaneseSheets]),
   (approve, data [approverActions]), (review, data [approverActions]),
-  (delete, data), (approverActions, data)]
+  (delete, data), (approverActions, data)])
 
-def countryPolicy (id : String) (role group : EntityUID) : Policy :=
-  { id, effect := .permit,
-    principalScope := .principalScope (.mem role),
+def ApprovalObject.policy (object : ApprovalObject) : Policy :=
+  { id := object.policyId, effect := .permit,
+    principalScope := .principalScope (.mem object.approverRole),
     actionScope := .actionScope (.mem approverActions),
-    resourceScope := .resourceScope (.mem group),
+    resourceScope := .resourceScope (.mem object.sheetGroup),
     condition := [] }
 
 -- This legacy grant is intentionally too broad; the integrated root removes it.
@@ -115,17 +132,24 @@ def sensitiveVeto : Policy :=
     condition := [{ kind := .when, body := sensitiveCondition }] }
 
 def model : Model := { modules := [
-  { name := "Base", edits := [
-      .extend (countryPolicy "france" france frenchSheets),
-      .extend (countryPolicy "germany" germany germanSheets),
-      .extend legacyEurope] },
-  { name := "Expansion", parentOrders := [["Base"]], edits := [
-      .extend (countryPolicy "uk" uk ukSheets),
-      .extend (countryPolicy "japan" japan japaneseSheets)] },
+  { name := "Base", edits :=
+      Edit.extendAll (baseApprovals.map ApprovalObject.policy) ++ [.extend legacyEurope] },
+  { name := "Expansion", parentOrders := [["Base"]],
+    edits := Edit.extendAll (expandedApprovals.map ApprovalObject.policy) },
   { name := "Sensitive", parentOrders := [["Base"]],
     edits := [.extend sensitiveVeto] },
   { name := "Integrated", parentOrders := [["Expansion", "Sensitive"]],
     edits := [.remove "legacy-europe"] }] }
+
+theorem approvalObjectsPopulateEntities :
+    approvals.all (fun object =>
+      entities.contains object.approverRole &&
+      entities.contains object.sheetGroup) = true := by native_decide
+
+theorem approvalObjectsPopulatePolicies :
+    approvals.all (fun object =>
+      ((model.compile "Integrated").toOption.get (by native_decide)).any
+        (fun policy => policy.id == object.policyId)) = true := by native_decide
 
 def schemaValidationExact : Bool :=
   schema.validateWellFormed.isOk &&

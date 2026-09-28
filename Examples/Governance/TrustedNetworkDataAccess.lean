@@ -17,21 +17,40 @@ def networkCondition (range : String) : Expr :=
     .getAttr (.var .context) "sourceIp",
     .call .ip [.lit (.string range)]]
 
-def networkVeto (range : String) : Policy :=
+/-- A named network boundary owns its parent and accepted CIDR. Narrowing
+    the same policy object overlays its body without copying its ancestor. -/
+structure NetworkBoundary where
+  name : String
+  parent : String
+  range : String
+  change : Policy → Edit
+
+def NetworkBoundary.policy (boundary : NetworkBoundary) : Policy :=
   queryPolicy "network-boundary" .forbid
-    (.unaryApp .not (networkCondition range))
+    (.unaryApp .not (networkCondition boundary.range))
 
-def corporate : Module :=
-  { name := "CorporateNetwork", parentOrders := [["GovernedV2"]],
-    edits := [.extend (networkVeto "10.0.0.0/8")] }
+def NetworkBoundary.edit (boundary : NetworkBoundary) : Edit :=
+  boundary.change boundary.policy
 
-def enclave : Module :=
-  { name := "EnclaveNetwork", parentOrders := [["CorporateNetwork"]],
-    edits := [.overlay (networkVeto "10.20.0.0/16")] }
+def corporate : NetworkBoundary :=
+  ⟨"CorporateNetwork", "GovernedV2", "10.0.0.0/8", .extend⟩
+def enclave : NetworkBoundary :=
+  ⟨"EnclaveNetwork", "CorporateNetwork", "10.20.0.0/16", .overlay⟩
+def boundaries : List NetworkBoundary := [corporate, enclave]
 
-def networkModel : Model :=
-  { modules := CedarPooSpec.AttestedDataAccessExample.model.modules ++
-      [corporate, enclave] }
+def networkModelResult : Except LeanPoo.C4.Error Model :=
+  boundaries.foldlM (fun current boundary =>
+    current.extend boundary.name boundary.parent [boundary.edit])
+    CedarPooSpec.AttestedDataAccessExample.model
+
+def networkModel : Model := networkModelResult.toOption.get (by native_decide)
+
+theorem boundaryObjectProvenance :
+    ((networkModel.compileWithProvenance "EnclaveNetwork").toOption.get
+      (by native_decide)).any (fun compiled =>
+        compiled.policy.id == "network-boundary" &&
+        compiled.introducedBy == corporate.name &&
+        compiled.lastEditedBy == enclave.name) = true := by native_decide
 
 def networkContextType : RecordType := Map.make
   (contextType.toList ++ [("sourceIp", .required (.ext .ipAddr))])

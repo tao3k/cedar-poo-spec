@@ -21,11 +21,25 @@ def documentType : EntityType := CedarPooSpec.BoundedSessionExample.documentType
 def salesRecord : EntityUID := ⟨documentType, "sales-contract"⟩
 def financeRecord : EntityUID := ⟨documentType, "finance-invoice"⟩
 
+/-- Each department owns one record, one source-boundary policy, and one
+    history fact. The governance graph and request projection use this list. -/
+structure DepartmentObject where
+  name : String
+  record : EntityUID
+  policyId : String
+  seenFact : String
+
+def sales : DepartmentObject :=
+  ⟨"Sales", salesRecord, "sales-owner-boundary", "salesSeen"⟩
+def finance : DepartmentObject :=
+  ⟨"Finance", financeRecord, "finance-owner-boundary", "financeSeen"⟩
+def departments : List DepartmentObject := [sales, finance]
+
 def contextType : RecordType := Map.make
-  (CedarPooSpec.CrossAgentEgressExample.contextType.toList ++ [
+  (CedarPooSpec.CrossAgentEgressExample.contextType.toList ++
+    departments.map (fun department =>
+      (department.seenFact, .required (.bool .anyBool))) ++ [
     ("originDept", .required .string),
-    ("salesSeen", .required (.bool .anyBool)),
-    ("financeSeen", .required (.bool .anyBool)),
     ("delegationActive", .required (.bool .anyBool))])
 def readEntry : ActionSchemaEntry :=
   ⟨Set.make [CedarPooSpec.BoundedSessionExample.agentType],
@@ -51,34 +65,33 @@ def documentData (department : String) : EntityData :=
   { CedarPooSpec.BoundedSessionExample.emptyData with attrs := Map.make [
       ("sensitive", .prim (.bool false)),
       ("department", .prim (.string department))] }
-def entities : Entities := Map.make [
+def entities : Entities := Map.make ([
   (workerA, CedarPooSpec.BoundedSessionExample.emptyData),
-  (workerB, CedarPooSpec.BoundedSessionExample.emptyData),
-  (salesRecord, documentData "Sales"),
-  (financeRecord, documentData "Finance"),
+  (workerB, CedarPooSpec.BoundedSessionExample.emptyData)] ++
+  departments.map (fun department =>
+    (department.record, documentData department.name)) ++ [
   (endpoint, CedarPooSpec.BoundedSessionExample.endpointData true),
   (readAction, actionSchemaEntryToEntityData readEntry),
-  (sendAction, actionSchemaEntryToEntityData sendEntry)]
+  (sendAction, actionSchemaEntryToEntityData sendEntry)])
 
 def fact (name : String) : Expr := .getAttr (.var .context) name
 def neq (left right : Expr) : Expr :=
   .unaryApp .not (.binaryApp .eq left right)
-def departmentVeto (id : String) (record : EntityUID)
-    (department : String) : Policy :=
+def DepartmentObject.veto (object : DepartmentObject) : Policy :=
   let body : Expr := .and
-    (neq (fact "originDept") (.lit (.string department)))
+    (neq (fact "originDept") (.lit (.string object.name)))
     (neq (fact "originDept") (.lit (.string "Joint")))
-  { id, effect := .forbid,
+  { id := object.policyId, effect := .forbid,
     principalScope := .principalScope .any,
     actionScope := .actionScope (.eq readAction),
-    resourceScope := .resourceScope (.eq record),
+    resourceScope := .resourceScope (.eq object.record),
     condition := [{ kind := .when, body }] }
-def salesVeto : Policy :=
-  departmentVeto "sales-owner-boundary" salesRecord "Sales"
-def financeVeto : Policy :=
-  departmentVeto "finance-owner-boundary" financeRecord "Finance"
+def seenExpression : List DepartmentObject → Expr
+  | [] => .lit (.bool true)
+  | [department] => fact department.seenFact
+  | department :: rest => .and (fact department.seenFact) (seenExpression rest)
 def aggregationVeto : Policy :=
-  let body : Expr := .and (fact "salesSeen") (fact "financeSeen")
+  let body : Expr := seenExpression departments
   { id := "cross-department-aggregate-egress", effect := .forbid,
     principalScope := .principalScope .any,
     actionScope := .actionScope (.eq sendAction),
@@ -95,14 +108,15 @@ def expiredDelegationVeto : Policy :=
 /-- Four independent owners extend the inherited cross-agent controls. -/
 def modelResult : Except LeanPoo.C4.Error Model := do
   let base := CedarPooSpec.CrossAgentEgressExample.model
-  let sales ← base.extend "Sales" "CrossAgentGoverned" [.extend salesVeto]
-  let finance ← sales.extend "Finance" "CrossAgentGoverned" [.extend financeVeto]
-  let aggregate ← finance.extend "Aggregate" "CrossAgentGoverned"
+  let owned ← departments.foldlM (fun current department =>
+    current.extend department.name "CrossAgentGoverned"
+      [.extend department.veto]) base
+  let aggregate ← owned.extend "Aggregate" "CrossAgentGoverned"
     [.extend aggregationVeto]
   let temporal ← aggregate.extend "Temporal" "CrossAgentGoverned"
     [.extend expiredDelegationVeto]
   let governed ← temporal.mix "DepartmentGoverned"
-    ["Sales", "Finance", "Aggregate", "Temporal"]
+    (departments.map DepartmentObject.name ++ ["Aggregate", "Temporal"])
   let incident ← governed.mix "DepartmentIncident"
     ["DepartmentGoverned", "CrossAgentIncident"]
   incident.extend "DepartmentRecovered" "DepartmentIncident"
@@ -112,21 +126,27 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- The composed root retains each new owner and the inherited history owner. -/
 theorem composedOwnersPresent :
-    ["Sales", "Finance", "Aggregate", "Temporal", "History"].all (fun owner =>
+    (departments.map DepartmentObject.name ++
+      ["Aggregate", "Temporal", "History"]).all (fun owner =>
       ((model.compileWithProvenance "DepartmentGoverned").toOption.get
         (by native_decide)).any (fun policy => policy.introducedBy == owner)) = true := by
   native_decide
 
-/-- Adding the four owners changes exactly four policy identities. -/
+/-- Each department contributes one policy; the aggregate and temporal
+    owners add two more independently of the department count. -/
 theorem revisionAddsFourPolicies :
     ((model.compileRevision "CrossAgentGoverned" "DepartmentGoverned").toOption.get
-      (by native_decide)).changedPolicyIds.length = 4 := by
+      (by native_decide)).changedPolicyIds.length = departments.length + 2 := by
   native_decide
+
+theorem departmentObjectsBoundToSchemaAndEntities :
+    departments.all (fun department =>
+      contextType.contains department.seenFact &&
+      entities.contains department.record) = true := by native_decide
 
 structure State where
   lineage : CedarPooSpec.CrossAgentEgressExample.State := {}
-  salesSeen : Bool := false
-  financeSeen : Bool := false
+  seen : List EntityUID := []
   originDept : String := "Joint"
   delegationActive : Bool := true
 
@@ -138,10 +158,11 @@ def sendReport : Attempt := ⟨workerB, sendAction, endpoint, "report"⟩
 def request (state : State) (attempt : Attempt) : Request :=
   let base := CedarPooSpec.CrossAgentEgressExample.request
     .delegationShared state.lineage attempt
-  { base with context := Map.make (base.context.toList ++ [
+  { base with context := Map.make (base.context.toList ++
+    departments.map (fun department =>
+      (department.seenFact,
+        .prim (.bool (state.seen.contains department.record)))) ++ [
       ("originDept", .prim (.string state.originDept)),
-      ("salesSeen", .prim (.bool state.salesSeen)),
-      ("financeSeen", .prim (.bool state.financeSeen)),
       ("delegationActive", .prim (.bool state.delegationActive))]) }
 
 def authorized (root : String) (state : State) (attempt : Attempt) : Bool :=
@@ -156,10 +177,10 @@ def advance (state : State) (attempt : Attempt) : State :=
   let next := CedarPooSpec.CrossAgentEgressExample.advance state.lineage attempt
   { state with
     lineage := { next with epoch := state.lineage.epoch + 1 },
-    salesSeen := state.salesSeen ||
-      (attempt.action == readAction && attempt.resource == salesRecord),
-    financeSeen := state.financeSeen ||
-      (attempt.action == readAction && attempt.resource == financeRecord) }
+    seen := if attempt.action == readAction &&
+        departments.any (fun department => department.record == attempt.resource) &&
+        !state.seen.contains attempt.resource
+      then attempt.resource :: state.seen else state.seen }
 
 def replay (root : String) (initial : State) (attempts : List Attempt) :
     List (Request × Bool) × State :=
@@ -221,8 +242,9 @@ theorem revocationAfterRead :
   native_decide
 
 theorem allRootsValidate :
-    ["Sales", "Finance", "Aggregate", "Temporal", "DepartmentGoverned",
-      "DepartmentIncident", "DepartmentRecovered"].all (fun root =>
+    (departments.map DepartmentObject.name ++
+      ["Aggregate", "Temporal", "DepartmentGoverned",
+        "DepartmentIncident", "DepartmentRecovered"]).all (fun root =>
         (CedarPooSpec.PolicyJson.publish model root schema).isOk) = true := by
   native_decide
 

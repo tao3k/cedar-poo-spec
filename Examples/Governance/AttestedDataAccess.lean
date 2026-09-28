@@ -121,31 +121,44 @@ def purposePermit : Policy :=
     (.and projectMatches (.and subscriptionActive analyticsPurpose))
 def legacyPermit : Policy :=
   queryPolicy "legacy-subscription" .permit subscriptionActive
-def ownerVeto : Policy :=
-  queryPolicy "owner-approval" .forbid
-    (.unaryApp .not (.and ownerApproved independentApprover))
-def platformVetoV1 : Policy :=
-  queryPolicy "attested-platform" .forbid (.unaryApp .not attestationV1)
-def platformVetoV2 : Policy :=
-  queryPolicy "attested-platform" .forbid (.unaryApp .not attestationValid)
-def regionVeto : Policy :=
-  queryPolicy "region-boundary" .forbid (.unaryApp .not regionMatches)
+
+/-- An independently owned governance control has a stable policy identity
+    and one denial condition. A revision changes the condition, not its ID. -/
+structure ControlObject where
+  moduleName : String
+  policyId : String
+  denyWhen : Expr
+
+def ControlObject.policy (object : ControlObject) : Policy :=
+  queryPolicy object.policyId .forbid object.denyWhen
+
+def ControlObject.module (object : ControlObject) (parent : String)
+    (change : Policy → Edit) : Module :=
+  { name := object.moduleName, parentOrders := [[parent]],
+    edits := [change object.policy] }
+
+def ownerControl : ControlObject :=
+  ⟨"DataOwner", "owner-approval",
+    .unaryApp .not (.and ownerApproved independentApprover)⟩
+def platformControl : ControlObject :=
+  ⟨"Platform", "attested-platform", .unaryApp .not attestationV1⟩
+def platformControlV2 : ControlObject :=
+  ⟨"PlatformV2", platformControl.policyId, .unaryApp .not attestationValid⟩
+def complianceControl : ControlObject :=
+  ⟨"Compliance", "region-boundary", .unaryApp .not regionMatches⟩
+
+def ownerVeto : Policy := ownerControl.policy
+def platformVetoV1 : Policy := platformControl.policy
+def platformVetoV2 : Policy := platformControlV2.policy
+def regionVeto : Policy := complianceControl.policy
 
 def base : Module :=
   { name := "Base", suffix := true,
     edits := [.extend projectPermit, .extend legacyPermit] }
-def dataOwner : Module :=
-  { name := "DataOwner", parentOrders := [["Base"]],
-    edits := [.extend ownerVeto] }
-def platform : Module :=
-  { name := "Platform", parentOrders := [["Base"]],
-    edits := [.extend platformVetoV1] }
-def platformV2 : Module :=
-  { name := "PlatformV2", parentOrders := [["Platform"]],
-    edits := [.overlay platformVetoV2] }
-def compliance : Module :=
-  { name := "Compliance", parentOrders := [["Base"]],
-    edits := [.extend regionVeto] }
+def dataOwner : Module := ownerControl.module "Base" .extend
+def platform : Module := platformControl.module "Base" .extend
+def platformV2 : Module := platformControlV2.module "Platform" .overlay
+def compliance : Module := complianceControl.module "Base" .extend
 def governed : Module :=
   { name := "Governed", parentOrders := [["DataOwner", "Platform", "Compliance"]],
     edits := [.overlay purposePermit, .remove legacyPermit.id] }

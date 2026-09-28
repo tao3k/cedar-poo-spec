@@ -35,6 +35,15 @@ expire between the reads and the proposed send.
 inherits session history, shared budget, delegated intent, and incident
 controls. Four new owners extend its =CrossAgentGoverned= root:
 
+=DepartmentObject= now binds each department's record, owner policy, and
+read-history fact. The same list derives document entities, Cedar context
+fields, request projection, read-history updates, owner extensions, and the
+aggregate-egress condition. =foldlM= extends one POO owner per object; the
+resulting owner names feed the C4 mix. This avoids parallel Sales/Finance
+declarations drifting when a department is added. The two-department
+aggregation rule remains a proposed finite example; a real host must prove
+that its projected read history covers every admitted source.
+
 | Owner | Local rule | Partial-root gap |
 |-------+------------+------------------|
 | =Sales= | A Sales record needs Sales or Joint origin. | It does not protect Finance records. |

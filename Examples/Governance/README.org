@@ -33,6 +33,13 @@ composes those owners, overlays the project permit with an analytics-purpose
 condition, and removes the legacy permit. =PlatformV2= overlays the attestation
 veto to require freshness; =GovernedV2= composes the updated platform branch.
 
+These three owners are now =ControlObject= values with a stable policy ID and
+an owner-local denial condition. The object's =policy= and =module= methods
+derive the Cedar policy and the LeanPOO edit together. =PlatformV2= uses the
+same policy ID with a revised condition, so proof reuse tracks one changed
+object slot. The project grant remains a separate positive permit: grouping
+it into a veto object would obscure Cedar's permit/forbid semantics.
+
 =compositionTraceConformsFully= checks the C4 order, eight applied edits, the
 final removal, and the provenance of the platform policy: introduced by
 =Platform=, last edited by =PlatformV2=. =broadPermitRiskDetected= shows why
@@ -150,6 +157,12 @@ policy. The principals, tickets, and device-posture requirement in this
 example are fictive additions for exercising a revision; they are not
 reported as a deployed ticket system.
 
+Here the reusable object is already Cedar's =TemplateLinkedPolicy= with its
+template and slot bindings. =LinkedSet= owns the validated materialization,
+and LeanPOO owns the reconciled revision. Adding a parallel custom ticket
+object would duplicate those authorities. Export files serialize these
+objects; they do not introduce additional governance owners.
+
 =TemplateValidation.LinkedSet= calls upstream =Cedar.Spec.link?= before
 using the certified policy cache. A revised contributor template changes
 two linked bodies while the viewer link stays identical. =Edit.reconcile=
@@ -228,6 +241,13 @@ network routing, or access enforcement.
 outside =10.0.0.0/8=. =EnclaveNetwork= overlays that single veto with
 =10.20.0.0/16=. The old owner, platform, region, and project rules remain
 inherited. =onlyNetworkBodyChanged= checks the one-body revision;
+=NetworkBoundary= is the object behind both revisions: each value owns a
+module name, parent, CIDR, and explicit append or override operation. A
+=foldlM= stages those objects through =Model.extend=, and
+=boundaryObjectProvenance= checks that the surviving policy originated in
+CorporateNetwork and was last edited by EnclaveNetwork. The CIDR and
+parent relationship are no longer scattered across separate module literals.
+The existing network decision matrix remains the behavioral authority;
 =validatedRevisions= checks both policy sets against the extended Cedar schema;
 =externalAccessClosed= checks that an address previously admitted by the
 governed root is denied after the network veto. Nine named requests cover
@@ -269,6 +289,30 @@ classification does not match the principal's clearance. This clearance
 rule is a modeled enterprise requirement, not a claim about the published
 timesheet example.
 
+** Jurisdiction objects before composition
+
+=ApprovalObject= in [[file:CountryApproval.lean][CountryApproval.lean]] binds a
+jurisdiction's approver role, role ancestry, timesheet group, group ancestry,
+and policy ID in one value. Its methods derive both Cedar entities and the
+resource-scoped policy. =Base= appends the France and Germany objects;
+=Expansion= appends UK and Japan without another handwritten role/group/policy
+triple. =Sensitive= is an independent classification owner. =Integrated=
+mixes those branches and removes the broad Europe grant. The object is the
+unit of ownership and extension; the C4 mix resolves the resulting owners.
+Lean checks that every listed object's role and group are present in the
+entity set and its policy survives in =Integrated=. The existing thirteen
+schema-bound Cedar requests still check the published behavior.
+
+#+begin_src mermaid
+flowchart LR
+    J[ApprovalObject: role + group + ancestry + policy] --> B[Base: France and Germany]
+    J --> E[Expansion: UK and Japan]
+    B --> I[Integrated]
+    E --> I
+    S[Sensitive classification owner] --> I
+    I --> R[Remove legacy Europe grant]
+#+end_src
+
 =sensitive-cross-country= shows that the clearance branch alone still
 inherits the Europe-wide grant; =restricted-before-veto= shows that the
 expansion branch alone still admits a restricted timesheet without clearance.
@@ -300,6 +344,7 @@ See [[file:../../docs/rfc/0006-schema-bound-cedar-replay.org][RFC 0006]].
 
 #+begin_src sh
 just example governance country-approval
+just example governance country-approval-validated
 just check-cedar-language
 just check-schema-bound-scenarios
 #+end_src
