@@ -28,6 +28,7 @@ import CedarPooSpec.Vertical.FinancialServices.BankingToolOwner
 import CedarPooSpec.Vertical.FinancialServices.BankingToolProfile
 import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto
 import CedarPooSpec.Admission.BoundOperation
+import CedarPooSpec.Admission.Handoff
 import CedarPooSpec.Admission.SourceNetwork
 import CedarPooSpec.Cloud.Pipeline.ReleaseBoundary
 import CedarPooSpec.Cloud.Pipeline.Evidence

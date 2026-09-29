@@ -1,0 +1,22 @@
+#+TITLE: Cross-Organization Handoff Admission
+#+OPTIONS: toc:nil
+
+[[file:Handoff.lean][Handoff]] defines an exact case and claim-digest scope for a handoff
+between two actors and two selected policy roots. The credential mode is
+also bound. A grant admits only that scope at the current Host epoch before
+expiration. A revocation must advance that epoch before another admission.
+
+The POO object has separate case ID and claim digest slots. Its inherited
+computed scope retains the actors, policy roots, and credential mode from
+the parent. =onCase= derives another case without copying those bindings.
+The object is a reusable expectation, not an issued credential.
+
+The Host must authenticate the grant's issuer and integrity, derive the
+case ID and digest from the actual claim-data result, select the deployed
+policy roots and epoch, and bind any eventual bank effect to that result.
+The pure =Grant.admits= function checks supplied values; constructing a
+matching value in Lean does not establish those Host facts. This module
+does not execute an insurance query, transfer funds, or persist revocation.
+
+[[file:../../Examples/Enterprise/AWS/FinancialServices/ClaimSettlementHandoff.org][The claim-settlement scenario]] combines this admission check with the
+existing insurance and bank Gateway decisions.

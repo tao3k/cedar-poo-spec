@@ -26,7 +26,7 @@ uses the published =query_claims= and =get_claim_details= calls.
 stateDiagram-v2
     [*] --> ClaimQueried: insurance query_claims
     ClaimQueried --> DetailRead: insurance get_claim_details
-    DetailRead --> HandoffRequired: verified case and actor handoff
+    DetailRead --> HandoffRequired: case and claim digest bound to actors
     HandoffRequired --> BalanceChecked: Retail get_balance
     BalanceChecked --> TransferRecorded: Transaction transfer_funds
     TransferRecorded --> Debited: Retail update_balance
@@ -84,7 +84,9 @@ The =policyholderToolAccessIsNotClaimProvenance= Lean result deliberately
 exposes an insufficiency: Cedar tool permission is not proof that the
 returned claim belongs to the bank payment case. The plan keeps adjuster
 and bank operator as distinct principals. Their handoff is an external
-requirement. None of the Lean theorems claims AWS runtime
+requirement. The companion [[file:ClaimSettlementHandoff.org][handoff case]] checks an exact scoped grant
+against the selected case and both Gateway roots. Host authentication of the
+grant and actual claim-data result remains necessary. None of the Lean theorems claims AWS runtime
 execution, data lineage, or settlement completion.
 
 #+begin_src sh

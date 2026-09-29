@@ -30,6 +30,7 @@ claim-settlement:
     just build-examples
     lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlement
     lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlementRevision
+    lake build Tests.Enterprise.AWS.ClaimSettlementHandoff
 
 reconciliation:
     just build-examples
