@@ -10,6 +10,13 @@
   and (.joint_changes | sort) == ["compliance-payment-hold", "risk-payment-hold"]
   and .risk_owner == "RiskReleased"
   and .compliance_owner == "ComplianceReleased"
+  and .release_requires_review == true
+  and .stale_epoch_rejected == true
+  and .changed_schema_rejected == true
+  and .owner_only_change_rejected == true
+  and .unrelated_owner_reused == true
+  and .safe_release_current == true
+  and .safe_release_stale_rejected == true
   and (.manifest.cases | map(.revision)) ==
     ["DualHold", "RiskReleased", "ComplianceReleased", "JointRelease"]
   and (.manifest.cases | map(.expected)) == ["deny", "deny", "deny", "allow"]

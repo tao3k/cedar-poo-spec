@@ -1,4 +1,4 @@
-import CedarPooSpec.AuthorizationDeltaInteraction
+import CedarPooSpec.AuthorizationDeltaRelease
 import CedarPooSpec.PolicyJson
 import Examples.Enterprise.Agent.Payment.AgentPayment
 
@@ -46,9 +46,10 @@ def run : IO Lean.Json := do
       "ComplianceReleased" "PaymentFrozen" paymentSchema with
   | .error (.topology _) => pure ()
   | _ => throw (IO.userError "unrelated root was admitted as a C4 branch mix")
-  let .ok report ← analyzeModelInteraction model "DualHold" "RiskReleased"
-      "ComplianceReleased" "JointRelease" paymentSchema
+  let .ok reviewed ← analyzeAndCapture model "DualHold" "RiskReleased"
+      "ComplianceReleased" "JointRelease" paymentSchema 7
     | throw (IO.userError "joint-release interaction analysis failed")
+  let report := reviewed.analysis
   let .jointOnlyGain gains := report.outcome
     | throw (IO.userError "two individually safe releases did not expose a joint gain")
   let some gain := gains.head?
@@ -73,6 +74,46 @@ def run : IO Lean.Json := do
     | throw (IO.userError "compliance removal missing from edit trail")
   if riskEdit.moduleName != "RiskReleased" || complianceEdit.moduleName != "ComplianceReleased" then
     throw (IO.userError "joint release edit owner is wrong")
+  if !(reviewed.snapshot.currentPolicies model paymentSchema 7).isOk then
+    throw (IO.userError "unchanged reviewed snapshot was rejected")
+  match reviewed.noGainCurrentPolicies model paymentSchema 7 with
+  | .error .requiresReview => pure ()
+  | _ => throw (IO.userError "joint authorization gain bypassed review")
+  match reviewed.snapshot.currentPolicies model paymentSchema 8 with
+  | .error .epochChanged => pure ()
+  | _ => throw (IO.userError "stale Host policy epoch was admitted")
+  let changedSchema := { paymentSchema with acts := Cedar.Data.Map.empty }
+  match reviewed.snapshot.currentPolicies model changedSchema 7 with
+  | .error .schemaChanged => pure ()
+  | _ => throw (IO.userError "changed Cedar schema was admitted")
+  let changedOwner : Model := { modules := model.modules.map fun module =>
+    if module.name == "DualHold" then
+      { module with edits := module.edits ++ [.overlay paymentBase] }
+    else module }
+  if !(reviewed.snapshot.combined.currentPolicies changedOwner).isOk then
+    throw (IO.userError "owner-only mutation changed Cedar policy bodies")
+  match reviewed.snapshot.currentPolicies changedOwner paymentSchema 7 with
+  | .error .modelChanged => pure ()
+  | _ => throw (IO.userError "changed POO edit provenance was admitted")
+  let .ok unrelated := model.extend "UnrelatedOwner" "PaymentBase" []
+    | throw (IO.userError "could not add an unrelated POO owner")
+  if !(reviewed.snapshot.currentPolicies unrelated paymentSchema 7).isOk then
+    throw (IO.userError "unrelated owner unnecessarily invalidated review")
+  let .ok retained := model.extend "ComplianceRetained" "DualHold" []
+    | throw (IO.userError "could not stage retained compliance hold")
+  let .ok safeModel := retained.mix "RiskOnlyReview"
+      ["RiskReleased", "ComplianceRetained"]
+    | throw (IO.userError "could not compose the no-gain review root")
+  let .ok safeReview ← analyzeAndCapture safeModel "DualHold" "RiskReleased"
+      "ComplianceRetained" "RiskOnlyReview" paymentSchema 11
+    | throw (IO.userError "no-gain release analysis failed")
+  let .noCombinedGain := safeReview.analysis.outcome
+    | throw (IO.userError "retaining one hold unexpectedly grants access")
+  if !(safeReview.noGainCurrentPolicies safeModel paymentSchema 11).isOk then
+    throw (IO.userError "current no-gain review was rejected")
+  match safeReview.noGainCurrentPolicies safeModel paymentSchema 12 with
+  | .error .epochChanged => pure ()
+  | _ => throw (IO.userError "stale no-gain review was admitted")
   let request := gain.combined.witness.request
   let entities := gain.combined.witness.entities
   let mut cases := []
@@ -90,6 +131,13 @@ def run : IO Lean.Json := do
     ("joint_changes", Lean.toJson report.combined.symbolic.changedPolicyIds),
     ("risk_owner", Lean.toJson riskEdit.moduleName),
     ("compliance_owner", Lean.toJson complianceEdit.moduleName),
+    ("release_requires_review", Lean.toJson true),
+    ("stale_epoch_rejected", Lean.toJson true),
+    ("changed_schema_rejected", Lean.toJson true),
+    ("owner_only_change_rejected", Lean.toJson true),
+    ("unrelated_owner_reused", Lean.toJson true),
+    ("safe_release_current", Lean.toJson true),
+    ("safe_release_stale_rejected", Lean.toJson true),
     ("manifest", Lean.Json.mkObj [("cases", Lean.toJson cases)])]
 
 end CedarPooSpec.AgentPaymentJointRelease

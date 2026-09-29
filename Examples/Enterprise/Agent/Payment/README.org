@@ -130,6 +130,25 @@ the actual deployment state, and Host execution remain separate gates. It is
 evidence of one joint gain, not a proof that the two removals are the only
 cause or that every possible branch composition has been explored.
 
+The [[file:../../../../CedarPooSpec/AuthorizationDeltaRelease.lean][release-review snapshot]] binds that analysis to the four compiled
+policy sets, the exact schema representation, all C4 modules in the four root
+ancestries, and a Host-supplied policy epoch. A changed epoch or schema, or an
+owner edit that leaves Cedar policy bodies identical, makes the snapshot
+stale. A new owner outside those ancestries leaves it reusable. The
+=noGainCurrentPolicies= API refuses this example's joint gain with
+=requiresReview=; capturing a result does not approve it. An authorized Host
+can perform a separate approval workflow after reviewing the witness, but
+must compare the snapshot and reserve publication in one transaction.
+
+This boundary matters in actual deployments. [[https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/policy-store-aliases-using.html][AWS Verified Permissions]]
+documents that policy-store alias changes propagate asynchronously and cannot
+provide an atomic cutover. [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/manage-policies-engines.html][AgentCore]] likewise documents asynchronous policy updates and
+invalidation of in-flight temporal sessions for relevant changes. This Lean
+snapshot is a Host contract, not a claim that those remote services provide
+the required compare-and-swap primitive. A caller must authenticate the
+approval, bind it to the reviewed epoch and release, verify what policy set is
+actually active, and coordinate effects or traffic switching itself.
+
 #+begin_src sh
 just check-payment-interaction
 #+end_src

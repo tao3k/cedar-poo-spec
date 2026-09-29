@@ -279,6 +279,14 @@ returns =branchExpanded= rather than claiming to have exhaustively classified
 joint effects. It checks Cedar decisions; Host execution still needs the
 error-free and transaction gates.
 
+[[file:../../CedarPooSpec/AuthorizationDeltaRelease.lean][AuthorizationDeltaRelease]] captures a four-root analysis with the exact
+compiled policies, schema representation, C4 ancestor modules, and a
+Host-supplied epoch. Its freshness check rejects changes to any reviewed
+dimension while allowing unrelated owner additions. The no-gain candidate
+API refuses joint gains until a separate approval has occurred. It does not
+authenticate that approval, read a provider's active policy version, publish
+policies, or make the comparison and effect atomic; those remain Host duties.
+
 The repository devenv provides cvc5 and sets =CVC5= to its absolute executable
 path. After activating the repository through =direnv=, run the gate through
 the cached profile entrypoint:
@@ -321,6 +329,7 @@ evidence. They must remain separate in release decisions:
 | Determining-policy change with unchanged decision | Conservative upstream matching queries and concrete Cedar reason witnesses | The sufficient-condition analyzer may leave non-dominated masks unresolved; use effective-reason equivalence for the broader query. |
 | Effective final-reason membership | Lean-proved reduction to Cedar's authorization equivalence, with concrete Cedar replay | External solver answers and schema-environment coverage remain trust boundaries. |
 | Two-branch POO composition | Three Cedar gain queries, C4 provenance, and a four-root replayed witness | Joint-only classification requires both branches to have no gain; other interactions remain unclassified. |
+| Release-review freshness | Four compiled policy sets, relevant C4 modules, exact schema representation, and Host epoch | Pure compare only; Host authenticates approval and makes publication atomic. |
 | POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
