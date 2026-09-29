@@ -13,6 +13,8 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
+/// Proposed disclosure bound to its source lineage, recipient, purpose, output,
+/// channel, and cohort evidence. The Host must verify these values independently.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Effect {
     pub sources: Vec<String>,
@@ -23,6 +25,7 @@ pub struct Effect {
     pub candidate_ids: Vec<String>,
 }
 
+/// A scoped approval or delegation asserted by an authenticated authority.
 #[derive(Clone, Debug)]
 pub struct Grant {
     pub issuer: String,
@@ -203,6 +206,7 @@ impl PolicyBundle {
     }
 }
 
+/// Prepared authority for one exact effect at specific Host state revisions.
 #[derive(Clone, Debug)]
 pub struct Ticket {
     effect: Effect,
@@ -212,6 +216,7 @@ pub struct Ticket {
     delegation_revision: u64,
 }
 
+/// Process-local audit record emitted after a successful state commit.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitReceipt {
