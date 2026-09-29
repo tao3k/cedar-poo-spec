@@ -199,7 +199,7 @@ replanning; token-local single use is insufficient without durable,
 monotonic authorization state. The [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/README.md][Cedar Lean README]] describes symbolic
 equivalence and implication of policy sets, which answer policy behavior
 questions but do not consume a Host ticket. The September 2026
-[[https://mirror.apps.cam.ac.uk/pub/doc/internet-drafts/draft-saha-aadp-04.html][AADP Internet-Draft]] describes a two-phase decision and enforcement contract
+[[https://datatracker.ietf.org/doc/html/draft-saha-aadp-04][AADP Internet-Draft]] describes a two-phase decision and enforcement contract
 with reservations and idempotency; it remains work in progress, not an
 implemented standard here. This example closes policy-revision binding in
 the pure model. Durable semantic replay prevention and idempotent external
