@@ -80,7 +80,8 @@ def run : IO Lean.Json := do
   | .error .requiresReview => pure ()
   | _ => throw (IO.userError "joint authorization gain bypassed review")
   match reviewed.advanceNoGain model paymentSchema
-      { activeRoot := "DualHold", epoch := 7 } with
+      { activeRoot := "DualHold", activePolicies := reviewed.snapshot.base.policies,
+        epoch := 7 } with
   | .error .requiresReview => pure ()
   | _ => throw (IO.userError "joint authorization gain advanced active policy")
   match reviewed.snapshot.currentPolicies model paymentSchema 8 with
@@ -118,10 +119,16 @@ def run : IO Lean.Json := do
   match safeReview.noGainCurrentPolicies safeModel paymentSchema 12 with
   | .error .epochChanged => pure ()
   | _ => throw (IO.userError "stale no-gain review was admitted")
+  match safeReview.advanceNoGain safeModel paymentSchema
+      { activeRoot := "DualHold", activePolicies := [], epoch := 11 } with
+  | .error .activePoliciesChanged => pure ()
+  | _ => throw (IO.userError "different active policy set was admitted")
   let .ok (next, _) := safeReview.advanceNoGain safeModel paymentSchema
-      { activeRoot := "DualHold", epoch := 11 }
+      { activeRoot := "DualHold", activePolicies := safeReview.snapshot.base.policies,
+        epoch := 11 }
     | throw (IO.userError "current no-gain review could not advance")
-  if next.activeRoot != "RiskOnlyReview" || next.epoch != 12 then
+  if next.activeRoot != "RiskOnlyReview" || next.epoch != 12 ||
+      next.activePolicies != safeReview.snapshot.combined.policies then
     throw (IO.userError "no-gain advance did not update the active version")
   match safeReview.advanceNoGain safeModel paymentSchema next with
   | .error .activeRootChanged => pure ()
@@ -150,6 +157,7 @@ def run : IO Lean.Json := do
     ("unrelated_owner_reused", Lean.toJson true),
     ("safe_release_current", Lean.toJson true),
     ("safe_release_stale_rejected", Lean.toJson true),
+    ("different_active_policies_rejected", Lean.toJson true),
     ("second_commit_rejected", Lean.toJson true),
     ("manifest", Lean.Json.mkObj [("cases", Lean.toJson cases)])]
 

@@ -46,6 +46,7 @@ inductive ReleaseError where
   | schemaChanged
   | epochChanged
   | activeRootChanged
+  | activePoliciesChanged
   | requiresReview
   | rootChanged (root : String) (error : CedarPooSpec.Admission.PolicySnapshot.Error)
   deriving Repr
@@ -115,6 +116,7 @@ def ReviewedInteraction.noGainCurrentPolicies (reviewed : ReviewedInteraction)
     storage and synchronization of this state. -/
 structure ReleaseState where
   activeRoot : String
+  activePolicies : Policies
   epoch : Nat
   deriving BEq, Repr
 
@@ -124,9 +126,12 @@ def ReviewedInteraction.advanceNoGain (reviewed : ReviewedInteraction)
     (model : Model) (schema : Schema) (state : ReleaseState) :
     Except ReleaseError (ReleaseState × Policies) := do
   if state.activeRoot != reviewed.snapshot.base.root then throw .activeRootChanged
+  if state.activePolicies != reviewed.snapshot.base.policies then
+    throw .activePoliciesChanged
   let policies ← reviewed.noGainCurrentPolicies model schema state.epoch
   let next : ReleaseState :=
-    { activeRoot := reviewed.snapshot.combined.root, epoch := state.epoch + 1 }
+    { activeRoot := reviewed.snapshot.combined.root,
+      activePolicies := policies, epoch := state.epoch + 1 }
   return (next, policies)
 
 end CedarPooSpec.AuthorizationDelta
