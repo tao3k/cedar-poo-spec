@@ -14,8 +14,9 @@ The [[file:BoundOperation.lean][BoundOperation]] API binds an effect to its proj
 The [[file:../Data/Lineage.lean][Lineage]] and [[file:../Data/CumulativeDisclosure.lean][CumulativeDisclosure]] modules model source
 ancestry and cumulative release state. The [[file:../../Examples/Health/Pseudonymization/AgentDisclosure.org][hospital Agent disclosure case]]
 combines them with scoped approval, delegation, and Cedar policy replay.
-None of these pure models authenticates source data or supplies a durable
-transaction by itself.
+The [[file:../../rust/src/disclosure_host.rs][process-local Rust Host reference]] rechecks the
+composed Cedar policy and commits a disclosure ledger under one lock. These
+models do not authenticate source data or supply a durable transaction.
 
 * References and precise use
 
@@ -38,8 +39,9 @@ transaction by itself.
 4. Make the effect visible only after commit. A retry must obtain a new ticket
    against the new state; an old ticket cannot authorize a changed effect.
 
-This contract is a solution design and a finite executable model. Production
-closure additionally requires a Host implementation, authenticated provider
-and query receipts, persistent transaction tests, and a deployment-specific
+The process-local Host example executes reauthorization and one in-memory
+commit; it is not the durable Host required by this contract. Production
+closure additionally requires authenticated provider and query receipts,
+durable transaction and effect execution tests, and a deployment-specific
 privacy assessment. The cited sources do not claim that SPEC has completed
 those integrations.

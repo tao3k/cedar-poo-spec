@@ -43,6 +43,11 @@ name = "pseudonymization_google_admission"
 path = "examples/pseudonymization_google_admission.rs"
 required-features = ["google-sdp-host"]
 
+[[example]]
+name = "agent_disclosure_host"
+path = "examples/agent_disclosure_host.rs"
+required-features = ["cedar-runtime"]
+
 [[test]]
 name = "pseudonymization_crypto"
 path = "tests/integration/pseudonymization_crypto.rs"

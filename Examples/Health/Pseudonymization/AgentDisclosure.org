@@ -66,7 +66,7 @@ proxy, not a semantic leakage certificate or statistical disclosure control.
 | Raw input to token | =Lifecycle.ingestEffect= and [[file:CrossStep.lean][CrossStep.TokenReceipt]] bind dataset, input digest, key, and revisions; Google SDP has an offline contract and local crypto example | Authenticate the real input and provider response; persist token provenance. |
 | Token to Agent read and join | =CrossStep.join= consumes the token receipt and =Lifecycle.joinEffect= checks a scoped grant and policy revision | Bind the real query and every selected source receipt to the Agent's delegated task. |
 | Join to derived result | =CrossStep.derive= carries purpose and query digest; =JoinedLineage= composes hospital and research labels | Authenticate the transformation graph and output bytes rather than accepting Agent-declared labels. |
-| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, cohort state, revisions, budget, and exact effect | Persist the shared cohort ledger, budget debit, and audit in one transaction before sending. |
+| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, cohort state, revisions, budget, and exact effect; the [[file:../../../rust/src/disclosure_host.rs][in-memory Rust Host]] reauthorizes with official Cedar and commits cohort, budget, and audit under one lock | Persist these changes durably in one transaction before sending; authenticate output and candidate-set evidence. |
 | Token to re-identification | =CrossStep.reidentify= reuses token provenance but requires =Lifecycle.revealEffect='s distinct clinical approval | Bind the actual recovery request, provider receipt, clinical purpose, and plaintext effect to one durable Host transaction. |
 
 The executable Lean transitions now pass typed synthetic receipts across all
@@ -86,5 +86,11 @@ Lean state transition does not make this transaction durable.
 [[file:AgentDisclosureExport.lean][AgentDisclosureExport.lean]] sends the same fourteen synthetic policy decisions to
 the official Cedar Rust validator and authorizer. =just example health
 agent-disclosure= checks exact allow/deny outcomes, empty policy errors, and
-schema fingerprints. This is policy replay and a finite Host-state model, not
-an end-to-end hospital integration or a measured privacy guarantee.
+schema fingerprints. The same recipe runs the [[file:../../../rust/examples/agent_disclosure_host.rs][Rust Host example]]:
+one release commits, only one of two concurrent commits succeeds, a stale
+ticket and altered channel fail, a later
+message is denied by the shared cohort state, and revocation, audit failure,
+and a wrong grant issuer fail before release. This is a process-local Host
+reference with synthetic facts. It does not authenticate a real query or
+provider receipt, durably persist the transaction, send an external effect,
+or establish a measured privacy guarantee.
