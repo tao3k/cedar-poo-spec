@@ -70,13 +70,17 @@ construction-time boundary for Lean-POO multiple dispatch across independently
 extensible policy profiles.
 [[file:docs/rfc/0008-composable-control-objects.org][RFC 0008]] defines an
 open, scenario-driven control-object library above Cedar's upstream semantics.
-Pseudonymization, Admission, Governance, and Data are cross-industry
+Pseudonymization, Admission, Governance, Data, and
+[[file:CedarPooSpec/Cloud/README.org][Cloud]] are cross-industry
 capability families;
 =Vertical/Health= and =Vertical/FinancialServices= hold industry controls,
 while =Platform/AWS= holds reusable AgentCore integration projections.
 The [[file:CedarPooSpec/Data/Lakehouse/README.org][Lakehouse data boundary]] can be selected without AWS or finance; an
 [[file:Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/README.org][AWS insurance profile]] composes it with a financial claims rule and the
 AgentCore projection.
+The [[file:Examples/Cloud/Pipeline/README.org][cloud pipeline case]] composes
+source, dependency, runner, and artifact controls through separate LeanPOO
+owners, then adds an artifact-specific incident revision.
 The current APIs bind typed operations to Cedar requests, revise owned
 permit and forbid slots, compare data attributes through Cedar's expression
 AST, check source-network and token-catalog boundaries, and strengthen
@@ -143,7 +147,8 @@ and keep their assumptions explicit.
 Industry-specific scenario facts and Host execution remain in Examples or
 downstream projects. Reusable healthcare and finance controls live under
 =Vertical/=; platform-specific projections live under =Platform/=, and
-cross-industry data capabilities live under =Data/=.
+cross-industry data capabilities live under =Data/=, and cross-industry build
+and release controls live under =Cloud/=.
 For FHIR-consuming applications, the upstream FHIR implementation owns
 parsing and resource semantics; the Host projects verified facts; this
 library composes Cedar authorization controls. See the

@@ -1,4 +1,5 @@
 mod core 'Core/Justfile'
+mod cloud 'Cloud/Justfile'
 mod aws 'Enterprise/AWS/Justfile'
 mod scenarios 'Scenarios/Justfile'
 mod health 'Health/Justfile'

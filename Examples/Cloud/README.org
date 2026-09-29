@@ -1,0 +1,8 @@
+#+TITLE: Cloud Control Examples
+#+OPTIONS: toc:nil
+
+Cloud examples compose provider-neutral objects from
+[[file:../../CedarPooSpec/Cloud/README.org][the Cloud library]].
+Platform-specific examples remain under their provider and may import these
+controls. The first case is the
+[[file:Pipeline/README.org][code pipeline release]] scenario.

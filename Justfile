@@ -48,6 +48,7 @@ check: check-tests check-docs
     just example health pseudonymization
     just example health multi-hospital-ai
     just example health model-stewardship
+    just example cloud pipeline-google-threat
     just example health my-health-record
     just example health australian-emr
     just example health united-states-payer
@@ -140,7 +141,7 @@ check-payment-delta: build-examples
     jq '.manifest' .lake/build/payment-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 [parallel]
-check-examples: example::core::evaluation example::core::composition example::core::authorization example::scenarios::tenant-device example::health::clinical-break-glass example::health::wearable-triage example::health::prior-authorization-lean example::health::prior-authorization-internal-channels-lean example::governance::attested-data example::governance::trusted-network example::governance::country-approval example::governance::ticket-sharing example::language::scope-and-enum example::language::extension-coverage example::enterprise::agent::delegation example::enterprise::agent::chain example::enterprise::agent::payment example::enterprise::agent::data-flow example::enterprise::agent::session example::enterprise::agent::fanout example::enterprise::agent::cross-agent-egress-lean example::enterprise::agent::department-synthesis-lean example::enterprise::payment::release example::enterprise::procurement::purchase-approval example::enterprise::procurement::delegated-approval example::enterprise::vehicle::supplier-transition example::enterprise::vehicle::vla-command example::enterprise::vehicle::mission-successor example::enterprise::vehicle::mission-replay example::enterprise::vehicle::mission-maintenance example::enterprise::vehicle::tara
+check-examples: example::core::evaluation example::core::composition example::core::authorization example::cloud::pipeline-google-threat example::scenarios::tenant-device example::health::clinical-break-glass example::health::wearable-triage example::health::prior-authorization-lean example::health::prior-authorization-internal-channels-lean example::governance::attested-data example::governance::trusted-network example::governance::country-approval example::governance::ticket-sharing example::language::scope-and-enum example::language::extension-coverage example::enterprise::agent::delegation example::enterprise::agent::chain example::enterprise::agent::payment example::enterprise::agent::data-flow example::enterprise::agent::session example::enterprise::agent::fanout example::enterprise::agent::cross-agent-egress-lean example::enterprise::agent::department-synthesis-lean example::enterprise::payment::release example::enterprise::procurement::purchase-approval example::enterprise::procurement::delegated-approval example::enterprise::vehicle::supplier-transition example::enterprise::vehicle::vla-command example::enterprise::vehicle::mission-successor example::enterprise::vehicle::mission-replay example::enterprise::vehicle::mission-maintenance example::enterprise::vehicle::tara
 
 prepare-cedar-manifest: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean ticket-sharing > .lake/build/ticket-sharing-manifest.json

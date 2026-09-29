@@ -1,0 +1,6 @@
+set working-directory := '../..'
+
+pipeline-google-threat:
+    lake build Examples.Cloud.Pipeline.ReplayMain Tests.Cloud.Pipeline.GoogleThreatCase
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Cloud/Pipeline/ReplayMain.lean > .lake/build/cloud-pipeline-google-threat-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- < .lake/build/cloud-pipeline-google-threat-manifest.json

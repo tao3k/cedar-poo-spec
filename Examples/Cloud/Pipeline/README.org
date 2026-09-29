@@ -1,0 +1,62 @@
+#+TITLE: Cross-Stage Code Pipeline Release
+#+OPTIONS: toc:nil
+
+* Source and question
+
+[[https://cloud.google.com/blog/topics/threat-intelligence/hardening-code-pipelines-and-ci-cd-infrastructure][Google Cloud Threat Intelligence and Mandiant, September 24, 2026]]
+describe attacks crossing developer tools, code repositories, dependencies,
+runner caches, OIDC identity, artifact provenance, and deployment. Their
+[[https://cloud.google.com/blog/topics/threat-intelligence/mitigation-guidance-for-supply-chain-compromise][July 2026 supply-chain analysis]] describes malicious dependencies and
+privileged workflow triggers in observed campaigns. These reports motivate
+the boundary; the identities and releases below are synthetic, not a claim
+about Google's deployed infrastructure.
+
+The difficult case is an apparently signed artifact assembled after a source
+review but on a poisoned runner or with an unquarantined dependency. Signature
+verification alone cannot establish that the upstream build path was safe.
+
+#+begin_src mermaid
+stateDiagram-v2
+  [*] --> Base: candidate grant
+  Base --> SourceBound: reviewed commit and workflow
+  SourceBound --> DependencyBound: lock and quarantine
+  DependencyBound --> RunnerBound: ephemeral runner and isolated cache
+  RunnerBound --> ReleaseReady: digest, builder and provenance
+  ReleaseReady --> Quarantined: affected artifact incident
+  Quarantined --> Recovered: withdraw local incident veto
+#+end_src
+
+* Object composition
+
+[[file:GoogleThreatCase.lean][The Lean scenario]] creates a Base permit and
+four independent stage owners with =Model.define=. It combines those objects
+with =Model.combine=, preserving their separate policy IDs and C4 origins.
+The common [[file:../../../CedarPooSpec/Cloud/Pipeline/ReleaseBoundary.lean][ReleaseBoundary]]
+generates one Cedar forbid control per stage. An incident appends a veto for
+only the affected artifact; recovery removes that veto while the four stage
+owners remain inherited. The
+[[file:../../../Tests/Cloud/Pipeline/GoogleThreatCase.lean][checks]] prove
+the ordered owners, all expected decisions, Cedar schema validity, and the
+one-policy incident/recovery delta.
+
+The stage progression exposes the need for composition: SourceBound rejects
+the wrong commit but still accepts an unquarantined package; DependencyBound
+closes that gap but still accepts a shared cache; RunnerBound blocks that
+cache but still accepts missing provenance. ReleaseReady enforces all four.
+The release is allowed only if its actual target attributes match the
+projected commit, workflow, lock digest, OIDC audience, artifact digest, and
+builder identity. =just example cloud pipeline-google-threat= exports the
+same 21 decisions and replays them with the official Cedar Rust authorizer.
+
+* Trust and execution boundary
+
+The boolean signals are synthetic Host assertions. The Host must obtain and
+authenticate review status, branch protection, lockfile and action pins,
+quarantine verdicts, ephemeral-runner and cache isolation, workflow identity,
+OIDC audience, signature verification, and provenance for the exact artifact
+digest. It must bind the final publish operation to that digest and current
+evidence, perform the effect under an appropriately scoped identity, and
+record a durable receipt. Cedar evaluates the projected request; LeanPOO
+composes reusable controls. Neither reads CI configuration, verifies a
+signature, proves a runner was isolated, blocks network egress, nor revokes
+an artifact already delivered downstream.

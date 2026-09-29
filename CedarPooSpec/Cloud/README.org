@@ -1,0 +1,8 @@
+#+TITLE: Cloud Control Boundaries
+#+OPTIONS: toc:nil
+
+Cloud holds reusable controls spanning repositories, builds, artifacts, and
+deployment targets. These modules are provider-neutral. A platform adapter
+under =Platform= maps a provider's evidence into these controls; a vertical
+module selects the controls appropriate to its domain. The
+[[file:Pipeline/README.org][pipeline boundary]] is the first component.

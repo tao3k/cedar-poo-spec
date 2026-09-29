@@ -1,0 +1,19 @@
+#+TITLE: Composable Pipeline Release Boundary
+#+OPTIONS: toc:nil
+
+[[file:ReleaseBoundary.lean][ReleaseBoundary]] defines four independently
+owned Cedar forbid controls for a code-to-artifact release: reviewed source
+and exact commit/workflow; locked and quarantined dependencies; isolated
+runner, cache, and OIDC audience; and artifact digest, signer, and provenance.
+Each control generates a normal Cedar policy edit. A caller composes these
+owners with LeanPOO and supplies its own permit and incident rules.
+
+The context signals and resource attributes are contracts for a trusted
+Host. This library neither verifies cryptographic signatures nor inspects
+GitHub Actions, source history, caches, registries, or live deployments.
+The Host must authenticate evidence, bind it to the actual publish effect,
+recheck current state at execution, and retain an effect receipt.
+
+[[file:../../../Examples/Cloud/Pipeline/README.org][The scenario]] connects
+these controls to Google Cloud Threat Intelligence's September 2026 pipeline
+hardening guidance and shows staged POO composition and local quarantine.
