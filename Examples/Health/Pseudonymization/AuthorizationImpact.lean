@@ -10,6 +10,10 @@ namespace CedarPooSpec.PseudonymizationExample.AuthorizationImpact
 
 open CedarPooSpec.AuthorizationDelta
 open CedarPooSpec.PseudonymizationExample
+open Cedar.Spec Cedar.Data
+
+private def replaceDataset (uid : EntityUID) (data : EntityData) : Entities :=
+  Map.make ((uid, data) :: entities.toList.filter (fun entry => entry.1 != uid))
 
 def run : IO Lean.Json := do
   let .ok policies := model.compile hospitalView.name
@@ -28,6 +32,30 @@ def run : IO Lean.Json := do
   match compareOperationSnapshots schema policies policies beforeSnapshot switchedTarget with
   | .error .operationChanged => pure ()
   | _ => throw (IO.userError "different dataset cannot be reported as one operation delta")
+  let linkedRequest := request agent PseudonymizationExample.join hospital
+    { targetDataset := rewrapped }
+  let linkedBefore : Cedar.Spec.Env := ⟨linkedRequest, entities⟩
+  let lineageChanges ← [
+    ("scope", datasetData .aesSiv "study-two"),
+    ("token-key", datasetData .aesSiv "hospital-a"
+      { hospitalLineage with tokenKeyVersion := "dek-v2" }),
+    ("transform", datasetData .aesSiv "hospital-a"
+      { hospitalLineage with transformVersion := "patient-id-v2" })
+  ].mapM fun (kind, replacement) => do
+    let after : Cedar.Spec.Env :=
+      ⟨linkedRequest, replaceDataset rewrapped replacement⟩
+    let .ok impact := compareOperationSnapshots schema policies policies linkedBefore after
+      | throw (IO.userError s!"could not compare {kind} snapshots")
+    if !impact.lost || impact.gained then
+      throw (IO.userError s!"{kind} change did not revoke the selected join")
+    let .ok report := CedarPooSpec.AuthorizationDeltaJson.snapshotReport
+      impact linkedBefore after
+      | throw (IO.userError s!"could not render {kind} snapshots")
+    let .ok manifest := CedarPooSpec.AuthorizationDeltaJson.snapshotCases
+      kind model hospitalView.name hospitalView.name linkedBefore after
+      | throw (IO.userError s!"could not render {kind} replay cases")
+    pure <| Lean.Json.mkObj [
+      ("kind", Lean.toJson kind), ("report", report), ("manifest", manifest)]
   let suspended ← match ← analyzeModelImpact model hospitalView.name incident.name schema with
     | .ok report => pure report
     | .error error => throw (IO.userError s!"suspension analysis: {reprStr error}")
@@ -52,14 +80,15 @@ def run : IO Lean.Json := do
     approvalImpact beforeSnapshot afterSnapshot
     | throw (IO.userError "could not render approval snapshots")
   let .ok approvalManifest := CedarPooSpec.AuthorizationDeltaJson.snapshotCases
-    model hospitalView.name hospitalView.name beforeSnapshot afterSnapshot
+    "approval" model hospitalView.name hospitalView.name beforeSnapshot afterSnapshot
     | throw (IO.userError "could not render approval replay cases")
   return Lean.Json.mkObj [
     ("suspended", suspendedJson), ("restored", restoredJson),
     ("suspended_manifest", suspendedManifest),
     ("restored_manifest", restoredManifest),
     ("approval_withdrawal", approvalJson),
-    ("approval_manifest", approvalManifest)]
+    ("approval_manifest", approvalManifest),
+    ("lineage_changes", Lean.toJson lineageChanges)]
 
 end CedarPooSpec.PseudonymizationExample.AuthorizationImpact
 

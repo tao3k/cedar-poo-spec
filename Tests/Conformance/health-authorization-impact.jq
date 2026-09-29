@@ -19,3 +19,9 @@
   and (.suspended_manifest.cases | length) == 2
   and (.restored_manifest.cases | length) == 2
   and (.approval_manifest.cases | length) == 2
+  and [.lineage_changes[].kind] == ["scope", "token-key", "transform"]
+  and all(.lineage_changes[];
+    .report.before_decision == "allow"
+    and .report.after_decision == "deny"
+    and (.manifest.cases | length) == 2)
+  and ([.lineage_changes[].manifest.cases[].name] | unique | length) == 6

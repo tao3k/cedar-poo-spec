@@ -123,6 +123,7 @@ check-health-authorization-impact:
     jq '.suspended_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
     jq '.restored_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
     jq '.approval_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
+    jq '{cases: [.lineage_changes[].manifest.cases[]]}' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-authorization-delta-proof:
     lake build CedarPooSpec.AuthorizationDeltaProof

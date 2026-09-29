@@ -78,11 +78,11 @@ def snapshotReport (item : SnapshotImpact) (before after : Cedar.Spec.Env) :
     ("before_decision", Lean.toJson item.beforeResponse.decision),
     ("after_decision", Lean.toJson item.afterResponse.decision)]
 
-def snapshotCases (model : Model) (beforeRoot afterRoot : String)
+def snapshotCases (name : String) (model : Model) (beforeRoot afterRoot : String)
     (before after : Cedar.Spec.Env) : Except String Lean.Json := do
-  let beforeCase ← CedarPooSpec.PolicyJson.authorizationCase "snapshot-before"
+  let beforeCase ← CedarPooSpec.PolicyJson.authorizationCase s!"{name}-before"
     beforeRoot model beforeRoot before.request before.entities
-  let afterCase ← CedarPooSpec.PolicyJson.authorizationCase "snapshot-after"
+  let afterCase ← CedarPooSpec.PolicyJson.authorizationCase s!"{name}-after"
     afterRoot model afterRoot after.request after.entities
   return Lean.Json.mkObj [("cases", Lean.toJson [beforeCase, afterCase])]
 

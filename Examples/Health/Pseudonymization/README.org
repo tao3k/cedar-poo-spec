@@ -261,10 +261,13 @@ Rust authorizer replays both sides of each witness.
 The same example compares one operation before and after its Host-projected
 =joinApproved= fact is withdrawn. The policy root stays =HospitalSiv=, so this
 is a concrete snapshot comparison, not a symbolic claim over every possible
-approval state. A self-hosted application can supply its own authenticated
-approval record and entity state; choosing a cloud transformation service is
-independent of this Lean composition. The Host must still make the approval
-snapshot current at effect commit and durably record the result.
+approval state. Three further snapshots change the target dataset's scope,
+token-key version, or input transformation version while keeping the operation
+and policy root fixed; each removes the previously allowed join. A self-hosted
+application can supply its own authenticated approval record, data catalog,
+and key inventory; choosing a cloud transformation service is independent of
+this Lean composition. The Host must still make every snapshot current at
+effect commit and durably record the result.
 
 #+begin_src sh
 just check-health-authorization-impact
