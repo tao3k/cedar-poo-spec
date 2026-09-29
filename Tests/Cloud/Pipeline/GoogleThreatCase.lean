@@ -14,7 +14,7 @@ theorem stageDecisionsExact :
 
 theorem allDiagnosticRootsValidate :
     ["Base", "SourcePrecheck", "SourceBound", "DependencyBound", "RunnerBound", "ArtifactBound",
-      "ReleaseReady", "Quarantined", "Recovered"].all (fun root =>
+      "ReleaseReady", "Quarantined", "Recovered", "CanaryRelease"].all (fun root =>
         (CedarPooSpec.PolicyJson.publish model root schema).isOk) = true := by
   native_decide
 
@@ -32,6 +32,19 @@ theorem independentStageOwnersPresent :
 
 theorem sourceControlAddsOnlyItsOwnedPolicy :
     ((model.compileRevision "SourcePrecheck" "SourceBound").toOption.get
+      (by native_decide)).changedPolicyIds = [sourceControl.policyId] := by
+  native_decide
+
+theorem prototypeBranchOverrideKeepsParent :
+    productionProfile.read .branch = some "main" ∧
+    canaryProfile.read .branch = some "release-candidate" ∧
+    canaryProfile.plan.precedence = ["CanarySource", "ProductionSource"] ∧
+    productionControl.protectedBranch = "main" ∧
+    canaryControl.protectedBranch = "release-candidate" := by
+  native_decide
+
+theorem canaryRevisionTouchesOnlySourceControl :
+    ((model.compileRevision "ReleaseReady" "CanaryRelease").toOption.get
       (by native_decide)).changedPolicyIds = [sourceControl.policyId] := by
   native_decide
 

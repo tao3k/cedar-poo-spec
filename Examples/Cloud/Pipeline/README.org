@@ -24,6 +24,7 @@ stateDiagram-v2
   DependencyBound --> RunnerBound: ephemeral runner and isolated cache
   RunnerBound --> ArtifactBound: digest, builder and signature
   ArtifactBound --> ReleaseReady: bound provenance claims
+  ReleaseReady --> CanaryRelease: override protected source branch
   ReleaseReady --> Quarantined: affected artifact incident
   Quarantined --> Recovered: withdraw local incident veto
 #+end_src
@@ -56,7 +57,7 @@ projected commit, workflow, lock digest, OIDC audience, artifact digest, and
 builder identity. The provenance claim entity must separately bind the
 source repository, commit, workflow, lock, OIDC audience, build type, builder
 and subject digest to that target. =just example cloud pipeline-google-threat=
-exports the same 43 decisions and replays them with the official Cedar Rust
+exports the same 47 decisions and replays them with the official Cedar Rust
 authorizer.
 [[file:Deployment.lean][The typed deployment selector]] admits only ReleaseReady, Quarantined,
 and Recovered; incomplete stage roots are diagnostic cases.
@@ -75,6 +76,15 @@ boundary's effect.
 
 The same owner admits an Agent-authored change after authenticated human
 review and denies an Agent-only approval; no second policy body is needed.
+
+[[file:../../../CedarPooSpec/Cloud/Pipeline/SourceProfile.lean][SourceProfile]] uses LeanPOO's first-class =Object.define= and
+=extendWith= APIs. Its inherited computed control slot reads the final
+object's branch slot. The production object keeps =main=, while its canary
+child selects =release-candidate=; the generated Cedar policy is then
+overlaid only at the =CanaryRelease= root. Lean checks prove the parent
+remains unchanged and only the source-control policy ID changes. The canary
+root is a diagnostic profile and is excluded from the typed deployment
+selector, so this branch variation cannot be published by that selector.
 
 The source model follows the article's [[https://cloud.google.com/blog/topics/threat-intelligence/hardening-code-pipelines-and-ci-cd-infrastructure][Code Repositories]] section. GitHub's
 [[https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository][ruleset documentation]] describes required pull requests, status checks,

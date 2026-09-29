@@ -1,6 +1,7 @@
 import CedarPooSpec.Cloud.Pipeline.ReleaseBoundary
 import CedarPooSpec.Cloud.Pipeline.Evidence
 import CedarPooSpec.Cloud.Pipeline.SourceControlBoundary
+import CedarPooSpec.Cloud.Pipeline.SourceProfile
 import CedarPooSpec.PolicyJson
 
 /-!
@@ -42,6 +43,7 @@ def staleReviewChange : EntityUID := ⟨sourceChangeType, "stale-review"⟩
 def otherBranchChange : EntityUID := ⟨sourceChangeType, "other-branch"⟩
 def agentAuthoredChange : EntityUID := ⟨sourceChangeType, "agent-authored-human-reviewed"⟩
 def agentApprovedChange : EntityUID := ⟨sourceChangeType, "agent-approved"⟩
+def canaryChange : EntityUID := ⟨sourceChangeType, "canary-branch"⟩
 
 def fields : List String := ProvenanceClaim.fields
 
@@ -142,6 +144,7 @@ def entities : Entities := Map.make
    (otherBranchChange, { acceptedChange with branch := "feature" }.entityData),
    (agentAuthoredChange, agentAuthoredClaim.entityData),
    (agentApprovedChange, agentApprovedClaim.entityData),
+   (canaryChange, { acceptedChange with branch := "release-candidate" }.entityData),
    (promote, actionSchemaEntryToEntityData actionEntry)]
 
 structure Facts extends Target where
@@ -202,6 +205,20 @@ def sourceControl : SourceControlBoundary :=
     resourceScope := .resourceScope (.is artifactType),
     protectedBranch := "main" }
 
+def productionProfile : SourceProfile.Object :=
+  (SourceProfile.define "ProductionSource" sourceControl).toOption.get
+    (by native_decide)
+
+def canaryProfile : SourceProfile.Object :=
+  (SourceProfile.onBranch productionProfile "CanarySource" "release-candidate")
+    |>.toOption.get (by native_decide)
+
+def productionControl : SourceControlBoundary :=
+  (SourceProfile.control? productionProfile).get (by native_decide)
+
+def canaryControl : SourceControlBoundary :=
+  (SourceProfile.control? canaryProfile).get (by native_decide)
+
 def incident : Veto :=
   { policyId := "affected-artifact-quarantine",
     actionScope := .actionScope (.eq promote),
@@ -215,7 +232,7 @@ def modelResult : Except LeanPoo.Object.CombineError Model := do
   let base ← (Model.define "Base" [.extend grant]).mapError .c4
   let source ← (Model.define "Source" [(boundary .source).veto.edit .introduce]).mapError .c4
   let review ← (Model.define "SourceControl"
-    [sourceControl.veto.edit .introduce]).mapError .c4
+    [productionControl.veto.edit .introduce]).mapError .c4
   let dependency ← (Model.define "Dependencies"
     [(boundary .dependencies).veto.edit .introduce]).mapError .c4
   let runner ← (Model.define "Runner" [(boundary .runner).veto.edit .introduce]).mapError .c4
@@ -235,8 +252,10 @@ def modelResult : Except LeanPoo.Object.CombineError Model := do
     [(provenance, "Provenance")] "ReleaseReady"
   let quarantined ← (releaseReady.extend "Quarantined" "ReleaseReady"
     [incident.edit .introduce]).mapError .c4
-  (quarantined.extend "Recovered" "Quarantined"
+  let recovered ← (quarantined.extend "Recovered" "Quarantined"
     [incident.edit .withdraw]).mapError .c4
+  (recovered.extend "CanaryRelease" "ReleaseReady"
+    [canaryControl.veto.edit .revise]).mapError .c4
 
 def model : Model := modelResult.toOption.get (by native_decide)
 
@@ -289,6 +308,14 @@ def cases : List (String × String × EntityUID × Facts × Bool) := [
     { sourceChange := agentAuthoredChange }, true),
   ("source-control-rejects-agent-only-review", "SourceBound", candidate,
     { sourceChange := agentApprovedChange }, false),
+  ("production-rejects-canary-source", "ReleaseReady", candidate,
+    { sourceChange := canaryChange }, false),
+  ("canary-accepts-canary-source", "CanaryRelease", candidate,
+    { sourceChange := canaryChange }, true),
+  ("canary-rejects-production-source", "CanaryRelease", candidate,
+    {}, false),
+  ("canary-preserves-provenance", "CanaryRelease", candidate,
+    { sourceChange := canaryChange, provenanceVerified := false }, false),
   ("source-alone-misses-poisoned-package", "SourceBound", candidate,
     { dependenciesQuarantined := false }, true),
   ("dependency-blocks-poisoned-package", "DependencyBound", candidate,

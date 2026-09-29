@@ -30,6 +30,7 @@ import CedarPooSpec.Admission.SourceNetwork
 import CedarPooSpec.Cloud.Pipeline.ReleaseBoundary
 import CedarPooSpec.Cloud.Pipeline.Evidence
 import CedarPooSpec.Cloud.Pipeline.SourceControlBoundary
+import CedarPooSpec.Cloud.Pipeline.SourceProfile
 import CedarPooSpec.Cloud.Pipeline.DeploymentBoundary
 import CedarPooSpec.Cloud.DataProtection.PseudonymizationGate
 import CedarPooSpec.Data.Relation
