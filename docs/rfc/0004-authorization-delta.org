@@ -170,6 +170,47 @@ equivalence for unchanged stewardship. Cedar's
 but are not processed by Cedar; this POO owner trail is likewise application
 governance metadata, not a new Cedar authorization rule.
 
+** Effective reason membership experiment
+
+The conservative query above can leave a masked candidate unresolved. The
+[[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasons.lean][effective-reason analyzer]] asks a more precise symbolic question for every
+policy ID in the union of the two revisions. Cedar's
+[[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/Thm/Authorization.lean][=determiningPolicies_of= theorem]] says that final reasons are the satisfied
+permits on =Allow= or the satisfied forbids on =Deny=. The analyzer combines
+Cedar's symbolic policy evaluation and symbolic authorizer accordingly:
+
+#+begin_example
+reasonMember(policy, revision, input)
+  = matches(policy, input)
+    AND (policy is permit AND Allow(revision, input)
+         OR policy is forbid AND Deny(revision, input))
+#+end_example
+
+It asks whether this membership differs across revisions, enforces the same
+entity-hierarchy constraints as upstream queries, and replays every model
+against the original Cedar policy sets. The analyzer first applies the
+error-free operational qualification. A solver failure or a model that fails
+the original Cedar replay is an error, never a stable result. Identical Cedar
+policy lists skip the reason queries while still reporting POO provenance.
+
+The [[file:../../Tests/Governance/AuthorizationDeltaEffectiveReasons.lean][focused regression]] distinguishes four cases: removal of one of two
+independent grants changes final reasons but not the decision; an always
+matching incident veto masks that removal for every input in the schema;
+moving the unchanged policy to another POO owner changes provenance only;
+and flipping a permit to a forbid removes the other permit from the final
+reason set. Concrete reason witnesses are replayed in Rust Cedar.
+
+This is an executable symbolic model, *not yet a verified new Cedar query*.
+Cedar proves its compiler and authorizer components, but this repository has
+not proved that the new membership formula and its unsatisfiable result are
+equivalent to universal final-reason equality. The
+[[https://www.amazon.science/publications/symcert-verifying-smt-based-policy-analyses][SymCert research]] explains why a new SMT analysis needs its own correctness
+proof even when built from verified components. Until that proof exists,
+=solverReasonStable= from this analyzer is solver-based review evidence, while a
+concrete replayed witness is evidence of an actual difference. The earlier
+conservative analyzer remains available as the stronger, narrower stability
+condition based only on upstream =matchesEquivalent?= and =neverMatches?=.
+
 * API and check
 
 =analyze revision schema= returns a report or a typed error. =analyzeModel=
@@ -229,6 +270,9 @@ measure environment counts and cache exact policy/schema results before
 claiming interactive latency.
 The reason gate is =just check-authorization-delta-reasons= and runs under
 =just check-delta= and CI with the same solver and official Rust replay.
+The effective-reason experiment has a separate
+=just check-authorization-delta-effective-reasons= gate, also included in
+=just check-delta= and CI.
 The payment case has its own =just check-payment-delta= gate.
 The healthcare impact case has =just check-health-authorization-impact=; it
 replays the incident, recovery, approval-withdrawal, and dataset-lineage decisions through the
@@ -244,20 +288,19 @@ evidence. They must remain separate in release decisions:
 | Policy bodies under one schema | Symbolic gains/losses and concrete Cedar replay | The same schema and its represented request/entity environments. |
 | Error-free Host admission | =neverErrors?= qualification before symbolic gains/losses | Conservatively rejects any possible policy error, including on denied requests. |
 | Determining-policy change with unchanged decision | Conservative symbolic matching queries and concrete Cedar reason witnesses | Masked candidates or effect changes remain unresolved; this is not a complete symbolic reason-set query. |
+| Effective final-reason membership | Experimental symbolic query with Cedar replay of counterexamples | The new compound query lacks a Lean correctness proof; unsatisfiable results are solver-based evidence. |
 | POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
 | C4 edit ownership and proof reuse | Compiled owner/edit trail and dependency footprint | Potential invalidation, not proof that one edit caused a witness. |
 | Schema evolution and operation history | No unified delta query | Revalidate, reproject, and analyze with an explicit migration relation before any cross-schema claim. |
 
-For release review, the next exact symbolic question is whether a fixed
-request's *effective* Host result changes when Cedar's decision stays the
-same but its diagnostics change. The reason analysis above gives witnesses
-and a sufficient stability condition, but cannot resolve every masked
-candidate. These cannot be inferred from =changed_policy_ids=: policy edits
-may be masked by another permit or veto, and two policy sets may authorize
-the same requests for different reasons. A complete universal claim would
-need an explicit symbolic predicate for the final response diagnostics.
+For release review, the next proof obligation is soundness and completeness
+of the effective-reason membership formula against Cedar's final response
+diagnostics, under unique policy IDs, validated inputs, error-free evaluation,
+and the schema environments. These cannot be inferred from
+=changed_policy_ids=: policy edits may be masked by another permit or veto,
+and two policy sets may authorize the same requests for different reasons.
 
 The recently proposed [[https://arxiv.org/abs/2609.31039][MetaPermit]] moves some tool-call meaning into LLM-inferred
 meta-attributes. That is a useful contrast: even if Cedar policy bodies stay
