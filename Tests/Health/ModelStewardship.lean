@@ -8,6 +8,41 @@ open CedarPooSpec.ModelStewardshipExample.Admission
 private def integrated : CedarPooSpec.PolicyModules.Model :=
   integratedResult.toOption.get (by native_decide)
 
+private def trainingOwner : CedarPooSpec.PolicyModules.Model :=
+  (CedarPooSpec.PolicyModules.Model.define "Training" [.extend trainingPermit]).toOption.get
+    (by native_decide)
+
+theorem independentOwnerCompiles :
+    (trainingOwner.compile "Training").toOption = some [trainingPermit] := by
+  native_decide
+
+theorem independentFamiliesBecomeParents :
+    ((integrated.objectAt "MedicalModel").toOption.get (by native_decide)).plan.precedence =
+      ["MedicalModel", "Training", "Publication", "Clinical", "Lineage"] := by
+  native_decide
+
+theorem duplicateOwnerNameIsRejected :
+    (trainingOwner.combine "Training" [(trainingOwner, "Training")]
+      "InvalidMedicalModel").isOk = false := by
+  native_decide
+
+theorem missingOwnerRootIsRejected :
+    (trainingOwner.combine "Missing" [] "InvalidMedicalModel").isOk = false := by
+  native_decide
+
+private def conflictingPolicyOwner : CedarPooSpec.PolicyModules.Model :=
+  (CedarPooSpec.PolicyModules.Model.define "OtherTraining"
+    [.extend trainingPermit]).toOption.get (by native_decide)
+
+theorem disjointObjectsDoNotBypassCedarEditChecks :
+    (match trainingOwner.combine "Training"
+        [(conflictingPolicyOwner, "OtherTraining")] "ConflictingMedicalModel" with
+      | .ok combined =>
+          match combined.compile "ConflictingMedicalModel" with
+          | .error (.policyAlreadyExists id) => id == trainingPermit.id
+          | _ => false
+      | .error _ => false) = true := by native_decide
+
 theorem mixedRootIsFirstClassObject : integrated.builtObject.isSome = true := by
   native_decide
 

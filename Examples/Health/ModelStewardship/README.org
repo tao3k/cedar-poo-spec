@@ -28,11 +28,14 @@ flowchart LR
 
 * POO composition and checked behavior
 
-=Training=, =Publication=, and =Clinical= independently introduce Cedar
-permits. =Lineage= introduces the reusable
+=Training=, =Publication=, and =Clinical= each begin as a standalone LeanPOO
+object and introduce a Cedar permit. =Lineage= is a fourth independent object
+that introduces the reusable
 [[file:../../../CedarPooSpec/Data/LineageUse.lean][LineageUse]] veto, binding
 artifact identity, lineage revision, and Host-projected availability to all
-three actions. =MedicalModel= mixes these owners using LeanPOO. =ModelIncident=
+three actions. =MedicalModel= composes the four first-class owners through
+[[file:../../../CedarPooSpec/PolicyModules.lean][Model.combine]];
+LeanPOO checks that their node families are disjoint. =ModelIncident=
 extends the result with a local publication and inference veto; =Recovered=
 withdraws that incident policy slot. The incident leaves the training owner
 unchanged.
@@ -60,7 +63,8 @@ resource's lineage revision and the selected catalog revision must match.
 
 The catalog is derivation evidence, not a replacement authorization system.
 Cedar evaluates the policies produced by LeanPOO. The same requests are also
-[[file:ReplayExport.lean][exported]] and replayed against the official Cedar
+[[file:ReplayExport.lean][exported]] through a focused
+[[file:ReplayMain.lean][entry point]] and replayed against the official Cedar
 Rust runtime by =just example health model-stewardship=. The Host must authenticate
 every source edge, assessment issuer and result, approval, patient binding,
 model bytes, destination, clock, and catalog revision. At effect time it must

@@ -74,6 +74,14 @@ private def Module.declaration (module : Module) :
     LeanPoo.Object.Declaration PolicyID (fun _ => Option Policy) :=
   LeanPoo.Object.Declaration.build module.program
 
+/-- Create one policy owner as a first-class LeanPOO object. -/
+def Model.define (name : String) (edits : List Edit := []) :
+    Except LeanPoo.C4.Error Model := do
+  let module : Module := { name, edits }
+  let object ← LeanPoo.Object.define name module.program
+  let modules := [module]
+  return { modules, builtSchema := some object.plan.schema, builtObject := some object, builtModules := some modules }
+
 private def Model.schema (model : Model) :
     LeanPoo.Object.Schema PolicyID (fun _ => Option Policy) :=
   match model.activeSchema? with
@@ -83,6 +91,16 @@ private def Model.schema (model : Model) :
         declaration := fun name =>
           (model.modules.find? (fun module => module.name == name)).map
             Module.declaration }
+
+/-- Obtain a first-class object for any valid root in this policy family.
+    This is a composition view; publish through Cedar validation instead. -/
+def Model.objectAt (model : Model) (root : String) :
+    Except LeanPoo.C4.Error
+      (LeanPoo.Object.Memoized PolicyID (fun _ => Option Policy)) := do
+  if let some object := model.activeObject? then
+    if object.plan.root == root then return object
+  let plan ← LeanPoo.Object.compile model.schema root
+  return plan.memoize
 
 /-- Stage a single-parent policy owner through LeanPOO's extension API.
     The final mix or publication compiles the complete C4 topology. -/
@@ -106,6 +124,22 @@ def Model.mix (model : Model) (name : String) (supers : List String)
     | some receiver => receiver.defineNodeWith module.node module.program
     | none => LeanPoo.Object.defineNodeIn model.schema module.node module.program
   let modules := model.modules ++ [module]
+  return { modules, builtSchema := some object.plan.schema, builtObject := some object, builtModules := some modules }
+
+/-- Compose independently built policy-owner families by their selected roots.
+    LeanPOO rejects overlapping node names; Cedar still validates edit intent
+    and authorization when the combined root is compiled or published. -/
+def Model.combine (first : Model) (firstRoot : String)
+    (others : List (Model × String)) (name : String)
+    (edits : List Edit := []) :
+    Except LeanPoo.Object.CombineError Model := do
+  let receiver ← (first.objectAt firstRoot).mapError .c4
+  let parents ← others.mapM fun (model, root) =>
+    (model.objectAt root).mapError .c4
+  let module : Module :=
+    { name, parentOrders := [firstRoot :: others.map Prod.snd], edits }
+  let object ← receiver.defineFrom name parents module.program
+  let modules := first.modules ++ others.flatMap (·.1.modules) ++ [module]
   return { modules, builtSchema := some object.plan.schema, builtObject := some object, builtModules := some modules }
 
 /-- Inspect the C4-composed policy slots before Cedar edit validation.

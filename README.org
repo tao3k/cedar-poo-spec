@@ -155,7 +155,10 @@ library composes Cedar authorization controls. See the
 dependency. =just lean-poo-api-find 'Multimethod.register'= searches its Lean
 declarations and uses the same revision that Lake builds for this project.
 
-=just check= runs the complete local gate. Its smaller entrypoints are
+=just check-quick= compiles the library and Lean Tests and parses the ORG
+documentation. =just check= additionally runs the complete Cedar Rust and
+scenario gate; it launches many independent exports and is intended for a
+full local qualification, not a single-file edit loop. Its smaller entrypoints are
 =check-docs=, =check-lean=, =check-tests=, =check-rust=, =check-cedar-artifacts=,
 =check-mission-comparison=, and =check-delta=. CI gives documentation, Lean,
 Rust, Cedar conformance, and authorization delta separate jobs. The latter

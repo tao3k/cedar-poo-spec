@@ -15,6 +15,19 @@ Further mixes in that family use =Memoized.defineNodeWith=. A direct child of
 the current object uses =Memoized.extendWith=. The active object's C4 plan is
 reused when compiling its root. Other roots compile from the same schema.
 
+=Model.define= creates a standalone policy-owner object. =Model.objectAt=
+projects any valid root into a first-class object, and =Model.combine= uses
+=Memoized.defineFrom= to join independently built owner families. Their node
+names must be disjoint; the selected roots become the new object's ordered
+parents. The adapter keeps all source modules so Cedar edit validation and
+policy provenance still run at publication. The
+[[file:../Examples/Health/ModelStewardship.lean][medical model scenario]]
+builds training, publication, clinical use, and lineage as independent owners
+before composing them. Its focused checks reject a repeated owner name and
+an unknown root. Another check shows that disjoint object names do not excuse
+duplicate Cedar policy IDs; the edit validation still rejects the combined
+root. The official Cedar runtime replays the accepted policy.
+
 The object cache is valid only for the exact module list that produced it.
 An ordinary Lean record update to =modules= invalidates both cached plan and
 schema selection. The

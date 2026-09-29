@@ -53,6 +53,10 @@ check: check-tests check-docs
     just example health united-states-payer
     just check-authorization-delta-proof
 
+# Lean and ORG feedback without running every Cedar/Rust scenario.
+check-quick: check-docs
+    lake build CedarPooSpec Tests
+
 check-lean: check-tests check-authorization-delta-proof check-policy-reuse
 
 # Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.

@@ -116,22 +116,21 @@ def incidentControl : Veto :=
     actionScope := .actionInAny [publish, infer],
     denyWhen := .lit (.bool true) }
 
-def integratedResult : Except LeanPoo.C4.Error Model := do
-  let base : Model := { modules := [{ name := "Base" }] }
-  let training ← base.extend "Training" "Base" [.extend trainingPermit]
-  let publication ← training.extend "Publication" "Base" [.extend publicationPermit]
-  let clinical ← publication.extend "Clinical" "Base" [.extend inferencePermit]
-  let lineage ← clinical.extend "Lineage" "Base"
-    [lineageControl.edit .introduce]
-  lineage.mix "MedicalModel"
-    ["Training", "Publication", "Clinical", "Lineage"]
+def integratedResult : Except LeanPoo.Object.CombineError Model := do
+  let training ← (Model.define "Training" [.extend trainingPermit]).mapError .c4
+  let publication ← (Model.define "Publication" [.extend publicationPermit]).mapError .c4
+  let clinical ← (Model.define "Clinical" [.extend inferencePermit]).mapError .c4
+  let lineage ← (Model.define "Lineage" [lineageControl.edit .introduce]).mapError .c4
+  training.combine "Training"
+    [(publication, "Publication"), (clinical, "Clinical"), (lineage, "Lineage")]
+    "MedicalModel"
 
-def modelResult : Except LeanPoo.C4.Error Model := do
+def modelResult : Except LeanPoo.Object.CombineError Model := do
   let integrated ← integratedResult
-  let incident ← integrated.extend "ModelIncident" "MedicalModel"
-    [incidentControl.edit .introduce]
-  incident.extend "Recovered" "ModelIncident"
-    [incidentControl.edit .withdraw]
+  let incident ← (integrated.extend "ModelIncident" "MedicalModel"
+    [incidentControl.edit .introduce]).mapError .c4
+  (incident.extend "Recovered" "ModelIncident"
+    [incidentControl.edit .withdraw]).mapError .c4
 
 def model : Model := modelResult.toOption.get (by native_decide)
 
