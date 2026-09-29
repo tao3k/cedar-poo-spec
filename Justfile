@@ -54,7 +54,7 @@ check: check-tests check-docs
 check-lean: check-tests check-authorization-delta-proof check-policy-reuse
 
 # Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.
-check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-payment-delta check-personnel-governance
+check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-payment-delta check-health-authorization-impact check-personnel-governance
 
 check-personnel-governance:
     lake build Examples.Manifests Tests.Enterprise.Personnel.SourceCustody
@@ -65,7 +65,7 @@ check-personnel-governance:
 check-tests: build-examples
     lake build Tests
 
-check-delta: check-authorization-delta check-payment-delta
+check-delta: check-authorization-delta check-payment-delta check-health-authorization-impact
 
 check-replay-receipts: prepare-agent-payment-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < .lake/build/agent-payment-manifest.json > .lake/build/agent-payment-replay-receipts.json
@@ -115,6 +115,14 @@ check-authorization-delta: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
     jq -e -f Tests/Conformance/authorization-delta.jq .lake/build/authorization-delta.json > /dev/null
     jq '.manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
+
+check-health-authorization-impact:
+    lake build Examples.Health.Pseudonymization.AuthorizationImpact
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Health/Pseudonymization/AuthorizationImpact.lean > .lake/build/health-authorization-impact.json
+    jq -e -f Tests/Conformance/health-authorization-impact.jq .lake/build/health-authorization-impact.json > /dev/null
+    jq '.suspended_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
+    jq '.restored_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
+    jq '.approval_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-authorization-delta-proof:
     lake build CedarPooSpec.AuthorizationDeltaProof

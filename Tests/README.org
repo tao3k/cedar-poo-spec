@@ -40,3 +40,8 @@ keeps schema shapes, replay counts, digests, and authorization-delta
 expectations with the test suite rather than embedding them in recipes.
 Run the relevant =just check-*= target to regenerate and check its input;
 =just check-conformance= runs the full collection, and =just check= includes it.
+
+[[file:Conformance/health-authorization-impact.jq][Healthcare authorization
+impact]] checks both directions of an incident policy revision and a concrete
+approval withdrawal. =just check-health-authorization-impact= also replays all
+three before/after pairs with the official Rust Cedar authorizer.

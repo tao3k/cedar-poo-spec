@@ -247,3 +247,25 @@ The ingestion role restriction does not eliminate inference from already
 released token columns or repeated aggregate queries. Query-result release,
 volume controls, and statistical disclosure review are separate controls that
 the downstream analytics service must supply.
+
+* Authorization impact without a cloud provider
+
+[[file:AuthorizationImpact.lean][AuthorizationImpact.lean]] uses the same Lean-POO
+model and Cedar semantics without calling Google or any other cloud provider.
+It analyzes the =HospitalSiv → AgentIncident= revision in both directions:
+the incident removes an agent's join permission and grants none. The
+=AgentIncident → Recovered= revision restores that permission and removes
+none. Cedar's symbolic compiler supplies concrete witnesses, and the official
+Rust authorizer replays both sides of each witness.
+
+The same example compares one operation before and after its Host-projected
+=joinApproved= fact is withdrawn. The policy root stays =HospitalSiv=, so this
+is a concrete snapshot comparison, not a symbolic claim over every possible
+approval state. A self-hosted application can supply its own authenticated
+approval record and entity state; choosing a cloud transformation service is
+independent of this Lean composition. The Host must still make the approval
+snapshot current at effect commit and durably record the result.
+
+#+begin_src sh
+just check-health-authorization-impact
+#+end_src
