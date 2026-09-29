@@ -130,6 +130,31 @@ has a gain witness and no loss. The official Cedar Rust authorizer replays
 both witness pairs. This demonstrates why text or policy-ID diff alone does
 not answer which requests changed.
 
+* Determining-policy delta
+
+Cedar returns the IDs of the policies determining its decision. An =Allow=
+may remain =Allow= after a POO removal while a different owner now supplies
+the remaining grant. That changes audit explanation and responsibility even
+when the decision sets are equivalent. [[file:../../CedarPooSpec/AuthorizationDeltaReasons.lean][AuthorizationDeltaReasons]] uses the upstream
+[[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/SymCC.lean][=matchesEquivalent?= and =neverMatches?= queries]] to inspect each changed policy
+ID over every schema environment. It first qualifies both policy sets with
+the error-free operational check. A matching difference becomes a reason
+witness only when original Cedar responses actually have different
+=determiningPolicies=. The report carries C4 edit owners, proof footprint,
+and potentially invalidated roots as candidate provenance; it does not
+assign sole causality when multiple edits are present.
+
+The outcome has three useful cases. A concrete changed reason is replayed by
+the official Rust Cedar authorizer. If every changed ID retains its effect
+and the matching queries find no difference, =reasonStable= is true within
+the covered schema environments, subject to external solver evidence. If a
+query finds a matching difference but the returned request's reason set is
+masked by another policy, or an ID changes effect, the ID is unresolved.
+One masked witness cannot establish that *all* requests preserve their
+reasons. The [[file:../../Tests/Governance/AuthorizationDeltaReasons.lean][governance regression]] exercises all three outcomes: two independently
+owned grants for the same ticket, a removal that preserves =Allow= while
+changing its reasons, and an incident veto that masks the removed grant.
+
 * API and check
 
 =analyze revision schema= returns a report or a typed error. =analyzeModel=
@@ -187,6 +212,8 @@ unchanged. Cedar [[https://github.com/cedar-policy/cedar-spec/issues/634][issue 
 large schema; this qualification adds error queries, so production use should
 measure environment counts and cache exact policy/schema results before
 claiming interactive latency.
+The reason gate is =just check-authorization-delta-reasons= and runs under
+=just check-delta= and CI with the same solver and official Rust replay.
 The payment case has its own =just check-payment-delta= gate.
 The healthcare impact case has =just check-health-authorization-impact=; it
 replays the incident, recovery, approval-withdrawal, and dataset-lineage decisions through the
@@ -201,7 +228,7 @@ evidence. They must remain separate in release decisions:
 |----------------+------------------+-------------|
 | Policy bodies under one schema | Symbolic gains/losses and concrete Cedar replay | The same schema and its represented request/entity environments. |
 | Error-free Host admission | =neverErrors?= qualification before symbolic gains/losses | Conservatively rejects any possible policy error, including on denied requests. |
-| Determining-policy or diagnostic change with unchanged decision | Concrete responses and C4 policy provenance are available | No universal symbolic reason-set delta yet; an =equivalent-in-schema= decision report does not assert unchanged explanation. |
+| Determining-policy change with unchanged decision | Conservative symbolic matching queries and concrete Cedar reason witnesses | Masked candidates or effect changes remain unresolved; this is not a complete symbolic reason-set query. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
 | C4 edit ownership and proof reuse | Compiled owner/edit trail and dependency footprint | Potential invalidation, not proof that one edit caused a witness. |
@@ -209,12 +236,12 @@ evidence. They must remain separate in release decisions:
 
 For release review, the next exact symbolic question is whether a fixed
 request's *effective* Host result changes when Cedar's decision stays the
-same but its diagnostics change. A separate governance question asks whether
-the set of determining policy owners changed even when =Allow= remains
-=Allow=. These cannot be inferred from =changed_policy_ids=: policy edits may
-be masked by another permit or veto, and two policy sets may authorize the
-same requests for different reasons. They require explicit predicates and
-witness replay before receiving a universal claim.
+same but its diagnostics change. The reason analysis above gives witnesses
+and a sufficient stability condition, but cannot resolve every masked
+candidate. These cannot be inferred from =changed_policy_ids=: policy edits
+may be masked by another permit or veto, and two policy sets may authorize
+the same requests for different reasons. A complete universal claim would
+need an explicit symbolic predicate for the final response diagnostics.
 
 The recently proposed [[https://arxiv.org/abs/2609.31039][MetaPermit]] moves some tool-call meaning into LLM-inferred
 meta-attributes. That is a useful contrast: even if Cedar policy bodies stay
