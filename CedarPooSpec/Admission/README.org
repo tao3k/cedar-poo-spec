@@ -1,6 +1,9 @@
 #+TITLE: Reusable Admission Controls
 #+OPTIONS: toc:nil
 
+The cross-industry [[file:AgenticSecurity.org][AgenticSecurity references and Host transaction contract]]
+locate admission between POO composition, Cedar decisions, and external effects.
+
 [[file:BoundOperation.lean][BoundOperation]] binds one proposed effect and state snapshot to the
 Cedar request used for admission. A downstream Host authenticates the facts,
 serializes the state transition, and enforces the decision.

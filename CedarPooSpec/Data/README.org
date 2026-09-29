@@ -30,3 +30,8 @@ and sensitivity labels across a declared transformation. =canFlowTo= checks
 the complete source list against a destination. The Host authenticates those
 labels and binds the artifact digest to the actual output; this module does
 not classify content or provide semantic declassification.
+
+[[file:CumulativeDisclosure.lean][CumulativeDisclosure]] intersects Host-attested candidate sets across accepted
+releases and rejects a result below the configured minimum. It is a finite
+singling-out proxy and must be persisted with the budget and audit before
+external disclosure; it does not certify anonymization.
