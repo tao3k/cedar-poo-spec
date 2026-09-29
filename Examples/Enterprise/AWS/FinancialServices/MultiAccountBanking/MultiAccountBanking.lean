@@ -1,5 +1,6 @@
 import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Vertical.FinancialServices.BankingToolOwner
+import CedarPooSpec.Vertical.FinancialServices.BankingToolProfile
 
 /-! Projection of the Gateway Cedar boundary in the AWS multi-account banking
 sample. LOB JWT authorization, M2M exchange, IAM, and data access remain outside
@@ -65,9 +66,26 @@ def permitActions (id : String) (actions : List EntityUID) : Policy :=
 def retailOwner : BankingToolOwner :=
   { policyId := "retail-owned-tools", principalType := userType,
     gateway, actions := retailTools.filter (· != deleteCustomer) }
-def transactionOwner : BankingToolOwner :=
+def transactionTemplate : BankingToolOwner :=
   { policyId := "transaction-owned-tools", principalType := userType,
     gateway, actions := transactionTools }
+def transactionProfile : BankingToolProfile.Object :=
+  (BankingToolProfile.define "TransactionTools" transactionTemplate)
+    |>.toOption.get (by native_decide)
+def pausedTransactionProfile : BankingToolProfile.Object :=
+  (BankingToolProfile.onActions transactionProfile "TransferPausedTools"
+    (transactionTools.filter (· != transfer))).toOption.get
+      (by native_decide)
+def resumedTransactionProfile : BankingToolProfile.Object :=
+  (BankingToolProfile.onActions pausedTransactionProfile "TransferResumedTools"
+    transactionTools).toOption.get (by native_decide)
+def transactionOwner : BankingToolOwner :=
+  (BankingToolProfile.owner? transactionProfile).get (by native_decide)
+def pausedTransactionOwner : BankingToolOwner :=
+  (BankingToolProfile.owner? pausedTransactionProfile).get (by native_decide)
+def resumedTransactionOwner : BankingToolOwner :=
+  (BankingToolProfile.owner? resumedTransactionProfile).get
+    (by native_decide)
 def lendingOwner : BankingToolOwner :=
   { policyId := "lending-owned-tools", principalType := userType,
     gateway, actions := lendingTools }
@@ -92,8 +110,8 @@ def modelResult : Except LeanPoo.C4.Error Model := do
   let lending ← transaction.extend "Lending" "Gateway" [lendingOwner.introduce]
   let owners ← lending.mix "OwnerCombined" ["Retail", "Transaction", "Lending", "Protocol"]
   let paused ← owners.extend "TransferPaused" "OwnerCombined"
-    [{ transactionOwner with actions := transactionTools.filter (· != transfer) }.revise]
-  paused.extend "TransferResumed" "TransferPaused" [transactionOwner.revise]
+    [pausedTransactionOwner.revise]
+  paused.extend "TransferResumed" "TransferPaused" [resumedTransactionOwner.revise]
 
 def model : Model := modelResult.toOption.get (by native_decide)
 

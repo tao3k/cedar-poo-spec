@@ -25,6 +25,7 @@ import CedarPooSpec.Vertical.Health.Region.Australia
 import CedarPooSpec.Vertical.Health.Region.UnitedStates
 import CedarPooSpec.Vertical.FinancialServices.ControllerRelease
 import CedarPooSpec.Vertical.FinancialServices.BankingToolOwner
+import CedarPooSpec.Vertical.FinancialServices.BankingToolProfile
 import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Admission.SourceNetwork

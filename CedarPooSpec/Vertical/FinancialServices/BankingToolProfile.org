@@ -1,0 +1,18 @@
+#+TITLE: Banking Tool Owner Profiles
+#+OPTIONS: toc:nil
+
+[[file:BankingToolProfile.lean][BankingToolProfile]] makes one [[file:BankingToolOwner.lean][BankingToolOwner]] a first-class LeanPOO
+object. The action list is a direct typed slot. An inherited computed slot
+rebuilds the owner from the final object's actions while retaining the
+initial policy ID, principal type, and Gateway. =onActions= extends the
+parent without changing its permit.
+
+The [[file:../../../Examples/Enterprise/AWS/FinancialServices/MultiAccountBanking/README.org][multi-account banking case]] uses this for Transaction's transfer
+pause and recovery. Each variant revises the same Cedar policy ID; Retail,
+Lending, and Protocol are separate policy owners. The downstream
+[[file:../../../Examples/Enterprise/AWS/FinancialServices/ClaimSettlement.org][claim-settlement plan]] consumes the resulting bank roots without copying
+the Transaction action list or Gateway policy.
+
+This object builds policy inputs. It does not prove that an AWS Gateway has
+installed the policy, that a bank executed the transfer, or that the later
+balance updates completed.

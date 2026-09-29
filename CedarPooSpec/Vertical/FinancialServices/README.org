@@ -8,6 +8,9 @@ business and its selected Gateway actions. =introduce=, =revise=, and
 =withdraw= expose the slot's Lean-POO edits. The
 [[file:../../../Examples/Enterprise/AWS/FinancialServices/MultiAccountBanking/README.org][multi-account banking example]] uses separate Retail, Transaction, and
 Lending objects; its incident revision narrows only Transaction's actions.
+[[file:BankingToolProfile.lean][BankingToolProfile]] gives one owner a typed action slot and an inherited
+computed owner slot. Its [[file:BankingToolProfile.org][adjacent documentation]] explains how a pause and
+recovery derive from the same parent without changing the other LOB owners.
 The published tool names, customer identities, cross-account credentials,
 and data-plane checks remain with the example or a consuming application.
 

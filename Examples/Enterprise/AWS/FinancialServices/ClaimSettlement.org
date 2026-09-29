@@ -50,6 +50,9 @@ permit to remove =transfer_funds=. The rest of that owner's tools remain
 available; =TransferResumed= overlays the original permit back. The bank
 revision reports exactly one changed policy ID. In the cross-domain plan,
 the pause blocks settlement while the claims decisions remain the same.
+The Transaction action variants now come from the
+[[file:../../../../CedarPooSpec/Vertical/FinancialServices/BankingToolProfile.lean][banking tool POO profile]]; this plan imports the resulting bank roots rather
+than constructing another transfer policy.
 [[file:ClaimSettlementRevision.lean][ClaimSettlementRevision.lean]] uses the public LeanPOO =ProofObject=,
 =Patch.set=, =append=, and =reuse= APIs: the bank-key patch invalidates the
 bank obligation, while the insurance obligation's certificate is reused
