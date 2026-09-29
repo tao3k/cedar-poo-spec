@@ -9,8 +9,14 @@ Cedar request used for admission. A downstream Host authenticates the facts,
 serializes the state transition, and enforces the decision.
 [[file:PolicySnapshot.lean][PolicySnapshot]] binds the exact C4-compiled Cedar policy set and root
 to a prepared operation. A Host can reject an old ticket when the same named
-root is republished with changed policies; durable ticket consumption and
-transactional effects remain Host duties.
+root is republished with changed policies.
+[[file:AuthorityConsumption.lean][AuthorityConsumption]] models a Host-owned approval instance with a stable ID,
+exact effect, use limit, and consumed count. Its pure =check= and =consume=
+operations reject missing, duplicate, mismatched, and exhausted grants.
+The [[file:../../Examples/Enterprise/Agent/Fanout/README.org][cross-agent fanout example]] combines this ledger with policy snapshots.
+The Host must authenticate grant provenance, persist its counters, and couple
+consumption to a serialized effect reservation; these pure functions do not
+provide durable storage or external idempotency.
 [[file:Handoff.lean][Handoff]] adds an exact case, data digest, actor, policy-root, and
 credential-mode expectation for a cross-organization operation. Its
 [[file:Handoff.org][adjacent contract]] separates the pure checks from Host authentication

@@ -146,8 +146,10 @@ adds one egress freeze; =CrossAgentRecovered= removes just that edit.
 The same Cedar policies give different answers when the host supplies
 worker-local versus delegation-shared =sensitiveSeen=. This is the concrete
 aggregation gap: adding a history policy alone does not bind state across
-workers. The Lean =admit= transition serializes the finite example, and a
-denied send leaves the shared budget unchanged. A production host still
+workers. The Lean =admit= transition serializes the finite policy replay
+example, and a denied send leaves the shared budget unchanged. =admit= is
+diagnostic and does not consume an approval instance; Host admission uses
+=prepare/commit=. A production host still
 must authenticate lineage, derive the shared history from all relevant
 reads, bind the checked output to the actual tool effect, and serialize
 admission with durable state. Neither Cedar nor LeanPOO supplies that host
@@ -155,16 +157,26 @@ transaction automatically.
 
 =prepare= and =commit= specify the host-facing boundary more precisely. A
 ticket binds the C4 root, its exact compiled Cedar policies, ledger view,
-state epoch, proposed call, and payload digest. =commit= checks those fields,
-reauthorizes against the current state, and advances the epoch on success.
+state epoch, stable approval instance ID, proposed call, and payload digest.
+=prepare= checks the approval's exact effect and remaining uses.
+=commit= rechecks those fields and current Cedar authorization, consumes one
+use from the [[file:../../../../CedarPooSpec/Admission/AuthorityConsumption.lean][public authority ledger]], and advances the epoch on success.
 Lean checks three failure
 paths: two sends prepared on one budget snapshot cannot both commit; changing
 the payload after approval fails; and a sensitive read invalidates a
 previously prepared send before a refreshed send is denied by shared
 history. The digest and ticket in this model are values supplied by the
 host, not cryptographic credentials. A deployment must derive the digest
-from the exact tool-call bytes, protect ticket provenance, persist the
-ledger, and make compare-and-swap plus effect reservation atomic.
+from the exact tool-call bytes, authenticate the approval instance and ticket,
+persist the ledger, and make compare-and-swap plus effect reservation atomic.
+
+=consumedApprovalCannotBeReissued= demonstrates a separate limit from the
+Cedar aggregate budget: after one send, Cedar still allows another send, but
+the same one-use approval instance cannot issue a fresh ticket. A distinct
+approval instance can execute while budget remains
+(=independentApprovalCanStillExecute=). Old tickets, effect substitution, and
+duplicate approval IDs fail closed. =prepare= does not reserve a use: competing
+tickets may be prepared, and the Host must serialize their commits.
 
 The [[file:../../../../CedarPooSpec/Admission/PolicySnapshot.lean][PolicySnapshot API]] closes a distinct revision gap. A second native POO
 construction publishes the same =CrossAgentGoverned= root name with an
@@ -187,8 +199,10 @@ therefore changes the ticket's authority even if the public root name stays
 the same. A provenance-only edit with an identical compiled policy set is
 not detected by this value; a deployment requiring that distinction must
 also bind its publication or approval revision.
-The ledger epoch, budget consumption, and idempotent external effect are not
-POO edits: they are mutable execution state that the Host must serialize.
+The ledger epoch, approval consumption, budget consumption, and idempotent
+external effect are not POO edits: they are mutable execution state that the
+Host must serialize. This pure model does not persist a grant across restarts
+or prove exactly-once delivery to an external sink.
 
 * New research comparison
 

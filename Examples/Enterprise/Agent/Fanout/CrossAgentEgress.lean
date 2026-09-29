@@ -1,6 +1,7 @@
 import Examples.Enterprise.Agent.Fanout.SharedBudget
 import CedarPooSpec.SchemaJson
 import CedarPooSpec.Admission.PolicySnapshot
+import CedarPooSpec.Admission.AuthorityConsumption
 
 /-!
 One worker reads a sensitive document and another proposes external egress.
@@ -83,21 +84,28 @@ inductive LedgerView where
   | delegationShared
   deriving BEq, Repr
 
+structure Attempt where
+  worker : EntityUID
+  action : EntityUID
+  resource : EntityUID
+  intent : String := "report"
+  deriving BEq, Repr
+
+/-- The Host binds a checked request to the exact proposed tool effect. -/
+structure BoundEffect where
+  attempt : Attempt
+  payloadDigest : String
+  deriving BEq, Repr
+
 structure State where
   budget : CedarPooSpec.SharedBudgetExample.State := {}
+  authority : CedarPooSpec.Admission.AuthorityLedger BoundEffect := {}
   aSeen : Bool := false
   bSeen : Bool := false
   sharedSeen : Bool := false
   delegated : String := "report"
   epoch : Nat := 0
   deriving BEq, Repr
-
-structure Attempt where
-  worker : EntityUID
-  action : EntityUID
-  resource : EntityUID
-  intent : String := "report"
-  deriving BEq
 
 def readSecretA : Attempt := ⟨workerA, readAction, secretDoc, "report"⟩
 def readPublicA : Attempt := ⟨workerA, readAction, publicDoc, "report"⟩
@@ -145,34 +153,30 @@ def advance (state : State) (attempt : Attempt) : State :=
         CedarPooSpec.SharedBudgetExample.advance state.budget attempt.worker }
   else state
 
-/-- The transition is serialized over the delegation ledger. -/
+/-- A policy-only diagnostic transition for Cedar replay cases. It does not
+    consume an approval instance; Host admission uses prepare/commit below. -/
 def admit (root : String) (view : LedgerView) (state : State)
     (attempt : Attempt) : Bool × State :=
   let allowed := authorized root view state attempt
   let next := advance state attempt
   (allowed, if allowed then { next with epoch := state.epoch + 1 } else state)
 
-/-- The host binds a checked request to the exact proposed tool effect. The
-    digest and ticket must come from authenticated host state in deployment. -/
-structure BoundEffect where
-  attempt : Attempt
-  payloadDigest : String
-  deriving BEq
-
 structure AdmissionTicket where
   policy : CedarPooSpec.Admission.PolicySnapshot
   view : LedgerView
   epoch : Nat
+  grantId : String
   effect : BoundEffect
   deriving BEq
 
 def prepare (activeModel : Model) (root : String) (view : LedgerView) (state : State)
-    (effect : BoundEffect) : Option AdmissionTicket :=
+    (grantId : String) (effect : BoundEffect) : Option AdmissionTicket :=
   match CedarPooSpec.Admission.PolicySnapshot.capture activeModel root with
   | .error _ => none
   | .ok snapshot =>
-      if authorizedBy snapshot.policies view state effect.attempt then
-        some ⟨snapshot, view, state.epoch, effect⟩
+      if authorizedBy snapshot.policies view state effect.attempt &&
+          (state.authority.check grantId effect).isOk then
+        some ⟨snapshot, view, state.epoch, grantId, effect⟩
       else none
 
 /-- A compare-and-swap admission contract. A real host must persist the
@@ -185,10 +189,13 @@ def commit (activeModel : Model) (root : String) (view : LedgerView) (state : St
     match ticket.policy.currentPolicies activeModel with
     | .error _ => none
     | .ok policies =>
-        if authorizedBy policies view state effect.attempt then
-          let next := advance state effect.attempt
-          some { next with epoch := state.epoch + 1 }
-        else none
+        if !authorizedBy policies view state effect.attempt then none
+        else
+          match state.authority.consume ticket.grantId effect with
+          | .error _ => none
+          | .ok authority =>
+              let next := advance state effect.attempt
+              some { next with authority, epoch := state.epoch + 1 }
 
 def replay (root : String) (view : LedgerView) (initial : State)
     (attempts : List Attempt) : List (Request × Bool) × State :=
@@ -249,41 +256,49 @@ def publicSendA : BoundEffect := ⟨sendA, "payload-a"⟩
 def publicSendB : BoundEffect := ⟨sendB, "payload-b"⟩
 def secretReadA : BoundEffect := ⟨readSecretA, "document-version-1"⟩
 
+def ticketState : State := { authority := { grants := [
+  ⟨"send-a", publicSendA, 1, 0⟩,
+  ⟨"send-b", publicSendB, 1, 0⟩,
+  ⟨"read-a", secretReadA, 1, 0⟩] } }
+
 private theorem firstTicketExists :
-    (prepare model "CrossAgentGoverned" .delegationShared {} publicSendA).isSome = true := by
+    (prepare model "CrossAgentGoverned" .delegationShared ticketState
+      "send-a" publicSendA).isSome = true := by
   native_decide
 private theorem secondTicketExists :
-    (prepare model "CrossAgentGoverned" .delegationShared {} publicSendB).isSome = true := by
+    (prepare model "CrossAgentGoverned" .delegationShared ticketState
+      "send-b" publicSendB).isSome = true := by
   native_decide
 private theorem readTicketExists :
-    (prepare model "CrossAgentGoverned" .delegationShared {} secretReadA).isSome = true := by
+    (prepare model "CrossAgentGoverned" .delegationShared ticketState
+      "read-a" secretReadA).isSome = true := by
   native_decide
 
 /-- Two tickets prepared on one budget snapshot cannot both commit. -/
 theorem staleFanoutTicketRejected :
     let root := "CrossAgentGoverned"
-    let first := (prepare model root .delegationShared {} publicSendA).get firstTicketExists
-    let second := (prepare model root .delegationShared {} publicSendB).get secondTicketExists
-    ((commit model root .delegationShared {} first publicSendA).bind fun state =>
+    let first := (prepare model root .delegationShared ticketState "send-a" publicSendA).get firstTicketExists
+    let second := (prepare model root .delegationShared ticketState "send-b" publicSendB).get secondTicketExists
+    ((commit model root .delegationShared ticketState first publicSendA).bind fun state =>
       commit model root .delegationShared state second publicSendB) = none := by
   native_decide
 
 /-- A checked call cannot be exchanged for different tool payload bytes. -/
 theorem substitutedPayloadRejected :
     let root := "CrossAgentGoverned"
-    let ticket := (prepare model root .delegationShared {} publicSendA).get firstTicketExists
-    commit model root .delegationShared {} ticket ⟨sendA, "substituted-payload"⟩ = none := by
+    let ticket := (prepare model root .delegationShared ticketState "send-a" publicSendA).get firstTicketExists
+    commit model root .delegationShared ticketState ticket ⟨sendA, "substituted-payload"⟩ = none := by
   native_decide
 
 /-- A sensitive read invalidates an earlier send ticket. Rechecking against
     shared history then refuses a new send ticket. -/
 theorem sensitiveReadInvalidatesPreparedSend :
     let root := "CrossAgentGoverned"
-    let sendTicket := (prepare model root .delegationShared {} publicSendB).get secondTicketExists
-    let readTicket := (prepare model root .delegationShared {} secretReadA).get readTicketExists
-    (((commit model root .delegationShared {} readTicket secretReadA).map fun state =>
+    let sendTicket := (prepare model root .delegationShared ticketState "send-b" publicSendB).get secondTicketExists
+    let readTicket := (prepare model root .delegationShared ticketState "read-a" secretReadA).get readTicketExists
+    (((commit model root .delegationShared ticketState readTicket secretReadA).map fun state =>
       (commit model root .delegationShared state sendTicket publicSendB,
-       prepare model root .delegationShared state publicSendB)) ==
+       prepare model root .delegationShared state "send-b" publicSendB)) ==
       some (none, none)) = true := by
   native_decide
 
@@ -322,13 +337,13 @@ theorem reloadedRootValid :
     compilation alone invalidates the old admission ticket. -/
 theorem reloadedPolicyRejectsPreparedTicket :
     let root := "CrossAgentGoverned"
-    let ticket := (prepare model root .delegationShared {} publicSendA).get firstTicketExists
-    commit reloadedModel root .delegationShared {} ticket publicSendA = none := by
+    let ticket := (prepare model root .delegationShared ticketState "send-a" publicSendA).get firstTicketExists
+    commit reloadedModel root .delegationShared ticketState ticket publicSendA = none := by
   native_decide
 
 def reloadedPolicyRevisionDiagnosed : Bool :=
   let root := "CrossAgentGoverned"
-  let ticket := (prepare model root .delegationShared {} publicSendA).get firstTicketExists
+  let ticket := (prepare model root .delegationShared ticketState "send-a" publicSendA).get firstTicketExists
   match ticket.policy.currentPolicies reloadedModel with
   | .error .changed => true
   | _ => false
@@ -339,10 +354,63 @@ theorem reloadedPolicyDiagnosesRevision :
 
 theorem reloadedPolicyFreshTicketCommits :
     let root := "CrossAgentGoverned"
-    (((prepare reloadedModel root .delegationShared {} publicSendA).bind fun ticket =>
-      commit reloadedModel root .delegationShared {} ticket publicSendA) ==
+    (((prepare reloadedModel root .delegationShared ticketState "send-a" publicSendA).bind fun ticket =>
+      commit reloadedModel root .delegationShared ticketState ticket publicSendA) ==
       some ({ budget := CedarPooSpec.SharedBudgetExample.advance {} workerA,
+                authority := { grants := [
+                  ⟨"send-a", publicSendA, 1, 1⟩,
+                  ⟨"send-b", publicSendB, 1, 0⟩,
+                  ⟨"read-a", secretReadA, 1, 0⟩] },
                 epoch := 1 } : State)) = true := by
+  native_decide
+
+/-- The Cedar aggregate budget permits three sends, but each stable Host
+    approval instance below permits only one execution. -/
+def multiGrantState : State :=
+  { budget := { localMax := 3, sharedMax := 3 }, authority := { grants := [
+      ⟨"approval-one", publicSendA, 1, 0⟩,
+      ⟨"approval-two", publicSendA, 1, 0⟩] } }
+
+def firstApprovedSend : Option State := do
+  let ticket ← prepare model "CrossAgentGoverned" .delegationShared
+    multiGrantState "approval-one" publicSendA
+  commit model "CrossAgentGoverned" .delegationShared multiGrantState ticket publicSendA
+
+theorem consumedApprovalCannotBeReissued :
+    firstApprovedSend.map (fun state =>
+      (authorized "CrossAgentGoverned" .delegationShared state sendA,
+       (prepare model "CrossAgentGoverned" .delegationShared state
+         "approval-one" publicSendA).isNone)) = some (true, true) := by
+  native_decide
+
+theorem independentApprovalCanStillExecute :
+    (firstApprovedSend.bind fun state => do
+      let ticket ← prepare model "CrossAgentGoverned" .delegationShared
+        state "approval-two" publicSendA
+      commit model "CrossAgentGoverned" .delegationShared state ticket publicSendA).map
+      (fun state => (state.budget.sharedUsed, state.authority.grants.map (·.used))) =
+      some (2, [1, 1]) := by
+  native_decide
+
+theorem preparedTicketCannotCommitTwice :
+    ((prepare model "CrossAgentGoverned" .delegationShared multiGrantState
+      "approval-one" publicSendA).bind fun ticket => do
+        let state ← commit model "CrossAgentGoverned" .delegationShared
+          multiGrantState ticket publicSendA
+        pure (commit model "CrossAgentGoverned" .delegationShared state
+          ticket publicSendA).isNone) = some true := by
+  native_decide
+
+theorem grantCannotChangeEffect :
+    (prepare model "CrossAgentGoverned" .delegationShared multiGrantState
+      "approval-one" ⟨sendA, "different-payload"⟩).isNone = true := by
+  native_decide
+
+theorem duplicateGrantIdFailsClosed :
+    ((({ authority := { grants := [
+        ⟨"same", publicSendA, 1, 0⟩,
+        ⟨"same", publicSendA, 1, 0⟩] } } : State).authority.check
+          "same" publicSendA) == .error .duplicate) = true := by
   native_decide
 
 theorem allRootsValidate :
