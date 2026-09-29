@@ -141,10 +141,16 @@ can perform a separate approval workflow after reviewing the witness, but
 must compare the snapshot and reserve publication in one transaction.
 The pure =advanceNoGain= transition demonstrates this compare-and-swap shape:
 one current no-gain review checks the active root, exact active policy set,
-and epoch, then returns the composed policies and next version. A different
-active policy set or second attempt with the same review fails. The Host must
-read the actual deployed policies and execute this transition atomically with
+enforcing execution mode, and epoch, then returns the composed policies and
+next version. A different active policy set, observation or disabled mode,
+or second attempt with the same review fails. The Host must read the actual
+deployed policies and mode and execute this transition atomically with
 publication; this is a state-model receipt, not a durable transaction.
+
+[[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-enforcement-modes.html][AgentCore documents]] why mode belongs in this gate: =LOG_ONLY= still evaluates
+policy decisions but does not block tool calls, and an unattached engine does
+not enforce those decisions. The example models this deployment condition
+without claiming to read or control an AWS gateway.
 
 This boundary matters in actual deployments. [[https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/policy-store-aliases-using.html][AWS Verified Permissions]]
 documents that policy-store alias changes propagate asynchronously and cannot

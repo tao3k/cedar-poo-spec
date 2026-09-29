@@ -287,10 +287,23 @@ API refuses joint gains until a separate approval has occurred. It does not
 authenticate that approval, read a provider's active policy version, publish
 policies, or make the comparison and effect atomic; those remain Host duties.
 Its pure =advanceNoGain= transition compares the active root, exact active
-policy set, and epoch with the reviewed base. It returns the composed policies
-with the next version and rejects a second use of the same review after a
-successful transition. The Host must obtain the actual active policy set from
-the deployment boundary rather than trusting a caller's copy.
+policy set, and epoch with the reviewed base. It also requires the Host's
+execution mode to be enforcing. It returns the composed policies with the next
+version and rejects a second use of the same review after a successful
+transition. The Host must obtain the actual active policy set and execution
+mode from the deployment boundary rather than trusting a caller's copy.
+This is a material distinction: [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-enforcement-modes.html][AgentCore's enforcement-mode documentation]] says
+=LOG_ONLY= evaluates policies without blocking tool calls, and disabling the
+gateway policy engine bypasses those checks. This generic SPEC state models
+the distinction without importing an AWS-specific API.
+
+Even an enforcing policy version is a snapshot property. The 2026
+[[https://arxiv.org/abs/2609.15803][delegated-authorization study on sequential control]] analyzes safety over
+state transitions, where one agent action changes later feasible actions.
+Its results do not certify this release API: the current delta quantifies
+over Cedar requests in one schema environment and the pure release transition
+does not model future agent histories. An application requiring trajectory
+safety must add an explicit state-transition model and Host effect receipts.
 
 The repository devenv provides cvc5 and sets =CVC5= to its absolute executable
 path. After activating the repository through =direnv=, run the gate through
@@ -335,6 +348,7 @@ evidence. They must remain separate in release decisions:
 | Effective final-reason membership | Lean-proved reduction to Cedar's authorization equivalence, with concrete Cedar replay | External solver answers and schema-environment coverage remain trust boundaries. |
 | Two-branch POO composition | Three Cedar gain queries, C4 provenance, and a four-root replayed witness | Joint-only classification requires both branches to have no gain; other interactions remain unclassified. |
 | Release-review freshness | Four compiled policy sets, relevant C4 modules, exact schema representation, and Host epoch | Pure compare only; Host authenticates approval and makes publication atomic. |
+| Enforcement configuration | Pure release transition rejects observing or disabled Host mode | Host must read actual deployed mode and bind it atomically to publication; Cedar implication alone cannot certify this. |
 | POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |

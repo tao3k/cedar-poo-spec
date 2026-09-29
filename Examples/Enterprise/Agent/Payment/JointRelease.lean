@@ -81,7 +81,7 @@ def run : IO Lean.Json := do
   | _ => throw (IO.userError "joint authorization gain bypassed review")
   match reviewed.advanceNoGain model paymentSchema
       { activeRoot := "DualHold", activePolicies := reviewed.snapshot.base.policies,
-        epoch := 7 } with
+        executionMode := .enforcing, epoch := 7 } with
   | .error .requiresReview => pure ()
   | _ => throw (IO.userError "joint authorization gain advanced active policy")
   match reviewed.snapshot.currentPolicies model paymentSchema 8 with
@@ -120,15 +120,23 @@ def run : IO Lean.Json := do
   | .error .epochChanged => pure ()
   | _ => throw (IO.userError "stale no-gain review was admitted")
   match safeReview.advanceNoGain safeModel paymentSchema
-      { activeRoot := "DualHold", activePolicies := [], epoch := 11 } with
+      { activeRoot := "DualHold", activePolicies := [],
+        executionMode := .enforcing, epoch := 11 } with
   | .error .activePoliciesChanged => pure ()
   | _ => throw (IO.userError "different active policy set was admitted")
+  for mode in [ExecutionMode.observing, .disabled] do
+    match safeReview.advanceNoGain safeModel paymentSchema
+        { activeRoot := "DualHold", activePolicies := safeReview.snapshot.base.policies,
+          executionMode := mode, epoch := 11 } with
+    | .error .notEnforcing => pure ()
+    | _ => throw (IO.userError "non-enforcing policy mode was admitted")
   let .ok (next, _) := safeReview.advanceNoGain safeModel paymentSchema
       { activeRoot := "DualHold", activePolicies := safeReview.snapshot.base.policies,
-        epoch := 11 }
+        executionMode := .enforcing, epoch := 11 }
     | throw (IO.userError "current no-gain review could not advance")
   if next.activeRoot != "RiskOnlyReview" || next.epoch != 12 ||
-      next.activePolicies != safeReview.snapshot.combined.policies then
+      next.activePolicies != safeReview.snapshot.combined.policies ||
+      next.executionMode != .enforcing then
     throw (IO.userError "no-gain advance did not update the active version")
   match safeReview.advanceNoGain safeModel paymentSchema next with
   | .error .activeRootChanged => pure ()
@@ -158,6 +166,7 @@ def run : IO Lean.Json := do
     ("safe_release_current", Lean.toJson true),
     ("safe_release_stale_rejected", Lean.toJson true),
     ("different_active_policies_rejected", Lean.toJson true),
+    ("non_enforcing_mode_rejected", Lean.toJson true),
     ("second_commit_rejected", Lean.toJson true),
     ("manifest", Lean.Json.mkObj [("cases", Lean.toJson cases)])]
 

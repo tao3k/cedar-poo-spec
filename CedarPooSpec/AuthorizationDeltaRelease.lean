@@ -47,6 +47,7 @@ inductive ReleaseError where
   | epochChanged
   | activeRootChanged
   | activePoliciesChanged
+  | notEnforcing
   | requiresReview
   | rootChanged (root : String) (error : CedarPooSpec.Admission.PolicySnapshot.Error)
   deriving Repr
@@ -112,11 +113,21 @@ def ReviewedInteraction.noGainCurrentPolicies (reviewed : ReviewedInteraction)
   | .noCombinedGain => reviewed.snapshot.currentPolicies model schema epoch
   | .branchExpanded | .jointOnlyGain _ => .error .requiresReview
 
-/-- Pure model of the Host's active policy version. The Host owns durable
-    storage and synchronization of this state. -/
+/-- Whether the Host actually enforces Cedar decisions at the effect boundary.
+    Observation and bypass are distinct deployment states, not Cedar policy
+    effects. -/
+inductive ExecutionMode where
+  | enforcing
+  | observing
+  | disabled
+  deriving BEq, Repr
+
+/-- Pure model of the Host's active policy version and execution mode. The
+    Host owns durable storage and synchronization of this state. -/
 structure ReleaseState where
   activeRoot : String
   activePolicies : Policies
+  executionMode : ExecutionMode
   epoch : Nat
   deriving BEq, Repr
 
@@ -128,10 +139,12 @@ def ReviewedInteraction.advanceNoGain (reviewed : ReviewedInteraction)
   if state.activeRoot != reviewed.snapshot.base.root then throw .activeRootChanged
   if state.activePolicies != reviewed.snapshot.base.policies then
     throw .activePoliciesChanged
+  if state.executionMode != .enforcing then throw .notEnforcing
   let policies ← reviewed.noGainCurrentPolicies model schema state.epoch
   let next : ReleaseState :=
     { activeRoot := reviewed.snapshot.combined.root,
-      activePolicies := policies, epoch := state.epoch + 1 }
+      activePolicies := policies, executionMode := .enforcing,
+      epoch := state.epoch + 1 }
   return (next, policies)
 
 end CedarPooSpec.AuthorizationDelta

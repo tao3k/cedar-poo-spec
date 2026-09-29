@@ -18,6 +18,7 @@
   and .safe_release_current == true
   and .safe_release_stale_rejected == true
   and .different_active_policies_rejected == true
+  and .non_enforcing_mode_rejected == true
   and .second_commit_rejected == true
   and (.manifest.cases | map(.revision)) ==
     ["DualHold", "RiskReleased", "ComplianceReleased", "JointRelease"]
