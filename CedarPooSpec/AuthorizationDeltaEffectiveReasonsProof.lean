@@ -84,4 +84,29 @@ theorem determiningPolicy_contains_iff (policies : Policies)
     cases decision : (Cedar.Spec.isAuthorized env.request env.entities policies).decision <;>
       cases kind : policy.effect <;> simp_all
 
+/-- A permit whose matches are covered by a matching forbid cannot be a
+    determining policy in Cedar's final response. -/
+theorem dominatedPermit_not_determining (policies : Policies)
+    (permit forbid : Policy) (env : Cedar.Spec.Env)
+    (unique : Cedar.Thm.PolicyIdsUnique policies)
+    (permitMem : permit ∈ policies) (forbidMem : forbid ∈ policies)
+    (permitEffect : permit.effect = .permit)
+    (forbidEffect : forbid.effect = .forbid)
+    (covered : Cedar.Spec.satisfied permit env.request env.entities = true →
+      Cedar.Spec.satisfied forbid env.request env.entities = true) :
+    (Cedar.Spec.isAuthorized env.request env.entities policies).determiningPolicies.contains
+      permit.id = false := by
+  by_cases matched : Cedar.Spec.satisfied permit env.request env.entities = true
+  · have explicitlyForbidden : Cedar.Thm.IsExplicitlyForbidden
+        env.request env.entities policies :=
+      ⟨forbid, forbidMem, forbidEffect, covered matched⟩
+    have denied := Cedar.Thm.forbid_trumps_permit env.request env.entities policies
+      explicitlyForbidden
+    rw [determiningPolicy_contains_iff policies permit env unique permitMem,
+      permitEffect, matched, denied]
+    rfl
+  · rw [determiningPolicy_contains_iff policies permit env unique permitMem]
+    cases satisfied : Cedar.Spec.satisfied permit env.request env.entities <;>
+      simp_all
+
 end CedarPooSpec.AuthorizationDelta

@@ -58,10 +58,12 @@ def run : IO Lean.Json := do
   let .ok masked ← analyzeModelReasons maskedModel "Masked" "MaskedOneRemoved" schema
     | throw (IO.userError "masked reason query failed")
   if masked.report.decision.impact.classification != "equivalent-in-schema" ||
-      masked.report.reasonStable ||
-      masked.report.unresolvedPolicyIds != [primary.id] ||
+      !masked.report.reasonStable ||
+      masked.report.dominatedPolicyIds != [primary.id] ||
+      !masked.report.unresolvedPolicyIds.isEmpty ||
+      masked.report.dominanceQueries == 0 ||
       !masked.report.reasonWitnesses.isEmpty then
-    throw (IO.userError "masked match was incorrectly certified")
+    throw (IO.userError "dominated permit was not certified")
   let .ok beforeCase := CedarPooSpec.PolicyJson.authorizationCase
       "reason-before" "Shared" sharedModel "Shared"
       witness.witness.request witness.witness.entities
@@ -76,7 +78,10 @@ def run : IO Lean.Json := do
     ("reason_stable", Lean.toJson changed.report.reasonStable),
     ("before_owner", Lean.toJson (edit.beforeOwner.map (·.lastEditedBy))),
     ("invalidated_roots", Lean.toJson changed.potentiallyInvalidatedRoots),
+    ("masked_reason_stable", Lean.toJson masked.report.reasonStable),
+    ("masked_dominated", Lean.toJson masked.report.dominatedPolicyIds),
     ("masked_unresolved", Lean.toJson masked.report.unresolvedPolicyIds),
+    ("masked_dominance_queries", Lean.toJson masked.report.dominanceQueries),
     ("stable_same_root", Lean.toJson stable.report.reasonStable),
     ("owner_shift_reason_stable", Lean.toJson ownerShift.report.reasonStable),
     ("owner_shift_provenance_stable", Lean.toJson ownerShift.report.provenanceStable),

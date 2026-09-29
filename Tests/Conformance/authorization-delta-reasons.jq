@@ -7,7 +7,10 @@
   and .reason_stable == false
   and .before_owner == "Shared"
   and (.invalidated_roots | index("OneGrantRemoved")) != null
-  and .masked_unresolved == ["alice-ticket-a"]
+  and .masked_reason_stable == true
+  and .masked_dominated == ["alice-ticket-a"]
+  and .masked_unresolved == []
+  and .masked_dominance_queries > 0
   and .stable_same_root == true
   and .owner_shift_reason_stable == true
   and .owner_shift_provenance_stable == false

@@ -145,15 +145,19 @@ and potentially invalidated roots as candidate provenance; it does not
 assign sole causality when multiple edits are present.
 
 The outcome has three useful cases. A concrete changed reason is replayed by
-the official Rust Cedar authorizer. If every changed ID retains its effect
-and the matching queries find no difference, =reasonStable= is true within
-the covered schema environments, subject to external solver evidence. If a
-query finds a matching difference but the returned request's reason set is
-masked by another policy, or an ID changes effect, the ID is unresolved.
-One masked witness cannot establish that *all* requests preserve their
-reasons. The [[file:../../Tests/Governance/AuthorizationDeltaReasons.lean][governance regression]] exercises all three outcomes: two independently
-owned grants for the same ticket, a removal that preserves =Allow= while
-changing its reasons, and an incident veto that masks the removed grant.
+the official Rust Cedar authorizer. If the decision is equivalent in the
+covered schema and every changed ID retains its effect and matching behavior,
+=reasonStable= is true, subject to external solver evidence. A masked match
+can also be discharged when every version of a changed permit is covered by
+one identical forbid in both revisions. The adapter checks this with Cedar's
+verified =matchesImplies?= query in every schema environment. The
+[[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasonsProof.lean][dominated-permit theorem]] proves the concrete rule: a permit covered by a
+matching forbid cannot occur in the final determining set. The report lists
+these discharged IDs and counts the added implication queries. A mask without
+such a certificate, or an effect change, remains unresolved; one masked
+witness alone cannot establish universal reason stability. The
+[[file:../../Tests/Governance/AuthorizationDeltaReasons.lean][governance regression]] exercises an actual reason change and a dominated
+permit removal whose final reasons remain stable.
 
 There is a fourth, separate change surface: ownership can move while the
 Cedar policy body, ID, decision, and determining-policy IDs remain identical.
@@ -172,7 +176,8 @@ governance metadata, not a new Cedar authorization rule.
 
 ** Effective reason membership experiment
 
-The conservative query above can leave a masked candidate unresolved. The
+The upstream-query route above resolves a common forbid-dominated permit,
+but can still leave other masks unresolved. The
 [[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasons.lean][effective-reason analyzer]] asks a more precise symbolic question for every
 policy ID in the union of the two revisions. Cedar's
 [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/Thm/Authorization.lean][=determiningPolicies_of= theorem]] says that final reasons are the satisfied
@@ -300,7 +305,7 @@ evidence. They must remain separate in release decisions:
 |----------------+------------------+-------------|
 | Policy bodies under one schema | Symbolic gains/losses and concrete Cedar replay | The same schema and its represented request/entity environments. |
 | Error-free Host admission | =neverErrors?= qualification before symbolic gains/losses | Conservatively rejects any possible policy error, including on denied requests. |
-| Determining-policy change with unchanged decision | Conservative symbolic matching queries and concrete Cedar reason witnesses | Masked candidates or effect changes remain unresolved; this is not a complete symbolic reason-set query. |
+| Determining-policy change with unchanged decision | Upstream matching queries, forbid-domination qualification, and concrete Cedar reason witnesses | Non-dominated masks and effect changes remain unresolved; this is not a complete symbolic reason-set query. |
 | Effective final-reason membership | Experimental symbolic query with Cedar replay of counterexamples | The new compound query lacks a Lean correctness proof; unsatisfiable results are solver-based evidence. |
 | POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |

@@ -34,11 +34,14 @@ structure ReasonImpactReport where
   provenanceChanges : List PolicyChange
   proof : ProofFootprint
   reasonWitnesses : List ReasonWitness
+  dominatedPolicyIds : List PolicyID
   unresolvedPolicyIds : List PolicyID
   matchingQueries : Nat
+  dominanceQueries : Nat
 
 def ReasonImpactReport.reasonStable (report : ReasonImpactReport) : Bool :=
-  report.reasonWitnesses.isEmpty && report.unresolvedPolicyIds.isEmpty
+  report.decision.impact.noGain && report.decision.impact.noLoss &&
+    report.reasonWitnesses.isEmpty && report.unresolvedPolicyIds.isEmpty
 
 /-- Cedar reasons and POO responsibility are separate review surfaces. -/
 def ReasonImpactReport.provenanceStable (report : ReasonImpactReport) : Bool :=
@@ -72,9 +75,48 @@ private def matchingDifference? (before after : Option Policy) (typeEnv : TypeEn
   catch error =>
     return .error (.solver error.toString)
 
-/-- A reason-stable result requires error-free policy evaluation, unchanged
-    effects for shared IDs, and no matching difference for every changed ID.
-    A found match difference without a changed Cedar reason is unresolved. -/
+/-- A changed permit cannot determine the response if one unchanged forbid
+    matches every input on which either version of that permit matches. Uses
+    Cedar's verified policy-matching implication query. -/
+private def dominatedPermit? (before after : Policies)
+    (left right : Option Policy) (typeEnv : TypeEnv) :
+    IO (Except ReasonError (Bool × Nat)) := do
+  let variants := [(left, true), (right, false)].filterMap fun (policy, before) =>
+    policy.map (·, before)
+  if variants.isEmpty || variants.any (fun (policy, _) => policy.effect != .permit) then
+    return .ok (false, 0)
+  let commonForbids := before.filter fun policy =>
+    policy.effect == .forbid && decide (policy ∈ after)
+  let mut queries := 0
+  for forbid in commonForbids do
+    let typedForbid ← match typed forbid typeEnv true with
+      | .ok policy => pure policy
+      | .error error => return .error error
+    let mut dominates := true
+    for (permit, isBefore) in variants do
+      let typedPermit ← match typed permit typeEnv isBefore with
+        | .ok policy => pure policy
+        | .error error => return .error error
+      queries := queries + 1
+      let result : Except ReasonError (Option Cedar.Spec.Env) ← try
+        let solver ← Cedar.SymCC.Solver.cvc5
+        pure (.ok (← Cedar.SymCC.SolverM.run solver
+          (Cedar.SymCC.matchesImplies? typedPermit typedForbid
+            (Cedar.SymCC.SymEnv.ofTypeEnv typeEnv))))
+      catch error => pure (.error (.solver error.toString))
+      match result with
+      | .error error => return .error error
+      | .ok (some _) =>
+          dominates := false
+          break
+      | .ok none => pure ()
+    if dominates then return .ok (true, queries)
+  return .ok (false, queries)
+
+/-- A reason-stable result requires error-free policy evaluation, equivalent
+    decisions, and either unchanged matching or a verified common-forbid
+    domination for every changed permit ID. Other masked candidates remain
+    unresolved. -/
 def analyzeReasons (revision : Revision) (schema : Schema) :
     IO (Except ReasonError ReasonImpactReport) := do
   if !decide (revision.beforePolicies.map Policy.id).Nodup then
@@ -87,8 +129,10 @@ def analyzeReasons (revision : Revision) (schema : Schema) :
   let before := revision.beforePolicies
   let after := revision.afterPolicies
   let mut reasonWitnesses := []
+  let mut dominatedPolicyIds := []
   let mut unresolvedPolicyIds := []
   let mut matchingQueries := 0
+  let mut dominanceQueries := 0
   for id in revision.changedPolicyIds do
     let left := before.find? (·.id == id)
     let right := after.find? (·.id == id)
@@ -119,15 +163,30 @@ def analyzeReasons (revision : Revision) (schema : Schema) :
         else
           masked := true
     if masked && !found then
-      unresolvedPolicyIds := unresolvedPolicyIds ++ [id]
+      let mut dominated := decision.impact.noGain && decision.impact.noLoss
+      if dominated then
+        for typeEnv in schema.environments do
+          let result ← match ← dominatedPermit? before after left right typeEnv with
+            | .ok result => pure result
+            | .error error => return .error error
+          dominanceQueries := dominanceQueries + result.2
+          if !result.1 then
+            dominated := false
+            break
+      if dominated then
+        dominatedPolicyIds := dominatedPolicyIds ++ [id]
+      else
+        unresolvedPolicyIds := unresolvedPolicyIds ++ [id]
   return .ok {
     decision
     changes := Revision.policyChanges revision
     provenanceChanges := Revision.provenanceChanges revision
     proof := Revision.proofFootprint revision
     reasonWitnesses
+    dominatedPolicyIds
     unresolvedPolicyIds
-    matchingQueries }
+    matchingQueries
+    dominanceQueries }
 
 structure ExplainedReasonImpactReport where
   beforeRoot : String

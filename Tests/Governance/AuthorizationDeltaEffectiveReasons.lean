@@ -43,6 +43,12 @@ def run : IO Lean.Json := do
   let .ok flipped ← analyzeModelEffectiveReasons effectModel
       "Shared" "EffectFlip" schema
     | throw (IO.userError "effect-flip reason query failed")
+  let .ok conservativeFlip ← analyzeModelReasons effectModel
+      "Shared" "EffectFlip" schema
+    | throw (IO.userError "conservative effect-flip query failed")
+  if conservativeFlip.report.reasonStable ||
+      conservativeFlip.report.unresolvedPolicyIds != [primary.id] then
+    throw (IO.userError "effect flip was incorrectly certified by conservative query")
   let some flipWitness := flipped.report.reasonWitnesses.find? (·.policyId == fallback.id)
     | throw (IO.userError "effect flip lacks effective reason witness")
   if flipped.report.solverReasonStable ||
