@@ -1,4 +1,5 @@
 import Examples.Enterprise.Agent.Delegation.AgentDelegation
+import CedarPooSpec.AuthorizationDeltaCompound
 
 /-!
 The same POO delegation policy is evaluated once per hop. A path with one,
@@ -187,5 +188,37 @@ def conflictingDelegationEdits : Bool :=
   | _ => false
 theorem conflictingDelegationEditsRejected : conflictingDelegationEdits = true := by
   native_decide
+
+/-- A local gain can be masked by a different required delegation veto. -/
+def compoundDeltaCases : Bool :=
+  let old := checks "ChainDelegation" "OriginBounded" reviewedPath admin
+  let governed := checks "ChainGoverned" "ChainGoverned" reviewedPath admin
+  let revoked := checks "ChainGovernedRevoked" "ChainGovernedRevoked" reviewedPath admin
+  let admitted := CedarPooSpec.AuthorizationDelta.compareCompoundSnapshots schema
+    chainModel old governed chainEntities chainEntities
+  let masked := CedarPooSpec.AuthorizationDelta.compareCompoundSnapshots schema
+    chainModel old revoked chainEntities chainEntities
+  let frozen := CedarPooSpec.AuthorizationDelta.compareCompoundSnapshots schema
+    chainModel governed revoked chainEntities chainEntities
+  match admitted, masked, frozen with
+  | .ok a, .ok m, .ok f =>
+      a.layers.length == 5 && a.gained &&
+      m.layers.any (fun layer => layer.impact.gained) &&
+      !m.gained && !m.beforeAllowed && !m.afterAllowed &&
+      f.lost && f.layers.countP (fun layer => layer.impact.lost) == 1
+  | _, _, _ => false
+
+theorem compoundDeltaCasesExact : compoundDeltaCases = true := by native_decide
+
+/-- A policy delta cannot silently add or remove a required hop. -/
+def changedCompoundRejected : Bool :=
+  match CedarPooSpec.AuthorizationDelta.compareCompoundSnapshots schema chainModel
+      (checks "ChainGoverned" "ChainGoverned" shortPath admin)
+      (checks "ChainGoverned" "ChainGoverned" routedPath admin)
+      chainEntities chainEntities with
+  | .error .operationChanged => true
+  | _ => false
+
+theorem changedCompoundRejectedFully : changedCompoundRejected = true := by native_decide
 
 end CedarPooSpec.AgentChainExample

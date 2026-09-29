@@ -120,6 +120,16 @@ example uses it to observe an approval withdrawal while the policy root stays
 the same, and to compare scope, token-key, and transformation revisions of a
 target dataset. Neither analysis authenticates a Host fact or commits an effect.
 
+[[file:../../CedarPooSpec/AuthorizationDeltaCompound.lean][AuthorizationDeltaCompound]]
+extends the finite comparison to an ordered set of required Cedar checks.
+The two sides must contain the same requests in the same order, although
+their POO roots and authenticated entity snapshots may differ. It reports
+each layer and the conjunction that governs the complete operation. The
+[[file:../../Examples/Enterprise/Agent/Chain/README.org][agent-chain case]] demonstrates a local gain masked by an incident veto.
+This does not replace symbolic analysis of individual policies, and does
+not establish delegated authority or temporal budget safety for arbitrary
+agent histories.
+
 The repository devenv provides cvc5 and sets =CVC5= to its absolute executable
 path. After activating the repository through =direnv=, run the gate through
 the cached profile entrypoint:
