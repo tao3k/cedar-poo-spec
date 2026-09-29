@@ -61,6 +61,20 @@ def Revision.policyChanges (revision : Revision) : List PolicyChange :=
       beforeEdits := editsFor revision.before id
       afterEdits := editsFor revision.after id }
 
+/-- Changes to the compiled POO owner or edit history, including an overlay
+    that leaves the Cedar policy body and ID unchanged. This is a governance
+    provenance delta, not an authorization behavior delta. -/
+def Revision.provenanceChanges (revision : Revision) : List PolicyChange :=
+  let ids := ((revision.before.policies.map (·.policy.id)) ++
+    (revision.after.policies.map (·.policy.id))).eraseDups
+  ids.filterMap fun id =>
+    let beforeOwner := owner? revision.before id
+    let afterOwner := owner? revision.after id
+    let beforeEdits := editsFor revision.before id
+    let afterEdits := editsFor revision.after id
+    if beforeOwner == afterOwner && beforeEdits == afterEdits then none
+    else some { id, beforeOwner, afterOwner, beforeEdits, afterEdits }
+
 /-- Exact policy bodies needing new per-policy validation, plus the unchanged
     bodies whose certified validation can be reused with the same schema. -/
 structure ProofFootprint where

@@ -155,6 +155,21 @@ reasons. The [[file:../../Tests/Governance/AuthorizationDeltaReasons.lean][gover
 owned grants for the same ticket, a removal that preserves =Allow= while
 changing its reasons, and an incident veto that masks the removed grant.
 
+There is a fourth, separate change surface: ownership can move while the
+Cedar policy body, ID, decision, and determining-policy IDs remain identical.
+An overlay of the same body under another C4 module changes who is responsible
+for that policy, without requiring a new Cedar validation certificate or
+authorization proof dependency. =Revision.provenanceChanges= compares compiled
+owners and applied edit trails independently of =changedPolicyIds=;
+=provenanceStable= is therefore reported separately from =reasonStable=.
+The governance regression transfers an unchanged ticket grant to a new owner
+and requires an empty policy-body delta together with a nonempty provenance
+delta. This keeps accountability review from mistaking Cedar behavioral
+equivalence for unchanged stewardship. Cedar's
+[[https://docs.cedarpolicy.com/policies/syntax-policy.html][policy syntax documentation]] says annotations are stored for applications
+but are not processed by Cedar; this POO owner trail is likewise application
+governance metadata, not a new Cedar authorization rule.
+
 * API and check
 
 =analyze revision schema= returns a report or a typed error. =analyzeModel=
@@ -229,6 +244,7 @@ evidence. They must remain separate in release decisions:
 | Policy bodies under one schema | Symbolic gains/losses and concrete Cedar replay | The same schema and its represented request/entity environments. |
 | Error-free Host admission | =neverErrors?= qualification before symbolic gains/losses | Conservatively rejects any possible policy error, including on denied requests. |
 | Determining-policy change with unchanged decision | Conservative symbolic matching queries and concrete Cedar reason witnesses | Masked candidates or effect changes remain unresolved; this is not a complete symbolic reason-set query. |
+| POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
 | C4 edit ownership and proof reuse | Compiled owner/edit trail and dependency footprint | Potential invalidation, not proof that one edit caused a witness. |

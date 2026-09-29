@@ -30,6 +30,7 @@ structure ReasonWitness where
 structure ReasonImpactReport where
   decision : OperationalImpactReport
   changes : List PolicyChange
+  provenanceChanges : List PolicyChange
   proof : ProofFootprint
   reasonWitnesses : List ReasonWitness
   unresolvedPolicyIds : List PolicyID
@@ -37,6 +38,10 @@ structure ReasonImpactReport where
 
 def ReasonImpactReport.reasonStable (report : ReasonImpactReport) : Bool :=
   report.reasonWitnesses.isEmpty && report.unresolvedPolicyIds.isEmpty
+
+/-- Cedar reasons and POO responsibility are separate review surfaces. -/
+def ReasonImpactReport.provenanceStable (report : ReasonImpactReport) : Bool :=
+  report.provenanceChanges.isEmpty
 
 private def typed (policy : Policy) (typeEnv : TypeEnv) (before : Bool) :
     Except ReasonError Policy :=
@@ -113,6 +118,7 @@ def analyzeReasons (revision : Revision) (schema : Schema) :
   return .ok {
     decision
     changes := Revision.policyChanges revision
+    provenanceChanges := Revision.provenanceChanges revision
     proof := Revision.proofFootprint revision
     reasonWitnesses
     unresolvedPolicyIds
@@ -132,6 +138,7 @@ def analyzeModelReasons (model : Model) (beforeRoot afterRoot : String)
   let report ← analyzeReasons revision schema
   return report.map fun report =>
     { beforeRoot, afterRoot, report
-      potentiallyInvalidatedRoots := affectedRoots model report.changes }
+      potentiallyInvalidatedRoots :=
+        affectedRoots model (report.changes ++ report.provenanceChanges) }
 
 end CedarPooSpec.AuthorizationDelta
