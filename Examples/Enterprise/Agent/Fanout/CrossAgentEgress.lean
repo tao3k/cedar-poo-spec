@@ -1,5 +1,6 @@
 import Examples.Enterprise.Agent.Fanout.SharedBudget
 import CedarPooSpec.SchemaJson
+import CedarPooSpec.Admission.PolicySnapshot
 
 /-!
 One worker reads a sensitive document and another proposes external egress.
@@ -121,14 +122,17 @@ def request (view : LedgerView) (state : State) (attempt : Attempt) : Request :=
     ("intent", .prim (.string attempt.intent)),
     ("delegatedIntent", .prim (.string state.delegated))]⟩
 
-def authorized (root : String) (view : LedgerView) (state : State)
+def authorizedBy (policies : Policies) (view : LedgerView) (state : State)
     (attempt : Attempt) : Bool :=
   if attempt.worker != workerA && attempt.worker != workerB then false else
-    match model.compile root with
-    | .error _ => false
-    | .ok policies =>
-        let response := isAuthorized (request view state attempt) entities policies
-        response.decision == .allow && response.erroringPolicies.isEmpty
+    let response := isAuthorized (request view state attempt) entities policies
+    response.decision == .allow && response.erroringPolicies.isEmpty
+
+def authorized (root : String) (view : LedgerView) (state : State)
+    (attempt : Attempt) : Bool :=
+  match model.compile root with
+  | .error _ => false
+  | .ok policies => authorizedBy policies view state attempt
 
 def advance (state : State) (attempt : Attempt) : State :=
   if attempt.action == readAction && attempt.resource == secretDoc then
@@ -156,28 +160,35 @@ structure BoundEffect where
   deriving BEq
 
 structure AdmissionTicket where
-  root : String
+  policy : CedarPooSpec.Admission.PolicySnapshot
   view : LedgerView
   epoch : Nat
   effect : BoundEffect
   deriving BEq
 
-def prepare (root : String) (view : LedgerView) (state : State)
+def prepare (activeModel : Model) (root : String) (view : LedgerView) (state : State)
     (effect : BoundEffect) : Option AdmissionTicket :=
-  if authorized root view state effect.attempt then
-    some ⟨root, view, state.epoch, effect⟩
-  else none
+  match CedarPooSpec.Admission.PolicySnapshot.capture activeModel root with
+  | .error _ => none
+  | .ok snapshot =>
+      if authorizedBy snapshot.policies view state effect.attempt then
+        some ⟨snapshot, view, state.epoch, effect⟩
+      else none
 
 /-- A compare-and-swap admission contract. A real host must persist the
     ledger and execute this check and reservation atomically. -/
-def commit (root : String) (view : LedgerView) (state : State)
+def commit (activeModel : Model) (root : String) (view : LedgerView) (state : State)
     (ticket : AdmissionTicket) (effect : BoundEffect) : Option State :=
-  if ticket.root == root && ticket.view == view &&
-      ticket.epoch == state.epoch && ticket.effect == effect &&
-      authorized root view state effect.attempt then
-    let next := advance state effect.attempt
-    some { next with epoch := state.epoch + 1 }
-  else none
+  if ticket.policy.root != root || ticket.view != view ||
+      ticket.epoch != state.epoch || ticket.effect != effect then none
+  else
+    match ticket.policy.currentPolicies activeModel with
+    | .error _ => none
+    | .ok policies =>
+        if authorizedBy policies view state effect.attempt then
+          let next := advance state effect.attempt
+          some { next with epoch := state.epoch + 1 }
+        else none
 
 def replay (root : String) (view : LedgerView) (initial : State)
     (attempts : List Attempt) : List (Request × Bool) × State :=
@@ -239,41 +250,99 @@ def publicSendB : BoundEffect := ⟨sendB, "payload-b"⟩
 def secretReadA : BoundEffect := ⟨readSecretA, "document-version-1"⟩
 
 private theorem firstTicketExists :
-    (prepare "CrossAgentGoverned" .delegationShared {} publicSendA).isSome = true := by
+    (prepare model "CrossAgentGoverned" .delegationShared {} publicSendA).isSome = true := by
   native_decide
 private theorem secondTicketExists :
-    (prepare "CrossAgentGoverned" .delegationShared {} publicSendB).isSome = true := by
+    (prepare model "CrossAgentGoverned" .delegationShared {} publicSendB).isSome = true := by
   native_decide
 private theorem readTicketExists :
-    (prepare "CrossAgentGoverned" .delegationShared {} secretReadA).isSome = true := by
+    (prepare model "CrossAgentGoverned" .delegationShared {} secretReadA).isSome = true := by
   native_decide
 
 /-- Two tickets prepared on one budget snapshot cannot both commit. -/
 theorem staleFanoutTicketRejected :
     let root := "CrossAgentGoverned"
-    let first := (prepare root .delegationShared {} publicSendA).get firstTicketExists
-    let second := (prepare root .delegationShared {} publicSendB).get secondTicketExists
-    ((commit root .delegationShared {} first publicSendA).bind fun state =>
-      commit root .delegationShared state second publicSendB) = none := by
+    let first := (prepare model root .delegationShared {} publicSendA).get firstTicketExists
+    let second := (prepare model root .delegationShared {} publicSendB).get secondTicketExists
+    ((commit model root .delegationShared {} first publicSendA).bind fun state =>
+      commit model root .delegationShared state second publicSendB) = none := by
   native_decide
 
 /-- A checked call cannot be exchanged for different tool payload bytes. -/
 theorem substitutedPayloadRejected :
     let root := "CrossAgentGoverned"
-    let ticket := (prepare root .delegationShared {} publicSendA).get firstTicketExists
-    commit root .delegationShared {} ticket ⟨sendA, "substituted-payload"⟩ = none := by
+    let ticket := (prepare model root .delegationShared {} publicSendA).get firstTicketExists
+    commit model root .delegationShared {} ticket ⟨sendA, "substituted-payload"⟩ = none := by
   native_decide
 
 /-- A sensitive read invalidates an earlier send ticket. Rechecking against
     shared history then refuses a new send ticket. -/
 theorem sensitiveReadInvalidatesPreparedSend :
     let root := "CrossAgentGoverned"
-    let sendTicket := (prepare root .delegationShared {} publicSendB).get secondTicketExists
-    let readTicket := (prepare root .delegationShared {} secretReadA).get readTicketExists
-    (((commit root .delegationShared {} readTicket secretReadA).map fun state =>
-      (commit root .delegationShared state sendTicket publicSendB,
-       prepare root .delegationShared state publicSendB)) ==
+    let sendTicket := (prepare model root .delegationShared {} publicSendB).get secondTicketExists
+    let readTicket := (prepare model root .delegationShared {} secretReadA).get readTicketExists
+    (((commit model root .delegationShared {} readTicket secretReadA).map fun state =>
+      (commit model root .delegationShared state sendTicket publicSendB,
+       prepare model root .delegationShared state publicSendB)) ==
       some (none, none)) = true := by
+  native_decide
+
+/-- A second POO publication keeps the logical root name while adding an
+    independently owned, currently nonmatching review policy. -/
+def workerBReviewVeto : Policy :=
+  { CedarPooSpec.SharedBudgetExample.incidentVeto with
+    id := "worker-b-review-freeze",
+    principalScope := .principalScope (.eq workerB) }
+
+def reloadedModelResult : Except LeanPoo.C4.Error Model := do
+  let budget := CedarPooSpec.SharedBudgetExample.model
+  let read ← budget.extend "Read" "Integrated" [.extend workerRead]
+  let history ← read.extend "History" "Read" [.extend lineageHistory]
+  let intent ← history.extend "Intent" "Read" [.extend delegatedIntent]
+  let reviewed ← intent.extend "Reviewed" "History" [.extend workerBReviewVeto]
+  reviewed.mix "CrossAgentGoverned" ["Reviewed", "Intent"]
+
+def reloadedModel : Model := reloadedModelResult.toOption.get (by native_decide)
+
+theorem reloadedPolicyStillAllowsSend :
+    (reloadedModel.compile "CrossAgentGoverned").toOption.map
+      (fun policies => authorizedBy policies .delegationShared {} publicSendA.attempt) =
+      some true := by native_decide
+
+theorem reloadedPolicyFreezesWorkerB :
+    (reloadedModel.compile "CrossAgentGoverned").toOption.map
+      (fun policies => authorizedBy policies .delegationShared {} publicSendB.attempt) =
+      some false := by native_decide
+
+theorem reloadedRootValid :
+    (CedarPooSpec.PolicyJson.publish reloadedModel "CrossAgentGoverned" schema).isOk =
+      true := by native_decide
+
+/-- Root name, ledger epoch, and effect all still match. The changed POO
+    compilation alone invalidates the old admission ticket. -/
+theorem reloadedPolicyRejectsPreparedTicket :
+    let root := "CrossAgentGoverned"
+    let ticket := (prepare model root .delegationShared {} publicSendA).get firstTicketExists
+    commit reloadedModel root .delegationShared {} ticket publicSendA = none := by
+  native_decide
+
+def reloadedPolicyRevisionDiagnosed : Bool :=
+  let root := "CrossAgentGoverned"
+  let ticket := (prepare model root .delegationShared {} publicSendA).get firstTicketExists
+  match ticket.policy.currentPolicies reloadedModel with
+  | .error .changed => true
+  | _ => false
+
+theorem reloadedPolicyDiagnosesRevision :
+    reloadedPolicyRevisionDiagnosed = true := by
+  native_decide
+
+theorem reloadedPolicyFreshTicketCommits :
+    let root := "CrossAgentGoverned"
+    (((prepare reloadedModel root .delegationShared {} publicSendA).bind fun ticket =>
+      commit reloadedModel root .delegationShared {} ticket publicSendA) ==
+      some ({ budget := CedarPooSpec.SharedBudgetExample.advance {} workerA,
+                epoch := 1 } : State)) = true := by
   native_decide
 
 theorem allRootsValidate :

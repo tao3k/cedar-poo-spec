@@ -54,5 +54,6 @@ import CedarPooSpec.PolicyJson
 import CedarPooSpec.SchemaJson
 import CedarPooSpec.AuthorizationDelta
 import CedarPooSpec.AuthorizationDeltaCompound
+import CedarPooSpec.Admission.PolicySnapshot
 import CedarPooSpec.AuthorizationDeltaEvidence
 import CedarPooSpec.AuthorizationDeltaJson

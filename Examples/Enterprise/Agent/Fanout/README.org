@@ -154,9 +154,10 @@ admission with durable state. Neither Cedar nor LeanPOO supplies that host
 transaction automatically.
 
 =prepare= and =commit= specify the host-facing boundary more precisely. A
-ticket binds the C4 root, ledger view, state epoch, proposed call, and
-payload digest. =commit= checks those fields, reauthorizes against the
-current state, and advances the epoch on success. Lean checks three failure
+ticket binds the C4 root, its exact compiled Cedar policies, ledger view,
+state epoch, proposed call, and payload digest. =commit= checks those fields,
+reauthorizes against the current state, and advances the epoch on success.
+Lean checks three failure
 paths: two sends prepared on one budget snapshot cannot both commit; changing
 the payload after approval fails; and a sensitive read invalidates a
 previously prepared send before a refreshed send is denied by shared
@@ -164,6 +165,45 @@ history. The digest and ticket in this model are values supplied by the
 host, not cryptographic credentials. A deployment must derive the digest
 from the exact tool-call bytes, protect ticket provenance, persist the
 ledger, and make compare-and-swap plus effect reservation atomic.
+
+The [[file:../../../../CedarPooSpec/Admission/PolicySnapshot.lean][PolicySnapshot API]] closes a distinct revision gap. A second native POO
+construction publishes the same =CrossAgentGoverned= root name with an
+additional veto on worker B. Worker A's selected send still receives an
+error-free Allow, but =reloadedPolicyRejectsPreparedTicket= rejects its old ticket
+solely because the compiled policy set changed. A fresh ticket under the
+new model commits. =reloadedRootValid= checks the new root against the Cedar
+schema. The public snapshot check distinguishes a compilation error from a
+changed policy set; =reloadedPolicyDiagnosesRevision= checks the latter. The
+exact policy list is a local structural revision witness, not a
+cryptographic digest or authenticated deployment version; a Host must bind
+the actual loaded model and persist its version across restarts.
+
+* Why POO is used here
+
+Native =extend= and =mix= construct the independently owned history, intent,
+budget, and review controls. The policy snapshot is captured from the C4
+compilation of that object. A change to the compiled Cedar policy set
+therefore changes the ticket's authority even if the public root name stays
+the same. A provenance-only edit with an identical compiled policy set is
+not detected by this value; a deployment requiring that distinction must
+also bind its publication or approval revision.
+The ledger epoch, budget consumption, and idempotent external effect are not
+POO edits: they are mutable execution state that the Host must serialize.
+
+* New research comparison
+
+[[https://arxiv.org/abs/2607.10487][Temporary Authority, Permanent Effects]] studies durable commits after
+their earlier authority witness becomes stale. [[https://arxiv.org/abs/2608.01710][Beyond Single-Use Tokens]]
+identifies semantic replay through fresh token issuance after retries or
+replanning; token-local single use is insufficient without durable,
+monotonic authorization state. The [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/README.md][Cedar Lean README]] describes symbolic
+equivalence and implication of policy sets, which answer policy behavior
+questions but do not consume a Host ticket. The September 2026
+[[https://mirror.apps.cam.ac.uk/pub/doc/internet-drafts/draft-saha-aadp-04.html][AADP Internet-Draft]] describes a two-phase decision and enforcement contract
+with reservations and idempotency; it remains work in progress, not an
+implemented standard here. This example closes policy-revision binding in
+the pure model. Durable semantic replay prevention and idempotent external
+effects remain open Host integration work.
 
 #+begin_src mermaid
 stateDiagram-v2
