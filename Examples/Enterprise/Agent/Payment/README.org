@@ -139,6 +139,10 @@ stale. A new owner outside those ancestries leaves it reusable. The
 =requiresReview=; capturing a result does not approve it. An authorized Host
 can perform a separate approval workflow after reviewing the witness, but
 must compare the snapshot and reserve publication in one transaction.
+The pure =advanceNoGain= transition demonstrates this compare-and-swap shape:
+one current no-gain review advances the active root and epoch, while a second
+attempt with the same review fails. It is a state-model receipt, not a durable
+transaction implementation.
 
 This boundary matters in actual deployments. [[https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/policy-store-aliases-using.html][AWS Verified Permissions]]
 documents that policy-store alias changes propagate asynchronously and cannot

@@ -286,6 +286,8 @@ dimension while allowing unrelated owner additions. The no-gain candidate
 API refuses joint gains until a separate approval has occurred. It does not
 authenticate that approval, read a provider's active policy version, publish
 policies, or make the comparison and effect atomic; those remain Host duties.
+Its pure =advanceNoGain= transition models an active-root/epoch compare-and-swap
+and rejects a second use of the same review after a successful transition.
 
 The repository devenv provides cvc5 and sets =CVC5= to its absolute executable
 path. After activating the repository through =direnv=, run the gate through

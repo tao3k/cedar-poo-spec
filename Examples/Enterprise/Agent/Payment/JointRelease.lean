@@ -79,6 +79,10 @@ def run : IO Lean.Json := do
   match reviewed.noGainCurrentPolicies model paymentSchema 7 with
   | .error .requiresReview => pure ()
   | _ => throw (IO.userError "joint authorization gain bypassed review")
+  match reviewed.advanceNoGain model paymentSchema
+      { activeRoot := "DualHold", epoch := 7 } with
+  | .error .requiresReview => pure ()
+  | _ => throw (IO.userError "joint authorization gain advanced active policy")
   match reviewed.snapshot.currentPolicies model paymentSchema 8 with
   | .error .epochChanged => pure ()
   | _ => throw (IO.userError "stale Host policy epoch was admitted")
@@ -114,6 +118,14 @@ def run : IO Lean.Json := do
   match safeReview.noGainCurrentPolicies safeModel paymentSchema 12 with
   | .error .epochChanged => pure ()
   | _ => throw (IO.userError "stale no-gain review was admitted")
+  let .ok (next, _) := safeReview.advanceNoGain safeModel paymentSchema
+      { activeRoot := "DualHold", epoch := 11 }
+    | throw (IO.userError "current no-gain review could not advance")
+  if next.activeRoot != "RiskOnlyReview" || next.epoch != 12 then
+    throw (IO.userError "no-gain advance did not update the active version")
+  match safeReview.advanceNoGain safeModel paymentSchema next with
+  | .error .activeRootChanged => pure ()
+  | _ => throw (IO.userError "second commit of one review was admitted")
   let request := gain.combined.witness.request
   let entities := gain.combined.witness.entities
   let mut cases := []
@@ -138,6 +150,7 @@ def run : IO Lean.Json := do
     ("unrelated_owner_reused", Lean.toJson true),
     ("safe_release_current", Lean.toJson true),
     ("safe_release_stale_rejected", Lean.toJson true),
+    ("second_commit_rejected", Lean.toJson true),
     ("manifest", Lean.Json.mkObj [("cases", Lean.toJson cases)])]
 
 end CedarPooSpec.AgentPaymentJointRelease

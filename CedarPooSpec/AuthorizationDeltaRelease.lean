@@ -45,6 +45,7 @@ inductive ReleaseError where
   | modelChanged
   | schemaChanged
   | epochChanged
+  | activeRootChanged
   | requiresReview
   | rootChanged (root : String) (error : CedarPooSpec.Admission.PolicySnapshot.Error)
   deriving Repr
@@ -109,5 +110,23 @@ def ReviewedInteraction.noGainCurrentPolicies (reviewed : ReviewedInteraction)
   match reviewed.analysis.outcome with
   | .noCombinedGain => reviewed.snapshot.currentPolicies model schema epoch
   | .branchExpanded | .jointOnlyGain _ => .error .requiresReview
+
+/-- Pure model of the Host's active policy version. The Host owns durable
+    storage and synchronization of this state. -/
+structure ReleaseState where
+  activeRoot : String
+  epoch : Nat
+  deriving BEq, Repr
+
+/-- A compare-and-swap transition for a no-gain candidate. A real Host must
+    apply the version check, publication, and epoch increment atomically. -/
+def ReviewedInteraction.advanceNoGain (reviewed : ReviewedInteraction)
+    (model : Model) (schema : Schema) (state : ReleaseState) :
+    Except ReleaseError (ReleaseState × Policies) := do
+  if state.activeRoot != reviewed.snapshot.base.root then throw .activeRootChanged
+  let policies ← reviewed.noGainCurrentPolicies model schema state.epoch
+  let next : ReleaseState :=
+    { activeRoot := reviewed.snapshot.combined.root, epoch := state.epoch + 1 }
+  return (next, policies)
 
 end CedarPooSpec.AuthorizationDelta
