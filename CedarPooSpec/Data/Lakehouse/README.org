@@ -8,6 +8,11 @@ scopes, the denied location, and the input field names. Its optional
 object exposes =introduce=, =revise=, and =withdraw= edits for Lean-POO
 composition.
 
+[[file:LocationProfile.lean][LocationProfile]] turns those boundaries into first-class LeanPOO objects.
+Its fields are typed slots, so a descendant can revise a location or action
+range while inheriting the other settings and the computed boundary. The
+adjacent [[file:LocationProfile.org][profile documentation]] describes the construction and Host boundary.
+
 The [[file:../../../Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/README.org][insurance lakehouse case]] instantiates this platform-neutral object for
 =EU=, =RESTRICTED=, and a proposed =UNKNOWN=/missing-field hardening. Its
 claims-summary rule comes from =Vertical/FinancialServices/=; its AgentCore

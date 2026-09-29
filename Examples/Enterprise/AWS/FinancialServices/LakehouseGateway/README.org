@@ -48,6 +48,15 @@ unchanged. The model constructs these branches with =Model.extend= and
 This is the concrete maintenance unit POO supplies: an owner can
 change one restriction without copying the other policy bodies.
 
+The EU, restricted, and unresolved controls also form a [[file:../../../../../CedarPooSpec/Data/Lakehouse/LocationProfile.lean][typed POO profile]]
+family. =RestrictedProfile= changes the policy ID, action scope, and denied
+location while retaining the EU parent's principal, resource, and input
+projection. =UnresolvedProfile= changes the ID and location and enables
+missing-field denial. Each profile's inherited computed slot produces the
+exact =LocationBoundary= consumed by its independent policy owner.
+[[file:../../../../../Tests/Enterprise/AWS/LakehouseLocationProfile.lean][Lean checks]] establish parent preservation, C4 order, and the generated
+policy bodies; the Cedar replay checks the composed decisions.
+
 The ownership layers are explicit in the Lean imports:
 [[file:../../../../../CedarPooSpec/Data/Lakehouse/LocationBoundary.lean][Data.Lakehouse.LocationBoundary]] provides the reusable location veto;
 [[file:../../../../../CedarPooSpec/Vertical/FinancialServices/ClaimSummaryVeto.lean][Vertical.FinancialServices.ClaimSummaryVeto]] provides the insurance rule;

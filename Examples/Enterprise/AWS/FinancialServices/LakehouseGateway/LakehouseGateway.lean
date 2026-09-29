@@ -1,5 +1,6 @@
 import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Data.Lakehouse.LocationBoundary
+import CedarPooSpec.Data.Lakehouse.LocationProfile
 import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto
 import CedarPooSpec.Revision
 
@@ -78,24 +79,41 @@ def summaryControl : ClaimSummaryVeto :=
     summaryAction := claimsSummary,
     resourceScope := .resourceScope (.eq gateway),
     policyholderCondition := isPolicyholder }
-def euControl : LocationBoundary :=
+def euTemplate : LocationBoundary :=
   { policyId := "eu-individual-claims",
     principalScope := .principalScope (.is userType),
     actionScope := .actionInAny [queryClaims, claimDetails],
     resourceScope := .resourceScope (.eq gateway),
     deniedLocation := "EU" }
+
+def euProfile : LocationProfile.Object :=
+  (LocationProfile.define "EUProfile" euTemplate).toOption.get
+    (by native_decide)
+
+def restrictedProfile : LocationProfile.Object :=
+  (euProfile.extendWith "RestrictedProfile" do
+    LeanPoo.Object.Declaration.Builder.value .policyId "restricted-geography"
+    LeanPoo.Object.Declaration.Builder.value .actionScope (.actionInAny tools)
+    LeanPoo.Object.Declaration.Builder.value .location "RESTRICTED")
+    |>.toOption.get (by native_decide)
+
+def euControl : LocationBoundary :=
+  (LocationProfile.boundary? euProfile).get (by native_decide)
 def restrictedControl : LocationBoundary :=
-  let named := { euControl with policyId := "restricted-geography" }
-  let withActions := { named with actionScope := .actionInAny tools }
-  { withActions with deniedLocation := "RESTRICTED" }
+  (LocationProfile.boundary? restrictedProfile).get (by native_decide)
 
 /-- A proposed extension: deny calls when geography is absent or the sample
     interceptor's `UNKNOWN` fallback is used. Neither matches the source's
     EU or RESTRICTED rules. -/
+def unresolvedProfile : LocationProfile.Object :=
+  (restrictedProfile.extendWith "UnresolvedProfile" do
+    LeanPoo.Object.Declaration.Builder.value .policyId "unresolved-geography"
+    LeanPoo.Object.Declaration.Builder.value .location "UNKNOWN"
+    LeanPoo.Object.Declaration.Builder.value .denyMissing true)
+    |>.toOption.get (by native_decide)
+
 def unresolvedControl : LocationBoundary :=
-  let named := { restrictedControl with policyId := "unresolved-geography" }
-  let unknown := { named with deniedLocation := "UNKNOWN" }
-  { unknown with denyMissing := true }
+  (LocationProfile.boundary? unresolvedProfile).get (by native_decide)
 def unresolvedGeographyVeto : Policy := unresolvedControl.policy
 
 def modelResult : Except LeanPoo.C4.Error Model := do

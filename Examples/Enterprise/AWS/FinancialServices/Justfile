@@ -3,6 +3,7 @@ export CARGO_TARGET_DIR := "rust/target"
 
 lakehouse:
     just build-examples
+    lake build Tests.Enterprise.AWS.LakehouseLocationProfile
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean lakehouse-gateway-validated > .lake/build/lakehouse-gateway-validated-manifest.json
     jq -e '.schema.AgentCore.entityTypes.OAuthUser.tags == {"type":"String"} and .schema.AgentCore.actions["lakehouse-mcp-target___query_claims"].appliesTo.context.attributes.input.attributes.geography == {"required":false,"type":"String"} and (.cases | length) == 16' .lake/build/lakehouse-gateway-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/lakehouse-gateway-validated-manifest.json > .lake/build/lakehouse-gateway-validated-receipts.json
