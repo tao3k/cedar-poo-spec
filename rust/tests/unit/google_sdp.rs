@@ -114,6 +114,11 @@ fn selected_lineage_and_wrapped_key_must_agree() {
         "wrappingVersion": "kek-v1", "surrogateInfoType": null
     }))
     .unwrap();
+    let profile = selected.token_profile("tenant-a", "study-a");
+    assert_eq!(profile.mode, crate::pseudonymization::Mode::AesSiv);
+    assert_eq!(profile.scope, "study-a");
+    assert_eq!(profile.lineage.tenant, "tenant-a");
+    assert_eq!(profile.lineage.key_domain, "key-a");
     let key = WrappedKeyBinding {
         key_domain: "key-a".into(),
         token_key_version: "dek-v2".into(),

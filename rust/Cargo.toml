@@ -8,7 +8,9 @@ description = "Lean-POO policy artifacts and optional Cedar language conformance
 [features]
 default = []
 cedar-runtime = ["dep:cedar-policy", "dep:sha2", "cedar-policy/ipaddr", "cedar-policy/decimal", "cedar-policy/datetime"]
-google-sdp = ["dep:base64", "dep:sha2"]
+clinical-disclosure-host = ["cedar-runtime"]
+pseudonymization = []
+google-sdp = ["pseudonymization", "dep:base64", "dep:sha2"]
 google-sdp-host = ["cedar-runtime", "google-sdp"]
 
 [dependencies]
@@ -46,7 +48,7 @@ required-features = ["google-sdp-host"]
 [[example]]
 name = "agent_disclosure_host"
 path = "examples/agent_disclosure_host.rs"
-required-features = ["cedar-runtime"]
+required-features = ["clinical-disclosure-host"]
 
 [[test]]
 name = "pseudonymization_crypto"

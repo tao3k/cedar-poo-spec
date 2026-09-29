@@ -1,0 +1,138 @@
+#+TITLE: RFC 0009: Data Operation and Pseudonymization Bindings for mrr-data
+#+OPTIONS: toc:nil
+
+* Status and purpose
+
+This RFC defines the first integration slice between the reusable data
+controls in =cedar-poo-spec= and the physical data plane in =mrr-data=. It is a
+feature contract for an implementation PR, not an implementation claim.
+
+The integration is industry-neutral. Healthcare, finance, enterprise
+analytics, and AI-agent consumers select and extend the same controls. The
+[[file:../../CedarPooSpec/Pseudonymization/README.org][Pseudonymization]] capability remains a common model; Google Sensitive Data
+Protection is an optional execution provider. Neither Google nor a clinical
+example defines the generic mrr-data API.
+
+* Ownership and placement
+
+#+begin_src mermaid
+flowchart LR
+  L[Lean-POO control objects] --> C[Cedar policy artifact]
+  C --> A[Deployment authority]
+  M[MRR semantic admission] --> H[Application Host]
+  D[mrr-data physical snapshot and query] --> H
+  A --> H
+  H --> E[Effect and release]
+#+end_src
+
+=mrr-data= owns Arrow, immutable snapshot roots, cache, transfer, and physical
+query execution. MRR owns semantic identity, query binding, and result
+admission. =cedar-poo-spec= owns reusable control objects and their Cedar
+projection. The deployment authority owns current policy, principal and
+revocation state. The Host authenticates external labels and approvals,
+controls effects, and records durable receipts. A content CID or physical
+query receipt is never an authorization receipt.
+
+RFC 0008 assigns runtime authority to POO Flow or the deploying Host. The
+existing Rust =cedar-poo-bridge= validates and renders policy artifacts. Its
+clinical and Google in-memory Hosts are reference consumers, not a new
+universal authority protocol. The first integration must preserve that
+boundary. It must not add =cedar-policy= to =mrr-data= core or a second
+authorization runtime to the bridge.
+
+The generic physical projection is maintained by =mrr-data=, beginning in its
+=mrr-data-core/content-identity= feature and exported through its facade. It
+borrows snapshot, query, and MRR result-admission identities. The separate
+=mrr-data-core/pseudonymization= feature binds a selected value and context
+to that snapshot while leaving the token profile generic. Neither feature
+depends on this repository, Cedar, Google, or a vertical industry. A later
+opt-in Cedar integration package may live in the =mrr-data= workspace and
+depend on a pinned =cedar-poo-bridge= revision. It must select only the
+bridge features it uses: =pseudonymization= for a common token profile,
+=google-sdp= for the provider wire contract, and =cedar-runtime= only for
+official Cedar validation or replay. Feature flags follow real Rust modules,
+not empty switches for Lean-only models.
+
+The physical projection does not issue permissions, mint tickets, perform
+cryptography, or intercept all calls to =mrr-data=. The application must
+route protected effects through its authority and Host. Neither the mrr-data
+core nor its default facade gains a Cedar dependency.
+
+* Operation contract
+
+The generic boundary provides borrowed, typed projections for these operations:
+
+| Operation | Physical binding | Additional authenticated facts |
+|-----------+------------------+--------------------------------|
+| Publish snapshot | exact root CID, MRR generation, catalog digests | actor, destination, tenant, classification, purpose, policy revision |
+| Read snapshot | requested root CID | actor, purpose, destination, current data-access scope |
+| Run query | =BoundDataQuery= root, semantic binding, engine profile | actor, purpose, source labels, policy revision |
+| Release result | admitted result binding and actual output digest | recipient, lineage, approval, budget, audit epoch |
+| Transform data | exact selected input and provider request digest | recipe, context scope, key version, approval, provider identity |
+
+No request-supplied Boolean may stand in for a trusted approval, unique IV,
+audit write, key possession, or provider execution. The Host supplies those
+facts from authenticated stores or provider receipts. A cache hit changes
+physical cost, not the authorization requirement for a new read or release.
+
+The Host first prepares authorization for the exact operation and observed
+state. It then executes only that operation. Before releasing bytes or
+publishing externally, it rechecks current policy and revocation state and
+matches the actual root, query binding, provider response, or result digest.
+Budget debit, approval consumption, and audit persistence require a durable
+transaction or an explicit compensating/outbox protocol. This RFC does not
+claim atomicity across an object store, a Cedar decision, and an external
+provider.
+
+The immutable mrr-data manifest keeps credentials, mutable grants, policy
+revision, and authorization tokens outside its root. A versioned governance
+binding relates the root and MRR generation to current classification and
+policy state. Changing a grant must not require rewriting immutable data.
+
+* Performance contract
+
+Performance is part of the public design, not an example-only measurement.
+The implementation PR must publish reproducible cold-path and warm-path
+numbers for direct official Cedar authorization and the integrated path.
+
+- Validate and compile a selected policy bundle once per deployment revision.
+  Do not parse JSON, validate schema, render Cedar source, or replay a
+  manifest for each data operation.
+- Project from borrowed mrr-data values on the hot path. Do not serialize a
+  snapshot or query into JSON and parse it back. Reuse existing root CIDs and
+  admitted query identities; hash actual output bytes once when a release
+  digest is required.
+- Keep storage and provider I/O outside the policy-overhead measurement.
+  Measure those end-to-end separately. A local cache hit cannot bypass a
+  policy check, but it should not trigger policy recompilation.
+- Keep policy bundle caches keyed by accepted artifact identity and revision.
+  Do not cache an Allow across changes to principal, grant, budget, lineage,
+  revocation epoch, or effect digest.
+- Measure at least 1, 16, and 128 source labels, and small and large policy
+  bundles. Report p50, p95, p99, throughput, allocation count, and bytes per
+  operation for projection, direct Cedar, integrated authorization, and
+  result-release bookkeeping. Record toolchain, CPU, build profile, sample
+  count, and policy/fixture identity.
+
+The first PR records a same-machine baseline before setting a numerical
+latency gate. Acceptance requires that the warmed adapter perform no JSON
+decode or policy compile and that its measured added cost over direct Cedar
+be reported explicitly. A later gate may use a paired relative threshold
+after measurement variance is established; a fixed sub-millisecond claim
+without a workload and machine specification is not evidence.
+
+* First PR acceptance
+
+The first mrr-data PR includes the generic operation projection, one synthetic
+cross-tenant data-flow fixture, a Rust benchmark, and focused Tests. The fixture must
+cover the same root through local and remote cache paths, a changed root or
+generation, a changed policy revision, a revoked approval between prepare
+and release, mismatched output digest, and a provider transformation receipt.
+Official Cedar must make the authorization decision; MRR must admit a query
+result before its release is considered. The Google provider path uses the
+same generic transform facts and remains optional.
+
+Lean capability, Rust adapter, Tests, and this feature documentation must
+advance together. A healthcare or other vertical example may consume the
+finished public API in a later change; it is not the acceptance authority for
+the generic first PR.

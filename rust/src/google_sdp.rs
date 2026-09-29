@@ -4,6 +4,7 @@
 //! neither sends requests nor authenticates the source of a response. The Host
 //! owns transport, KMS access, admission, persistence, and plaintext release.
 
+use crate::pseudonymization::{Mode, TokenLineage, TokenProfile};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -41,6 +42,26 @@ pub struct SelectedTabularInput {
     pub transform_version: String,
     pub wrapping_version: String,
     pub surrogate_info_type: Option<SurrogateInfoType>,
+}
+
+impl SelectedTabularInput {
+    /// Project the selected Google row into the common token catalog. The
+    /// caller supplies authenticated tenant and equality scope; neither is
+    /// inferred from a provider endpoint or dataset name.
+    #[must_use]
+    pub fn token_profile<'a>(&'a self, tenant: &'a str, scope: &'a str) -> TokenProfile<'a> {
+        TokenProfile {
+            mode: Mode::AesSiv,
+            scope,
+            lineage: TokenLineage {
+                tenant,
+                key_domain: &self.key_domain,
+                token_key_version: &self.token_key_version,
+                transform_version: &self.transform_version,
+                wrapping_version: &self.wrapping_version,
+            },
+        }
+    }
 }
 
 /// A Host-resolved KMS wrapper for the exact catalog key lineage.
