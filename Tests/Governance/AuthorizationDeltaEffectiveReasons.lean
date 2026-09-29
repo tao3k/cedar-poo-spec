@@ -49,6 +49,30 @@ def run : IO Lean.Json := do
       flipWitness.beforeResponse.decision != .allow ||
       flipWitness.afterResponse.decision != .deny then
     throw (IO.userError "effect flip was misclassified")
+  let .ok revision := sharedModel.compileRevision "Shared" "OneGrantRemoved"
+    | throw (IO.userError "could not compile duplicate-ID regression")
+  let some repeated := revision.before.policies.head?
+    | throw (IO.userError "duplicate-ID regression has no policy")
+  let duplicate :=
+    { revision with before :=
+      { revision.before with policies := revision.before.policies ++ [repeated] } }
+  match ← analyzeEffectiveReasons duplicate schema with
+  | .error (.duplicatePolicyIds "before") => pure ()
+  | _ => throw (IO.userError "duplicate policy ID was admitted by effective reasons")
+  match ← analyzeReasons duplicate schema with
+  | .error (.duplicatePolicyIds "before") => pure ()
+  | _ => throw (IO.userError "duplicate policy ID was admitted by conservative reasons")
+  let some repeatedAfter := revision.after.policies.head?
+    | throw (IO.userError "after-side duplicate regression has no policy")
+  let afterDuplicate :=
+    { revision with after :=
+      { revision.after with policies := revision.after.policies ++ [repeatedAfter] } }
+  match ← analyzeEffectiveReasons afterDuplicate schema with
+  | .error (.duplicatePolicyIds "after") => pure ()
+  | _ => throw (IO.userError "duplicate after-policy ID was admitted")
+  match ← analyzeReasons afterDuplicate schema with
+  | .error (.duplicatePolicyIds "after") => pure ()
+  | _ => throw (IO.userError "duplicate after-policy ID was admitted by conservative reasons")
   let .ok beforeCase := CedarPooSpec.PolicyJson.authorizationCase
       "effective-reason-before" "Shared" sharedModel "Shared"
       witness.witness.request witness.witness.entities
@@ -69,6 +93,7 @@ def run : IO Lean.Json := do
     ("flip_reason_stable", Lean.toJson flipped.report.solverReasonStable),
     ("flip_before_decision", Lean.toJson (if flipWitness.beforeResponse.decision == .allow then "allow" else "deny")),
     ("flip_after_decision", Lean.toJson (if flipWitness.afterResponse.decision == .allow then "allow" else "deny")),
+    ("duplicate_ids_rejected", Lean.toJson true),
     ("manifest", Lean.Json.mkObj [("cases", Lean.toJson [beforeCase, afterCase])])]
 
 end CedarPooSpec.AuthorizationDeltaEffectiveReasonTest

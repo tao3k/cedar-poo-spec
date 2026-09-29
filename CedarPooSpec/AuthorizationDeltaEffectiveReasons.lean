@@ -67,6 +67,10 @@ def EffectiveReasonReport.provenanceStable (report : EffectiveReasonReport) : Bo
     that the queried ID changes membership. Solver failures are errors. -/
 def analyzeEffectiveReasons (revision : Revision) (schema : Schema) :
     IO (Except ReasonError EffectiveReasonReport) := do
+  if !decide (revision.beforePolicies.map Policy.id).Nodup then
+    return .error (.duplicatePolicyIds "before")
+  if !decide (revision.afterPolicies.map Policy.id).Nodup then
+    return .error (.duplicatePolicyIds "after")
   let decision ← match ← analyzeOperationalImpact revision schema with
     | .ok result => pure result
     | .error error => return .error (.operational error)

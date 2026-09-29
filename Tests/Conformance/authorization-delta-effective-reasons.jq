@@ -13,6 +13,7 @@
   and .flip_reason_stable == false
   and .flip_before_decision == "allow"
   and .flip_after_decision == "deny"
+  and .duplicate_ids_rejected == true
   and (.manifest.cases | length) == 2
   and (all(.manifest.cases[]; .expected == "allow" and .expected_error_policies == []))
   and (.manifest.cases[0].expected_reasons | sort) == ["alice-ticket-a", "alice-ticket-a-fallback"]

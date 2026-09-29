@@ -189,9 +189,21 @@ reasonMember(policy, revision, input)
 It asks whether this membership differs across revisions, enforces the same
 entity-hierarchy constraints as upstream queries, and replays every model
 against the original Cedar policy sets. The analyzer first applies the
-error-free operational qualification. A solver failure or a model that fails
+error-free operational qualification. Both public reason analyzers reject
+duplicate policy IDs before selecting an ID for symbolic evaluation; the
+POO compiler produces unique IDs, but callers can also construct a =Revision=
+directly. A solver failure or a model that fails
 the original Cedar replay is an error, never a stable result. Identical Cedar
 policy lists skip the reason queries while still reporting POO provenance.
+
+The [[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasonsProof.lean][concrete membership theorem]] proves in Lean that, under unique IDs,
+a policy ID is in Cedar's final determining set exactly when that policy
+matches and its effect agrees with the final decision. This closes the
+concrete-response side of the new formula and makes the uniqueness premise
+explicit. The same module proves that every final determining ID came from
+the compiled policy list, which justifies querying the union of the two
+revisions' IDs. The focused regression also rejects a manually constructed revision
+with duplicate IDs before any solver query.
 
 The [[file:../../Tests/Governance/AuthorizationDeltaEffectiveReasons.lean][focused regression]] distinguishes four cases: removal of one of two
 independent grants changes final reasons but not the decision; an always
@@ -201,9 +213,10 @@ and flipping a permit to a forbid removes the other permit from the final
 reason set. Concrete reason witnesses are replayed in Rust Cedar.
 
 This is an executable symbolic model, *not yet a verified new Cedar query*.
-Cedar proves its compiler and authorizer components, but this repository has
-not proved that the new membership formula and its unsatisfiable result are
-equivalent to universal final-reason equality. The
+Cedar proves its compiler and authorizer components, and this repository now
+proves the concrete membership formula. It has not yet proved that the
+composed symbolic term and its unsatisfiable result are equivalent to
+universal final-reason equality. The
 [[https://www.amazon.science/publications/symcert-verifying-smt-based-policy-analyses][SymCert research]] explains why a new SMT analysis needs its own correctness
 proof even when built from verified components. Until that proof exists,
 =solverReasonStable= from this analyzer is solver-based review evidence, while a

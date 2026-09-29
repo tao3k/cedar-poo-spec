@@ -139,7 +139,7 @@ check-authorization-delta-reasons:
     jq '.manifest' .lake/build/authorization-delta-reasons.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-authorization-delta-effective-reasons:
-    lake build Tests.Governance.AuthorizationDeltaEffectiveReasons
+    lake build CedarPooSpec.AuthorizationDeltaEffectiveReasonsProof Tests.Governance.AuthorizationDeltaEffectiveReasons
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Tests/Governance/AuthorizationDeltaEffectiveReasons.lean > .lake/build/authorization-delta-effective-reasons.json
     jq -e -f Tests/Conformance/authorization-delta-effective-reasons.jq .lake/build/authorization-delta-effective-reasons.json > /dev/null
     jq '.manifest' .lake/build/authorization-delta-effective-reasons.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml

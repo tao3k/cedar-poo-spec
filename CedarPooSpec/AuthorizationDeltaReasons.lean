@@ -16,6 +16,7 @@ inductive ReasonError where
   | operational (error : OperationalError)
   | solver (message : String)
   | invalidWitness (policyId : PolicyID)
+  | duplicatePolicyIds (side : String)
   deriving Repr
 
 structure ReasonWitness where
@@ -76,6 +77,10 @@ private def matchingDifference? (before after : Option Policy) (typeEnv : TypeEn
     A found match difference without a changed Cedar reason is unresolved. -/
 def analyzeReasons (revision : Revision) (schema : Schema) :
     IO (Except ReasonError ReasonImpactReport) := do
+  if !decide (revision.beforePolicies.map Policy.id).Nodup then
+    return .error (.duplicatePolicyIds "before")
+  if !decide (revision.afterPolicies.map Policy.id).Nodup then
+    return .error (.duplicatePolicyIds "after")
   let decision ← match ← analyzeOperationalImpact revision schema with
     | .ok decision => pure decision
     | .error error => return .error (.operational error)
