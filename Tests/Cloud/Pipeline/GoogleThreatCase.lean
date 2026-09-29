@@ -1,4 +1,5 @@
 import Examples.Cloud.Pipeline.GoogleThreatCase
+import Examples.Cloud.Pipeline.Deployment
 
 namespace CedarPooSpec.Cloud.Pipeline.GoogleThreatCaseTest
 
@@ -11,17 +12,22 @@ theorem stageDecisionsExact :
     cases.all (fun (_, root, resource, facts, expected) =>
       allowed root resource facts == expected) = true := by native_decide
 
-theorem allPublishedRootsValidate :
-    ["Base", "SourceBound", "DependencyBound", "RunnerBound",
+theorem allDiagnosticRootsValidate :
+    ["Base", "SourceBound", "DependencyBound", "RunnerBound", "ArtifactBound",
       "ReleaseReady", "Quarantined", "Recovered"].all (fun root =>
         (CedarPooSpec.PolicyJson.publish model root schema).isOk) = true := by
   native_decide
 
+theorem selectedDeploymentRootsValidate :
+    [Deployment.Root.releaseReady, .quarantined, .recovered].all
+      (fun root => (Deployment.publish root).isOk) = true := by native_decide
+
 theorem independentStageOwnersPresent :
     ((model.objectAt "ReleaseReady").toOption.get
       (by native_decide)).plan.precedence =
-        ["ReleaseReady", "RunnerBound", "DependencyBound", "SourceBound",
-          "Base", "Source", "Dependencies", "Runner", "Artifact"] := by
+        ["ReleaseReady", "ArtifactBound", "RunnerBound", "DependencyBound",
+          "SourceBound", "Base", "Source", "Dependencies", "Runner",
+          "Artifact", "Provenance"] := by
   native_decide
 
 theorem quarantineTouchesOnlyIncidentPolicy :

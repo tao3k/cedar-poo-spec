@@ -5,6 +5,6 @@ Cloud examples compose provider-neutral objects from
 [[file:../../CedarPooSpec/Cloud/README.org][the Cloud library]].
 Platform-specific examples remain under their provider and may import these
 controls. The [[file:Pipeline/README.org][code pipeline release]] scenario establishes the build
-boundary. The [[file:DataProtection/README.org][customer data protection]] scenario selects that
+and deployment boundaries. The [[file:DataProtection/README.org][customer data protection]] scenario selects that
 boundary together with scoped AES-SIV pseudonymization and exercises the
 existing Google Sensitive Data Protection REST adapter.

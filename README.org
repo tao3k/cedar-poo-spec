@@ -79,8 +79,10 @@ The [[file:CedarPooSpec/Data/Lakehouse/README.org][Lakehouse data boundary]] can
 [[file:Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/README.org][AWS insurance profile]] composes it with a financial claims rule and the
 AgentCore projection.
 The [[file:Examples/Cloud/Pipeline/README.org][cloud pipeline case]] composes
-source, dependency, runner, and artifact controls through separate LeanPOO
+source, dependency, runner, artifact, and provenance controls through separate LeanPOO
 owners, then adds an artifact-specific incident revision.
+[[file:Examples/Cloud/Pipeline/DeploymentCase.lean][DeploymentCase]] composes a separate digest-bound attestation owner
+and requires both release and deployment decisions.
 The [[file:Examples/Cloud/DataProtection/README.org][cloud data protection case]] selects that release boundary with
 top-level pseudonymization and the existing Google SDP REST adapter as a
 customer-specific profile.

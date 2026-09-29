@@ -15,6 +15,7 @@ inductive Stage where
   | dependencies
   | runner
   | artifact
+  | provenance
   deriving DecidableEq, Repr
 
 def Stage.name : Stage → String
@@ -22,6 +23,7 @@ def Stage.name : Stage → String
   | .dependencies => "dependencies"
   | .runner => "runner"
   | .artifact => "artifact"
+  | .provenance => "provenance"
 
 private def context (name : String) : Expr :=
   .getAttr (.var .context) name
@@ -32,21 +34,29 @@ private def resource (name : String) : Expr :=
 private def equalField (name : String) : Expr :=
   .binaryApp .eq (context name) (resource name)
 
+private def equalEvidenceField (name : String) : Expr :=
+  .binaryApp .eq (.getAttr (context "provenance") name) (resource name)
+
 private def all (conditions : List Expr) : Expr :=
   conditions.foldr Expr.and (.lit (.bool true))
 
 /-- Stage evidence and exact target bindings required for one release. -/
 def Stage.ready : Stage → Expr
   | .source => all [context "reviewed", context "protectedRef",
-      equalField "sourceCommit", equalField "workflow"]
+      equalField "sourceRepository", equalField "sourceCommit",
+      equalField "workflow"]
   | .dependencies => all [context "lockVerified",
       context "dependenciesQuarantined", context "actionsPinned",
       equalField "lockDigest"]
   | .runner => all [context "ephemeralRunner", context "cacheIsolated",
       context "untrustedPrBlocked", equalField "oidcAudience"]
   | .artifact => all [context "signatureVerified",
-      context "provenanceVerified", equalField "artifactDigest",
-      equalField "builderIdentity"]
+      equalField "artifactDigest",
+      equalField "builderIdentity", equalField "buildType"]
+  | .provenance => all (context "provenanceVerified" ::
+      ["sourceRepository", "sourceCommit", "workflow", "lockDigest",
+        "oidcAudience", "buildType", "builderIdentity",
+        "artifactDigest"].map equalEvidenceField)
 
 /-- Each stage owns one Cedar forbid policy. A separate grant must permit the
     action; Cedar combines permits and forbids after POO composes policy slots. -/

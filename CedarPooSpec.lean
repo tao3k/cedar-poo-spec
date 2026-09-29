@@ -28,6 +28,8 @@ import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Admission.SourceNetwork
 import CedarPooSpec.Cloud.Pipeline.ReleaseBoundary
+import CedarPooSpec.Cloud.Pipeline.Evidence
+import CedarPooSpec.Cloud.Pipeline.DeploymentBoundary
 import CedarPooSpec.Cloud.DataProtection.PseudonymizationGate
 import CedarPooSpec.Data.Relation
 import CedarPooSpec.Data.Lineage

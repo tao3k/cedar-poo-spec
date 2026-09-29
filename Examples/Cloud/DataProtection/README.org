@@ -24,7 +24,7 @@ It selects a named =customer_id= and =campaign= column through the public
 
 #+begin_src mermaid
 stateDiagram-v2
-  [*] --> ReleaseReady: four independent pipeline owners
+  [*] --> ReleaseReady: five independent pipeline owners
   [*] --> SdpReady: permit and recipe gate
   ReleaseReady --> CustomerDataRelease: mix SdpReady
   SdpReady --> CustomerDataRelease: mix ReleaseReady
@@ -38,7 +38,7 @@ stateDiagram-v2
 
 The first customer selects =ReleaseReady= and may promote an artifact; that
 root contains no data-transformation grant. The second selects
-=CustomerDataRelease=, inheriting the same four pipeline owners plus an
+=CustomerDataRelease=, inheriting the same five pipeline owners plus an
 independent =SdpPermit= and =SdpRecipe= object. The incident and recovery
 profiles reuse those objects; the incident changes only the affected artifact
 veto. A customer can choose this profile without copying the hospital
