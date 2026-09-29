@@ -59,8 +59,8 @@ check-conformance: check-replay-receipts check-schema-bound-receipts check-schem
 check-personnel-governance:
     lake build Examples.Manifests Tests.Enterprise.Personnel.SourceCustody
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean source-custody-validated > .lake/build/source-custody-validated-manifest.json
-    .devenv/devenv-profile-exec cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
-    .devenv/devenv-profile-exec jq -e -f Tests/Conformance/personnel-governance-receipts.jq .lake/build/source-custody-validated-receipts.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
+    jq -e -f Tests/Conformance/personnel-governance-receipts.jq .lake/build/source-custody-validated-receipts.json > /dev/null
 
 check-tests: build-examples
     lake build Tests

@@ -113,6 +113,7 @@ jobs:
       - run: just example governance attested-views
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
+      - run: just check-personnel-governance
 
   authorization-delta:
     needs: [lean, rust]

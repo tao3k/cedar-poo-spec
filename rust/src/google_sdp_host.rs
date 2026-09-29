@@ -255,10 +255,10 @@ impl InMemoryGoogleSdpHost {
         {
             return Err("Cedar decision is denied or its policy revision is stale".into());
         }
-        if effect == TableEffect::Reidentify {
-            if !self.token_issued_for(token.as_deref().ok_or("missing token")?, &provenance) {
-                return Err("token was not issued for this dataset and key lineage".into());
-            }
+        if effect == TableEffect::Reidentify
+            && !self.token_issued_for(token.as_deref().ok_or("missing token")?, &provenance)
+        {
+            return Err("token was not issued for this dataset and key lineage".into());
         }
         let plan = TabularAesSiv::from_selected(parent, selected, key)?;
         let request = match effect {
