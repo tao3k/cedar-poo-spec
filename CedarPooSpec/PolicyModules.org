@@ -28,14 +28,30 @@ an unknown root. Another check shows that disjoint object names do not excuse
 duplicate Cedar policy IDs; the edit validation still rejects the combined
 root. The official Cedar runtime replays the accepted policy.
 
-The object cache is valid only for the exact module list that produced it.
-An ordinary Lean record update to =modules= invalidates both cached plan and
+The =Built= sum type holds either a staged schema or a first-class object with
+its source module list, so the two forms cannot disagree inside one model.
+=Model.currentObject?= returns an object only for that exact module list.
+An ordinary Lean record update to =modules= invalidates cached object and
 schema selection. The
 [[file:../Tests/Health/ModelStewardship.lean][model stewardship checks]] compare
 object-backed and uncached compilation at mixed and extended roots, and
 check that a changed module list cannot reuse the prior object. The
 [[file:../Examples/Health/ModelStewardship/README.org][clinical scenario]]
 also replays its authorization decisions through official Cedar Rust.
+
+* Policy resolution diagnostics
+
+=Model.explainResolution= calls LeanPOO's =Object.Debug.Plan.explain= to
+report C4 precedence and the declarations that contribute a policy slot. It
+remains available when a Cedar edit is invalid. =Model.explainPolicy= first
+validates Cedar edits, then returns that native resolution together with the
+effective policy and the relevant applied edits. A direct =remove= contributes
+a tombstone declaration, so it appears in the resolution even when the
+effective policy is absent. These are inspection APIs; they do not authorize
+an operation or bypass publication checks. The
+[[file:../Tests/Health/ModelStewardship.lean][clinical checks]] cover an
+incident veto, its removal, and two independent owners that collide on one
+Cedar policy ID despite valid C4 composition.
 
 * Boundary of the new upstream API
 

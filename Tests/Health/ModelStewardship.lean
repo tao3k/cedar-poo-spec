@@ -34,19 +34,25 @@ private def conflictingPolicyOwner : CedarPooSpec.PolicyModules.Model :=
   (CedarPooSpec.PolicyModules.Model.define "OtherTraining"
     [.extend trainingPermit]).toOption.get (by native_decide)
 
-theorem disjointObjectsDoNotBypassCedarEditChecks :
-    (match trainingOwner.combine "Training"
-        [(conflictingPolicyOwner, "OtherTraining")] "ConflictingMedicalModel" with
-      | .ok combined =>
-          match combined.compile "ConflictingMedicalModel" with
-          | .error (.policyAlreadyExists id) => id == trainingPermit.id
-          | _ => false
-      | .error _ => false) = true := by native_decide
+private def conflictingCombined : CedarPooSpec.PolicyModules.Model :=
+  (trainingOwner.combine "Training"
+    [(conflictingPolicyOwner, "OtherTraining")] "ConflictingMedicalModel").toOption.get
+      (by native_decide)
 
-theorem mixedRootIsFirstClassObject : integrated.builtObject.isSome = true := by
+theorem disjointObjectsDoNotBypassCedarEditChecks :
+    (match conflictingCombined.compile "ConflictingMedicalModel" with
+      | .error (.policyAlreadyExists id) => id == trainingPermit.id
+      | _ => false) = true := by native_decide
+
+theorem invalidCedarEditStillExposesC4Contributors :
+    ((conflictingCombined.explainResolution "ConflictingMedicalModel"
+      trainingPermit.id).toOption.get (by native_decide)).declaringNodes =
+      ["Training", "OtherTraining"] := by native_decide
+
+theorem mixedRootIsFirstClassObject : integrated.currentObject?.isSome = true := by
   native_decide
 
-theorem extendedRootRemainsFirstClassObject : model.builtObject.isSome = true := by
+theorem extendedRootRemainsFirstClassObject : model.currentObject?.isSome = true := by
   native_decide
 
 theorem objectBackedCompilationAgreesWithUncached :
@@ -58,10 +64,35 @@ theorem changedModulesInvalidateObjectCache :
     (({ integrated with modules := [] } : CedarPooSpec.PolicyModules.Model).compile
       "MedicalModel").isOk = false := by native_decide
 
+theorem changedModulesHideCurrentObject :
+    (({ integrated with modules := [] } : CedarPooSpec.PolicyModules.Model).currentObject?).isNone =
+      true := by native_decide
+
 theorem extendedObjectCompilationAgreesWithUncached :
     (model.compile "Recovered").toOption =
       (({ modules := model.modules } : CedarPooSpec.PolicyModules.Model).compile
         "Recovered").toOption := by native_decide
+
+private def incidentExplanation :=
+  (model.explainPolicy "ModelIncident" incidentControl.policyId).toOption.get
+    (by native_decide)
+
+private def recoveredExplanation :=
+  (model.explainPolicy "Recovered" incidentControl.policyId).toOption.get
+    (by native_decide)
+
+theorem incidentExplanationShowsActiveVeto :
+    incidentExplanation.resolution.declaringNodes = ["ModelIncident"] ∧
+    incidentExplanation.effective.map (·.policy.id) = some incidentControl.policyId := by
+  native_decide
+
+theorem recoveryExplanationShowsTombstoneAndHistory :
+    recoveredExplanation.resolution.declaringNodes =
+      ["Recovered", "ModelIncident"] ∧
+    recoveredExplanation.effective.isNone = true ∧
+    recoveredExplanation.applied.map (·.edit) =
+      [incidentControl.edit .introduce, incidentControl.edit .withdraw] := by
+  native_decide
 
 private def permits (root : String) (effect : Effect) (state : Snapshot) : Bool :=
   admitted root ⟨effect, state⟩ effect state

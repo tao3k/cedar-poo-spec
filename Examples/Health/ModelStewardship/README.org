@@ -40,6 +40,12 @@ extends the result with a local publication and inference veto; =Recovered=
 withdraws that incident policy slot. The incident leaves the training owner
 unchanged.
 
+The public =Model.explainPolicy= inspection combines LeanPOO's C4 declaring
+nodes with the Cedar edit history. For the incident veto, recovery shows both
+the original declaration and the removal tombstone, while the effective
+policy is absent. =Model.explainResolution= can still show the contributing
+objects when Cedar rejects a conflicting edit.
+
 [[file:Admission.lean][Admission]] projects each Cedar request from an exact
 training, publication, or inference =Effect= and a =Snapshot=. It uses the
 public [[file:../../../CedarPooSpec/Admission/BoundOperation.lean][BoundOperation]]
