@@ -4,6 +4,9 @@
 [[file:BoundOperation.lean][BoundOperation]] binds one proposed effect and state snapshot to the
 Cedar request used for admission. A downstream Host authenticates the facts,
 serializes the state transition, and enforces the decision.
+The [[file:../../Examples/Health/ModelStewardship/README.org][medical model stewardship
+scenario]] uses it to recheck selected data and model digests, governance
+evidence, and lineage state before training or publication admission.
 
 [[file:SourceNetwork.lean][SourceNetwork]] owns a Cedar IP-range forbid slot. Its =introduce=,
 =revise=, and =withdraw= edits let a consumer narrow a source network

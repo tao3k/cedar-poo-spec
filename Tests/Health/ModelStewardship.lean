@@ -1,8 +1,12 @@
-import Examples.Health.ModelStewardship
+import Examples.Health.ModelStewardship.Admission
 
 namespace CedarPooSpec.ModelStewardshipTest
 
-open Cedar.Spec CedarPooSpec.ModelStewardshipExample
+open CedarPooSpec.ModelStewardshipExample
+open CedarPooSpec.ModelStewardshipExample.Admission
+
+private def permits (root : String) (effect : Effect) (state : Snapshot) : Bool :=
+  admitted root ⟨effect, state⟩ effect state
 
 theorem catalogIsAcyclic : catalog.validate = .ok () := by native_decide
 
@@ -17,90 +21,153 @@ theorem independentModelRemainsAvailable :
       .ok true := by native_decide
 
 theorem baselineTraining :
-    trainDecision [] jointDataset jointRun = .ok (some .allow) := by native_decide
+    permits "MedicalModel" trainingEffect trainingSnapshot = true := by native_decide
 
 theorem baselinePublication :
-    publishDecision "MedicalModel" [] jointModel jointEndpoint =
-      .ok (some .allow) := by native_decide
+    permits "MedicalModel" publicationEffect publicationSnapshot = true := by native_decide
 
 theorem baselineClinicalUse :
-    inferDecision "MedicalModel" [] = .ok (some .allow) := by native_decide
+    permits "MedicalModel" inferenceEffect inferenceSnapshot = true := by native_decide
 
 theorem swappedTrainingSourceDenied :
-    trainDecision [] independentModel jointRun =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel" { trainingEffect with source := independentModel }
+      trainingSnapshot = false := by native_decide
 
 theorem expiredTrainingGrantDenied :
-    trainDecision [] jointDataset jointRun 1 100 =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel" trainingEffect { trainingSnapshot with now := 100 } =
+      false := by native_decide
 
 theorem revokedTrainingGrantDenied :
-    trainDecision [] jointDataset jointRun 2 =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with governanceRevision := 2 } = false := by native_decide
 
-theorem missingDeidentificationReceiptDenied :
-    trainDecision [] jointDataset jointRun 1 50 false =
-      .ok (some .deny) := by native_decide
+theorem missingDeidentificationAssessmentDenied :
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with assessment := none } = false := by native_decide
+
+theorem otherDatasetDigestDenied :
+    permits "MedicalModel"
+      { trainingEffect with sourceDigest := "other-dataset-bytes" }
+      trainingSnapshot = false := by native_decide
+
+theorem otherAssessmentKindDenied :
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with assessment := some modelReviewAssessment } =
+      false := by native_decide
+
+theorem failedAssessmentDenied :
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with assessment := some { deidentificationAssessment with passed := false } } =
+      false := by native_decide
+
+theorem otherAssessmentIssuerDenied :
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with assessment := some { deidentificationAssessment with assessor := releaseReviewer } } =
+      false := by native_decide
+
+theorem otherGrantApproverDenied :
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with grant := some { trainingGrant with approver := releaseReviewer } } =
+      false := by native_decide
+
+theorem expiredAssessmentDenied :
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with assessment := some { deidentificationAssessment with expiresAt := 50 } } =
+      false := by native_decide
 
 theorem withdrawnSourceBlocksNewTraining :
-    trainDecision ["hospital-b-record"] jointDataset jointRun =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with withdrawn := ["hospital-b-record"] } =
+      false := by native_decide
 
 theorem withdrawnSourceBlocksModelPublication :
-    publishDecision "MedicalModel" ["hospital-b-record"]
-      jointModel jointEndpoint = .ok (some .deny) := by native_decide
+    permits "MedicalModel" publicationEffect
+      { publicationSnapshot with withdrawn := ["hospital-b-record"] } =
+      false := by native_decide
 
 theorem withdrawnSourceBlocksEndpointUse :
-    inferDecision "MedicalModel" ["hospital-b-record"] =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel" inferenceEffect
+      { inferenceSnapshot with withdrawn := ["hospital-b-record"] } =
+      false := by native_decide
+
+theorem unknownWithdrawalFailsClosed :
+    permits "MedicalModel" trainingEffect
+      { trainingSnapshot with withdrawn := ["unknown-source"] } =
+      false := by native_decide
 
 theorem otherDeploymentTargetDenied :
-    publishDecision "MedicalModel" [] jointModel independentEndpoint =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel"
+      { publicationEffect with target := independentEndpoint }
+      publicationSnapshot = false := by native_decide
 
 theorem withdrawnPublicationGrantDenied :
-    publishDecision "MedicalModel" [] jointModel jointEndpoint 2 =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel" publicationEffect
+      { publicationSnapshot with governanceRevision := 2 } =
+      false := by native_decide
 
 theorem unreviewedModelDenied :
-    publishDecision "MedicalModel" [] jointModel jointEndpoint 1 false =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel" publicationEffect
+      { publicationSnapshot with assessment := none } = false := by native_decide
+
+theorem changedModelBytesDenied :
+    permits "MedicalModel"
+      { publicationEffect with sourceDigest := "modified-model-bytes" }
+      publicationSnapshot = false := by native_decide
+
+theorem publicationCannotSubstituteResource :
+    permits "MedicalModel"
+      { publicationEffect with resource := independentModel }
+      publicationSnapshot = false := by native_decide
 
 theorem clinicalUseRequiresPatientBinding :
-    inferDecision "MedicalModel" [] false =
-      .ok (some .deny) := by native_decide
+    permits "MedicalModel"
+      { inferenceEffect with patient := some "patient-43" }
+      inferenceSnapshot = false := by native_decide
 
 theorem incidentBlocksPublication :
-    publishDecision "ModelIncident" [] jointModel jointEndpoint =
-      .ok (some .deny) := by native_decide
+    permits "ModelIncident" publicationEffect publicationSnapshot = false := by
+  native_decide
 
 theorem incidentBlocksInference :
-    inferDecision "ModelIncident" [] = .ok (some .deny) := by native_decide
+    permits "ModelIncident" inferenceEffect inferenceSnapshot = false := by
+  native_decide
 
 theorem incidentLeavesTrainingOwner :
-    trainDecisionAt "ModelIncident" [] jointDataset jointRun =
-      .ok (some .allow) := by native_decide
+    permits "ModelIncident" trainingEffect trainingSnapshot = true := by
+  native_decide
 
 theorem recoveryRestoresPublication :
-    publishDecision "Recovered" [] jointModel jointEndpoint =
-      .ok (some .allow) := by native_decide
+    permits "Recovered" publicationEffect publicationSnapshot = true := by
+  native_decide
 
 theorem selectedModelCannotBorrowOtherAvailability :
-    (do
-      let facts ← factsFor "hospital-a-model-v1" [] "r1" "publication"
-      return decision "MedicalModel" "r1" <|
-        request publisher publish jointModel
-          { facts with approvalValid := true, modelReviewed := true, sinkBound := true }) =
-      (.ok (some .deny) : Except CedarPooSpec.Data.Lineage.Error (Option Decision)) := by
-  native_decide
+    permits "MedicalModel" { publicationEffect with artifact := "hospital-a-model-v1" }
+      publicationSnapshot = false := by native_decide
 
 theorem staleLineageRevisionDenied :
-    (do
-      let facts ← factsFor "joint-model-v1" [] "r1" "publication"
-      return decision "MedicalModel" "r2" <|
-        request publisher publish jointModel
-          { facts with approvalValid := true, modelReviewed := true, sinkBound := true }) =
-      (.ok (some .deny) : Except CedarPooSpec.Data.Lineage.Error (Option Decision)) := by
-  native_decide
+    permits "MedicalModel" publicationEffect
+      { publicationSnapshot with lineageRevision := "r2" } =
+      false := by native_decide
+
+theorem substitutedEffectRejectedBeforeCedar :
+    (match proposedPublication.authorize
+        { publicationEffect with sourceDigest := "modified-model-bytes" }
+        publicationSnapshot model "MedicalModel" (entities "r1") with
+    | .error .effectMismatch => true
+    | _ => false) = true := by native_decide
+
+theorem changedEvidenceRejectedBeforeCedar :
+    (match proposedPublication.authorize publicationEffect
+        { publicationSnapshot with assessment := none }
+        model "MedicalModel" (entities "r1") with
+    | .error .stateMismatch => true
+    | _ => false) = true := by native_decide
+
+theorem changedConsentStateRejectedBeforeCedar :
+    (match proposedTraining.authorize trainingEffect
+        { trainingSnapshot with withdrawn := ["hospital-b-record"] }
+        model "MedicalModel" (entities "r1") with
+    | .error .stateMismatch => true
+    | _ => false) = true := by native_decide
 
 end CedarPooSpec.ModelStewardshipTest

@@ -157,11 +157,6 @@ structure Facts where
   clinicalValidationCurrent : Bool := false
   auditReady : Bool := false
 
-def factsFor (artifact : String) (withdrawn : List String)
-    (revision purpose : String) : Except Lineage.Error Facts := do
-  let available ← catalog.available withdrawn artifact
-  return { artifact := artifact, lineageRevision := revision, lineageAvailable := available, purpose := purpose }
-
 def request (actor action resource : EntityUID) (facts : Facts) : Request :=
   ⟨actor, action, resource, Map.make [
     ("targetArtifact", .prim (.string facts.artifact)),
@@ -175,54 +170,5 @@ def request (actor action resource : EntityUID) (facts : Facts) : Request :=
     ("patientBound", .prim (.bool facts.patientBound)),
     ("clinicalValidationCurrent", .prim (.bool facts.clinicalValidationCurrent)),
     ("auditReady", .prim (.bool facts.auditReady))]⟩
-
-def decision (root revision : String) (req : Request) : Option Decision := do
-  let policies ← (model.compile root).toOption
-  let response := isAuthorized req (entities revision) policies
-  if response.erroringPolicies.isEmpty then some response.decision else none
-
-def trainRequest (withdrawn : List String) (source target : EntityUID)
-    (grantRevision : Nat := 1) (now : Nat := 50)
-    (deidentified : Bool := true) : Except Lineage.Error Request := do
-  let facts ← factsFor "joint-training-run" withdrawn "r1" "research"
-  let valid := trainingGrant.applies trainer train "research" source target
-    grantRevision now
-  return request trainer train jointRun
-    { facts with approvalValid := valid, deidentificationAttested := deidentified }
-
-def trainDecisionAt (root : String) (withdrawn : List String)
-    (source target : EntityUID)
-    (grantRevision : Nat := 1) (now : Nat := 50)
-    (deidentified : Bool := true) : Except Lineage.Error (Option Decision) := do
-  return decision root "r1" (← trainRequest withdrawn source target grantRevision now deidentified)
-
-def trainDecision (withdrawn : List String) (source target : EntityUID)
-    (grantRevision : Nat := 1) (now : Nat := 50)
-    (deidentified : Bool := true) : Except Lineage.Error (Option Decision) :=
-  trainDecisionAt "MedicalModel" withdrawn source target grantRevision now deidentified
-
-def publishRequest (withdrawn : List String)
-    (source target : EntityUID) (grantRevision : Nat := 1)
-    (reviewed : Bool := true) : Except Lineage.Error Request := do
-  let facts ← factsFor "joint-model-v1" withdrawn "r1" "publication"
-  let valid := publicationGrant.applies publisher publish "publication"
-    source target grantRevision 50
-  return request publisher publish jointModel
-    { facts with approvalValid := valid, modelReviewed := reviewed, sinkBound := target == jointEndpoint }
-
-def publishDecision (root : String) (withdrawn : List String)
-    (source target : EntityUID) (grantRevision : Nat := 1)
-    (reviewed : Bool := true) : Except Lineage.Error (Option Decision) := do
-  return decision root "r1" (← publishRequest withdrawn source target grantRevision reviewed)
-
-def inferRequest (withdrawn : List String)
-    (patientBound : Bool := true) : Except Lineage.Error Request := do
-  let facts ← factsFor "joint-endpoint" withdrawn "r1" "treatment"
-  return request clinician infer jointEndpoint
-    { facts with patientBound := patientBound, clinicalValidationCurrent := true, auditReady := true }
-
-def inferDecision (root : String) (withdrawn : List String)
-    (patientBound : Bool := true) : Except Lineage.Error (Option Decision) := do
-  return decision root "r1" (← inferRequest withdrawn patientBound)
 
 end CedarPooSpec.ModelStewardshipExample

@@ -9,6 +9,10 @@ artifacts and computes the exact descendants affected when a source is
 withdrawn from a selected use. [[file:LineageUse.lean][LineageUse]] is a POO-owned
 Cedar veto for selected actions. It binds the requested artifact and lineage
 revision to the resource, then requires the Host-projected availability fact.
+[[file:ArtifactAssessment.lean][ArtifactAssessment]] checks whether a Host-supplied
+de-identification or model-review claim covers one selected artifact digest,
+assessment kind, expected assessor, governance revision, and time. The Host must authenticate
+the claim and the actual bytes; constructing a claim in Lean does not do so.
 The [[file:../../Examples/Health/MultiHospitalAI/README.org][multi-hospital AI example]] composes that control with independent research
 and treatment owners.
 The [[file:../Pseudonymization/README.org][top-level Pseudonymization capability]] composes data lineage with

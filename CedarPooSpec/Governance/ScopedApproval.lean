@@ -20,7 +20,7 @@ structure ScopedApproval where
   target : EntityUID
   revision : Nat
   expiresAt : Nat
-  deriving BEq
+  deriving BEq, DecidableEq
 
 def ScopedApproval.applies (grant : ScopedApproval)
     (actor operation : EntityUID) (purpose : String)

@@ -37,28 +37,40 @@ extends the result with a local publication and inference veto; =Recovered=
 withdraws that incident policy slot. The incident leaves the training owner
 unchanged.
 
-The training and publication decisions project the public
+[[file:Admission.lean][Admission]] projects each Cedar request from an exact
+training, publication, or inference =Effect= and a =Snapshot=. It uses the
+public [[file:../../../CedarPooSpec/Admission/BoundOperation.lean][BoundOperation]]
+API to reject an effect or snapshot substituted after preparation. The
 [[file:../../../CedarPooSpec/Governance/ScopedApproval.lean][ScopedApproval]]
-object into the Cedar request. A grant binds actor, operation, purpose,
-source, destination, governance revision, and expiry. The checked cases reject
-another source, a different deployment target, an expired or revised training
-grant, an unreviewed checkpoint, and a missing de-identification attestation.
-Clinical inference separately requires a patient binding, current clinical
-validation, and an audit-readiness fact. A source withdrawal makes future
-training, publication, and endpoint use of the joint branch deny; it leaves
-the hospital A branch available.
+grant binds actor, operation, purpose, source, destination, governance
+revision, and expiry. The public
+[[file:../../../CedarPooSpec/Data/ArtifactAssessment.lean][ArtifactAssessment]]
+claim binds an assessment kind, artifact, exact selected digest, governance
+revision, result, and expiry. Training requires a matching de-identification
+assessment; publication requires a matching model review. The assessment
+issuer is represented but must be authenticated by the Host.
+
+The checked cases reject another source, changed dataset bytes, a different
+deployment target, expired or revised grants, missing or wrong-kind
+assessments, and changed model bytes. Clinical inference separately requires
+an exact patient binding, current clinical validation, and audit readiness.
+A source withdrawal makes future training, publication, and endpoint use of
+the joint branch deny; it leaves the hospital A branch available. The
+resource's lineage revision and the selected catalog revision must match.
 
 The catalog is derivation evidence, not a replacement authorization system.
 Cedar evaluates the policies produced by LeanPOO. The same requests are also
 [[file:ReplayExport.lean][exported]] and replayed against the official Cedar
 Rust runtime by =just example health model-stewardship=. The Host must authenticate
-every source edge, de-identification assessment, approval, review, patient
-binding, model version, destination, and clock; it must recheck the selected
-state at the actual training, publication, or inference effect. The Boolean
-facts in this example are projections of those future Host receipts, not
-receipts themselves. Withdrawal does not delete an already trained model or
-undo a previously served inference. Quarantine, review, retirement, and any
-retraining are separate real-world operations requiring their own evidence.
+every source edge, assessment issuer and result, approval, patient binding,
+model bytes, destination, clock, and catalog revision. At effect time it must
+atomically compare the actual effect and current state with the admitted
+operation. The typed assessment and grant values are synthetic Host claims;
+neither Lean nor Cedar verifies external signatures, reads actual data, runs a
+training job, publishes a model, or durably records an audit. Withdrawal does
+not delete an already trained model or undo a previously served inference.
+Quarantine, review, retirement, and any retraining are separate real-world
+operations requiring their own evidence.
 
 * Public sources and interpretation
 
