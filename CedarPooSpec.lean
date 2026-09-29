@@ -62,4 +62,5 @@ import CedarPooSpec.Admission.PolicySnapshot
 import CedarPooSpec.Admission.AuthorityConsumption
 import CedarPooSpec.Admission.OperationIdentity
 import CedarPooSpec.AuthorizationDeltaEvidence
+import CedarPooSpec.AuthorizationDeltaInteraction
 import CedarPooSpec.AuthorizationDeltaJson

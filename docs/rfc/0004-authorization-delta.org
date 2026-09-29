@@ -267,6 +267,18 @@ This does not replace symbolic analysis of individual policies, and does
 not establish delegated authority or temporal budget safety for arbitrary
 agent histories.
 
+[[file:../../CedarPooSpec/AuthorizationDeltaInteraction.lean][AuthorizationDeltaInteraction]] compares a base, two independent POO
+branches, and their combined root under one Cedar schema. If neither branch
+adds an Allow but the combined root does, it reports a joint-only gain and
+replays the same witness on both branches. It rejects a proposed interaction
+unless both branches inherit the base and the combined root directly mixes
+those branches. Its first use is the
+[[file:../../Examples/Enterprise/Agent/Payment/README.org][AI-agent payment joint-release case]]. Branch reports retain C4 edit owners
+and proof footprints. When either branch already gains access, the analyzer
+returns =branchExpanded= rather than claiming to have exhaustively classified
+joint effects. It checks Cedar decisions; Host execution still needs the
+error-free and transaction gates.
+
 The repository devenv provides cvc5 and sets =CVC5= to its absolute executable
 path. After activating the repository through =direnv=, run the gate through
 the cached profile entrypoint:
@@ -287,9 +299,11 @@ measure environment counts and cache exact policy/schema results before
 claiming interactive latency.
 The reason gate is =just check-authorization-delta-reasons= and runs under
 =just check-delta= and CI with the same solver and official Rust replay.
-The effective-reason experiment has a separate
+The effective-reason analysis has a separate
 =just check-authorization-delta-effective-reasons= gate, also included in
 =just check-delta= and CI.
+The four-root payment interaction uses =just check-payment-interaction= and
+replays all four responses through the official Rust authorizer.
 The payment case has its own =just check-payment-delta= gate.
 The healthcare impact case has =just check-health-authorization-impact=; it
 replays the incident, recovery, approval-withdrawal, and dataset-lineage decisions through the
@@ -304,20 +318,20 @@ evidence. They must remain separate in release decisions:
 |----------------+------------------+-------------|
 | Policy bodies under one schema | Symbolic gains/losses and concrete Cedar replay | The same schema and its represented request/entity environments. |
 | Error-free Host admission | =neverErrors?= qualification before symbolic gains/losses | Conservatively rejects any possible policy error, including on denied requests. |
-| Determining-policy change with unchanged decision | Upstream matching queries, forbid-domination qualification, and concrete Cedar reason witnesses | Non-dominated masks and effect changes remain unresolved; this is not a complete symbolic reason-set query. |
-| Effective final-reason membership | Experimental symbolic query with Cedar replay of counterexamples | The new compound query lacks a Lean correctness proof; unsatisfiable results are solver-based evidence. |
+| Determining-policy change with unchanged decision | Conservative upstream matching queries and concrete Cedar reason witnesses | The sufficient-condition analyzer may leave non-dominated masks unresolved; use effective-reason equivalence for the broader query. |
+| Effective final-reason membership | Lean-proved reduction to Cedar's authorization equivalence, with concrete Cedar replay | External solver answers and schema-environment coverage remain trust boundaries. |
+| Two-branch POO composition | Three Cedar gain queries, C4 provenance, and a four-root replayed witness | Joint-only classification requires both branches to have no gain; other interactions remain unclassified. |
 | POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
 | C4 edit ownership and proof reuse | Compiled owner/edit trail and dependency footprint | Potential invalidation, not proof that one edit caused a witness. |
 | Schema evolution and operation history | No unified delta query | Revalidate, reproject, and analyze with an explicit migration relation before any cross-schema claim. |
 
-For release review, the next proof obligation is soundness and completeness
-of the effective-reason membership formula against Cedar's final response
-diagnostics, under unique policy IDs, validated inputs, error-free evaluation,
-and the schema environments. These cannot be inferred from
-=changed_policy_ids=: policy edits may be masked by another permit or veto,
-and two policy sets may authorize the same requests for different reasons.
+For release review, policy-body changes still require explicit Cedar queries.
+=changed_policy_ids= alone cannot establish a behavior change: edits can be
+masked by another permit or veto, and two policy sets may authorize the same
+requests for different reasons. A four-root composition requires comparison
+with the final mixed root even when each branch was separately reviewed.
 
 The recently proposed [[https://arxiv.org/abs/2609.31039][MetaPermit]] moves some tool-call meaning into LLM-inferred
 meta-attributes. That is a useful contrast: even if Cedar policy bodies stay

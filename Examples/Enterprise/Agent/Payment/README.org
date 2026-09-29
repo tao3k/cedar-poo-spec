@@ -88,6 +88,52 @@ policy revision within the schema, beyond the sixteen fixed operations above.
 The solver boundary is specified in
 [[file:../../../../docs/rfc/0004-authorization-delta.org][RFC 0004]].
 
+* Joint release across owners
+
+[[file:JointRelease.lean][JointRelease.lean]] studies a different change: the
+payment platform has two active, overlapping holds on the approved account.
+Risk and Compliance own separate POO modules. Each team removes only its own
+hold; C4 then mixes the two release branches. Cedar checks all four compiled
+roots against the same schema:
+
+| Root | Risk hold | Compliance hold | Gain over =DualHold= |
+|------+-----------+-----------------+----------------------|
+| =DualHold= | present | present | base |
+| =RiskReleased= | removed | present | none |
+| =ComplianceReleased= | present | removed | none |
+| =JointRelease= | removed | removed | concrete gain |
+
+This is a *joint-only authorization gain*. A branch review of either removal
+alone would miss it. The reusable
+[[file:../../../../CedarPooSpec/AuthorizationDeltaInteraction.lean][interaction analyzer]] requires both branch gain queries to be empty before
+classifying the combined gain, then replays the combined witness against both
+branches. The four responses and determining-policy IDs are replayed by the
+official Rust Cedar authorizer. POO =extend=, =remove=, and =mix= provide the
+owner-local edit trails and final C4 topology; Cedar remains the authority for
+the Allow/Deny result. The example uses synthetic identities and amounts, and
+does not claim to model a real payment provider's production policy.
+
+The research motivation is concrete but the four-root release is our own
+constructed discriminator. [[https://arxiv.org/abs/2607.03656][AutoCedar (2026)]] stresses verification of the
+*whole* policy store when AI proposes access rules. [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-create-update-validation.html][AWS AgentCore policy validation]]
+analyzes a proposed policy against policies already in its engine. A later
+independent release changes that engine again; testing the final composition
+is therefore necessary. This last statement is our inference from the
+documented validation boundary, not a claim that AgentCore has this defect.
+[[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-test-a-policy.html][AgentCore LOG_ONLY]] policies do not participate in the enforced decision;
+the modeled holds are active vetoes. [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-security-best-practices.html][AWS runtime guidance]] also states that
+explicit deny wins when active policies are evaluated.
+
+The result covers Cedar decisions in the supplied schema environments.
+External solver trust, policy-evaluation errors outside the concrete witness,
+the actual deployment state, and Host execution remain separate gates. It is
+evidence of one joint gain, not a proof that the two removals are the only
+cause or that every possible branch composition has been explored.
+
+#+begin_src sh
+just check-payment-interaction
+#+end_src
+
 #+begin_src sh
 just example enterprise agent payment
 just check-payment-delta
