@@ -14,6 +14,9 @@ root is republished with changed policies.
 exact effect, use limit, and consumed count. Its pure =check= and =consume=
 operations reject missing, duplicate, mismatched, and exhausted grants.
 The [[file:../../Examples/Enterprise/Agent/Fanout/README.org][cross-agent fanout example]] combines this ledger with policy snapshots.
+The [[file:../../rust/src/authority_consumption.rs][Rust counterpart]] is exercised by the
+[[file:../../Examples/Health/Pseudonymization/AgentDisclosure.org][medical disclosure Host scenario]] under the same process-local lock as
+its Cedar recheck, budget debit, cohort update, and audit entry.
 The Host must authenticate grant provenance, persist its counters, and couple
 consumption to a serialized effect reservation; these pure functions do not
 provide durable storage or external idempotency.

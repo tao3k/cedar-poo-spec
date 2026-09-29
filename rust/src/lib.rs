@@ -3,6 +3,7 @@
 mod artifact;
 pub use artifact::{CompiledPolicyJson, TemplateSourceJson};
 
+pub mod authority_consumption;
 #[cfg(feature = "cedar-runtime")]
 mod bridge;
 #[cfg(feature = "cedar-runtime")]

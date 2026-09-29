@@ -15,7 +15,8 @@ The [[file:../Data/Lineage.lean][Lineage]] and [[file:../Data/CumulativeDisclosu
 ancestry and cumulative release state. The [[file:../../Examples/Health/Pseudonymization/AgentDisclosure.org][hospital Agent disclosure case]]
 combines them with scoped approval, delegation, and Cedar policy replay.
 The [[file:../../rust/src/disclosure_host.rs][process-local Rust Host reference]] rechecks the
-composed Cedar policy and commits a disclosure ledger under one lock. These
+composed Cedar policy and commits the [[file:../../rust/src/authority_consumption.rs][approval-instance ledger]],
+disclosure ledger, and audit under one lock. These
 models do not authenticate source data or supply a durable transaction.
 
 * References and precise use
@@ -34,8 +35,9 @@ models do not authenticate source data or supply a durable transaction.
 2. Project those facts to the current POO-composed Cedar policy and require an
    error-free Allow for the exact proposed effect.
 3. Within one serializable transaction, compare the ticket epoch and all
-   revisions again; debit budget, update cumulative disclosure state, and
-   write the audit event. Abort the entire transaction on any failure.
+   revisions again; require one exact, unspent approval instance; consume it,
+   debit budget, update cumulative disclosure state, and write the audit
+   event. Abort the entire transaction on any failure.
 4. Make the effect visible only after commit. A retry must obtain a new ticket
    against the new state; an old ticket cannot authorize a changed effect.
 

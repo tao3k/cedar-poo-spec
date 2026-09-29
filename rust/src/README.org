@@ -56,6 +56,22 @@ execution.
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/reidentify][Google re-identify REST method]], and
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.deidentifyTemplates#CryptoDeterministicConfig][CryptoDeterministicConfig reference]] define the wire format.
 
+* Approval-instance consumption
+
+[[file:authority_consumption.rs][AuthorityLedger]] is a small Rust counterpart of the public
+[[file:../../CedarPooSpec/Admission/AuthorityConsumption.lean][Lean admission model]]. It matches one stable ID to one exact effect and
+rejects missing, duplicate, mismatched, and exhausted grants. The
+[[file:disclosure_host.rs][in-memory disclosure Host]] rechecks Cedar and consumes an approval
+under the same lock as its budget, cohort, and audit update. The
+[[file:../examples/agent_disclosure_host.rs][offline consumer]] exercises fresh-ticket replay, concurrent tickets,
+separate approvals, and failure before consumption.
+
+This lock gives process-local serialization only. A downstream Host must
+authenticate the approval store and implement the same mutation in durable
+transactional storage. It also needs an idempotent external-effect protocol:
+the in-memory receipt does not prove delivery or resolve an uncertain sink
+response after a crash.
+
 * Local cryptographic check
 
 [[file:../examples/pseudonymization_local.rs][pseudonymization_local.rs]] uses RustCrypto with a synthetic key to check

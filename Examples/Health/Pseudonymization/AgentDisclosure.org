@@ -66,7 +66,7 @@ proxy, not a semantic leakage certificate or statistical disclosure control.
 | Raw input to token | =Lifecycle.ingestEffect= and [[file:CrossStep.lean][CrossStep.TokenReceipt]] bind dataset, input digest, key, and revisions; Google SDP has an offline contract and local crypto example | Authenticate the real input and provider response; persist token provenance. |
 | Token to Agent read and join | =CrossStep.join= consumes the token receipt and =Lifecycle.joinEffect= checks a scoped grant and policy revision | Bind the real query and every selected source receipt to the Agent's delegated task. |
 | Join to derived result | =CrossStep.derive= carries purpose and query digest; =JoinedLineage= composes hospital and research labels | Authenticate the transformation graph and output bytes rather than accepting Agent-declared labels. |
-| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, cohort state, revisions, budget, and exact effect; the [[file:../../../rust/src/disclosure_host.rs][in-memory Rust Host]] reauthorizes with official Cedar and commits cohort, budget, and audit under one lock | Persist these changes durably in one transaction before sending; authenticate output and candidate-set evidence. |
+| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, cohort state, revisions, budget, and exact effect; the [[file:../../../rust/src/disclosure_host.rs][in-memory Rust Host]] reauthorizes with official Cedar and commits a stable approval instance, cohort, budget, and audit under one lock | Persist these changes durably in one transaction before sending; authenticate output and candidate-set evidence. |
 | Token to re-identification | =CrossStep.reidentify= reuses token provenance but requires =Lifecycle.revealEffect='s distinct clinical approval | Bind the actual recovery request, provider receipt, clinical purpose, and plaintext effect to one durable Host transaction. |
 
 The executable Lean transitions now pass typed synthetic receipts across all
@@ -77,8 +77,8 @@ from synthetic values and are not authenticated provider or query evidence.
 The solution contract for a deployment is: the Host resolves source and
 delegation evidence; Cedar decides using the currently deployed POO-composed
 policy; the Host compares the proposed effect with the authenticated output;
-then it atomically checks epoch, revisions, cumulative candidate set, budget,
-and audit persistence. Only after commit may the Host make the external
+then it atomically checks epoch, revisions, stable approval ID, cumulative
+candidate set, budget, and audit persistence. Only after commit may the Host make the external
 effect visible. On conflict, changed approval, changed policy, or failed audit,
 it must recompute the request and refuse the old ticket. A normal process-local
 Lean state transition does not make this transaction durable.
@@ -87,11 +87,14 @@ Lean state transition does not make this transaction durable.
 the official Cedar Rust validator and authorizer. =just example health
 agent-disclosure= checks exact allow/deny outcomes, empty policy errors, and
 schema fingerprints. The same recipe runs the [[file:../../../rust/examples/agent_disclosure_host.rs][Rust Host example]]:
-one release commits, only one of two concurrent commits succeeds, a stale
-ticket and altered channel fail, a later
+one release commits, only one of two concurrent commits succeeds, a fresh
+ticket cannot reuse the consumed approval, a separate approval may consume
+remaining budget, duplicate approval IDs fail closed, a stale ticket and
+altered channel fail, a later
 message is denied by the shared cohort state, and revocation, audit failure,
 wrong grant issuer, and a substituted candidate set fail before release.
-The commit receipt records source, destination, purpose, and revisions without
+The commit receipt records approval ID and use count, source, destination,
+purpose, and revisions without
 logging patient identifiers. This is a process-local Host
 reference with synthetic facts. It does not authenticate a real query or
 provider receipt, durably persist the transaction, send an external effect,

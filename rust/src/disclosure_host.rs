@@ -1,6 +1,7 @@
 //! In-memory Host reference for a derived clinical disclosure effect.
 //! Authenticated inputs and durable storage remain the deploying Host's duty.
 
+use crate::authority_consumption::{AuthorityId, AuthorityLedger};
 use crate::{
     ValidatedManifest, load_policy_set, render_validated_policy_sources, replay_validated_manifest,
 };
@@ -210,6 +211,7 @@ impl PolicyBundle {
 #[derive(Clone, Debug)]
 pub struct Ticket {
     effect: Effect,
+    authority_id: AuthorityId,
     epoch: u64,
     policy_revision: u64,
     approval_revision: u64,
@@ -221,6 +223,8 @@ pub struct Ticket {
 #[serde(rename_all = "camelCase")]
 pub struct CommitReceipt {
     pub epoch: u64,
+    pub authority_id: String,
+    pub authority_used: u64,
     pub sources: Vec<String>,
     pub destination: String,
     pub purpose: String,
@@ -236,34 +240,48 @@ pub struct CommitReceipt {
 struct Inner {
     policies: Arc<PolicyBundle>,
     evidence: Evidence,
+    authority: AuthorityLedger<Effect>,
     audit: Vec<CommitReceipt>,
 }
 
 /// A process-local serializable model. `commit` keeps Cedar reauthorization,
-/// budget debit, cohort update, and the audit entry under one mutex.
+/// approval consumption, budget debit, cohort update, and the audit entry
+/// under one mutex.
 pub struct InMemoryDisclosureHost {
     inner: Mutex<Inner>,
 }
 
 impl InMemoryDisclosureHost {
-    pub fn new(policy: &ValidatedDisclosurePolicy, evidence: Evidence) -> Self {
+    pub fn new(
+        policy: &ValidatedDisclosurePolicy,
+        evidence: Evidence,
+        authority: AuthorityLedger<Effect>,
+    ) -> Self {
         Self {
             inner: Mutex::new(Inner {
                 policies: Arc::clone(&policy.0),
                 evidence,
+                authority,
                 audit: Vec::new(),
             }),
         }
     }
 
-    pub fn prepare(&self, effect: Effect) -> Result<Option<Ticket>, String> {
+    pub fn prepare(
+        &self,
+        authority_id: AuthorityId,
+        effect: Effect,
+    ) -> Result<Option<Ticket>, String> {
         let inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
-        if !inner.policies.allows(&inner.evidence, &effect)? {
+        if inner.authority.check(&authority_id, &effect).is_err()
+            || !inner.policies.allows(&inner.evidence, &effect)?
+        {
             return Ok(None);
         }
         let state = &inner.evidence;
         Ok(Some(Ticket {
             effect,
+            authority_id,
             epoch: state.epoch,
             policy_revision: state.policy_revision,
             approval_revision: state.approval_revision,
@@ -281,13 +299,22 @@ impl InMemoryDisclosureHost {
             || ticket.policy_revision != state.policy_revision
             || ticket.approval_revision != state.approval_revision
             || ticket.delegation_revision != state.delegation_revision
+            || inner.authority.check(&ticket.authority_id, actual).is_err()
             || !inner.policies.allows(state, actual)?
         {
             return Ok(None);
         }
         let narrowed = state.narrowed(actual);
+        let update_cohort = state.minimum_cohort != 0;
+        let authority_used = inner
+            .authority
+            .used(&ticket.authority_id)
+            .map_err(|error| format!("authority changed during commit: {error:?}"))?
+            + 1;
         let receipt = CommitReceipt {
             epoch: state.epoch + 1,
+            authority_id: ticket.authority_id.0.clone(),
+            authority_used,
             sources: actual.sources.clone(),
             destination: actual.destination.clone(),
             purpose: actual.purpose.clone(),
@@ -303,7 +330,11 @@ impl InMemoryDisclosureHost {
                 narrowed.len()
             },
         };
-        if state.minimum_cohort != 0 {
+        inner
+            .authority
+            .consume(&ticket.authority_id, actual)
+            .map_err(|error| format!("authority changed during commit: {error:?}"))?;
+        if update_cohort {
             inner.evidence.possible_ids = narrowed;
         }
         inner.evidence.budget -= 1;
@@ -337,5 +368,10 @@ impl InMemoryDisclosureHost {
     pub fn audit(&self) -> Result<Vec<CommitReceipt>, String> {
         let inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
         Ok(inner.audit.clone())
+    }
+
+    pub fn authority_used(&self, id: &AuthorityId) -> Result<Option<u64>, String> {
+        let inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
+        Ok(inner.authority.used(id).ok())
     }
 }
