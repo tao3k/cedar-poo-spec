@@ -99,3 +99,11 @@ logging patient identifiers. This is a process-local Host
 reference with synthetic facts. It does not authenticate a real query or
 provider receipt, durably persist the transaction, send an external effect,
 or establish a measured privacy guarantee.
+
+The two approvals exercised by =distinctApprovalAccepted= demonstrate a
+remaining ambiguity: a second independent disclosure is valid, but a new
+approval for a retry of the first disclosure could look identical here. The
+effect has no stable logical-operation ID and the commit receipt precedes
+any sink response. The cross-industry [[file:../../../CedarPooSpec/Admission/AgenticSecurity.org][effect-gap analysis]] specifies the
+required distinction between approval use, operation identity, and delivery
+result. No current example claims that a timeout is safe to reissue.
