@@ -39,6 +39,7 @@ fn evidence() -> Evidence {
         trusted_owner: STEWARD.into(),
         allowed_destinations: vec![SINK.into()],
         observed_digest: "cohort-first".into(),
+        observed_candidate_ids: ["p1", "p2", "p3", "p4"].map(str::to_owned).to_vec(),
         approvals: vec![grant(HOSPITAL), grant(RESEARCH)],
         delegations: vec![grant(HOSPITAL), grant(RESEARCH)],
         possible_ids: (1..=6).map(|n| format!("p{n}")).collect(),
@@ -109,7 +110,10 @@ fn run() -> Result<(), String> {
     if !concurrent_single_commit {
         return Err("parallel commits were not serialized".into());
     }
-    host.observe_output("cohort-second".into())?;
+    host.observe_output(
+        "cohort-second".into(),
+        ["p3", "p4", "p5", "p6"].map(str::to_owned).to_vec(),
+    )?;
     let cumulative_denied = host.prepare(second.clone())?.is_none();
     if !cumulative_denied || host.audit()?.len() != 1 {
         return Err("cross-channel cumulative release was not denied".into());
@@ -119,6 +123,7 @@ fn run() -> Result<(), String> {
         &policy,
         Evidence {
             observed_digest: "cohort-second".into(),
+            observed_candidate_ids: ["p3", "p4", "p5", "p6"].map(str::to_owned).to_vec(),
             ..evidence()
         },
     );
@@ -150,10 +155,20 @@ fn run() -> Result<(), String> {
     let mut wrong_issuer = evidence();
     wrong_issuer.approvals[0].issuer = "Actor::\"other-steward\"".into();
     let wrong_issuer_denied = InMemoryDisclosureHost::new(&policy, wrong_issuer)
-        .prepare(first)?
+        .prepare(first.clone())?
         .is_none();
     if !wrong_issuer_denied {
         return Err("wrong grant issuer was accepted".into());
+    }
+
+    let mut substituted_candidates = evidence();
+    substituted_candidates.observed_candidate_ids = ["p1", "p2"].map(str::to_owned).to_vec();
+    let candidate_substitution_denied =
+        InMemoryDisclosureHost::new(&policy, substituted_candidates)
+            .prepare(first)?
+            .is_none();
+    if !candidate_substitution_denied {
+        return Err("proposed candidate set overrode observed output".into());
     }
 
     println!(
@@ -166,6 +181,7 @@ fn run() -> Result<(), String> {
             "revokedDenied": revoke_denied,
             "auditFailureDenied": audit_failure_denied,
             "wrongIssuerDenied": wrong_issuer_denied,
+            "candidateSubstitutionDenied": candidate_substitution_denied,
             "auditEntries": host.audit()?.len(),
         })
     );

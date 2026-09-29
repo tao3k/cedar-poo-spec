@@ -70,6 +70,7 @@ pub struct Evidence {
     pub trusted_owner: String,
     pub allowed_destinations: Vec<String>,
     pub observed_digest: String,
+    pub observed_candidate_ids: Vec<String>,
     pub approvals: Vec<Grant>,
     pub delegations: Vec<Grant>,
     pub possible_ids: Vec<String>,
@@ -172,6 +173,7 @@ impl PolicyBundle {
                 && evidence.narrowed(effect).len() >= evidence.minimum_cohort);
         let bound = !effect.payload_digest.is_empty()
             && effect.payload_digest == evidence.observed_digest
+            && effect.candidate_ids == evidence.observed_candidate_ids
             && !effect.channel.is_empty();
         let action = EntityUid::from_str(&self.action).map_err(|error| error.to_string())?;
         let context = Context::from_json_value(
@@ -214,8 +216,14 @@ pub struct Ticket {
 #[serde(rename_all = "camelCase")]
 pub struct CommitReceipt {
     pub epoch: u64,
+    pub sources: Vec<String>,
+    pub destination: String,
+    pub purpose: String,
     pub payload_digest: String,
     pub channel: String,
+    pub policy_revision: u64,
+    pub approval_revision: u64,
+    pub delegation_revision: u64,
     pub remaining_budget: u64,
     pub remaining_candidates: usize,
 }
@@ -275,8 +283,14 @@ impl InMemoryDisclosureHost {
         let narrowed = state.narrowed(actual);
         let receipt = CommitReceipt {
             epoch: state.epoch + 1,
+            sources: actual.sources.clone(),
+            destination: actual.destination.clone(),
+            purpose: actual.purpose.clone(),
             payload_digest: actual.payload_digest.clone(),
             channel: actual.channel.clone(),
+            policy_revision: state.policy_revision,
+            approval_revision: state.approval_revision,
+            delegation_revision: state.delegation_revision,
             remaining_budget: state.budget - 1,
             remaining_candidates: if state.minimum_cohort == 0 {
                 state.possible_ids.len()
@@ -293,9 +307,10 @@ impl InMemoryDisclosureHost {
         Ok(Some(receipt))
     }
 
-    pub fn observe_output(&self, digest: String) -> Result<(), String> {
+    pub fn observe_output(&self, digest: String, candidate_ids: Vec<String>) -> Result<(), String> {
         let mut inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
         inner.evidence.observed_digest = digest;
+        inner.evidence.observed_candidate_ids = candidate_ids;
         inner.evidence.epoch += 1;
         Ok(())
     }

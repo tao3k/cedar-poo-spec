@@ -90,7 +90,9 @@ schema fingerprints. The same recipe runs the [[file:../../../rust/examples/agen
 one release commits, only one of two concurrent commits succeeds, a stale
 ticket and altered channel fail, a later
 message is denied by the shared cohort state, and revocation, audit failure,
-and a wrong grant issuer fail before release. This is a process-local Host
+wrong grant issuer, and a substituted candidate set fail before release.
+The commit receipt records source, destination, purpose, and revisions without
+logging patient identifiers. This is a process-local Host
 reference with synthetic facts. It does not authenticate a real query or
 provider receipt, durably persist the transaction, send an external effect,
 or establish a measured privacy guarantee.
