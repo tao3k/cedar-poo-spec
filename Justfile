@@ -46,6 +46,7 @@ check: check-tests check-docs
     just example health prior-authorization
     just example health prior-authorization-internal-channels
     just example health pseudonymization
+    just example health multi-hospital-ai
     just example health my-health-record
     just example health australian-emr
     just example health united-states-payer

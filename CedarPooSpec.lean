@@ -27,6 +27,8 @@ import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Admission.SourceNetwork
 import CedarPooSpec.Data.Relation
+import CedarPooSpec.Data.Lineage
+import CedarPooSpec.Data.LineageUse
 import CedarPooSpec.Data.Lakehouse.LocationBoundary
 import CedarPooSpec.Pseudonymization
 import CedarPooSpec.CompoundAuthorization

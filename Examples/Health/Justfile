@@ -4,6 +4,9 @@ package-metadata:
     lake build CedarPooSpec.Vertical.Health.Region.PackageMetadata
     timeout --signal=TERM --kill-after=3s 30s lake env lean -M 1024 -T 2000000 --run Examples/Health/Interoperability/PackageCheck.lean
 
+multi-hospital-ai:
+    lake build Examples.Health.MultiHospitalAI Tests.Health.MultiHospitalAI
+
 australian-emr: package-metadata
     lake build Examples.Health.Interoperability.Admission Examples.Health.Interoperability.ValidatedExport Examples.Manifests
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean australian-emr-upload > .lake/build/australian-emr-upload-manifest.json

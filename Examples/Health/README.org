@@ -5,6 +5,11 @@ The [[file:MyHealthRecord/README.org][My Health Record consumer-platform scenari
 composes reusable FHIR consumer-access objects with a synthetic AI summary,
 revocation, incident, and local-data removal lifecycle.
 
+The [[file:MultiHospitalAI/README.org][multi-hospital AI research scenario]] composes
+research, lineage, and emergency-treatment owners. Its ordered derivation
+catalog makes one source withdrawal invalidate a shared index and generated
+result while preserving an unrelated fragment.
+
 The [[file:Interoperability/README.org][clinical interoperability boundary]]
 compares the Australian eMR/My Health Record guidance with scoped US HTI-1
 and CMS rules. Its Australian eMR example composes patient identity,
