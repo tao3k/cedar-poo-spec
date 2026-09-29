@@ -118,6 +118,7 @@ jobs:
       - run: just example cloud data-protection-google-sdp
       - run: just example health prior-authorization-internal-channels
       - run: just example health pseudonymization
+      - run: just example health agent-disclosure
       - run: just example health australian-emr
       - run: just example health united-states-payer
       - run: just example governance country-approval-validated

@@ -1,6 +1,9 @@
 #+TITLE: Pseudonymization and Re-identification Governance
 #+OPTIONS: toc:nil
 
+The [[file:AgentDisclosure.org][agent disclosure case]] composes a derived hospital/research result,
+scoped approvals, and a budget shared across workspace and message channels.
+
 * Problem and published basis
 
 An analytics agent needs to join patient records within an approved study,

@@ -36,6 +36,13 @@ my-health-record:
 clinical-break-glass:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/ClinicalBreakGlass.lean
 
+agent-disclosure:
+    lake build Examples.Health.Pseudonymization.AgentDisclosureExport Examples.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-agent-disclosure > .lake/build/pseudonymization-agent-disclosure-manifest.json
+    jq -e '(.cases | length) == 9 and ([.cases[].name] | unique | length) == 9' .lake/build/pseudonymization-agent-disclosure-manifest.json > /dev/null
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/pseudonymization-agent-disclosure-manifest.json > .lake/build/pseudonymization-agent-disclosure-receipts.json
+    jq -e 'length == 9 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["source-budget-exhausted", "source-dropped-label", "source-governed-external", "source-incident", "source-missing-owner", "source-substituted-output"]' .lake/build/pseudonymization-agent-disclosure-receipts.json > /dev/null
+
 pseudonymization-google-contract:
     lake build Examples.Manifests
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-tabular > .lake/build/pseudonymization-tabular.json

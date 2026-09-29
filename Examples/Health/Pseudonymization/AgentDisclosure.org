@@ -1,0 +1,57 @@
+#+TITLE: Agent Disclosure Across Derived Data and Channels
+#+OPTIONS: toc:nil
+
+* Published motivation
+
+[[https://arxiv.org/abs/2609.14003][FLOWSEAL]] describes collaborative-workspace lures and channel decoupling in
+LLM-agent privacy leakage. Its proposed boundary is a tool interceptor outside
+the model's context, informed by source provenance. [[https://arxiv.org/abs/2606.12341][OCELOT]] treats leakage as
+cumulative across a trajectory and proposes a verifier and shared budget.
+[[https://traefik.io/blog/implementing-forresters-aegis-framework][Traefik's AEGIS implementation article]] motivates an explicit tool-call gate;
+this example does not equate gateway masking with source-aware disclosure.
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][Google Sensitive Data Protection]] motivates the preceding hospital tokenization
+and join example. A tokenized join does not itself authorize result publication.
+
+These sources motivate the threat and control boundaries. The hospital,
+research project, workspace, messages, and policy decisions here are synthetic;
+they are not reported deployments or reproduced paper benchmarks.
+
+* Composition and execution boundary
+
+[[file:AgentDisclosure.lean][AgentDisclosure.lean]] uses =LeanPoo.Object.defineStrict= to give the
+hospital source a typed object, then =defineStrictFrom= to combine an independent
+research-source amendment with it. The inherited artifact method observes the
+final source list, and =joinedResultRetainsBothSources= checks its result.
+The research method appends a label to an inherited default instead of
+rebuilding the whole artifact.
+
+The policy model has separately owned lineage, scoped approval, and shared
+budget gates. =Model.mix= assembles them; an incident adds a local veto and
+recovery withdraws it. Only governed, incident, and recovered roots can enter
+=prepare=. The broad ancestor is retained as a counterexample in Cedar replay,
+not as a deployable release root.
+
+#+begin_src mermaid
+stateDiagram-v2
+    Hospital --> Joined: inherited source label
+    Research --> Joined: source amendment
+    Joined --> Governed: lineage + approval + budget
+    Governed --> Incident: add veto
+    Incident --> Recovered: withdraw veto
+#+end_src
+
+The Host supplies authenticated source labels, an observed output digest,
+approval revisions, policy revision, budget epoch, and audit readiness. The
+model rejects an omitted source label, a substituted output digest, a changed
+channel after ticket preparation, a stale approval, and the second release
+through another channel after the shared budget is consumed. It cannot infer
+true source provenance from model-generated text or prove that an external
+audit sink and ledger committed atomically. A deploying Host must bind the
+actual output bytes and source receipt, perform atomic ticket redemption, and
+persist audit before sending either external effect.
+
+[[file:AgentDisclosureExport.lean][AgentDisclosureExport.lean]] sends the same nine synthetic policy decisions to
+the official Cedar Rust validator and authorizer. =just example health
+agent-disclosure= checks exact allow/deny outcomes, empty policy errors, and
+schema fingerprints. This is policy replay and a finite Host-state model, not
+an end-to-end hospital integration or a measured privacy guarantee.

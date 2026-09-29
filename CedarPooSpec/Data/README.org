@@ -24,3 +24,9 @@ projected facts, and enforces any data-plane effect. These modules do not
 perform queries, tokenization, cryptographic key management, deletion, or
 durable revocation. A change of consent for one use does not erase a source
 record or automatically revoke access under another lawful purpose.
+
+[[file:DerivedArtifact.lean][DerivedArtifact]] retains source owner, tenant,
+and sensitivity labels across a declared transformation. =canFlowTo= checks
+the complete source list against a destination. The Host authenticates those
+labels and binds the artifact digest to the actual output; this module does
+not classify content or provide semantic declassification.
