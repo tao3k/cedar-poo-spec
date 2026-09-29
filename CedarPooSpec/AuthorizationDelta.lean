@@ -66,6 +66,13 @@ structure ImpactReport where
 def ImpactReport.noGain (report : ImpactReport) : Bool := report.gains.isEmpty
 def ImpactReport.noLoss (report : ImpactReport) : Bool := report.losses.isEmpty
 
+/-- Classify the covered schema behavior after querying both implications.
+    Solver errors never produce an ImpactReport. -/
+def ImpactReport.classification (report : ImpactReport) : String :=
+  if report.noGain then
+    if report.noLoss then "equivalent-in-schema" else "loss-only"
+  else if report.noLoss then "gain-only" else "mixed"
+
 /-- A finite comparison of one operation under two Host-supplied snapshots.
     Unlike ImpactReport, this makes no claim about all schema requests. -/
 structure SnapshotImpact where

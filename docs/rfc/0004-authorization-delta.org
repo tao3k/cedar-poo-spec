@@ -30,6 +30,11 @@ entities, and context values represented by the schema environments. It is
 not a claim about inputs that violate the schema or host-supplied facts that
 are false.
 
+The upstream [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/README.md][Cedar Lean README]] identifies the definitional symbolic compiler,
+its implication and equivalence queries, and the soundness and completeness
+theorems. SPEC calls those public Cedar APIs instead of implementing another
+authorization semantics.
+
 * Evidence and trust boundary
 
 Cedar's [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/Thm/Verification.lean][verification theorems]] establish the meaning of symbolic implication
@@ -60,6 +65,32 @@ The [[file:../../Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean][fina
 removal over four schema request types. The freeze has no new Allow; removing
 it produces a payment authorization witness that is also replayed in Rust.
 
+* Revision explanation and proof reuse
+
+[[file:../../CedarPooSpec/AuthorizationDeltaEvidence.lean][AuthorizationDeltaEvidence]]
+attaches the POO compilation to the symbolic result. For each changed policy
+body it records the before and after owner, the ordered =extend=, =overlay=,
+and =remove= history, and the roots that may need recompilation through C4's
+reverse dependency graph. It also reports the exact policy bodies needing new
+validation, the unchanged bodies eligible for certificate reuse under the
+same schema, and the authorization proof object's changed dependency key.
+
+These are distinct forms of evidence. A symbolic witness establishes a
+before/after behavior difference for the covered schema. The edit history
+shows which POO objects produced the two policy sets; when several policies
+change, it does not prove that any one edit alone caused the witness.
+=potentially_invalidated_roots= is a compilation footprint, not a list of
+requests whose decisions changed. Reuse of an old validation certificate
+requires the validated baseline and unchanged schema as stated in
+[[file:../../CedarPooSpec/Revision.lean][Revision]]; the JSON report alone is
+not a certificate.
+
+The ticket-sharing gate now queries both directions. Its device-posture
+overlay has no authorization gain but has a loss witness; its later =extend=
+has a gain witness and no loss. The official Cedar Rust authorizer replays
+both witness pairs. This demonstrates why text or policy-ID diff alone does
+not answer which requests changed.
+
 * API and check
 
 =analyze revision schema= returns a report or a typed error. =analyzeModel=
@@ -72,9 +103,13 @@ the change without making that governance decision.
 contains requests denied before and allowed after; =losses= contains requests
 allowed before and denied after. Both directions validate the policies, check
 every schema environment, and replay each witness against the original Cedar
-policy sets. A provider-independent healthcare [[file:../../Examples/Health/Pseudonymization/AuthorizationImpact.lean][impact example]] checks that a POO
+policy sets. A completed report classifies the covered behavior as
+=equivalent-in-schema=, =gain-only=, =loss-only=, or =mixed=. A
+provider-independent healthcare [[file:../../Examples/Health/Pseudonymization/AuthorizationImpact.lean][impact example]] checks that a POO
 incident overlay only removes access and that withdrawing the overlay only
 restores access.
+=analyzeModelExplained= and =analyzeModelImpactExplained= keep those Cedar
+queries and add the C4 revision and proof footprint to the returned result.
 
 =compareOperationSnapshots= addresses a different kind of change: one
 principal/action/resource under two concrete Host-supplied request and entity

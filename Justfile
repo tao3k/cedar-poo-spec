@@ -123,6 +123,7 @@ check-attested-schema-evolution: prepare-attested-schema-evolution
 check-authorization-delta: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
     jq -e -f Tests/Conformance/authorization-delta.jq .lake/build/authorization-delta.json > /dev/null
+    jq '.posture_manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
     jq '.manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-health-authorization-impact:
