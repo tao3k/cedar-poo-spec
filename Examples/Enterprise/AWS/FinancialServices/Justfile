@@ -31,7 +31,7 @@ claim-settlement:
 
 reconciliation:
     just build-examples
-    lake build Examples.Enterprise.AWS.FinancialServices.Reconciliation.Workflow
+    lake build Examples.Enterprise.AWS.FinancialServices.Reconciliation.Workflow Tests.Enterprise.AWS.ReconciliationProfile
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean reconciliation-validated > .lake/build/reconciliation-validated-manifest.json
     jq -e '.schema.AgentCore.entityTypes.IamEntity != null and (.schema.AgentCore.actions | length) == 10 and (.cases | length) == 32' .lake/build/reconciliation-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/reconciliation-validated-manifest.json > .lake/build/reconciliation-validated-receipts.json

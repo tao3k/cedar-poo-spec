@@ -52,6 +52,16 @@ and recovery revisions through LeanPOO's =extendSchema=. Thus the source
 and owner policy sets are constructed from the same reusable business-owner
 modules rather than restating the combined policies.
 
+The threshold and correspondence configurations now also use the public
+[[file:../../../../../CedarPooSpec/PolicyProfile.lean][PolicyProfile]] adapter. Each is a first-class LeanPOO object: the child
+updates only its typed setting slot, while an inherited computed slot reads
+the final object and renders the Cedar policy. The threshold child changes
+=85.0= to =90.0=; the correspondence child removes only Graph send from its
+action set. [[file:../../../../../Tests/Enterprise/AWS/ReconciliationProfile.lean][Lean checks]] prove both parent profiles remain intact, the child
+C4 order, and equivalence with the sample-shaped policy bodies. Those
+rendered policies are the actual edits used by =Threshold90= and
+=GraphPaused=; =JointIncident= still combines their distinct owners.
+
 =Threshold90= overlays only =recon_write_gate=, reflecting the sample's
 administrator threshold rewrite. =GraphPaused= is a proposed incident
 overlay on Correspondence: it removes only Graph send from that owner while

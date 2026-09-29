@@ -4,6 +4,7 @@ import CedarPooSpec.Composition
 import CedarPooSpec.Soundness
 import CedarPooSpec.Slicing
 import CedarPooSpec.PolicyModules
+import CedarPooSpec.PolicyProfile
 import CedarPooSpec.Governance.Veto
 import CedarPooSpec.Governance.MemberGrant
 import CedarPooSpec.Governance.SeparationOfDuties

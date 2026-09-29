@@ -1,5 +1,6 @@
 import CedarPooSpec.Platform.AWS.AgentCore.Gateway
 import CedarPooSpec.Revision
+import CedarPooSpec.PolicyProfile
 
 /-! Cedar Gateway projection of the AWS reconciliation-agent sample. The
 Gateway policies authorize individual calls; the sample's persisted proposal,
@@ -83,8 +84,6 @@ def ledgerReads : Policy :=
   permit "recon_ledger_reads" (.principalScope .any) ledgerActions
 def knowledgeReads : Policy :=
   permit "recon_knowledge_reads" (.principalScope .any) knowledgeActions
-def correspondenceReads : Policy :=
-  permit "recon_correspondence_reads" (.principalScope .any) correspondenceActions
 def directoryReads : Policy :=
   permit "recon_directory_reads" (.principalScope .any) directoryActions
 
@@ -92,8 +91,38 @@ def writeGate (threshold : String) : Policy :=
   gatewayPolicy "recon_write_gate" .permit (.principalScope .any)
     gateway (.actionScope (.eq setDrawStatus))
     [{ kind := .when, body := confidenceAtLeast threshold }]
-def write85 : Policy := writeGate "85.0"
-def write90 : Policy := writeGate "90.0"
+
+def writeProfile : CedarPooSpec.PolicyProfile.Object String :=
+  (CedarPooSpec.PolicyProfile.define "Write85" "85.0" writeGate)
+    |>.toOption.get (by native_decide)
+
+def raisedWriteProfile : CedarPooSpec.PolicyProfile.Object String :=
+  (CedarPooSpec.PolicyProfile.revise writeProfile "Write90" "90.0")
+    |>.toOption.get (by native_decide)
+
+def correspondenceProfile : CedarPooSpec.PolicyProfile.Object (List EntityUID) :=
+  (CedarPooSpec.PolicyProfile.define "CorrespondenceOpen"
+    correspondenceActions
+    (permit "recon_correspondence_reads" (.principalScope .any)))
+    |>.toOption.get (by native_decide)
+
+def pausedCorrespondenceProfile :
+    CedarPooSpec.PolicyProfile.Object (List EntityUID) :=
+  (CedarPooSpec.PolicyProfile.revise correspondenceProfile
+    "CorrespondencePaused" (correspondenceActions.filter (· != graphSend)))
+    |>.toOption.get (by native_decide)
+
+def write85 : Policy :=
+  (CedarPooSpec.PolicyProfile.policy? writeProfile).get (by native_decide)
+def write90 : Policy :=
+  (CedarPooSpec.PolicyProfile.policy? raisedWriteProfile).get
+    (by native_decide)
+def correspondenceReads : Policy :=
+  (CedarPooSpec.PolicyProfile.policy? correspondenceProfile).get
+    (by native_decide)
+def correspondencePaused : Policy :=
+  (CedarPooSpec.PolicyProfile.policy? pausedCorrespondenceProfile).get
+    (by native_decide)
 
 /-! The source scopes these platform grants to IAM role names using principal.id
 patterns. Exact representative principal UIDs are used here, so the model
@@ -104,10 +133,6 @@ def humanWrite : Policy :=
 def statusPlatform : Policy :=
   gatewayPolicy "recon_status_platform" .permit (.principalScope (.eq platform))
     gateway (.actionScope (.eq updateStatus))
-
-def correspondencePaused : Policy :=
-  { correspondenceReads with
-    actionScope := .actionInAny (correspondenceActions.filter (· != graphSend)) }
 
 def modelResult : Except LeanPoo.C4.Error Model := do
   let owners : Model := { modules := [
