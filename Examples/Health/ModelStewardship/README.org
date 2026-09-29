@@ -1,0 +1,85 @@
+#+TITLE: Medical Model Stewardship Across Training and Deployment
+#+OPTIONS: toc:nil
+
+* Question exercised
+
+When two hospitals contribute longitudinal records to a medical model, what
+must be reconsidered if one source is withdrawn from this use? The
+[[file:../ModelStewardship.lean][Lean scenario]] registers synthetic source,
+dataset, training-run, checkpoint, deployment, and inference artifacts. The
+[[file:../../../Tests/Health/ModelStewardship.lean][regressions]] check the exact
+affected branch while preserving a model trained only on hospital A data.
+
+#+begin_src mermaid
+flowchart LR
+  A[Hospital A record] --> AD[A dataset]
+  B[Hospital B record] --> BD[B dataset]
+  AD --> J[Joint dataset]
+  BD --> J
+  J --> T[Training run]
+  T --> M[Model checkpoint v1]
+  M --> D[Deployment endpoint]
+  D --> I[Inference result]
+  AD --> AT[A-only training run]
+  AT --> AM[A-only model]
+  B --> W[B source withdrawn for this use]
+  W -->|impacts joint descendants| M
+#+end_src
+
+* POO composition and checked behavior
+
+=Training=, =Publication=, and =Clinical= independently introduce Cedar
+permits. =Lineage= introduces the reusable
+[[file:../../../CedarPooSpec/Data/LineageUse.lean][LineageUse]] veto, binding
+artifact identity, lineage revision, and Host-projected availability to all
+three actions. =MedicalModel= mixes these owners using LeanPOO. =ModelIncident=
+extends the result with a local publication and inference veto; =Recovered=
+withdraws that incident policy slot. The incident leaves the training owner
+unchanged.
+
+The training and publication decisions project the public
+[[file:../../../CedarPooSpec/Governance/ScopedApproval.lean][ScopedApproval]]
+object into the Cedar request. A grant binds actor, operation, purpose,
+source, destination, governance revision, and expiry. The checked cases reject
+another source, a different deployment target, an expired or revised training
+grant, an unreviewed checkpoint, and a missing de-identification attestation.
+Clinical inference separately requires a patient binding, current clinical
+validation, and an audit-readiness fact. A source withdrawal makes future
+training, publication, and endpoint use of the joint branch deny; it leaves
+the hospital A branch available.
+
+The catalog is derivation evidence, not a replacement authorization system.
+Cedar evaluates the policies produced by LeanPOO. The same requests are also
+[[file:ReplayExport.lean][exported]] and replayed against the official Cedar
+Rust runtime by =just example health model-stewardship=. The Host must authenticate
+every source edge, de-identification assessment, approval, review, patient
+binding, model version, destination, and clock; it must recheck the selected
+state at the actual training, publication, or inference effect. The Boolean
+facts in this example are projections of those future Host receipts, not
+receipts themselves. Withdrawal does not delete an already trained model or
+undo a previously served inference. Quarantine, review, retirement, and any
+retraining are separate real-world operations requiring their own evidence.
+
+* Public sources and interpretation
+
+- [[https://news.microsoft.com/source/2026/06/02/mayo-clinic-and-microsoft-collaborate-to-develop-a-frontier-ai-model-for-healthcare/][Mayo Clinic and Microsoft, June 2026]] announce development of a
+  Mayo-owned healthcare foundation model using de-identified clinical and
+  longitudinal data, with initial use in Mayo's clinical environment and a
+  planned Azure Foundry API. The announcement does not document this example's
+  approval flow or establish that the planned API is already deployed.
+- [[https://www.hhs.gov/hipaa/for-professionals/special-topics/de-identification/index.html][HHS de-identification guidance]] describes two recognized methods and
+  residual re-identification risk. Its HIPAA boundary must not be mistaken for
+  proof of technical safety or for every institution's research governance.
+- [[https://www.hhs.gov/ohrp/sachrp-committee/recommendations/irb-considerations-use-artificial-intelligence-human-subjects-research/index.html][HHS human-subjects research recommendations]] discuss oversight and
+  consent challenges when AI uses clinical records collected for care.
+- [[https://www.nist.gov/programs-projects/hl7-ai-transparency-fast-healthcare-interoperability-resources-fhir][NIST on AI Transparency on FHIR]] describes proposed AI involvement tags
+  and richer Provenance records. That guide represents provenance; it does not
+  verify whether a claim is true or assess model quality.
+- [[https://proceedings.mlr.press/v297/lee26a.html][FHIR-AgentBench (2026)]] reports retrieval and reasoning difficulty over
+  realistic FHIR questions. This scenario checks authorization and lineage,
+  not correctness of an AI answer.
+
+All identifiers and decisions here are synthetic. The example is motivated by
+the public collaboration and research problems, not a reconstruction of Mayo
+Clinic or Microsoft's internal design. It contains no patient data, model,
+weights, training service, FHIR parser, or provider-specific API call.

@@ -7,6 +7,11 @@ package-metadata:
 multi-hospital-ai:
     lake build Examples.Health.MultiHospitalAI Tests.Health.MultiHospitalAI
 
+model-stewardship:
+    lake build Examples.Health.ModelStewardship.ReplayExport Tests.Health.ModelStewardship Examples.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean model-stewardship > .lake/build/model-stewardship-manifest.json
+    cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- < .lake/build/model-stewardship-manifest.json
+
 australian-emr: package-metadata
     lake build Examples.Health.Interoperability.Admission Examples.Health.Interoperability.ValidatedExport Examples.Manifests
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean australian-emr-upload > .lake/build/australian-emr-upload-manifest.json

@@ -3,6 +3,7 @@ import Examples.Health.ClinicalBreakGlassExport
 import Examples.Health.PseudonymizationExport
 import Examples.Health.Pseudonymization.Tabular
 import Examples.Health.WearableTriageExport
+import Examples.Health.ModelStewardship.ReplayExport
 import Examples.Health.PriorAuthorization.ValidatedExport
 import Examples.Health.PriorAuthorization.InternalChannelsExport
 import Examples.Health.MyHealthRecord.ValidatedExport
@@ -54,6 +55,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("pseudonymization-deployable", fun _ => PseudonymizationExport.deploymentManifest),
   ("pseudonymization-tabular", fun _ => PseudonymizationExample.Tabular.fixture),
   ("wearable-triage", fun _ => WearableTriageExport.manifest),
+  ("model-stewardship", fun _ => ModelStewardshipExample.ReplayExport.manifest),
   ("prior-authorization-validated", fun _ => PriorAuthorizationValidatedExport.manifest),
   ("prior-authorization-malformed", fun _ => PriorAuthorizationValidatedExport.malformedManifest),
   ("prior-authorization-internal-channels", fun _ => PriorAuthorizationInternalChannelsExport.manifest),

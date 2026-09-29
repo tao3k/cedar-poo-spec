@@ -10,6 +10,11 @@ research, lineage, and emergency-treatment owners. Its ordered derivation
 catalog makes one source withdrawal invalidate a shared index and generated
 result while preserving an unrelated fragment.
 
+The [[file:ModelStewardship/README.org][medical model stewardship scenario]]
+extends that question from retrieval to training, model publication, and
+clinical inference. It composes independent owners and checks the effect of a
+source withdrawal on a persistent model and endpoint.
+
 The [[file:Interoperability/README.org][clinical interoperability boundary]]
 compares the Australian eMR/My Health Record guidance with scoped US HTI-1
 and CMS rules. Its Australian eMR example composes patient identity,
