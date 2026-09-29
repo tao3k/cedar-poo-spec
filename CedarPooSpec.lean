@@ -53,6 +53,7 @@ import CedarPooSpec.SchemaAdmission
 import CedarPooSpec.PolicyJson
 import CedarPooSpec.SchemaJson
 import CedarPooSpec.AuthorizationDelta
+import CedarPooSpec.AuthorizationDeltaOperational
 import CedarPooSpec.AuthorizationDeltaCompound
 import CedarPooSpec.Admission.PolicySnapshot
 import CedarPooSpec.Admission.AuthorityConsumption
