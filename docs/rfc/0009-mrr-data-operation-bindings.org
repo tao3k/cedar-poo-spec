@@ -92,8 +92,9 @@ policy state. Changing a grant must not require rewriting immutable data.
 * Performance contract
 
 Performance is part of the public design, not an example-only measurement.
-The implementation PR must publish reproducible cold-path and warm-path
-numbers for direct official Cedar authorization and the integrated path.
+The first PR measures the borrowed projection separately. A later Host
+integration PR must publish reproducible cold-path and warm-path numbers for
+direct official Cedar authorization and the integrated path.
 
 - Validate and compile a selected policy bundle once per deployment revision.
   Do not parse JSON, validate schema, render Cedar source, or replay a
@@ -108,29 +109,37 @@ numbers for direct official Cedar authorization and the integrated path.
 - Keep policy bundle caches keyed by accepted artifact identity and revision.
   Do not cache an Allow across changes to principal, grant, budget, lineage,
   revocation epoch, or effect digest.
-- Measure at least 1, 16, and 128 source labels, and small and large policy
-  bundles. Report p50, p95, p99, throughput, allocation count, and bytes per
-  operation for projection, direct Cedar, integrated authorization, and
-  result-release bookkeeping. Record toolchain, CPU, build profile, sample
-  count, and policy/fixture identity.
+- For the first PR, compare direct getters with borrowed bindings in the
+  same process and report batch-average timing with its limitations. For
+  the later Host integration, measure at least 1, 16, and 128 source labels
+  and small and large policy bundles. Report p50, p95, p99, throughput,
+  allocations, and bytes per operation for direct Cedar and integrated
+  authorization. Record toolchain, CPU, build profile, sample count, and
+  policy/fixture identity.
 
-The first PR records a same-machine baseline before setting a numerical
-latency gate. Acceptance requires that the warmed adapter perform no JSON
-decode or policy compile and that its measured added cost over direct Cedar
-be reported explicitly. A later gate may use a paired relative threshold
-after measurement variance is established; a fixed sub-millisecond claim
-without a workload and machine specification is not evidence.
+The first PR records a same-machine projection baseline before setting a
+numerical latency gate. The later Host integration must measure added cost
+over direct Cedar and establish a paired relative gate after measurement
+variance is known. A fixed sub-millisecond claim without a workload and
+machine specification is not evidence.
 
 * First PR acceptance
 
-The first mrr-data PR includes the generic operation projection, one synthetic
-cross-tenant data-flow fixture, a Rust benchmark, and focused Tests. The fixture must
-cover the same root through local and remote cache paths, a changed root or
-generation, a changed policy revision, a revoked approval between prepare
-and release, mismatched output digest, and a provider transformation receipt.
-Official Cedar must make the authorization decision; MRR must admit a query
-result before its release is considered. The Google provider path uses the
-same generic transform facts and remains optional.
+The first mrr-data PR includes borrowed snapshot, query, and MRR-admitted
+result bindings; a distinct =pseudonymization= feature; an optional package
+that pins the bridge's common token profile; a separate =google-sdp= feature;
+focused identity and recipe tests; and a paired projection benchmark. Its
+default facade must not compile the Cedar bridge. Enabling only the common
+pseudonymization feature must not compile the bridge; enabling the Google
+provider must not compile =cedar-policy=.
+
+This first PR does not provide a durable Host, policy execution, provider
+transport, or an authenticated data-release receipt. The next Host
+integration must cover the same root through local and remote cache paths,
+changed root or generation, changed policy revision, approval revocation
+between prepare and release, output-digest mismatch, and a provider receipt.
+Official Cedar must make that authorization decision, and MRR must admit a
+query result before its release is considered.
 
 Lean capability, Rust adapter, Tests, and this feature documentation must
 advance together. A healthcare or other vertical example may consume the
