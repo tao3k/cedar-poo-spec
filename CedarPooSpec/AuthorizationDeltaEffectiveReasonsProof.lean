@@ -2,13 +2,13 @@ import CedarPooSpec.AuthorizationDeltaEffectiveReasons
 import Cedar.Thm.Authorization
 
 /-!
-Concrete meaning of the final-reason membership predicate. This proof is
-independent of the SMT solver and is a premise for proving the symbolic query.
+Concrete meaning of final-reason membership and its reduction to an ordinary
+Cedar authorization decision. These proofs are independent of the SMT solver.
 -/
 
 namespace CedarPooSpec.AuthorizationDelta
 
-open Cedar.Spec Cedar.Data
+open Cedar.Spec Cedar.Data Cedar.Thm
 
 /-- The executable no-duplicate-ID check supplies Cedar's uniqueness premise. -/
 theorem policyIdsUnique_of_nodup (policies : Policies)
@@ -108,5 +108,105 @@ theorem dominatedPermit_not_determining (policies : Policies)
   · rw [determiningPolicy_contains_iff policies permit env unique permitMem]
     cases satisfied : Cedar.Spec.satisfied permit env.request env.entities <;>
       simp_all
+
+private theorem surrogate_forbids (policies : Policies) (policy : Policy)
+    (request : Request) (entities : Entities) (effect : policy.effect = .permit) :
+    IsExplicitlyForbidden request entities
+      (policies.filter (·.effect == .forbid) ++ [policy]) ↔
+    IsExplicitlyForbidden request entities policies := by
+  simp [IsExplicitlyForbidden, HasSatisfiedEffect, effect, and_assoc]
+
+private theorem surrogate_permits (policies : Policies) (policy : Policy)
+    (request : Request) (entities : Entities) (effect : policy.effect = .permit) :
+    IsExplicitlyPermitted request entities
+      (policies.filter (·.effect == .forbid) ++ [policy]) ↔
+    satisfied policy request entities = true := by
+  simp [IsExplicitlyPermitted, HasSatisfiedEffect, effect, and_assoc]
+  intro other member forbid permit matched
+  simp [forbid] at permit
+
+private theorem permit_surrogate (policies : Policies) (policy : Policy)
+    (request : Request) (entities : Entities) (effect : policy.effect = .permit)
+    (member : policy ∈ policies) :
+    (isAuthorized request entities
+      (policies.filter (·.effect == .forbid) ++ [policy])).decision = .allow ↔
+    satisfied policy request entities = true ∧
+      (isAuthorized request entities policies).decision = .allow := by
+  rw [← allowed_iff_explicitly_permitted_and_not_denied,
+    surrogate_permits policies policy request entities effect,
+    surrogate_forbids policies policy request entities effect]
+  rw [← allowed_iff_explicitly_permitted_and_not_denied]
+  constructor
+  · rintro ⟨matched, noForbid⟩
+    exact ⟨matched, ⟨⟨policy, member, effect, matched⟩, noForbid⟩⟩
+  · rintro ⟨matched, _, noForbid⟩
+    exact ⟨matched, noForbid⟩
+
+private theorem forbid_surrogate (policy : Policy) (request : Request)
+    (entities : Entities) :
+    (isAuthorized request entities [{policy with effect := .permit}]).decision = .allow ↔
+    satisfied policy request entities = true := by
+  rw [← allowed_iff_explicitly_permitted_and_not_denied]
+  simp [IsExplicitlyPermitted, IsExplicitlyForbidden, HasSatisfiedEffect,
+    satisfied, Policy.toExpr]
+  rfl
+
+/-- Under unique policy IDs, membership in the original final reason set is
+    exactly the Allow decision of the analysis-only policyset. The latter can
+    be compared by Cedar's verified authorization-equivalence query. -/
+theorem reasonPolicyset_allows_iff_determining (policies : Policies)
+    (id : PolicyID) (env : Cedar.Spec.Env)
+    (unique : Cedar.Thm.PolicyIdsUnique policies) :
+    ((isAuthorized env.request env.entities (reasonPolicyset policies id)).decision == .allow) =
+    (isAuthorized env.request env.entities policies).determiningPolicies.contains id := by
+  apply Bool.eq_iff_iff.mpr
+  unfold reasonPolicyset
+  split
+  · rename_i absent
+    have noId : ∀ policy ∈ policies, policy.id ≠ id := by
+      intro policy member sameId
+      have missing := (List.find?_eq_none.mp absent) policy member
+      simp [sameId] at missing
+    constructor
+    · intro allowed
+      simp [isAuthorized, satisfiedPolicies, satisfiedWithEffect,
+        Cedar.Data.Set.make, Cedar.Data.Set.isEmpty] at allowed
+    · intro selected
+      have found : ∃ policy ∈ policies, policy.id = id :=
+        determiningPolicy_id_from_policies policies env id (by simpa using selected)
+      obtain ⟨policy, member, sameId⟩ := found
+      exact False.elim (noId policy member sameId)
+  · rename_i policy found
+    have member : policy ∈ policies := List.mem_of_find?_eq_some found
+    have sameId : policy.id = id := by
+      have selected := List.find?_some found
+      simpa using selected
+    rw [← sameId]
+    split
+    · rename_i permit
+      have effect : policy.effect = .permit := by simpa using permit
+      rw [determiningPolicy_contains_iff policies policy env unique member]
+      simpa [effect] using
+        (permit_surrogate policies policy env.request env.entities effect member)
+    · rename_i notPermit
+      have effect : policy.effect = .forbid := by
+        cases actual : policy.effect <;> simp_all
+      rw [determiningPolicy_contains_iff policies policy env unique member]
+      have denied : satisfied policy env.request env.entities = true →
+          (isAuthorized env.request env.entities policies).decision = .deny := by
+        intro matched
+        exact forbid_trumps_permit env.request env.entities policies
+          ⟨policy, member, effect, matched⟩
+      constructor
+      · intro allowed
+        have matched := (forbid_surrogate policy env.request env.entities).mp
+          (by simpa using allowed)
+        simp [effect, matched, denied matched]
+      · intro selected
+        have matchedAndDenied : satisfied policy env.request env.entities = true ∧
+            (isAuthorized env.request env.entities policies).decision = .deny := by
+          simpa [effect] using selected
+        simpa using (forbid_surrogate policy env.request env.entities).mpr
+          matchedAndDenied.1
 
 end CedarPooSpec.AuthorizationDelta

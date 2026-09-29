@@ -1,10 +1,9 @@
 import CedarPooSpec.AuthorizationDeltaReasons
 
 /-!
-Experimental whole-response reason analysis. Cedar supplies the symbolic
-compiler, authorizer, model extraction, and concrete replay. The membership
-formula follows Cedar's determining-policy theorem, but this adapter does not
-yet have a Lean proof connecting that formula to the symbolic compiler.
+Final-reason analysis reduced to Cedar's verified authorization-equivalence
+query. A policy ID belongs to the final reason set iff its analysis policyset
+allows the same request. The concrete reduction is proved separately.
 -/
 
 namespace CedarPooSpec.AuthorizationDelta
@@ -16,34 +15,25 @@ private def typedPolicies (policies : Policies) (typeEnv : TypeEnv)
   (Cedar.SymCC.wellTypedPolicies policies typeEnv).mapError fun error =>
     .operational (.delta (if before then .beforeTypecheck error else .afterTypecheck error))
 
-/-- Symbolic membership of one policy ID in the final Cedar reason set.
-    Permit IDs count only for Allow; forbid IDs count only for Deny. -/
-private def reasonMember (policies : Policies) (id : PolicyID)
-    (symEnv : Cedar.SymCC.SymEnv) : Cedar.SymCC.Result Cedar.SymCC.Term := do
-  let some policy := policies.find? (·.id == id)
-    | return false
-  let authorized ← Cedar.SymCC.isAuthorized policies symEnv
-  let evaluated ← Cedar.SymCC.compile policy.toExpr symEnv
-  let matched := Cedar.SymCC.Factory.eq evaluated
-    (Cedar.SymCC.Factory.someOf true)
-  let effective := if policy.effect == .permit then authorized
-    else Cedar.SymCC.Factory.not authorized
-  return Cedar.SymCC.Factory.and matched effective
+/-- An analysis-only Cedar policyset whose Allow decision represents one
+    original policy ID's membership in the final determining-policy set. -/
+def reasonPolicyset (policies : Policies) (id : PolicyID) : Policies :=
+  match policies.find? (·.id == id) with
+  | none => []
+  | some policy =>
+      if policy.effect == .permit then
+        policies.filter (·.effect == .forbid) ++ [policy]
+      else [{ policy with effect := .permit }]
 
 private def effectiveReasonDifference? (before after : Policies)
     (id : PolicyID) (symEnv : Cedar.SymCC.SymEnv) :
     IO (Except ReasonError (Option Cedar.Spec.Env)) := do
-  let all := before ++ after
-  let query := fun env => do
-    let left ← reasonMember before id env
-    let right ← reasonMember after id env
-    let expressions := all.map Policy.toExpr
-    return (Cedar.SymCC.enforce expressions env).elts ++
-      [Cedar.SymCC.Factory.not (Cedar.SymCC.Factory.eq left right)]
+  let left := reasonPolicyset before id
+  let right := reasonPolicyset after id
   try
     let solver ← Cedar.SymCC.Solver.cvc5
     return .ok (← Cedar.SymCC.SolverM.run solver
-      (Cedar.SymCC.sat? all query symEnv))
+      (Cedar.SymCC.equivalent? left right symEnv))
   catch error =>
     return .error (.solver error.toString)
 
@@ -55,7 +45,8 @@ structure EffectiveReasonReport where
   reasonWitnesses : List ReasonWitness
   policyQueries : Nat
 
-/-- An empty solver witness set; not a Lean proof of this new query. -/
+/-- No counterexample from Cedar's authorization-equivalence query across the
+    checked schema environments. The external SMT solver remains trusted. -/
 def EffectiveReasonReport.solverReasonStable (report : EffectiveReasonReport) : Bool :=
   report.reasonWitnesses.isEmpty
 

@@ -174,25 +174,28 @@ equivalence for unchanged stewardship. Cedar's
 but are not processed by Cedar; this POO owner trail is likewise application
 governance metadata, not a new Cedar authorization rule.
 
-** Effective reason membership experiment
+** Effective reason equivalence
 
 The upstream-query route above resolves a common forbid-dominated permit,
 but can still leave other masks unresolved. The
-[[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasons.lean][effective-reason analyzer]] asks a more precise symbolic question for every
-policy ID in the union of the two revisions. Cedar's
+[[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasons.lean][effective-reason analyzer]] asks a more precise question for every policy ID
+in the union of the two revisions. Cedar's
 [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/Thm/Authorization.lean][=determiningPolicies_of= theorem]] says that final reasons are the satisfied
-permits on =Allow= or the satisfied forbids on =Deny=. The analyzer combines
-Cedar's symbolic policy evaluation and symbolic authorizer accordingly:
+permits on =Allow= or the satisfied forbids on =Deny=. For each ID, the
+analyzer constructs an analysis-only policy set whose =Allow= decision is
+equivalent to that ID's membership in the original final reasons:
 
 #+begin_example
-reasonMember(policy, revision, input)
-  = matches(policy, input)
-    AND (policy is permit AND Allow(revision, input)
-         OR policy is forbid AND Deny(revision, input))
+absent ID  -> empty policy set
+permit ID  -> all original forbids + that permit
+forbid ID  -> that forbid's condition as a permit
 #+end_example
 
-It asks whether this membership differs across revisions, enforces the same
-entity-hierarchy constraints as upstream queries, and replays every model
+It then calls Cedar's upstream =equivalent?= query on the two analysis policy
+sets. The [[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasonsProof.lean][Lean reduction theorem]] proves for every concrete request and entity
+set that the analysis =Allow= decision equals final reason membership, under
+unique policy IDs. The query applies the same entity-hierarchy constraints
+as upstream equivalence checks and replays every counterexample
 against the original Cedar policy sets. The analyzer first applies the
 error-free operational qualification. Both public reason analyzers reject
 duplicate policy IDs before selecting an ID for symbolic evaluation; the
@@ -201,11 +204,9 @@ directly. A solver failure or a model that fails
 the original Cedar replay is an error, never a stable result. Identical Cedar
 policy lists skip the reason queries while still reporting POO provenance.
 
-The [[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasonsProof.lean][concrete membership theorem]] proves in Lean that, under unique IDs,
-a policy ID is in Cedar's final determining set exactly when that policy
-matches and its effect agrees with the final decision. This closes the
-concrete-response side of the new formula and makes the uniqueness premise
-explicit. The same module proves that every final determining ID came from
+The proof module also proves that a unique policy ID is in Cedar's final
+determining set exactly when that policy matches and its effect agrees with
+the final decision. The same module proves that every final determining ID came from
 the compiled policy list, which justifies querying the union of the two
 revisions' IDs. The focused regression also rejects a manually constructed revision
 with duplicate IDs before any solver query.
@@ -217,17 +218,15 @@ moving the unchanged policy to another POO owner changes provenance only;
 and flipping a permit to a forbid removes the other permit from the final
 reason set. Concrete reason witnesses are replayed in Rust Cedar.
 
-This is an executable symbolic model, *not yet a verified new Cedar query*.
-Cedar proves its compiler and authorizer components, and this repository now
-proves the concrete membership formula. It has not yet proved that the
-composed symbolic term and its unsatisfiable result are equivalent to
-universal final-reason equality. The
-[[https://www.amazon.science/publications/symcert-verifying-smt-based-policy-analyses][SymCert research]] explains why a new SMT analysis needs its own correctness
-proof even when built from verified components. Until that proof exists,
-=solverReasonStable= from this analyzer is solver-based review evidence, while a
-concrete replayed witness is evidence of an actual difference. The earlier
-conservative analyzer remains available as the stronger, narrower stability
-condition based only on upstream =matchesEquivalent?= and =neverMatches?=.
+The reduction is proved in Lean and uses Cedar's existing verified
+authorization-equivalence analysis rather than a new SMT encoding. As with
+the upstream query, the external solver and schema-environment coverage are
+trust boundaries: =solverReasonStable= means no difference was found by those
+queries in the checked environments. Concrete witnesses are additionally
+replayed against the original Cedar policy sets. The conservative analyzer
+remains useful when callers want sufficient conditions based on
+=matchesEquivalent?= and =neverMatches?= without constructing per-ID policy
+sets.
 
 * API and check
 
