@@ -1,6 +1,31 @@
 #+TITLE: Health Authorization Examples
 #+OPTIONS: toc:nil
 
+The [[file:MyHealthRecord/README.org][My Health Record consumer-platform scenario]]
+composes reusable FHIR consumer-access objects with a synthetic AI summary,
+revocation, incident, and local-data removal lifecycle.
+
+The [[file:MultiHospitalAI/README.org][multi-hospital AI research scenario]] composes
+research, lineage, and emergency-treatment owners. Its ordered derivation
+catalog makes one source withdrawal invalidate a shared index and generated
+result while preserving an unrelated fragment.
+
+The [[file:ModelStewardship/README.org][medical model stewardship scenario]]
+extends that question from retrieval to training, model publication, and
+clinical inference. It composes independent owners and checks the effect of a
+source withdrawal on a persistent model and endpoint.
+
+The [[file:Interoperability/README.org][clinical interoperability boundary]]
+compares the Australian eMR/My Health Record guidance with scoped US HTI-1
+and CMS rules. Its Australian eMR example composes patient identity,
+no-upload instruction, and Host evidence before a document upload.
+
+The [[file:Pseudonymization/README.org][pseudonymization and re-identification
+scenario]] composes cryptographic capability profiles with data-owner,
+privacy, agent, and incident controls. It compares deterministic AES-SIV,
+randomized AES-GCM with a unique IV, and one-way HMAC across linked clinical
+and research datasets.
+
 The [[file:PriorAuthorization/README.org][provider-to-payer prior-authorization
 example]] connects clinical and billing records, patient identity, AI draft
 requirements, disclosure, payer rules, and delegation in one POO-composed
@@ -31,6 +56,12 @@ identifiers are fictive. The example does not contain patient data.
 The split into Privacy, Security, and Emergency policy owners is a design
 assumption for exploring composition. It is not reported as the organization
 of any cited deployment.
+
+The Emergency owner instantiates the public
+[[file:../../CedarPooSpec/Vertical/Health/EmergencyAccess.lean][Vertical.Health.EmergencyAccess]] object. Its provisional and bounded
+policies occupy one Cedar policy slot. =Model.extend= stages the three
+independent owners, and =Model.mix= applies the emergency overlay and
+legacy-grant removal at the integrated root.
 
 ** Why POO is needed
 
@@ -137,7 +168,10 @@ baseline would even allow a withdrawn-consent observation. =Privacy= adds a
 consent veto, =DeviceSecurity= adds a device-trust veto, and =ClinicalAI=
 overlays the two inherited permits with model-approval and clinician-review
 requirements. =Integrated= combines these independently owned branches using
-C4. No branch repeats the other's policy body.
+C4 through =Model.extend= and =Model.mix=. The Privacy and DeviceSecurity
+owners use public =Governance.Veto= objects, so quarantine and recovery
+introduce and withdraw one owned slot. No branch repeats the other's policy
+body.
 
 When a monitor source becomes suspect, =Quarantined= extends a single forbid.
 The source's observation is denied at both flow layers; another monitor's

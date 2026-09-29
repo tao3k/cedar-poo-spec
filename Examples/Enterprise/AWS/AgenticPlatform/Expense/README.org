@@ -36,6 +36,15 @@ claims show the changed policy ID is exactly the freeze and the recovered
 policy set equals =Governed=. The owners are independently editable: a new
 department rule need not copy the role, duty, or state policy bodies.
 
+The two department controls are generated from one [[file:../../../../../CedarPooSpec/PolicyProfile.lean][POO policy profile]].
+=TeamDepartment= defines the cross-department expression once.
+=RejectionDepartment= extends that object, changing only the policy ID and
+action from row read to rejection. The inherited computed policy slot reads
+the final setting. These remain separate policy owners in =Governed=; the
+object inheritance shares the rule, while the model composition keeps their
+authorization effects independent. [[file:../../../../../Tests/Enterprise/AWS/ExpenseDepartmentProfile.lean][Lean checks]] cover parent preservation, C4 order,
+and both exact Cedar policy bodies.
+
 The executable construction is =modelResult= in [[file:Expense.lean][Expense.lean]]. It stages
 each owner with =Model.extend=, then calls =Model.mix "Governed"= with the
 five ordered owners. These Cedar adapter operations call LeanPOO's

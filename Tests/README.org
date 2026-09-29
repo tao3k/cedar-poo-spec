@@ -13,11 +13,35 @@ sibling vetoes, and the difference between an absent policy slot and an
 explicit removal tombstone. [[file:Language/SchemaProjection.lean][SchemaProjection.lean]] checks invalid schema
 admission. [[file:ReuseScale.lean][ReuseScale.lean]] checks proof dependency
 impact at scale.
+[[file:Health/Pseudonymization.lean][Health/Pseudonymization.lean]] checks hospital Cedar decisions and
+local POO composition. Rust unit tests remain in the Rust crate's
+=rust/tests/unit/= directory.
 [[file:Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]] checks two-axis
 C4 method selection for the Data Flow policy builder, proves exact ordered
 policy equality with the owner-composed root, and ties both paths to Cedar's
 decision matrix.
+[[file:Enterprise/Personnel/SourceCustody.lean][SourceCustody.lean]] checks
+small-team and large-team source decisions, scoped approval revocation, device
+and Agent boundaries, incident recovery, schema validation, and admission
+snapshot mismatch.
+[[file:Conformance/personnel-governance-receipts.jq][Personnel governance receipts]]
+assert the named decision matrix after official Cedar Rust replay.
 
 #+begin_src sh
 just check-tests
 #+end_src
+
+* Cross-language conformance
+
+[[file:Conformance/][Conformance/]] owns executable assertions over generated Lean manifests
+and Cedar Rust replay receipts. Each =.jq= file checks one named contract;
+the root Justfile only generates the inputs and invokes these tests. This
+keeps schema shapes, replay counts, digests, and authorization-delta
+expectations with the test suite rather than embedding them in recipes.
+Run the relevant =just check-*= target to regenerate and check its input;
+=just check-conformance= runs the full collection, and =just check= includes it.
+
+[[file:Conformance/health-authorization-impact.jq][Healthcare authorization
+impact]] checks both directions of an incident policy revision and a concrete
+approval withdrawal. =just check-health-authorization-impact= also replays all
+three before/after pairs with the official Rust Cedar authorizer.

@@ -1,0 +1,65 @@
+#+TITLE: Policy Modules as LeanPOO Objects
+#+OPTIONS: toc:nil
+
+[[file:PolicyModules.lean][PolicyModules]] maps Cedar policies to typed LeanPOO
+slots keyed by policy ID. Cedar retains the meaning of permit, forbid,
+validation, and authorization. The adapter retains explicit =extend=,
+=overlay=, and =remove= edit intent, conflict checks, and policy provenance.
+
+* Object construction
+
+Before the first mixed root, =Model.extend= stages a module through LeanPOO's
+incremental schema extension. At =Model.mix=, the adapter calls
+=Object.defineNodeIn= and keeps the returned first-class =Memoized= object.
+Further mixes in that family use =Memoized.defineNodeWith=. A direct child of
+the current object uses =Memoized.extendWith=. The active object's C4 plan is
+reused when compiling its root. Other roots compile from the same schema.
+
+=Model.define= creates a standalone policy-owner object. =Model.objectAt=
+projects any valid root into a first-class object, and =Model.combine= uses
+=Memoized.defineFrom= to join independently built owner families. Their node
+names must be disjoint; the selected roots become the new object's ordered
+parents. The adapter keeps all source modules so Cedar edit validation and
+policy provenance still run at publication. The
+[[file:../Examples/Health/ModelStewardship.lean][medical model scenario]]
+builds training, publication, clinical use, and lineage as independent owners
+before composing them. Its focused checks reject a repeated owner name and
+an unknown root. Another check shows that disjoint object names do not excuse
+duplicate Cedar policy IDs; the edit validation still rejects the combined
+root. The official Cedar runtime replays the accepted policy.
+
+The =Built= sum type holds either a staged schema or a first-class object with
+its source module list, so the two forms cannot disagree inside one model.
+=Model.currentObject?= returns an object only for that exact module list.
+An ordinary Lean record update to =modules= invalidates cached object and
+schema selection. The
+[[file:../Tests/Health/ModelStewardship.lean][model stewardship checks]] compare
+object-backed and uncached compilation at mixed and extended roots, and
+check that a changed module list cannot reuse the prior object. The
+[[file:../Examples/Health/ModelStewardship/README.org][clinical scenario]]
+also replays its authorization decisions through official Cedar Rust.
+
+* Policy resolution diagnostics
+
+=Model.explainResolution= calls LeanPOO's =Object.Debug.Plan.explain= to
+report C4 precedence and the declarations that contribute a policy slot. It
+remains available when a Cedar edit is invalid. =Model.explainPolicy= first
+validates Cedar edits, then returns that native resolution together with the
+effective policy and the relevant applied edits. A direct =remove= contributes
+a tombstone declaration, so it appears in the resolution even when the
+effective policy is absent. These are inspection APIs; they do not authorize
+an operation or bypass publication checks. The
+[[file:../Tests/Health/ModelStewardship.lean][clinical checks]] cover an
+incident veto, its removal, and two independent owners that collide on one
+Cedar policy ID despite valid C4 composition.
+
+* Boundary of the new upstream API
+
+The upstream =Declaration.StrictBuilder= is intended for one authored direct
+object specification. A policy module is an ordered edit log: a later
+=overlay= or =remove= may intentionally mention a policy ID already touched
+by that module. Its validity depends on Cedar-specific edit intent and the
+inherited owners, so =compileWithTrace= continues to check those conditions.
+Nested LeanPOO objects are available to a consumer whose slot value is
+itself an independently composable object; a Cedar policy body remains an
+ordinary Cedar AST value here.

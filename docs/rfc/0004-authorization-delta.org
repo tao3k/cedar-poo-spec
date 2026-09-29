@@ -68,17 +68,39 @@ IDs, the number of schema environments checked, and any expansion witnesses.
 Applications decide whether an expansion is authorized; the library exposes
 the change without making that governance decision.
 
-Set =CVC5= to an absolute path to the cvc5 executable and run:
+=analyzeImpact= and =analyzeModelImpact= query both directions. =gains=
+contains requests denied before and allowed after; =losses= contains requests
+allowed before and denied after. Both directions validate the policies, check
+every schema environment, and replay each witness against the original Cedar
+policy sets. A provider-independent healthcare [[file:../../Examples/Health/Pseudonymization/AuthorizationImpact.lean][impact example]] checks that a POO
+incident overlay only removes access and that withdrawing the overlay only
+restores access.
+
+=compareOperationSnapshots= addresses a different kind of change: one
+principal/action/resource under two concrete Host-supplied request and entity
+snapshots. It validates both snapshots and policy sets, rejects Cedar policy
+evaluation errors, and returns the two decisions. This is finite evidence for
+the selected operation, not a universal symbolic result. The healthcare
+example uses it to observe an approval withdrawal while the policy root stays
+the same, and to compare scope, token-key, and transformation revisions of a
+target dataset. Neither analysis authenticates a Host fact or commits an effect.
+
+The repository devenv provides cvc5 and sets =CVC5= to its absolute executable
+path. After activating the repository through =direnv=, run the gate through
+the cached profile entrypoint:
 
 #+begin_src sh
-just check-authorization-delta
+./.devenv/devenv-profile-exec just check-authorization-delta
 #+end_src
 
 The recipe limits Lean time and memory, checks both expected outcomes, and
 replays the witness through Rust Cedar. =just check= includes this gate. CI
-downloads CVC5 1.4.0, checks its SHA-256 digest, and runs the same command.
+downloads CVC5 1.4.0, checks its SHA-256 digest, and runs the same checks.
 No solver binary is committed.
 The payment case has its own =just check-payment-delta= gate.
+The healthcare impact case has =just check-health-authorization-impact=; it
+replays the incident, recovery, approval-withdrawal, and dataset-lineage decisions through the
+official Rust Cedar authorizer. =just check-delta= and CI include it.
 
 * Scope
 

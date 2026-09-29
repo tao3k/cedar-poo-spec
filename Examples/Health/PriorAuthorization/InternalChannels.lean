@@ -1,4 +1,5 @@
 import Examples.Health.PriorAuthorization.PriorAuthorization
+import CedarPooSpec.Vertical.Health.DisclosureChannel
 
 /-!
 The same provider workflow has two internal boundaries that the payer-submit
@@ -9,6 +10,7 @@ The envelope is a synthetic host projection, not an inspection of LLM text.
 namespace CedarPooSpec.PriorAuthorizationInternalChannels
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
+open CedarPooSpec.Vertical.Health
 open CedarPooSpec.PriorAuthorizationExample
 
 def verifierType : EntityType := ⟨"VerificationAgent", []⟩
@@ -37,35 +39,14 @@ def entities : Entities := Map.make (PriorAuthorizationExample.entities.toList +
   (delegate, actionSchemaEntryToEntityData delegateEntry),
   (remember, actionSchemaEntryToEntityData rememberEntry)])
 
-def eqFact (name value : String) : Expr :=
-  .binaryApp .eq (fact name) (.lit (.string value))
-
-/-- A domain object owns one communication boundary and both its broad and
-    minimum-disclosure revisions. Model edits compose these objects. -/
-structure ChannelObject where
-  name : String
-  action : EntityUID
-  resource : EntityUID
-  purpose : String
-  payloadClass : String
-
-def ChannelObject.permit (object : ChannelObject) : Policy :=
-  policy object.name .permit (.actionScope (.eq object.action))
-    (.eq object.resource) (.lit (.bool true))
-
-def ChannelObject.minimum (object : ChannelObject) : Policy :=
-  { object.permit with condition := [{ kind := .when, body := andAll [
-      eqFact "purpose" object.purpose,
-      eqFact "payloadClass" object.payloadClass,
-      fact "patientMatches",
-      .hasAttr (.var .context) "delegationActive"] }] }
-
-def verificationObject : ChannelObject :=
-  ⟨"delegate-verification", delegate, verifier,
-    "verify-prior-authorization", "verification-token"⟩
-def memoryObject : ChannelObject :=
-  ⟨"write-shared-memory", remember, memory,
-    "resume-prior-authorization", "workflow-handle"⟩
+def verificationObject : DisclosureChannel :=
+  { policyId := "delegate-verification", action := delegate,
+    destination := verifier, purpose := "verify-prior-authorization",
+    payloadClass := "verification-token" }
+def memoryObject : DisclosureChannel :=
+  { policyId := "write-shared-memory", action := remember,
+    destination := memory, purpose := "resume-prior-authorization",
+    payloadClass := "workflow-handle" }
 def revokedChannel : Policy :=
   policy "revoked-internal-delegation" .forbid
     (.actionInAny [delegate, remember]) .any (not_ (fact "delegationActive"))
@@ -77,18 +58,18 @@ def memoryFreeze : Policy :=
     minimization and delegation changes meet at a C4 mix. -/
 def modelResult : Except LeanPoo.C4.Error Model := do
   let handoff ← PriorAuthorizationExample.model.extend
-    "VerificationHandoff" "Governed" [.extend verificationObject.permit]
+    "VerificationHandoff" "Governed" [verificationObject.introduce]
   let stored ← handoff.extend "SharedMemory" "Governed"
-    [.extend memoryObject.permit]
+    [memoryObject.introduce]
   let base ← stored.mix "ChannelBase" ["VerificationHandoff", "SharedMemory"]
   let privacy ← base.extend "ChannelPrivacy" "ChannelBase"
-    [.overlay verificationObject.minimum, .overlay memoryObject.minimum]
+    [verificationObject.strengthen, memoryObject.strengthen]
   let temporal ← privacy.extend "ChannelTemporal" "ChannelBase"
     [.extend revokedChannel]
   let combined ← temporal.mix "ChannelGoverned"
     ["ChannelPrivacy", "ChannelTemporal"]
   let removed ← combined.extend "MemoryRemoved" "ChannelGoverned"
-    [.remove memoryObject.permit.id]
+    [memoryObject.withdraw]
   let incident ← removed.extend "ChannelIncident" "ChannelGoverned"
     [.extend memoryFreeze]
   incident.extend "ChannelRecovered" "ChannelIncident" [.remove memoryFreeze.id]

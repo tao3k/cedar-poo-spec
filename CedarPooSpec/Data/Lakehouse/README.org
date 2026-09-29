@@ -1,0 +1,21 @@
+#+TITLE: Reusable Lakehouse Data Controls
+#+OPTIONS: toc:nil
+
+[[file:LocationBoundary.lean][LocationBoundary]] owns one Cedar forbid slot for a location projected into
+a request input. A consumer supplies the principal, action, and resource
+scopes, the denied location, and the input field names. Its optional
+=denyMissing= revision also rejects requests without a location. The
+object exposes =introduce=, =revise=, and =withdraw= edits for Lean-POO
+composition.
+
+[[file:LocationProfile.lean][LocationProfile]] turns those boundaries into first-class LeanPOO objects.
+Its fields are typed slots, so a descendant can revise a location or action
+range while inheriting the other settings and the computed boundary. The
+adjacent [[file:LocationProfile.org][profile documentation]] describes the construction and Host boundary.
+
+The [[file:../../../Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/README.org][insurance lakehouse case]] instantiates this platform-neutral object for
+=EU=, =RESTRICTED=, and a proposed =UNKNOWN=/missing-field hardening. Its
+claims-summary rule comes from =Vertical/FinancialServices/=; its AgentCore
+request shape comes from =Platform/AWS/=. The application must authenticate
+the geographic input and enforce downstream data access. Cedar's decision
+does not establish that either step occurred.

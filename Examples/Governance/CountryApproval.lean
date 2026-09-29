@@ -1,4 +1,6 @@
 import CedarPooSpec.PolicyJson
+import CedarPooSpec.Governance.MemberGrant
+import CedarPooSpec.Governance.Veto
 
 /-!
 Resource-specific approver roles follow Cedar's documented country timesheet
@@ -9,6 +11,7 @@ revision assumptions, with fictive identities and records.
 namespace CedarPooSpec.CountryApprovalExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
+open CedarPooSpec.Governance
 
 def userType : EntityType := ⟨"User", []⟩
 def roleType : EntityType := ⟨"Role", []⟩
@@ -100,20 +103,16 @@ def entities : Entities := Map.make ([
   (approve, data [approverActions]), (review, data [approverActions]),
   (delete, data), (approverActions, data)])
 
-def ApprovalObject.policy (object : ApprovalObject) : Policy :=
-  { id := object.policyId, effect := .permit,
-    principalScope := .principalScope (.mem object.approverRole),
+def ApprovalObject.grant (object : ApprovalObject) : MemberGrant :=
+  { policyId := object.policyId, principalGroup := object.approverRole,
     actionScope := .actionScope (.mem approverActions),
-    resourceScope := .resourceScope (.mem object.sheetGroup),
-    condition := [] }
+    resourceGroup := object.sheetGroup }
 
 -- This legacy grant is intentionally too broad; the integrated root removes it.
-def legacyEurope : Policy :=
-  { id := "legacy-europe", effect := .permit,
-    principalScope := .principalScope (.mem europe),
+def legacyEurope : MemberGrant :=
+  { policyId := "legacy-europe", principalGroup := europe,
     actionScope := .actionInAny [approve, review],
-    resourceScope := .resourceScope (.mem europeanSheets),
-    condition := [] }
+    resourceGroup := europeanSheets }
 
 def tag (subject : Expr) (key : String) : Expr :=
   .binaryApp .getTag subject (.lit (.string key))
@@ -124,22 +123,24 @@ def sensitiveCondition : Expr :=
     (.unaryApp .not (.and (hasTag (.var .principal) "clearance")
       (.binaryApp .eq (tag (.var .principal) "clearance")
         (tag (.var .resource) "classification"))))
-def sensitiveVeto : Policy :=
-  { id := "restricted-clearance", effect := .forbid,
-    principalScope := .principalScope .any,
+def sensitiveControl : Veto :=
+  { policyId := "restricted-clearance",
     actionScope := .actionScope (.mem approverActions),
-    resourceScope := .resourceScope (.is sheetType),
-    condition := [{ kind := .when, body := sensitiveCondition }] }
+    denyWhen := sensitiveCondition,
+    resourceScope := .resourceScope (.is sheetType) }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "Base", edits :=
+        baseApprovals.map (fun object => object.grant.edit .introduce) ++
+          [legacyEurope.edit .introduce] }] }
+  let expansion ← base.extend "Expansion" "Base"
+    (expandedApprovals.map (fun object => object.grant.edit .introduce))
+  let sensitive ← expansion.extend "Sensitive" "Base"
+    [sensitiveControl.edit .introduce]
+  sensitive.mix "Integrated" ["Expansion", "Sensitive"]
+    [legacyEurope.edit .withdraw]
 
-def model : Model := { modules := [
-  { name := "Base", edits :=
-      Edit.extendAll (baseApprovals.map ApprovalObject.policy) ++ [.extend legacyEurope] },
-  { name := "Expansion", parentOrders := [["Base"]],
-    edits := Edit.extendAll (expandedApprovals.map ApprovalObject.policy) },
-  { name := "Sensitive", parentOrders := [["Base"]],
-    edits := [.extend sensitiveVeto] },
-  { name := "Integrated", parentOrders := [["Expansion", "Sensitive"]],
-    edits := [.remove "legacy-europe"] }] }
+def model : Model := modelResult.toOption.get (by native_decide)
 
 theorem approvalObjectsPopulateEntities :
     approvals.all (fun object =>

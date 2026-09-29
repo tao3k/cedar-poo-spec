@@ -19,11 +19,20 @@ model transfer atomicity, transaction compensation, account ownership, token
 validation, IAM, row-level access, or retrieval contents. The Cedar schema is
 a local projection, not an exported AgentCore Gateway schema.
 
-The executable =modelResult= uses =Model.extend= to stage the protocol and
-three LOB policy owners, =Model.mix= to construct =OwnerCombined= through
+The executable =modelResult= instantiates
+[[file:../../../../../CedarPooSpec/Vertical/FinancialServices/BankingToolOwner.lean][Vertical.FinancialServices.BankingToolOwner]] for the three LOB permit
+slots. It uses =Model.extend= to stage those owners, =Model.mix= to construct =OwnerCombined= through
 LeanPOO's C4 mix API, and two further extensions for transfer pause and
 recovery. The generated Cedar policies come from that constructed model;
 the business owners do not repeat the combined policy bodies.
+
+Transaction's base, paused, and resumed variants are also
+[[file:../../../../../CedarPooSpec/Vertical/FinancialServices/BankingToolProfile.lean][typed POO objects]]. The paused child replaces only the action slot to
+exclude =transfer_funds=; the recovery child restores that slot. Their
+inherited computed owner keeps the Transaction policy ID, principal type,
+and Gateway. The actual =TransferPaused= and =TransferResumed= model edits
+consume those generated owners. [[file:../../../../../Tests/Enterprise/AWS/BankingToolProfile.lean][Lean checks]] establish the parent action
+list, C4 order, and exact policy bodies for all three variants.
 
 | Source file | Facts used here |
 |-------------+-----------------|

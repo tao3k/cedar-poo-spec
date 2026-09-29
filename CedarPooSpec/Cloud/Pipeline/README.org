@@ -1,0 +1,60 @@
+#+TITLE: Composable Pipeline Release Boundary
+#+OPTIONS: toc:nil
+
+[[file:ReleaseBoundary.lean][ReleaseBoundary]] defines five independently
+owned Cedar forbid controls for a code-to-artifact release: reviewed source
+and exact commit/workflow; locked and quarantined dependencies; isolated
+runner, cache, and OIDC audience; artifact digest and signer; then bound
+provenance claims. The provenance owner compares a Host-authenticated claim
+entity with the release target's source repository, commit, workflow, lock
+digest, OIDC audience, build type, builder identity, and immutable artifact digest. A
+signature or a generic =provenanceVerified= flag alone does not establish
+that these claims describe the selected release.
+
+[[file:SourceControlBoundary.lean][SourceControlBoundary]] adds a separately owned source-admission control.
+It consumes the [[file:Evidence.lean][SourceChangeClaim]] for the exact
+repository and commit and requires a distinct reviewer, successful checks,
+human review, protected branch, no bypass or history rewrite, and the
+current ruleset epoch. Its branch name and policy ID are caller-supplied, so a downstream
+profile can choose its own protected ref and compose the owner without
+duplicating the pipeline controls.
+[[file:SourceProfile.lean][SourceProfile]] makes branch variants first-class LeanPOO objects:
+the child changes only its branch slot, and the inherited control slot
+recomputes the source rule from the final object. This is useful when a
+staging or canary source ref inherits the same review and history contract
+without copying its Cedar expression.
+
+[[https://slsa.dev/spec/v1.0/provenance][SLSA provenance]] separates build definition, resolved dependencies,
+builder identity, and artifact subject. [[https://docs.cloud.google.com/build/docs/securing-builds/generate-validate-build-provenance][Google Cloud Build documentation]]
+shows those fields in a concrete provenance statement. This module compares
+projected fields; the Host must verify the signed statement and interpret the
+chosen build type before constructing the claim entity. It does not parse a
+DSSE envelope or claim completeness of every transitive dependency.
+
+[[file:Evidence.lean][Evidence]] provides reusable typed projections for the
+source change, provenance claim, deployment attestation, and release receipt.
+A caller owns
+the Cedar entity identity and can extend a claim through Lean record updates;
+the common schema and entity-data methods preserve the field contract. The
+receipt binds digest, source commit, policy root, and state epoch. Each
+control generates a normal Cedar policy edit. A caller composes these owners
+with LeanPOO and supplies its own permit and incident rules.
+
+The context signals and resource attributes are contracts for a trusted
+Host. This library neither verifies cryptographic signatures nor inspects
+GitHub Actions, source history, caches, registries, or live deployments.
+The Host must authenticate evidence, bind it to the actual publish effect,
+recheck current state at execution, and retain an effect receipt.
+
+[[file:../../../Examples/Cloud/Pipeline/README.org][The scenario]] connects
+these controls to Google Cloud Threat Intelligence's September 2026 pipeline
+hardening guidance and shows staged POO composition and local quarantine.
+
+[[file:DeploymentBoundary.lean][DeploymentBoundary]] is a separate deployment control. It checks the
+deployed immutable digest against both the release target and a verified
+attestation subject, and selects an expected attestor. It also compares a
+verified release receipt with the selected digest, source commit, root, and
+current epoch. A customer composes it with the complete release root; the
+Host must enforce the deployment decision and authenticate both evidence
+objects. The
+[[file:../../../Examples/Cloud/Pipeline/DeploymentCase.lean][deployment scenario]] exercises this as a distinct second decision.

@@ -119,10 +119,10 @@ the observed decision remains unchanged. =verify_schema_only_revision=
 recomputes the receipt before accepting a stored copy.
 
 The [[file:../../Examples/Governance/AttestedSchemaEvolutionExport.lean][attested governance exporter]]
-uses the same =GovernedV2= POO root, policies, entities, and six requests
-under =schema= and =schemaV2=. The new schema adds an optional dataset
+uses the same =FreshAttestation= POO root, policies, entities, and six requests
+under =schema= and =schemaWithClassification=. The new schema adds an optional dataset
 =classification= attribute. Lean-POO's
-=schemaChangeFootprintExact= and =schemaV2PatchedCertificate= establish that
+=schemaChangeFootprintExact= and =schemaWithClassificationPatchedCertificate= establish that
 schema-dependent proof obligations are invalidated and reclosed. The Rust
 receipt shows that these six official Cedar observations remain equal after
 that reclosure.

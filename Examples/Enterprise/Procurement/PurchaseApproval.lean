@@ -1,4 +1,7 @@
 import CedarPooSpec.PolicyJson
+import CedarPooSpec.Governance.MemberGrant
+import CedarPooSpec.Governance.Veto
+import CedarPooSpec.Governance.SeparationOfDuties
 
 /-!
 A procurement authorization model combining Cedar decimal amounts with
@@ -8,6 +11,7 @@ separation of duties. Amount limits, organization, and identities are fictive.
 namespace CedarPooSpec.PurchaseApprovalExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
+open CedarPooSpec.Governance
 
 def userType : EntityType := ⟨"User", []⟩
 def roleType : EntityType := ⟨"Role", []⟩
@@ -67,33 +71,28 @@ def limit : Expr := .getAttr (.var .resource) "limit"
 def withinLimit : Expr := .call .lessThanOrEqual [amount, limit]
 def positiveAmount : Expr := .call .greaterThan [amount, .call .decimal [.lit (.string "0.0000")]]
 def withinBudget : Expr := .and positiveAmount withinLimit
-def selfApproval : Expr :=
-  .binaryApp .eq (.var .principal) (.getAttr (.var .resource) "requester")
+def operationsGrant : MemberGrant :=
+  ⟨"operations-approval", approver, .actionScope (.eq approve), operations, []⟩
 
-def legacyPermit : Policy :=
-  { id := "operations-approval", effect := .permit,
-    principalScope := .principalScope (.mem approver),
-    actionScope := .actionScope (.eq approve),
-    resourceScope := .resourceScope (.mem operations),
-    condition := [] }
+def legacyPermit : Policy := operationsGrant.policy
 
 def boundedPermit : Policy :=
-  { legacyPermit with condition := [{ kind := .when, body := withinBudget }] }
+  { operationsGrant with condition := [{ kind := .when, body := withinBudget }] }.policy
 
-def dutiesVeto : Policy :=
-  { id := "no-self-approval", effect := .forbid,
+def dutiesControl : SeparationOfDuties :=
+  { policyId := "no-self-approval", actionScope := .actionScope (.eq approve),
+    priorActorAttribute := "requester",
     principalScope := .principalScope (.mem approver),
-    actionScope := .actionScope (.eq approve),
-    resourceScope := .resourceScope (.is orderType),
-    condition := [{ kind := .when, body := selfApproval }] }
+    resourceScope := .resourceScope (.is orderType) }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [{ name := "Base", edits := [operationsGrant.edit .introduce] }] }
+  let budgetEdit := ({ operationsGrant with
+    condition := [{ kind := .when, body := withinBudget }] } : MemberGrant).edit .revise
+  let budget ← base.extend "Budget" "Base" [budgetEdit]
+  let duties ← budget.extend "Duties" "Base" [dutiesControl.edit .introduce]
+  duties.mix "Integrated" ["Budget", "Duties"]
 
-def model : Model := { modules := [
-  { name := "Base", edits := [.extend legacyPermit] },
-  { name := "Budget", parentOrders := [["Base"]],
-    edits := [.overlay boundedPermit] },
-  { name := "Duties", parentOrders := [["Base"]],
-    edits := [.extend dutiesVeto] },
-  { name := "Integrated", parentOrders := [["Budget", "Duties"]] }] }
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def request (principal resource : EntityUID) (requested : String) : Request :=
   ⟨principal, approve, resource,

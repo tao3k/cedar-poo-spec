@@ -1,11 +1,12 @@
 use super::{
     Case, Manifest, check_direct_sources, check_manifest, check_template_source, json_sha256,
-    load_policy_set, load_template_source, render_artifacts, replay_manifest,
-    verify_replay_receipts,
+    load_policy_set, load_template_source, render_artifacts, render_identified_policy_sources,
+    replay_manifest, verify_replay_receipts,
 };
 use crate::schema::{
-    SchemaEvolutionBundle, ValidatedManifest, replay_schema_only_revision,
-    replay_validated_manifest, verify_schema_only_revision, verify_validated_replay_receipts,
+    SchemaEvolutionBundle, ValidatedManifest, render_validated_policy_sources,
+    replay_schema_only_revision, replay_validated_manifest, verify_schema_only_revision,
+    verify_validated_replay_receipts,
 };
 use serde_json::json;
 
@@ -39,6 +40,107 @@ fn receipt() -> Case {
         "expected_error_policies": []
     }))
     .expect("valid local receipt")
+}
+
+#[test]
+fn identified_sources_preserve_each_cedar_policy_id_and_body() {
+    let mut case = receipt();
+    let mut artifact = case.policies.as_value().clone();
+    artifact["staticPolicies"]["second"] = artifact["staticPolicies"]["base"].clone();
+    case.policies = serde_json::from_value(artifact).expect("two-policy artifact");
+
+    let sources = render_identified_policy_sources(&case.policies)
+        .expect("render individually identified policies");
+    assert_eq!(
+        sources.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["base", "second"]
+    );
+    let loaded = load_policy_set(&case.policies).expect("Cedar policy set");
+    for policy in loaded.policies() {
+        let source = &sources[&policy.id().to_string()];
+        let reparsed = cedar_policy::Policy::parse(Some(policy.id().clone()), source)
+            .expect("explicit-ID Cedar source");
+        assert_eq!(reparsed.id(), policy.id());
+        assert_eq!(reparsed.to_json().unwrap(), policy.to_json().unwrap());
+    }
+}
+
+#[test]
+fn validated_sources_bind_one_schema_and_entity_snapshot_for_permit_and_forbid() {
+    let mut allow = receipt();
+    let mut artifact = allow.policies.as_value().clone();
+    artifact["staticPolicies"]["blocked"] = json!({
+        "effect": "forbid",
+        "principal": {"op": "All"},
+        "action": {"op": "All"},
+        "resource": {"op": "All"},
+        "conditions": [{"kind": "when", "body": {
+            ".": {"left": {"Var": "context"}, "attr": "blocked"}
+        }}]
+    });
+    allow.policies = serde_json::from_value(artifact).unwrap();
+    allow.policy_ids = vec!["base".into(), "blocked".into()];
+    allow.request.context = json!({"blocked": false});
+    let mut deny = allow.clone();
+    deny.name = "blocked".into();
+    deny.request.context = json!({"blocked": true});
+    deny.expected = "deny".into();
+    deny.expected_reasons = vec!["blocked".into()];
+    let mut manifest = validated(allow.clone());
+    manifest.schema[""]["actions"]["view"]["appliesTo"]["context"]["attributes"]["blocked"] =
+        json!({"type": "Boolean"});
+    manifest.cases.push(deny);
+
+    let sources = render_validated_policy_sources(&manifest, "allow-all")
+        .expect("strictly validated sources");
+    assert_eq!(
+        sources.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["base", "blocked"]
+    );
+    let receipts = replay_validated_manifest(&manifest).expect("official Cedar decisions");
+    assert_eq!(
+        receipts
+            .iter()
+            .map(|row| row.replay.decision.as_str())
+            .collect::<Vec<_>>(),
+        ["allow", "deny"]
+    );
+
+    let mut invalid_schema = validated(allow.clone());
+    invalid_schema.schema = manifest.schema.clone();
+    invalid_schema.schema[""]["actions"]["view"]["appliesTo"]["context"]["attributes"] = json!({});
+    assert!(
+        render_validated_policy_sources(&invalid_schema, "allow-all")
+            .unwrap_err()
+            .contains("strict policy validation")
+    );
+    let mut invalid_entities = validated(allow.clone());
+    invalid_entities.schema = manifest.schema.clone();
+    invalid_entities.cases[0].entities = json!({});
+    assert!(
+        render_validated_policy_sources(&invalid_entities, "allow-all")
+            .unwrap_err()
+            .contains("schema entities")
+    );
+    let mut changed_ids = validated(allow.clone());
+    changed_ids.schema = manifest.schema.clone();
+    changed_ids.cases[0].policy_ids = vec!["base".into()];
+    assert!(
+        render_validated_policy_sources(&changed_ids, "allow-all")
+            .unwrap_err()
+            .contains("policy IDs")
+    );
+    let mut empty = validated(allow);
+    empty.schema = manifest.schema;
+    empty.cases[0].policies = serde_json::from_value(json!({
+        "staticPolicies": {}, "templates": {}, "templateLinks": []
+    }))
+    .unwrap();
+    assert!(
+        render_validated_policy_sources(&empty, "allow-all")
+            .unwrap_err()
+            .contains("empty")
+    );
 }
 
 fn validated(case: Case) -> ValidatedManifest {
@@ -312,6 +414,14 @@ fn rejects_unsafe_revision_names_before_artifact_generation() {
             .unwrap_err()
             .contains("invalid revision name")
     );
+}
+
+#[test]
+fn accepts_dotted_versions_but_not_empty_segments_or_paths() {
+    assert!(super::valid_revision_name("attested-governed-0.1"));
+    for invalid in ["", ".0.1", "0.1.", "0..1", "../escape", "0/1"] {
+        assert!(!super::valid_revision_name(invalid), "{invalid}");
+    }
 }
 
 #[test]

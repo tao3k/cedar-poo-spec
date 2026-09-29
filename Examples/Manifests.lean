@@ -1,9 +1,17 @@
 import Examples.Governance.TicketSharingExport
 import Examples.Health.ClinicalBreakGlassExport
+import Examples.Health.PseudonymizationExport
+import Examples.Health.Pseudonymization.Tabular
+import Examples.Health.Pseudonymization.AgentDisclosureExport
 import Examples.Health.WearableTriageExport
+import Examples.Health.ModelStewardship.ReplayExport
 import Examples.Health.PriorAuthorization.ValidatedExport
 import Examples.Health.PriorAuthorization.InternalChannelsExport
+import Examples.Health.MyHealthRecord.ValidatedExport
+import Examples.Health.Interoperability.ValidatedExport
+import Examples.Health.Interoperability.UnitedStatesExport
 import Examples.Governance.AttestedDataAccessExport
+import Examples.Governance.AttestedViewsValidatedExport
 import Examples.Governance.AttestedSchemaEvolutionExport
 import Examples.Language.ScopeAndPatternExport
 import Examples.Language.ScopeAndPatternValidatedExport
@@ -30,6 +38,7 @@ import Examples.Enterprise.Agent.Session.BoundedSessionExport
 import Examples.Enterprise.Agent.Fanout.SharedBudgetExport
 import Examples.Enterprise.Agent.Fanout.CrossAgentEgressValidatedExport
 import Examples.Enterprise.Agent.Department.ValidatedExport
+import Examples.Enterprise.Personnel.ValidatedExport
 import Examples.Enterprise.Vehicle.Uptane.SupplierTransitionExport
 import Examples.Enterprise.Vehicle.VLA.CommandBoundaryExport
 import Examples.Enterprise.Vehicle.Mission.SuccessorBoundaryExport
@@ -43,11 +52,21 @@ namespace CedarPooSpec.Manifests
 def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("ticket-sharing", fun _ => TicketSharingExport.manifest),
   ("clinical", fun _ => ClinicalBreakGlassExport.manifest),
+  ("pseudonymization-validated", fun _ => PseudonymizationExport.manifest),
+  ("pseudonymization-deployable", fun _ => PseudonymizationExport.deploymentManifest),
+  ("pseudonymization-tabular", fun _ => PseudonymizationExample.Tabular.fixture),
+  ("pseudonymization-agent-disclosure", fun _ =>
+    PseudonymizationExample.AgentDisclosureExport.manifest),
   ("wearable-triage", fun _ => WearableTriageExport.manifest),
+  ("model-stewardship", fun _ => ModelStewardshipExample.ReplayExport.manifest),
   ("prior-authorization-validated", fun _ => PriorAuthorizationValidatedExport.manifest),
   ("prior-authorization-malformed", fun _ => PriorAuthorizationValidatedExport.malformedManifest),
   ("prior-authorization-internal-channels", fun _ => PriorAuthorizationInternalChannelsExport.manifest),
+  ("my-health-record-consumer-platform", fun _ => MyHealthRecordExample.ValidatedExport.manifest),
+  ("australian-emr-upload", fun _ => AustralianEMRExample.ValidatedExport.manifest),
+  ("united-states-payer-exchange", fun _ => UnitedStatesPayerExample.ValidatedExport.manifest),
   ("attested", fun _ => AttestedDataAccessExport.manifest),
+  ("attested-views-validated", fun _ => AttestedViewsValidatedExport.manifest),
   ("attested-schema-evolution", fun _ => AttestedSchemaEvolutionExport.bundle),
   ("scope-pattern", fun _ => ScopeAndPatternExport.manifest),
   ("scope-pattern-validated", fun _ => ScopeAndPatternValidatedExport.manifest),
@@ -74,6 +93,7 @@ def entries : List (String × (Unit → Except String Lean.Json)) := [
   ("shared-budget", fun _ => SharedBudgetExport.manifest),
   ("cross-agent-egress-validated", fun _ => CrossAgentEgressValidatedExport.manifest),
   ("department-synthesis-validated", fun _ => DepartmentSynthesisValidatedExport.manifest),
+  ("source-custody-validated", fun _ => SourceCustodyValidatedExport.manifest),
   ("supplier-transition", fun _ => SupplierTransitionExport.manifest),
   ("vla-command", fun _ => VlaCommandBoundaryExport.manifest),
   ("mission-successor", fun _ => SuccessorBoundaryExport.manifest),

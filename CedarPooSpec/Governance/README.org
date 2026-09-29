@@ -1,0 +1,15 @@
+#+TITLE: Reusable Governance Controls
+#+OPTIONS: toc:nil
+
+[[file:ScopedApproval.lean][ScopedApproval]] binds one approval to its
+approver, actor, operation, purpose, source, target, revision, and expiry.
+Applications authenticate the approver and supply the revision and clock.
+The [[file:../../Examples/Health/Pseudonymization/README.org][hospital pseudonymization example]] derives Cedar approval facts from
+these values rather than accepting an unrelated request Boolean.
+
+[[file:Veto.lean][Veto]], [[file:MemberGrant.lean][MemberGrant]], and
+[[file:SeparationOfDuties.lean][SeparationOfDuties]] construct owned Cedar
+policies for negative controls, membership grants, and actor conflicts.
+
+[[file:Personnel/README.org][Personnel]] owns human organization status and
+asset-operation admission, including Agent requests with a human origin.

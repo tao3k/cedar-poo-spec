@@ -1,0 +1,23 @@
+#+TITLE: Reusable Admission Controls
+#+OPTIONS: toc:nil
+
+The cross-industry [[file:AgenticSecurity.org][AgenticSecurity references and Host transaction contract]]
+locate admission between POO composition, Cedar decisions, and external effects.
+
+[[file:BoundOperation.lean][BoundOperation]] binds one proposed effect and state snapshot to the
+Cedar request used for admission. A downstream Host authenticates the facts,
+serializes the state transition, and enforces the decision.
+[[file:Handoff.lean][Handoff]] adds an exact case, data digest, actor, policy-root, and
+credential-mode expectation for a cross-organization operation. Its
+[[file:Handoff.org][adjacent contract]] separates the pure checks from Host authentication
+and effect execution.
+The [[file:../../Examples/Health/ModelStewardship/README.org][medical model stewardship
+scenario]] uses it to recheck selected data and model digests, governance
+evidence, and lineage state before training or publication admission.
+
+[[file:SourceNetwork.lean][SourceNetwork]] owns a Cedar IP-range forbid slot. Its =introduce=,
+=revise=, and =withdraw= edits let a consumer narrow a source network
+without copying unrelated policies. The
+[[file:../../Examples/Governance/README.org][trusted-network governance example]] chooses the corporate and enclave
+CIDRs and proves that only this slot changes. A verified source address
+must still be projected by an external gateway.

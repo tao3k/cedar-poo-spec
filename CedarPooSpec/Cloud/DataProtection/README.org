@@ -1,0 +1,19 @@
+#+TITLE: Cloud Data Protection Composition
+#+OPTIONS: toc:nil
+
+This directory owns provider-neutral authorization controls for cloud data
+effects. It composes the top-level [[file:../../Pseudonymization/README.org][Pseudonymization]] capability with Cloud
+release decisions. A provider adapter may translate a selected input into a
+service request, but provider wire formats and key custody are not owned here.
+
+[[file:PseudonymizationGate.lean][PseudonymizationGate]] is a Cedar forbid control for one deterministic
+AES-SIV transformation. It compares the selected profile with the dataset
+using =TokenRelation.sameRecipe=, then checks tenant, admitted row context,
+key authorization, and exact released artifact digest. Each requirement is a
+projected fact: the Host must authenticate the input row, key inventory,
+approval, build receipt, and actual provider response before an effect.
+
+The [[file:../../../Examples/Cloud/DataProtection/README.org][customer composition example]] combines this control with independent
+source, dependency, runner, artifact, and provenance release owners. It does not repeat
+the hospital policy model or implement Google cryptography in Lean. The
+[[file:../../Platform/Google/README.org][provider projection]] is shared with the hospital example.

@@ -1,0 +1,72 @@
+#+TITLE: Multi-Hospital AI Research and Clinical Access
+#+OPTIONS: toc:nil
+
+* Question exercised
+
+Two hospitals contribute synthetic longitudinal records to one study. An AI
+agent derives a shared retrieval index and a reviewed research result. Hospital
+B later withdraws its source from this study. The derived index, prompt, and
+result can no longer be used under the research owner; hospital A's independent
+fragment remains available. A clinician's emergency treatment access is a
+different owner and is not silently equated with research consent.
+
+[[file:../MultiHospitalAI.lean][The Lean scenario]] uses the public
+[[file:../../../CedarPooSpec/Data/Lineage.lean][Lineage]] catalog and
+[[file:../../../CedarPooSpec/Data/LineageUse.lean][LineageUse]] control. The
+[[file:../../../Tests/Health/MultiHospitalAI.lean][regressions]] check the affected
+descendants, unrelated fragment, research decisions, artifact/revision binding,
+incident extension, and independent treatment decision.
+
+#+begin_src mermaid
+flowchart LR
+  A[Hospital A record] --> AF[A fragment]
+  B[Hospital B record] --> BF[B fragment]
+  AF --> I[Joint retrieval index]
+  BF --> I
+  I --> P[AI prompt]
+  P --> R[Reviewed study result]
+  B --> W[B research withdrawal]
+  W -->|invalidates descendants| I
+  W -->|does not erase| B
+#+end_src
+
+* POO ownership
+
+The =Research= owner introduces derivation and result-release permits. The
+=Lineage= owner introduces a reusable artifact/revision/availability veto.
+=Clinical= separately introduces emergency treatment access. =HospitalStudy=
+mixes those owners using LeanPOO; =OutputIncident= extends it with a local
+release veto, and =Recovered= removes that incident slot. Cedar remains the
+authorizer of the composed policies.
+
+The ordered catalog is evidence about data derivation, not a replacement
+object system or policy evaluator. =LineageUse= is the composable POO control.
+The example also reuses the public =TokenProfile.sameRecipe= API: both hospitals
+declare one AES-SIV study scope and token-key version. A wrapping-key change
+preserves the declared join; a token-key change makes research derivation fail
+closed. This metadata check does not execute encryption or verify the actual
+AES-SIV context tweak. A deployment can use one trusted tokenization service
+for this scope; the example does not require hospitals to exchange raw keys.
+The Host must attest that each parent edge and revision describes the actual
+stored artifact and must recompute availability after an authenticated consent
+change. A Boolean request fact, a Lean decision, and a synthetic emergency
+case do not by themselves execute a disclosure or establish a legal basis.
+
+* Sources and scope
+
+- [[https://hl7.org/fhir/R4/consent.html][FHIR R4 Consent]] motivates purpose and period-aware source-use changes;
+  this example does not parse Consent or claim FHIR conformance.
+- [[https://hl7.org/fhir/R4/auditevent.html][FHIR R4 AuditEvent]] motivates an independently durable record of access and
+  disclosure. The =auditReady= fact is only a Host projection.
+- [[https://arxiv.org/abs/2603.14265][MedPriv-Bench (2026 preprint)]] motivates treating generated clinical output
+  as a separate release surface, even when direct identifiers were removed.
+- [[https://www.hhs.gov/hipaa/for-professionals/privacy/laws-regulations/index.html][HHS Privacy Rule summary]] distinguishes treatment and research uses; an
+  actual deployment must determine the applicable legal basis and exceptions.
+
+The example uses synthetic identifiers and no real patient data, encryption
+keys, model service, KMS, or provider receipt. It does not implement deletion
+of previously released material. The next Host integration must bind the
+selected source digests, catalog revision, policy root, result digest, and
+audit transaction to one committed effect. The example withdraws an entire
+hospital source for clarity; a downstream catalog can register patient- and
+record-specific source artifacts when consent has that finer scope.

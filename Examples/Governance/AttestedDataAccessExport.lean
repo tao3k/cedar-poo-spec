@@ -6,23 +6,26 @@ import Examples.Governance.AttestedDataAccess
 namespace CedarPooSpec.AttestedDataAccessExport
 
 open CedarPooSpec.AttestedDataAccessExample
+open CedarPooSpec.AttestedManifest
 
-private def case (name root : String) (req : Cedar.Spec.Request) :
+private def case (name : String) (root : Root) (req : Cedar.Spec.Request) :
     Except String Lean.Json :=
-  PolicyJson.authorizationCase name s!"attested-{root.toLower}" model root req entities
+  PolicyJson.authorizationCase name root.artifactRevision model root.name req entities
+
+def rows : Except String (List Lean.Json) := do
+  let stable ← unchangedCases.mapM fun (name, req, _) => do
+    let before ← case s!"{name}-baseline" .baseline req
+    let after ← case s!"{name}-updated" .strengthened req
+    return [before, after]
+  let staleBefore ← case "stale-attestation-baseline" .baseline
+    (request customerDataset { attestationFresh := false })
+  let staleAfter ← case "stale-attestation-updated" .strengthened
+    (request customerDataset { attestationFresh := false })
+  let inherited ← case "pre-integration-broad-permit" .ownerOnly
+    (request financeDataset {})
+  return stable.flatten ++ [staleBefore, staleAfter, inherited]
 
 def manifest : Except String Lean.Json := do
-  let stable ← unchangedCases.mapM fun (name, req, _) => do
-    let before ← case s!"{name}-baseline" "Governed" req
-    let after ← case s!"{name}-updated" "GovernedV2" req
-    return [before, after]
-  let staleBefore ← case "stale-attestation-baseline" "Governed"
-    (request customerDataset { attestationFresh := false })
-  let staleAfter ← case "stale-attestation-updated" "GovernedV2"
-    (request customerDataset { attestationFresh := false })
-  let inherited ← case "pre-integration-broad-permit" "DataOwner"
-    (request financeDataset {})
-  return Lean.Json.mkObj [("cases",
-    Lean.toJson (stable.flatten ++ [staleBefore, staleAfter, inherited]))]
+  return Lean.Json.mkObj [("cases", Lean.toJson (← rows))]
 
 end CedarPooSpec.AttestedDataAccessExport

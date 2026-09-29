@@ -1,0 +1,150 @@
+#+TITLE: Cross-Stage Code Pipeline Release
+#+OPTIONS: toc:nil
+
+* Source and question
+
+[[https://cloud.google.com/blog/topics/threat-intelligence/hardening-code-pipelines-and-ci-cd-infrastructure][Google Cloud Threat Intelligence and Mandiant, September 25, 2026]]
+describe attacks crossing developer tools, code repositories, dependencies,
+runner caches, OIDC identity, artifact provenance, and deployment. Their
+[[https://cloud.google.com/blog/topics/threat-intelligence/mitigation-guidance-for-supply-chain-compromise][July 2026 supply-chain analysis]] describes malicious dependencies and
+privileged workflow triggers in observed campaigns. These reports motivate
+the boundary; the identities and releases below are synthetic, not a claim
+about Google's deployed infrastructure.
+
+The difficult case is an apparently signed artifact assembled after a source
+review but on a poisoned runner or with an unquarantined dependency. Signature
+verification alone cannot establish that the upstream build path was safe.
+
+#+begin_src mermaid
+stateDiagram-v2
+  [*] --> Base: candidate grant
+  Base --> SourcePrecheck: source fields and protected ref
+  SourcePrecheck --> SourceBound: bound review and current ruleset
+  SourceBound --> DependencyBound: lock and quarantine
+  DependencyBound --> RunnerBound: ephemeral runner and isolated cache
+  RunnerBound --> ArtifactBound: digest, builder and signature
+  ArtifactBound --> ReleaseReady: bound provenance claims
+  ReleaseReady --> CanaryRelease: override protected source branch
+  ReleaseReady --> Quarantined: affected artifact incident
+  Quarantined --> Recovered: withdraw local incident veto
+#+end_src
+
+* Object composition
+
+[[file:GoogleThreatCase.lean][The Lean scenario]] creates a Base permit and
+five independent pipeline stage owners and one source-control owner with
+=Model.define=. It combines those objects
+with =Model.combine=, preserving their separate policy IDs and C4 origins.
+The common [[file:../../../CedarPooSpec/Cloud/Pipeline/ReleaseBoundary.lean][ReleaseBoundary]]
+generates one Cedar forbid control per stage. An incident appends a veto for
+only the affected artifact; recovery removes that veto while the five stage
+owners remain inherited. The
+[[file:../../../Tests/Cloud/Pipeline/GoogleThreatCase.lean][checks]] prove
+the ordered owners, all expected decisions, Cedar schema validity, and the
+one-policy incident/recovery delta.
+
+The stage progression exposes the need for composition: SourcePrecheck still
+accepts a review record for a different commit. SourceBound rejects that
+record, a self-review, failed checks, rule bypass, rewritten history, a stale
+rule epoch, or another branch. It still accepts an unquarantined package;
+DependencyBound
+closes that gap but still accepts a shared cache; RunnerBound blocks that
+cache but still accepts missing provenance. ArtifactBound checks signature
+and digest, yet still accepts a claim for another source commit.
+ReleaseReady adds a separate provenance owner and rejects that substitution.
+The release is allowed only if its actual target attributes match the
+projected commit, workflow, lock digest, OIDC audience, artifact digest, and
+builder identity. The provenance claim entity must separately bind the
+source repository, commit, workflow, lock, OIDC audience, build type, builder
+and subject digest to that target. =just example cloud pipeline-google-threat=
+exports the same 47 decisions and replays them with the official Cedar Rust
+authorizer.
+[[file:Deployment.lean][The typed deployment selector]] admits only ReleaseReady, Quarantined,
+and Recovered; incomplete stage roots are diagnostic cases.
+
+* Source code management
+
+The public [[file:../../../CedarPooSpec/Cloud/Pipeline/SourceControlBoundary.lean][SourceControlBoundary]] is an independent POO owner. Its
+[[file:../../../CedarPooSpec/Cloud/Pipeline/Evidence.lean][SourceChangeClaim]] binds a reviewed repository and commit to a protected
+branch, distinct author and reviewer, required checks, bypass status, history
+status, human reviewer status, and the current ruleset epoch. SourcePrecheck
+and SourceBound expose the exact one-policy delta from adding that owner;
+downstream dependency,
+runner, provenance, and deployment objects inherit it without copying the
+rule body. The example changes one evidence field at a time to show the
+boundary's effect.
+
+The same owner admits an Agent-authored change after authenticated human
+review and denies an Agent-only approval; no second policy body is needed.
+
+[[file:../../../CedarPooSpec/Cloud/Pipeline/SourceProfile.lean][SourceProfile]] uses LeanPOO's first-class =Object.define= and
+=extendWith= APIs. Its inherited computed control slot reads the final
+object's branch slot. The production object keeps =main=, while its canary
+child selects =release-candidate=; the generated Cedar policy is then
+overlaid only at the =CanaryRelease= root. Lean checks prove the parent
+remains unchanged and only the source-control policy ID changes. The canary
+root is a diagnostic profile and is excluded from the typed deployment
+selector, so this branch variation cannot be published by that selector.
+
+The source model follows the article's [[https://cloud.google.com/blog/topics/threat-intelligence/hardening-code-pipelines-and-ci-cd-infrastructure][Code Repositories]] section. GitHub's
+[[https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository][ruleset documentation]] describes required pull requests, status checks,
+and bypass configuration. The Host must read the actual repository rules,
+merge history, review state, check producer identity, and current account
+and device posture, then authenticate the exact claim. A request-supplied
+claim or boolean has no source authority. The Host must recheck the ref and
+epoch at the publish boundary; this policy does not prevent an out-of-band
+push, leaked clone, or already copied source.
+
+[[https://slsa.dev/spec/v1.0/provenance][SLSA provenance]] gives the build-definition and builder fields;
+[[https://docs.cloud.google.com/build/docs/securing-builds/generate-validate-build-provenance][Google Cloud Build documentation]] shows a signed in-toto statement with
+source commit and artifact subject. Google Cloud's
+[[https://docs.cloud.google.com/binary-authorization/docs/attestations][Binary Authorization]] separately enforces digest-bound attestations at
+deployment. Our example does not configure that product.
+
+* Deployment as a second effect
+
+[[file:DeploymentCase.lean][The deployment customer]] composes the complete release root with an
+independent deployment permit and the public
+[[file:../../../CedarPooSpec/Cloud/Pipeline/DeploymentBoundary.lean][digest-bound attestation control]]. A correct release can still be denied
+at deployment if its selected image digest differs, its attestation refers
+to another subject, its attestor differs, the reference is mutable, or the
+deployment policy runs only in dry-run mode. A poisoned runner rejects
+promotion even when the deployment attestation itself appears valid.
+
+The attestation and receipt are instances of the public
+[[file:../../../CedarPooSpec/Cloud/Pipeline/Evidence.lean][typed evidence projections]]. The scenario changes only one claim field
+per adverse case, while the same schema and Cedar conversion are reused.
+The receipt binds the current policy root and state epoch as well as the
+source commit and artifact digest. The incident profile adds separate, owned quarantines for promotion and
+deployment. The recovery profile reuses the stage and attestation owners
+without those quarantines. [[file:../../../Tests/Cloud/Pipeline/DeploymentCase.lean][Lean checks]] compare each decision and assert the
+exact two-policy incident delta. =just example cloud
+pipeline-google-deployment= replays all 28 decisions with official Cedar
+Rust. The example's =admitted= function requires both decisions, but only a
+Host can issue and atomically redeem a release receipt and enforce a real
+deployment. The synthetic receipt is an example input, not proof that a
+release was actually issued.
+
+Our own [[file:../../../.github/workflows/ci.yml][CI workflow]] runs verification only; it does not publish images or
+generate authenticated provenance. Its third-party Actions are pinned to
+verified commit SHAs and checkout does not retain credentials. GitHub
+documents that ordinary pull-request caches are scoped to the PR merge ref;
+we therefore do not treat this workflow as evidence of a default-branch
+cache-poisoning exploit. Restored caches remain inputs to the build, and
+production release authority would require a separate pipeline boundary.
+See [[https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching][GitHub dependency caching]] and
+[[https://docs.github.com/en/actions/reference/security/secure-use][GitHub Actions secure-use guidance]].
+
+* Trust and execution boundary
+
+The boolean signals are synthetic Host assertions. The Host must obtain and
+authenticate review status, branch protection, lockfile and action pins,
+quarantine verdicts, ephemeral-runner and cache isolation, workflow identity,
+OIDC audience, signature verification, and provenance for the exact artifact
+digest. It must verify the provenance envelope and build-type semantics,
+then bind the final publish operation to that digest and current
+evidence, perform the effect under an appropriately scoped identity, and
+record a durable receipt. Cedar evaluates the projected request; LeanPOO
+composes reusable controls. Neither reads CI configuration, verifies a
+signature, proves a runner was isolated, blocks network egress, nor revokes
+an artifact already delivered downstream.

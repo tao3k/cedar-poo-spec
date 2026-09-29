@@ -1,0 +1,18 @@
+#+TITLE: Policy Profiles as First-Class POO Objects
+#+OPTIONS: toc:nil
+
+[[file:PolicyProfile.lean][PolicyProfile]] is a Cedar-specific adapter over
+LeanPOO's public =Object.define= and =extendWith= APIs. One typed setting slot
+is direct. An inherited computed slot reads the final object's setting and
+renders one Cedar policy. A child therefore replaces a setting without
+copying the policy expression or mutating the parent object.
+
+The caller owns the renderer and the policy ID. Cedar still validates the
+resulting policy and decides authorization. This adapter does not infer
+which configuration is safe, authenticate an administrator's change, or
+install a policy in an external service. A consumer should use the rendered
+policy in a real POO policy owner, then inspect its exact revision delta.
+
+[[file:../Examples/Enterprise/AWS/FinancialServices/Reconciliation/README.org][AWS reconciliation]] uses one profile for the Gateway confidence threshold
+and another for the correspondence action set. Their independent revisions
+compose into a joint incident while the other owners remain inherited.

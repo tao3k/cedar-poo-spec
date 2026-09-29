@@ -1,0 +1,64 @@
+#+TITLE: FHIR Consumer Access Objects
+#+OPTIONS: toc:nil
+
+* Scope
+
+[[file:ConsumerAccess.lean][ConsumerAccess.lean]] provides public Lean-POO
+objects for Cedar authorization decisions around an application consuming
+FHIR data. The =FHIR/= directory names the integration context, not an
+implementation of the FHIR specification. The objects are optional
+application controls, not an HL7 authorization profile or a claim of gateway
+conformance.
+
+FHIR parsing, resource validation, and protocol interpretation belong to the
+upstream FHIR implementation used by an application. In the planned Lambda
+integration, its Scheme layer owns that work. The application Host projects
+verified patient, resource, token, session, and revocation facts into a Cedar
+request. This library owns only the Cedar policy objects and their Lean-POO
+composition. It does not depend on the Scheme parser or duplicate its AST.
+
+#+begin_src mermaid
+flowchart LR
+  FHIR[FHIR input] --> Parser[Lambda Scheme FHIR layer]
+  Parser --> Host[Host evidence projection]
+  Host --> Cedar[Cedar request and decision]
+  POO[cedar-poo-spec control objects] --> Cedar
+  Cedar --> Effect[Host admission and effect]
+#+end_src
+
+| Object | Policy slot | Input supplied by the application |
+|--------+-------------+-----------------------------------|
+| =ResourceRead= | Permit one action, actor class, resource class, and purpose. | The selected action and projected resource classification. |
+| =PatientBoundary= | Forbid a selected action when actor or resource patient differs from the subject. | Authenticated identity and patient linkage. |
+| =ConsumerSession= | Forbid a read when OAuth, session, or inactivity facts fail. | Token validation and session state. |
+| =RevocableUse= | Forbid selected data operations after access revocation. | Current revocation state; cleanup can remain outside the selected actions. |
+
+Each object owns a stable policy identity. =ResourceRead.introduce= emits a
+POO =extend= edit. The other objects produce public =Governance.Veto=
+controls with =introduce=, =revise=, and =withdraw= edits. An application
+composes the objects with =Model.extend= and =Model.mix=; it chooses facts,
+actions, patient-binding policy, and any deletion behavior.
+
+* Consumer-platform use
+
+The [[file:../../../../Examples/Health/MyHealthRecord/README.org][My Health Record consumer-platform example]] instantiates these objects
+for a synthetic Australian gateway interaction model #4. The example owns
+its AI summary, internal disclosure, incident, and purge policies. This
+module does not embed Australian-specific policy IDs or mandate AI use.
+
+The [[https://hl7.org/fhir/R4/security.html][FHIR R4 security guidance]] describes
+security concerns around FHIR exchange. The
+[[https://implementer.digitalhealth.gov.au/resources/services/my-health-record/my-health-record-fhir-gateway][Australian FHIR Gateway guide]] distinguishes direct consumer access from
+consumer connection via a platform with an intermediary. Its
+[[https://implementer.digitalhealth.gov.au/resources/my-health-record-fhir-gateway-security-requirements-and-guidelines][current security requirements]] apply to interaction models #1 and #4.
+Those sources motivate the example profile; they do not make these four
+objects normative FHIR behavior.
+
+* Host boundary
+
+The Host must authenticate the patient, validate OAuth, derive resource and
+patient attributes from parsed FHIR inputs, observe access changes, prevent
+cache use after revocation, and execute deletion. A Boolean Cedar fact is
+only a projection of that evidence. The library neither parses nor validates
+FHIR, and it does not call a gateway, store tokens, emit audit records, or
+delete cached data.

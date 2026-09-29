@@ -67,11 +67,12 @@ def revokeAgent : Policy :=
     resourceScope := .resourceScope (.mem operations),
     condition := [{ kind := .when, body := .binaryApp .eq viaAgentExpr (.lit (.entityUID purchasingBot)) }] }
 
-def delegatedModel : Model := { modules := PurchaseApprovalExample.model.modules ++ [
-  { name := "Delegated", parentOrders := [["Integrated"]],
-    edits := [.overlay delegatedPermit] },
-  { name := "Revoked", parentOrders := [["Delegated"]],
-    edits := [.extend revokeAgent] }] }
+def delegatedModelResult : Except LeanPoo.C4.Error Model := do
+  let delegated ← PurchaseApprovalExample.model.extend "Delegated" "Integrated"
+    [.overlay delegatedPermit]
+  delegated.extend "Revoked" "Delegated" [.extend revokeAgent]
+
+def delegatedModel : Model := delegatedModelResult.toOption.get (by native_decide)
 
 def delegatedRequest (principal resource agent : EntityUID) (requested : String) : Request :=
   ⟨principal, approve, resource,

@@ -1,0 +1,14 @@
+#+TITLE: Google Sensitive Data Protection Projection
+#+OPTIONS: toc:nil
+
+[[file:SensitiveDataProtection.lean][The Lean projection]] maps a selected generic AES-SIV table input and
+its catalog lineage into the existing Rust Google SDP input contract. It is
+shared by the [[file:../../../Examples/Health/Pseudonymization/README.org][hospital example]] and the
+[[file:../../../Examples/Cloud/DataProtection/README.org][Cloud customer profile]]. The Rust boundary constructs public Google REST
+request bodies and checks a caller-supplied response shape.
+
+The selected input is not an authorization decision or a provider receipt.
+The Host must authenticate it, bind an admitted operation to the exact
+request, call the provider, verify the returned result, and persist the audit.
+The published method distinctions and context-tweak behavior come from
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][Google Cloud Sensitive Data Protection documentation]].

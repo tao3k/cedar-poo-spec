@@ -1,4 +1,5 @@
 import CedarPooSpec.PolicyJson
+import CedarPooSpec.PolicyProfile
 
 /-! A proposed Cedar projection of two operations in AWS's agentic platform
 expense sample. The source tool currently lists all expenses for listTeamExpenses
@@ -97,12 +98,31 @@ def veto (id : String) (action : EntityUID) (body : Expr) : Policy :=
     resourceScope := .resourceScope (.is expenseType),
     condition := condition body }
 
+structure DepartmentSetting where
+  policyId : String
+  action : EntityUID
+
+def departmentVeto (setting : DepartmentSetting) : Policy :=
+  veto setting.policyId setting.action
+    (unequal (attr .principal "department") (attr .resource "department"))
+
+def teamDepartmentProfile : CedarPooSpec.PolicyProfile.Object DepartmentSetting :=
+  (CedarPooSpec.PolicyProfile.define "TeamDepartment"
+    { policyId := "team-row-boundary", action := listTeam } departmentVeto)
+    |>.toOption.get (by native_decide)
+
+def rejectionDepartmentProfile : CedarPooSpec.PolicyProfile.Object DepartmentSetting :=
+  (CedarPooSpec.PolicyProfile.revise teamDepartmentProfile
+    "RejectionDepartment"
+    { policyId := "reject-department-boundary", action := reject })
+    |>.toOption.get (by native_decide)
+
 def crossDepartment : Policy :=
-  veto "team-row-boundary" listTeam
-    (unequal (attr .principal "department") (attr .resource "department"))
+  (CedarPooSpec.PolicyProfile.policy? teamDepartmentProfile).get
+    (by native_decide)
 def rejectScope : Policy :=
-  veto "reject-department-boundary" reject
-    (unequal (attr .principal "department") (attr .resource "department"))
+  (CedarPooSpec.PolicyProfile.policy? rejectionDepartmentProfile).get
+    (by native_decide)
 def nonApprover : Policy :=
   veto "reject-role-boundary" reject
     (.unaryApp .not

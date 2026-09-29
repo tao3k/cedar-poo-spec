@@ -3,6 +3,7 @@ export CARGO_TARGET_DIR := "rust/target"
 
 lakehouse:
     just build-examples
+    lake build Tests.Enterprise.AWS.LakehouseLocationProfile
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean lakehouse-gateway-validated > .lake/build/lakehouse-gateway-validated-manifest.json
     jq -e '.schema.AgentCore.entityTypes.OAuthUser.tags == {"type":"String"} and .schema.AgentCore.actions["lakehouse-mcp-target___query_claims"].appliesTo.context.attributes.input.attributes.geography == {"required":false,"type":"String"} and (.cases | length) == 16' .lake/build/lakehouse-gateway-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/lakehouse-gateway-validated-manifest.json > .lake/build/lakehouse-gateway-validated-receipts.json
@@ -14,6 +15,7 @@ lakehouse:
 
 multi-account-banking:
     just build-examples
+    lake build Tests.Enterprise.AWS.BankingToolProfile
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean multi-account-banking-validated > .lake/build/multi-account-banking-validated-manifest.json
     jq -e '.schema.AgentCore.entityTypes.OAuthUser != null and (.schema.AgentCore.actions | length) == 18 and (.cases | length) == 41' .lake/build/multi-account-banking-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/multi-account-banking-validated-manifest.json > .lake/build/multi-account-banking-validated-receipts.json
@@ -28,10 +30,11 @@ claim-settlement:
     just build-examples
     lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlement
     lake build Examples.Enterprise.AWS.FinancialServices.ClaimSettlementRevision
+    lake build Tests.Enterprise.AWS.ClaimSettlementHandoff
 
 reconciliation:
     just build-examples
-    lake build Examples.Enterprise.AWS.FinancialServices.Reconciliation.Workflow
+    lake build Examples.Enterprise.AWS.FinancialServices.Reconciliation.Workflow Tests.Enterprise.AWS.ReconciliationProfile
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean reconciliation-validated > .lake/build/reconciliation-validated-manifest.json
     jq -e '.schema.AgentCore.entityTypes.IamEntity != null and (.schema.AgentCore.actions | length) == 10 and (.cases | length) == 32' .lake/build/reconciliation-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/reconciliation-validated-manifest.json > .lake/build/reconciliation-validated-receipts.json

@@ -14,7 +14,7 @@ def policies (count : Nat) : Policies :=
 
 def before : Policies := policies 1000
 def after (token : Nat) : Policies :=
-  before.dropLast ++ [{ platformVetoV2 with id := s!"new-platform-{token}" }]
+  before.dropLast ++ [{ platformVetoFreshness with id := s!"new-platform-{token}" }]
 
 def reordered (token : Nat) : Policies :=
   let split := token % 999 + 1
@@ -30,9 +30,9 @@ theorem beforeValid : validate before schema = .ok () :=
   okOfIsOk _ (by native_decide)
 
 def staticAfter : Policies :=
-  before.dropLast ++ [platformVetoV2]
+  before.dropLast ++ [platformVetoFreshness]
 
-theorem staticFreshExact : freshPolicies before staticAfter = [platformVetoV2] := by
+theorem staticFreshExact : freshPolicies before staticAfter = [platformVetoFreshness] := by
   native_decide
 
 theorem staticReuseCount :
@@ -44,10 +44,10 @@ theorem staticFreshCertificates :
     ∀ policy ∈ freshPolicies before staticAfter,
       LeanPoo.Proof.Certificate (Snapshot.mk policy schema).proofObject := by
   intro policy member
-  have same : policy = platformVetoV2 := by
+  have same : policy = platformVetoFreshness := by
     simpa [staticFreshExact] using member
   subst policy
-  exact (Snapshot.mk platformVetoV2 schema).certificate
+  exact (Snapshot.mk platformVetoFreshness schema).certificate
     (okOfIsOk _ (by native_decide))
 
 /-- A concrete 1,000-policy certificate closed from 999 old bodies and one new body. -/

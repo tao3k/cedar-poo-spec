@@ -1,0 +1,57 @@
+#+TITLE: Personnel Governance
+#+OPTIONS: toc:nil
+
+* Public controls
+
+[[file:Status.lean][Status]] models an organization-maintained human roster
+stage. Its veto applies to the originating person even if an Agent is the
+request principal. The caller chooses which operations remain available
+during departure; separation can veto every mediated action.
+
+[[file:Assignment.lean][Assignment]] projects an engagement class and project
+assignments into Cedar entity attributes. An organization can change a
+person's projects without generating a new policy for that person. This is an
+ABAC design informed by [[https://csrc.nist.gov/projects/attribute-based-access-control][NIST's ABAC guidance]];
+the Host must provide accurate, timely attributes, as emphasized by
+[[https://csrc.nist.gov/news/2019/nist-publishes-sp-800-205][NIST SP 800-205]].
+
+[[file:Delegation.lean][Delegation]] binds one Agent to one human, operation,
+asset, destination, purpose, revision, and expiry. A read grant does not
+authorize an external transfer.
+
+[[file:AssetAccess.lean][AssetAccess]] binds the actual executor and proposed
+asset operation to an origin, device, approval, delegation, incident state,
+and epoch. Its Cedar projection and independent veto controls are intended
+for mediated reads, local downloads, and external transfers. The Host owns
+identity and roster freshness,
+authenticates grants and device evidence, selects the published POO root,
+and binds execution to the admitted operation. These values are not
+cryptographic attestations by themselves.
+
+[[file:KnowledgeScope.lean][KnowledgeScope]] compares the facts revealed by
+cumulative asset exposure against task requirements and owner-curated
+sensitive combinations. Revoking a grant does not erase facts a person has
+already observed. This is a structural assessment, not a claim to infer
+knowledge or intent automatically. The concern follows
+[[https://csrc.nist.gov/glossary/term/data_aggregation][NIST's data-aggregation definition]]:
+individually less sensitive items can reveal more when combined.
+Its =admit= function rejects a proposed new observation that would complete
+an owner-declared critical combination. A Host must persist the ledger in the
+same admission/execution transaction; an unmediated copy bypasses this check.
+
+[[file:Admission.lean][Admission]] combines the proof-bearing POO/Cedar
+operation receipt with =KnowledgeScope.admit= on that exact asset. It requires
+the actual effect and state to match the admitted values and returns the
+updated ledger only after an error-free Cedar allow. The Host must select and
+authenticate the applicable boundary profile; passing an empty profile is an
+explicit decision to accept its residual knowledge exposure.
+
+This package models authorization and admission. A person who already has a
+complete local copy may still disclose it outside any policy enforcement
+point. That residual risk requires organizational response, proportionate
+investigation, and controls at actual transfer channels; it cannot be
+eliminated by a Cedar decision.
+
+[[file:../../../Examples/Enterprise/Personnel/README.org][The personnel example]]
+uses these controls for small-team collaboration, attempted partial-code
+sale, departure, separation, and large-team partner access.

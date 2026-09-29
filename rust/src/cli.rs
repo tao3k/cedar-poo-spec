@@ -3,7 +3,8 @@
 use crate::{
     CompiledPolicyJson, Manifest, SchemaEvolutionBundle, TemplateSourceJson, ValidatedManifest,
     check_direct_sources, check_manifest, check_template_source, render_artifacts,
-    render_policy_source, replay_manifest, replay_schema_only_revision, replay_validated_manifest,
+    render_policy_source, render_validated_policy_sources, replay_manifest,
+    replay_schema_only_revision, replay_validated_manifest,
 };
 use serde::Deserialize;
 use std::fs;
@@ -51,6 +52,18 @@ fn dispatch(input: &str, args: &[String]) -> Result<(), String> {
         );
         return Ok(());
     }
+    if let [command, case_name] = args
+        && command == "identified-sources"
+    {
+        let manifest: ValidatedManifest = serde_json::from_str(input)
+            .map_err(|error| format!("validated manifest JSON: {error}"))?;
+        let sources = render_validated_policy_sources(&manifest, case_name)?;
+        println!(
+            "{}",
+            serde_json::to_string(&sources).map_err(|error| error.to_string())?
+        );
+        return Ok(());
+    }
     if args == ["replay-schema-only-revision"] {
         let bundle: SchemaEvolutionBundle = serde_json::from_str(input)
             .map_err(|error| format!("schema evolution bundle JSON: {error}"))?;
@@ -90,7 +103,7 @@ fn run_manifest_command(manifest: &Manifest, args: &[String]) -> Result<(), Stri
         }
         _ => {
             return Err(
-                "usage: cedar-poo-bridge [render|check-template-source|replay-receipts|replay-validated-receipts|replay-schema-only-revision|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
+                "usage: cedar-poo-bridge [render|check-template-source|replay-receipts|replay-validated-receipts|identified-sources CASE_NAME|replay-schema-only-revision|emit DIRECTORY|check-artifacts DIRECTORY|check-direct DIRECTORY]".into(),
             );
         }
     }

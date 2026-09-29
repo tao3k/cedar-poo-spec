@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 tao3k team and Contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+#+TITLE: Cross-language conformance assertions
+#+OPTIONS: toc:nil
+
+Each =.jq= file is one executable assertion over a generated Lean manifest or
+an official Cedar Rust replay receipt. The root Justfile owns the generation
+and replay commands; these files own the expected schema, decision, digest,
+and change-analysis contracts.
+
+Run the corresponding =just check-*= recipe to refresh inputs before checking
+an assertion. For a focused check against an already generated input:
+
+#+begin_src sh
+jq -e -f Tests/Conformance/scope-pattern-validated-manifest.jq \
+  .lake/build/scope-pattern-validated-manifest.json
+#+end_src
+
+The two agent-payment receipt checks also read their source manifest through
+=--slurpfile manifest=. An assertion returning =false= fails the recipe.

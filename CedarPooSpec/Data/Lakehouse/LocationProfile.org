@@ -1,0 +1,18 @@
+#+TITLE: Location Boundary Profiles
+#+OPTIONS: toc:nil
+
+[[file:LocationProfile.lean][LocationProfile]] makes a [[file:LocationBoundary.lean][LocationBoundary]] a typed LeanPOO object.
+Its policy ID, action scope, denied location, and missing-field choice are
+separate direct slots. An inherited computed slot reads the final object
+and reconstructs the boundary. A child changes only the slots it owns;
+the parent boundary remains available for a different composition branch.
+
+Principal and resource scopes and the request input field names come from
+the initial boundary. A consumer requiring different values for those
+fields should define a separate root profile. Cedar evaluates the rendered
+policy. The Host authenticates the geography and enforces downstream data
+access; object inheritance does not perform either operation.
+
+The [[file:../../../Examples/Enterprise/AWS/FinancialServices/LakehouseGateway/README.org][AWS insurance lakehouse case]] uses one profile family for EU, restricted,
+and unknown-geography controls. Its Lean check establishes the parent
+settings, C4 precedence, and exact generated policy bodies.

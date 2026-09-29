@@ -94,16 +94,16 @@ def newAssignment : Policy := policy "new-director-assignment" director assign
     (.and (ctx "metadataAuthenticated")
       (.and notRetired (imageFact "compatible"))))
 
-def model : Model := { modules := [
-  { name := "Base", edits := [
-      .extend oldPublish, .extend oldAssignment, .extend manifestIntake] },
-  { name := "ImageRemoval", parentOrders := [["Base"]],
-    edits := [.remove oldPublish.id] },
-  { name := "DirectorRemoval", parentOrders := [["Base"]],
-    edits := [.remove oldAssignment.id] },
-  { name := "Retired", parentOrders := [["ImageRemoval", "DirectorRemoval"]] },
-  { name := "Replacement", parentOrders := [["Retired"]],
-    edits := [.extend newPublish, .extend newAssignment] }] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "Base", edits := [
+        .extend oldPublish, .extend oldAssignment, .extend manifestIntake] }] }
+  let image ← base.extend "ImageRemoval" "Base" [.remove oldPublish.id]
+  let director ← image.extend "DirectorRemoval" "Base" [.remove oldAssignment.id]
+  let retired ← director.mix "Retired" ["ImageRemoval", "DirectorRemoval"]
+  retired.extend "Replacement" "Retired" [.extend newPublish, .extend newAssignment]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 structure Facts where
   delegationValid : Bool := true

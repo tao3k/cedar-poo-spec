@@ -146,8 +146,14 @@ def removeModule : Module :=
   { name := "Remove", parentOrders := [["Composed"]],
     edits := [.remove legacyPermit.id] }
 
-def model : Model :=
-  { modules := [baseModule, tenantModule, deviceModule, composedModule, removeModule] }
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let initial : Model := { modules := [baseModule] }
+  let tenant ← initial.extend tenantModule.name "Base" tenantModule.edits
+  let device ← tenant.extend deviceModule.name "Base" deviceModule.edits
+  let composed ← device.mix composedModule.name ["TenantStrict", "DeviceVeto"]
+  composed.extend removeModule.name "Composed" removeModule.edits
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def finalPolicies : Policies :=
   (model.compile "Remove").toOption.get (by native_decide)

@@ -1,4 +1,7 @@
-import Examples.Enterprise.AWS.AgentCore.Gateway
+import CedarPooSpec.Platform.AWS.AgentCore.Gateway
+import CedarPooSpec.Data.Lakehouse.LocationBoundary
+import CedarPooSpec.Data.Lakehouse.LocationProfile
+import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto
 import CedarPooSpec.Revision
 
 /-! A Cedar projection of the AWS AgentCore lakehouse Policy + Interceptor
@@ -9,13 +12,15 @@ forbids; the final unresolved-geography veto is a locally proposed hardening. -/
 namespace CedarPooSpec.LakehouseGatewayExample
 
 open Cedar.Spec Cedar.Data Cedar.Validation CedarPooSpec.PolicyModules
-open CedarPooSpec.AWS.AgentCore
+open CedarPooSpec.Platform.AWS.AgentCore
+open CedarPooSpec.Data.Lakehouse
+open CedarPooSpec.Vertical.FinancialServices
 
 def policyholderUS : EntityUID := user "policyholder001"
 def policyholderEU : EntityUID := user "policyholder002"
 def adjusterUS : EntityUID := user "adjuster001"
 def adjusterEU : EntityUID := user "adjuster002"
-def gateway : EntityUID := CedarPooSpec.AWS.AgentCore.gateway "lakehouse-gateway"
+def gateway : EntityUID := CedarPooSpec.Platform.AWS.AgentCore.gateway "lakehouse-gateway"
 def queryClaims : EntityUID :=
   action "lakehouse-mcp-target___query_claims"
 def claimDetails : EntityUID :=
@@ -32,7 +37,7 @@ def tools : List EntityUID :=
 
 def inputType : RecordType := Map.make [("geography", .optional .string)]
 def actionEntry : ActionSchemaEntry :=
-  CedarPooSpec.AWS.AgentCore.actionEntry
+  CedarPooSpec.Platform.AWS.AgentCore.actionEntry
     (Map.make [("input", .required (.record inputType))])
 def schema : Schema :=
   ⟨Map.make [
@@ -54,11 +59,6 @@ def request (user action : EntityUID) (geography : Option String) : Request :=
   ⟨user, action, gateway,
     Map.make [("input", .record (Map.make attrs))]⟩
 
-def input : Expr := .getAttr (.var .context) "input"
-def hasGeography : Expr := .hasAttr input "geography"
-def geography : Expr := .getAttr input "geography"
-def locationIs (place : String) : Expr :=
-  .and hasGeography (.binaryApp .eq geography (.lit (.string place)))
 def groups : Expr :=
   .binaryApp .getTag (.var .principal) (.lit (.string "cognito:groups"))
 def hasGroups : Expr :=
@@ -73,36 +73,59 @@ def isPolicyholder : Expr :=
 
 def baselinePermit : Policy :=
   scopedPolicy "gateway-baseline" .permit gateway (.actionScope .any)
-def roleVeto : Policy :=
-  scopedPolicy "policyholder-summary" .forbid gateway
-    (.actionScope (.eq claimsSummary)) [{ kind := .when, body := isPolicyholder }]
-def euVeto : Policy :=
-  scopedPolicy "eu-individual-claims" .forbid gateway
-    (.actionInAny [queryClaims, claimDetails])
-    [{ kind := .when, body := locationIs "EU" }]
-def restrictedVeto : Policy :=
-  scopedPolicy "restricted-geography" .forbid gateway
-    (.actionInAny tools) [{ kind := .when, body := locationIs "RESTRICTED" }]
+def summaryControl : ClaimSummaryVeto :=
+  { policyId := "policyholder-summary",
+    principalScope := .principalScope (.is userType),
+    summaryAction := claimsSummary,
+    resourceScope := .resourceScope (.eq gateway),
+    policyholderCondition := isPolicyholder }
+def euTemplate : LocationBoundary :=
+  { policyId := "eu-individual-claims",
+    principalScope := .principalScope (.is userType),
+    actionScope := .actionInAny [queryClaims, claimDetails],
+    resourceScope := .resourceScope (.eq gateway),
+    deniedLocation := "EU" }
+
+def euProfile : LocationProfile.Object :=
+  (LocationProfile.define "EUProfile" euTemplate).toOption.get
+    (by native_decide)
+
+def restrictedProfile : LocationProfile.Object :=
+  (euProfile.extendWith "RestrictedProfile" do
+    LeanPoo.Object.Declaration.Builder.value .policyId "restricted-geography"
+    LeanPoo.Object.Declaration.Builder.value .actionScope (.actionInAny tools)
+    LeanPoo.Object.Declaration.Builder.value .location "RESTRICTED")
+    |>.toOption.get (by native_decide)
+
+def euControl : LocationBoundary :=
+  (LocationProfile.boundary? euProfile).get (by native_decide)
+def restrictedControl : LocationBoundary :=
+  (LocationProfile.boundary? restrictedProfile).get (by native_decide)
 
 /-- A proposed extension: deny calls when geography is absent or the sample
     interceptor's `UNKNOWN` fallback is used. Neither matches the source's
     EU or RESTRICTED rules. -/
-def unresolvedGeographyVeto : Policy :=
-  scopedPolicy "unresolved-geography" .forbid gateway (.actionInAny tools)
-    [{ kind := .when, body :=
-      (.or (.unaryApp .not hasGeography) (locationIs "UNKNOWN")) }]
+def unresolvedProfile : LocationProfile.Object :=
+  (restrictedProfile.extendWith "UnresolvedProfile" do
+    LeanPoo.Object.Declaration.Builder.value .policyId "unresolved-geography"
+    LeanPoo.Object.Declaration.Builder.value .location "UNKNOWN"
+    LeanPoo.Object.Declaration.Builder.value .denyMissing true)
+    |>.toOption.get (by native_decide)
 
-def model : Model := { modules := [
-  { name := "GatewayBase", edits := [.extend baselinePermit] },
-  { name := "Role", parentOrders := [["GatewayBase"]],
-    edits := [.extend roleVeto] },
-  { name := "EU", parentOrders := [["GatewayBase"]],
-    edits := [.extend euVeto] },
-  { name := "Restricted", parentOrders := [["GatewayBase"]],
-    edits := [.extend restrictedVeto] },
-  { name := "SourceCombined", parentOrders := [["Role", "EU", "Restricted"]] },
-  { name := "FailClosed", parentOrders := [["SourceCombined"]],
-    edits := [.extend unresolvedGeographyVeto] }] }
+def unresolvedControl : LocationBoundary :=
+  (LocationProfile.boundary? unresolvedProfile).get (by native_decide)
+def unresolvedGeographyVeto : Policy := unresolvedControl.policy
+
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let base : Model := { modules := [
+    { name := "GatewayBase", edits := [.extend baselinePermit] }] }
+  let role ← base.extend "Role" "GatewayBase" [summaryControl.introduce]
+  let eu ← role.extend "EU" "GatewayBase" [euControl.introduce]
+  let restricted ← eu.extend "Restricted" "GatewayBase" [restrictedControl.introduce]
+  let combined ← restricted.mix "SourceCombined" ["Role", "EU", "Restricted"]
+  combined.extend "FailClosed" "SourceCombined" [unresolvedControl.introduce]
+
+def model : Model := modelResult.toOption.get (by native_decide)
 
 def sourceCases : List (String × EntityUID × EntityUID × Option String × Decision) := [
   ("policyholder-us-query", policyholderUS, queryClaims, some "US", .allow),

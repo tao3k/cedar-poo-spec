@@ -38,6 +38,8 @@ policy set.
 The modules declare five edits over five roots: two initial extends, an
 independent tenant overlay, an independent device veto, and one final remove.
 C4 composes the sibling branches without copying their full policy sets.
+The model stages each branch with =Model.extend= and joins them with
+=Model.mix=, preserving the same graph that the named modules describe.
 Materializing all five roots independently would store twelve policy records
 (2 + 2 + 3 + 3 + 2). The source names five edits and lets the compiler produce
 each Cedar policy set. This is a count of authored records in this scenario,

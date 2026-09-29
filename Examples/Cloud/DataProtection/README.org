@@ -1,0 +1,74 @@
+#+TITLE: Customer-Selected Cloud Pseudonymization
+#+OPTIONS: toc:nil
+
+* Published basis and scope
+
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][Google Cloud Sensitive Data Protection pseudonymization]] describes
+deterministic AES-SIV with an optional context tweak, one-way HMAC-SHA-256,
+and reversible tokenization. Its context example allows correlation within
+one campaign while separating another. This example selects AES-SIV for a
+customer campaign; it does not claim irreversible anonymization. The
+[[https://cloud.google.com/blog/topics/threat-intelligence/hardening-code-pipelines-and-ci-cd-infrastructure][Google Cloud Threat Intelligence pipeline analysis]] motivates separately
+checking the code-to-artifact release before a data effect can use it.
+
+The customer, row, key labels, artifact, and Google-shaped response fixtures
+are synthetic. The fixture is a wire-shape example, not a provider receipt.
+
+* Choice and POO composition
+
+The [[file:GoogleSdpRelease.lean][Lean example]] imports the existing
+[[file:../Pipeline/GoogleThreatCase.lean][pipeline owners]] and the public
+[[file:../../../CedarPooSpec/Cloud/DataProtection/PseudonymizationGate.lean][data protection gate]].
+It selects a named =customer_id= and =campaign= column through the public
+[[file:../../../CedarPooSpec/Pseudonymization/Tabular.lean][AesSivTableRecipe]].
+
+#+begin_src mermaid
+stateDiagram-v2
+  [*] --> ReleaseReady: source control and five pipeline owners
+  [*] --> SdpReady: permit and recipe gate
+  ReleaseReady --> CustomerDataRelease: mix SdpReady
+  SdpReady --> CustomerDataRelease: mix ReleaseReady
+  ReleaseReady --> Quarantined: artifact incident
+  Quarantined --> CustomerIncident: mix SdpReady
+  SdpReady --> CustomerIncident: mix Quarantined
+  Quarantined --> Recovered: withdraw incident veto
+  Recovered --> CustomerRecovered: mix SdpReady
+  SdpReady --> CustomerRecovered: mix Recovered
+#+end_src
+
+The first customer selects =ReleaseReady= and may promote an artifact; that
+root contains no data-transformation grant. The second selects
+=CustomerDataRelease=, inheriting the same five pipeline owners plus an
+independent =SdpPermit= and =SdpRecipe= object. The incident and recovery
+profiles reuse those objects; the incident changes only the affected artifact
+veto. A customer can choose this profile without copying the hospital
+governance model, and a healthcare application can add its own grants and
+obligations on top.
+
+The [[file:../../../Tests/Cloud/DataProtection/GoogleSdpRelease.lean][Lean checks]] compare both decisions for each selection: a poisoned
+runner denies promotion even if the transformation policy allows the row;
+another key, tenant, context, artifact digest, or withdrawn key authorization
+denies transformation even if the pipeline can promote. The same 20 requests
+are replayed by the official Cedar Rust authorizer with
+=just example cloud data-protection-google-sdp=.
+The example =admitted= function requires both decisions for the selected
+root before the sample effect may proceed.
+
+* Provider boundary
+
+The Lean-selected row passes through the shared
+[[file:../../../CedarPooSpec/Platform/Google/SensitiveDataProtection.lean][Google provider projection]] into [[file:Fixtures/selected-table.json][the checked fixture]]. The focused recipe
+also runs the existing
+[[file:../../../rust/examples/pseudonymization_google_contract.rs][Google SDP REST adapter example]] against synthetic
+[[file:Fixtures/google-deidentify-response.json][de-identification]] and
+[[file:Fixtures/google-reidentify-response.json][re-identification]] response shapes. The adapter uses its established
+=rust/src/google_sdp.rs= implementation; this scenario does not maintain a
+second Google client. Its output checks request shape and a fabricated
+round-trip shape, without contacting Google or proving cryptographic output.
+
+The two Cedar decisions are necessary conditions, not an atomic Host
+transaction. A real Host must redeem a current release receipt for the exact
+artifact digest, authenticate the selected profile and row, obtain the
+actual Google response, and commit an audit record before releasing a token
+or plaintext. The existing hospital admission example illustrates an
+in-memory prepare/commit boundary; it is not a durable provider integration.

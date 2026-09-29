@@ -32,9 +32,14 @@ does not authenticate these inputs.
 * POO evolution
 
 =Base= permits operations approvers and deliberately lacks an amount bound.
-=Budget= overlays that policy with a decimal comparison against the order's
-limit. =Duties= independently adds a self-approval forbid. =Integrated=
-composes both branches. =Delegated= overlays the bounded permit with
+=Base= introduces a public
+[[file:../../../CedarPooSpec/Governance/MemberGrant.lean][Governance.MemberGrant]] for approver-role and operations-group membership.
+=Budget= revises that same grant with a decimal comparison against the order's
+limit. =Duties= independently adds the public
+[[file:../../../CedarPooSpec/Governance/SeparationOfDuties.lean][Governance.SeparationOfDuties]] control over the order's recorded requester.
+=Integrated=
+composes both branches through =Model.extend= and =Model.mix=. =Delegated=
+overlays the bounded permit with
 an agent operator and enabled check while preserving the duties veto.
 =Revoked= extends that root with a forbid for the purchasing bot. The
 nine original named requests expose what each branch

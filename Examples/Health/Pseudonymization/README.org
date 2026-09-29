@@ -1,0 +1,279 @@
+#+TITLE: Pseudonymization and Re-identification Governance
+#+OPTIONS: toc:nil
+
+The [[file:AgentDisclosure.org][agent disclosure case]] composes a derived hospital/research result,
+scoped approvals, and a budget shared across workspace and message channels.
+
+* Problem and published basis
+
+An analytics agent needs to join patient records within an approved study,
+while a clinical steward may sometimes recover an identity. A hospital also
+keeps records that require randomized encryption or irreversible tokens.
+These are different capabilities. A shared key, token scope, or re-identification
+grant cannot be inherited merely because two datasets belong to one tenant.
+
+| Source | Published property | Boundary modeled here |
+|--------+--------------------+-----------------------|
+| [[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][Google Cloud Sensitive Data Protection pseudonymization]] | Deterministic AES-SIV tokens support referential integrity and re-identification; a context tweak narrows the token correlation scope. HMAC tokens are one-way. | =CryptoProfile= selects deterministic reversible or one-way capability. Dataset =scope= and =keyDomain= must match on both sides of a join. |
+| [[https://www.rfc-editor.org/rfc/rfc5297][RFC 5297, AES-SIV]] | SIV specifies authenticated encryption, including deterministic operation. Repeated inputs under the same key and associated data remain linkable. | The AES-SIV branch permits scoped joins but does not claim anonymity or implement encryption in Lean. |
+| [[https://csrc.nist.gov/pubs/sp/800/38/d/final][NIST SP 800-38D, GCM]] | GCM is authenticated encryption with an IV whose uniqueness under a key matters. | The randomized AES-GCM branch requires a trusted =ivUnique= admission fact and offers no deterministic join. This is a design alternative, not a claim that Google Sensitive Data Protection exposes GCM pseudonymization. |
+| [[https://docs.cloud.google.com/kms/docs/key-rotation][Google Cloud KMS key rotation]] | Rotating a KMS key creates a new active version; it does not automatically re-encrypt existing data. | The model distinguishes the token key version from its wrapping key version. An explicit rewrap of the same token key leaves join compatibility unchanged; replacing token key material does not. |
+| [[https://www.microsoft.com/en-us/research/publication/inference-attacks-property-preserving-encrypted-databases/][Inference Attacks Against Property-Preserving Encrypted Databases]] | Deterministically encrypted columns can reveal information through frequency patterns and auxiliary data. | Tokenization is limited to trusted ingestion, while the remaining passive leakage is stated as an unresolved deployment risk. |
+
+The people, datasets, keys, and decisions are synthetic. No patient record or
+real cryptographic key appears in the example.
+The [[file:../../../rust/tests/integration/pseudonymization_crypto.rs][RustCrypto synthetic-data checks]] execute AES-SIV with a context value,
+HMAC-SHA-256, and AES-GCM. They distinguish stable same-scope tokens, changed
+context or data key, unchanged tokens after a wrapper-only change, HMAC
+cross-scope key reuse, and GCM nonce-dependent ciphertext and recovery. They
+test local cryptographic behavior; they are not Google Sensitive Data
+Protection API receipts or evidence of a persistent hospital Host.
+The [[file:Tabular.lean][tabular selection]] reads =patient_id= and =tenant_scope= from a synthetic
+row using the public [[file:../../../CedarPooSpec/Pseudonymization/Tabular.lean][AesSivTableRecipe]] boundary. Lean exports
+[[file:Fixtures/tabular-aes-siv.json][the selected input]]; the Rust AES-SIV test consumes the same fixture.
+The hospital recipe rejects duplicate columns and a context value that
+differs from its admitted context. The public recipe permits per-row contexts
+and compares actual context values before claiming join compatibility. It
+does not inspect arbitrary records or issue a Google
+Sensitive Data Protection request.
+The [[file:../../../rust/examples/pseudonymization_local.rs][local executable]] checks that this fixture matches the
+=hospital-tokenize= Cedar request and dataset entity before encrypting with a
+synthetic key. It separately replays the governed =steward-reidentify=
+decision, decrypts the generated token with the same context, and rejects a
+different context. The receipt records both decision digests and a local
+round-trip result without emitting plaintext. =just example health
+pseudonymization= checks it and rejects a swapped context or key version.
+Both approvals still come from synthetic request facts; this is not a durable
+Host transaction or a Google provider execution receipt.
+The shared [[file:../../../CedarPooSpec/Platform/Google/SensitiveDataProtection.lean][Google Lean projection]] creates the selected fixture used by
+this hospital and the Cloud customer example. The
+[[file:../../../rust/src/google_sdp.rs][Google SDP request boundary]] consumes that fixture and a
+Host-resolved wrapped key descriptor. Its test checks the official table
+=RecordTransformation= shape, context field, and key lineage. It can check a
+caller-supplied response shape, but the example does not authenticate a
+Google response or run the Google API. The local RustCrypto token must not be
+treated as a Google token.
+Run =just example health pseudonymization-google-contract= for the minimal
+offline path. It checks the Lean-selected fixture, creates both Google REST
+bodies, and consumes [[file:Fixtures/google-deidentify-response.json][synthetic de-identification]] and
+[[file:Fixtures/google-reidentify-response.json][synthetic re-identification]] responses. The
+[[file:../../../rust/examples/pseudonymization_google_contract.rs][example runner]] emits only request/response digests and boundary checks;
+it also rejects a changed context, malformed token, or mismatched token-key
+version. These response files
+are deliberately fabricated wire-shape fixtures, not evidence of an actual
+Google transformation. The broader =pseudonymization= recipe includes this
+minimal path alongside Cedar replay and local cryptographic execution.
+Run =just example health pseudonymization-google-admission= to replay the
+official Cedar decisions, bind the selected row to the Cedar dataset and
+Google request, then exercise an in-memory admission ticket. The
+[[file:../../../rust/examples/pseudonymization_google_admission.rs][offline Host example]] rejects a racing ticket, approval revision change,
+an unissued recovery token both before and after tokenization,
+policy deployment, failed audit sink, changed endpoint, and changed response context before
+releasing a transformed cell. Its audit contains digests only. This example
+uses synthetic Google response fixtures owned by this hospital scenario.
+
+* Object composition
+
+The public capability and its source map live in
+[[file:../../../CedarPooSpec/Pseudonymization/README.org][the public Pseudonymization README]], in the implementation directory. This section describes
+the hospital's concrete composition.
+
+[[file:../Pseudonymization.lean][Pseudonymization.lean]] defines three
+=CryptoProfile= objects: =AesSiv=, =AesGcm=, and =Hmac=. Their module method
+derives the tokenization, join, re-identification, and prohibition policies
+from the mode's declared capabilities. A =GovernanceView= mixes one profile
+with independent =DataOwner=, =Privacy=, and =AgentBoundary= objects. Every
+profile and owner is staged through =Model.extend=; each view uses
+=Model.mix= so the C4 topology is built by Lean-POO's public API. Every
+view removes the inherited legacy re-identification grant. The incident
+object extends the AES-SIV view with a =Governance.Veto= and suspends only
+agent joins; steward joins remain available. The =Recovered= object withdraws
+that one veto and retains the other owner and privacy policies. This isolates
+a local emergency revision without copying the full policy set.
+The =ResultRelease= object extends the governed AES-SIV view with a separate
+permission for releasing a query result. Its approval and budget facts are
+independent of permission to join stored tokens. The finite Host model
+consumes one result budget unit when a release ticket is redeemed.
+=compositionIsLocalFully= proves that changing =AesSiv= does not invalidate
+the GCM or HMAC views; changing =AgentIncident= affects its recovery
+descendant. =incidentOnlyAddsAgentVetoFully= and
+=recoveryWithdrawsIncidentVeto= check the exact policy lists and restored
+agent join decision.
+
+=Base= deliberately contains a synthetic legacy grant to model a migration
+hazard. =pre-governance-broad-reidentify= demonstrates the unsafe intermediate
+root; =HospitalSiv= removes that grant. Only governed views should be
+published. The example does not claim that a named hospital deployed this
+legacy rule.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> Base
+    Base --> AesSiv
+    Base --> AesGcm
+    Base --> Hmac
+    AesSiv --> HospitalSiv: mix Owner, Privacy, AgentBoundary; remove legacy grant
+    AesGcm --> RandomizedGcm: same governance view
+    Hmac --> OneWayHmac: same governance view
+    HospitalSiv --> AgentIncident: extend agent join suspension
+    AgentIncident --> Recovered: withdraw incident veto
+#+end_src
+
+| Profile | Stable scoped join | Re-identification | Tokenization condition |
+|---------+--------------------+-------------------+------------------------|
+| AES-SIV | Yes, with approval and matching mode, scope, and key domain | Approved steward with an audit-ready workflow | Trusted ingestion and key authorization |
+| AES-GCM with unique IV | No deterministic join | Approved steward with stored IV and audit-ready workflow | Trusted ingestion, key authorization, and Host IV uniqueness evidence |
+| HMAC-SHA-256 | Yes, within the same scope and key domain | Never | Trusted ingestion and key authorization |
+
+Only the trusted ingestion principal can request tokenization. The analytics
+agent can request an approved join but cannot use tokenization as a
+chosen-input lookup oracle for patient identifiers. This is an authorization
+boundary; the Host must also keep the ingestion interface private and bind
+its inputs to approved source records.
+
+The [[file:../../../CedarPooSpec/Governance/ScopedApproval.lean][public scoped approval object]] binds an actor, operation, purpose,
+source dataset, target dataset, approval revision, and expiry. The
+[[file:Lifecycle.lean][continuous lifecycle]] derives the join, result-release,
+and emergency re-identification approval facts from these objects. It binds
+each prepared ticket to the POO root, policy revision, approval revision,
+state epoch, exact effect, key version, and payload digest. A modeled atomic
+redemption rechecks Cedar and advances the epoch. Concurrent tickets,
+retries, revoked or expired approvals, changed actors or datasets, a changed
+policy revision, withdrawn owner or key authorization, missing audit
+availability, exhausted result budget, and a
+reused GCM IV are rejected by executable Lean checks.
+
+The [[file:Deployment.lean][deployment root type]] permits only the governed
+AES-SIV, GCM, HMAC, result-release, incident, and recovery roots. The unsafe
+=Base= and =AesSiv= migration ancestors remain regression inputs but cannot
+be selected through this publication function. The Justfile exports the
+deployment manifest separately and checks that no selected root contains the
+legacy re-identification grant.
+
+Joining existing deterministic tokens does not require releasing the token
+key to the analytics agent. =join-without-key-release= is allowed when the
+source and target metadata match and the join is approved. In contrast,
+=tokenize-without-key= and =reidentify-without-key= are denied. This assumes
+the Host performs an equality join on stored tokens and does not compute a
+new token as part of the query.
+
+The join additionally compares =tokenKeyVersion= and =transformVersion=.
+The latter names the input canonicalization and, for AES-SIV, the context-tweak
+recipe. Matching scope strings alone would not make tokens comparable after
+one of these changes. The =rewrapped-same-token-key= case changes only
+=wrappingVersion= and remains joinable; =rotated-token-key= and
+=revised-transform= deny the join. This does not claim KMS rotation itself
+rewraps existing data. A Host must explicitly rewrap the same data key and
+retain access to versions required for older tokens. Google's HMAC method
+does not expose the AES-SIV context tweak; its =transformVersion= still
+captures input canonicalization.
+The public [[file:../../../CedarPooSpec/Pseudonymization/Compatibility.lean][Pseudonymization.TokenRelation]] expresses the mode, scope,
+key-domain, token-key, and transform comparisons over Cedar's own expression AST. Their
+schema and entity values remain Cedar-owned.
+
+=Admission.BoundOperation= derives a concrete tokenization request from a
+dataset identifier and token-key revision. Its public =authorize= call takes
+the current dataset and revision, and returns a distinct mismatch error
+before Cedar evaluation if either changed. The Lean example checks both
+substitutions and separately checks that a newly bound key revision is denied
+by the composed Cedar policies. This value check does not authenticate the
+actual Host payload or prove key possession.
+
+For HMAC, a scope label in Cedar cannot by itself prevent passive linkage:
+the same HMAC key and input recipe produce the same token across scopes.
+=DatasetObject= supplies the exported Cedar entity and projects a
+[[file:../../../CedarPooSpec/Pseudonymization/TokenCatalog.lean][Pseudonymization.TokenProfile]] for the public catalog check.
+=hmacCatalogSeparated= rejects distinct HMAC scopes that
+reuse one key-domain/version/transform tuple. The manifest exporter refuses
+such a catalog. =unsafeHmacStudyRejected= and =isolatedHmacStudyAccepted=
+exercise the two outcomes. This check relies on the Host's key inventory
+matching the declared metadata; it does not prove actual key separation.
+
+Tokenization and recovery also bind the requested token-key version to the
+stored dataset version. =wrong-reidentification-key-version= denies a recovery
+request using another version; =rotated-key-reidentify= allows recovery of a
+new-version dataset only when the Host has authorized that version. The
+version labels are metadata and do not prove possession of key material.
+
+The term “AES-IV” alone does not identify a cipher mode. This example uses
+AES-GCM with a unique IV as its randomized authenticated-encryption choice.
+AES-SIV uses a synthetic IV and is modeled separately.
+
+* Executable boundary
+
+The source and target datasets are Cedar entities. A request names the target
+entity; Cedar reads both entities' =mode=, =scope=, =keyDomain=, and =tenant=
+rather than trusting caller-supplied strings. Tokenization and recovery also
+require the named target to be the resource itself. The forty-one finite
+cases cover local and cross-study joins, a different key domain, incompatible
+modes, key and transformation revisions, another tenant, an agent's
+tokenization-oracle and re-identification attempts, a steward's approved
+recovery, missing approval or
+audit readiness, reused-IV rejection, one-way tokens, incident suspension,
+and separate result-release approval, owner, actor, target, and budget
+rejection.
+=scenarioConformsFully= checks Lean Cedar authorization and policy validation.
+[[file:../PseudonymizationExport.lean][PseudonymizationExport.lean]] sends the
+same cases through the official Rust Cedar validator and authorizer under the
+exported schema. The recipe checks exact denied cases and empty policy errors.
+It selects the governed =hospital-tokenize= candidate and exports ten
+individually identified Cedar policy sources after strict schema and entity
+parsing. This is a build-side handoff candidate; a POO Flow receiver must
+revalidate its effective schema after adding its reserved context.
+It also renders and compares all five checked [[file:Policies/hospital-siv.cedar][Cedar policy]]
+revisions, so a changed Lean composition cannot silently leave the published
+policy text stale.
+
+#+begin_src sh
+just example health pseudonymization
+#+end_src
+
+The lifecycle is a pure transition model. It does not perform Google Sensitive
+Data Protection calls, allocate a real IV, durably write an audit entry, or
+release plaintext. A deployment needs an authenticated provider receipt and
+an atomic persistent Host transaction before any of those effects can be
+claimed as executed. The Host must authenticate the actor,
+resolve and protect the dataset entity store, establish owner and key grants,
+allocate and persist a unique IV for GCM, retain it for authorized recovery,
+bind the actual token key and transformation recipe to each stored token,
+perform the cryptographic operation with an approved library, and durably
+record the audit event before releasing plaintext. The =auditReady= and
+=ivUnique= fields are projected Host evidence, not proof that those effects
+occurred. The Host must bind the target entity to the actual join input and
+prevent an agent from replacing it after authorization. In particular, Cedar
+Allow does not itself authorize KMS key release or prove that two ciphertexts
+are cryptographically compatible.
+
+Deterministic tokens reveal equality within their scope and can enable
+frequency or auxiliary-data inference. Separating studies by context and key
+domain limits correlation but does not make pseudonymized data anonymous.
+Re-identification should therefore remain a separately governed operation.
+The ingestion role restriction does not eliminate inference from already
+released token columns or repeated aggregate queries. Query-result release,
+volume controls, and statistical disclosure review are separate controls that
+the downstream analytics service must supply.
+
+* Authorization impact without a cloud provider
+
+[[file:AuthorizationImpact.lean][AuthorizationImpact.lean]] uses the same Lean-POO
+model and Cedar semantics without calling Google or any other cloud provider.
+It analyzes the =HospitalSiv → AgentIncident= revision in both directions:
+the incident removes an agent's join permission and grants none. The
+=AgentIncident → Recovered= revision restores that permission and removes
+none. Cedar's symbolic compiler supplies concrete witnesses, and the official
+Rust authorizer replays both sides of each witness.
+
+The same example compares one operation before and after its Host-projected
+=joinApproved= fact is withdrawn. The policy root stays =HospitalSiv=, so this
+is a concrete snapshot comparison, not a symbolic claim over every possible
+approval state. Three further snapshots change the target dataset's scope,
+token-key version, or input transformation version while keeping the operation
+and policy root fixed; each removes the previously allowed join. A self-hosted
+application can supply its own authenticated approval record, data catalog,
+and key inventory; choosing a cloud transformation service is independent of
+this Lean composition. The Host must still make every snapshot current at
+effect commit and durably record the result.
+
+#+begin_src sh
+just check-health-authorization-impact
+#+end_src

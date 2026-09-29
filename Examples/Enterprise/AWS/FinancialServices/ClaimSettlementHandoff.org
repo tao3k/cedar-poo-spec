@@ -1,0 +1,33 @@
+#+TITLE: Case-Bound Insurance to Bank Handoff
+#+OPTIONS: toc:nil
+
+The [[file:ClaimSettlement.org][cross-domain settlement plan]] composes the insurance lakehouse and
+banking Gateway decisions, but neither Gateway decision identifies the
+claim-data result that must justify a particular bank payment. AWS's
+[[https://aws.amazon.com/blogs/industries/agentic-ai-in-financial-services-choosing-the-right-pattern-for-multi-agent-systems/][multi-agent claims discussion]] describes sequential claim processing and
+phase handoffs. The exact insurance-to-bank handoff below is a proposed
+application control, not an AWS deployment claim.
+
+[[file:ClaimSettlementHandoff.lean][ClaimSettlementHandoff]] selects a synthetic case, claim-data digest,
+adjuster, bank operator, insurance and bank policy roots, and credential
+mode. Its [[file:../../../../CedarPooSpec/Admission/Handoff.lean][Admission object]] derives a second case by replacing only the case
+ID and digest. Admission requires both the existing Gateway plan and an
+exact, current handoff grant for the Host-selected operation.
+
+[[file:../../../../Tests/Enterprise/AWS/ClaimSettlementHandoff.lean][Lean checks]] cover the valid case and its independent derived case, then
+reject a grant projected onto another case or digest, another bank actor,
+another insurance root or credential mode, an expired grant, a revoked
+epoch, and an EU claim-data request. These are value-level checks over
+synthetic inputs. The Host must authenticate the real grant, actual
+claim-data digest, policy revision, and bank effect; it must serialize
+revocation and effect admission. The official Cedar Rust replay remains
+with the two Gateway examples and does not authenticate this handoff.
+
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> ClaimsAllowed: insurance Gateway decisions
+    ClaimsAllowed --> HandoffBound: exact case, digest, actors, roots, mode
+    HandoffBound --> BankAllowed: bank Gateway route decisions
+    BankAllowed --> HostCommit: authenticated and current grant
+    HostCommit --> [*]: Host executes and records effect
+#+end_src

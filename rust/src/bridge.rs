@@ -136,10 +136,12 @@ pub(crate) fn check_manifest_inner(
 }
 
 fn valid_revision_name(revision: &str) -> bool {
-    !revision.is_empty()
-        && revision
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '-')
+    revision.split('.').all(|segment| {
+        !segment.is_empty()
+            && segment
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '-')
+    })
 }
 
 /// Recompute official Cedar decisions and reject any drift from stored records.
@@ -486,6 +488,39 @@ pub fn render_loaded_policy_set(policies: &PolicySet) -> Result<String, String> 
 /// Cedar source comments retain the original IDs for readers.
 pub fn render_policy_source(json: &CompiledPolicyJson) -> Result<String, String> {
     render_loaded_policy_set(&load_policy_set(json)?)
+}
+
+/// Render individually identified Cedar sources for a Rust authority that
+/// accepts one source and explicit policy ID per entry. The full-file renderer
+/// only preserves IDs in comments; it is not suitable for that handoff.
+pub fn render_identified_policy_sources(
+    json: &CompiledPolicyJson,
+) -> Result<BTreeMap<String, String>, String> {
+    let policies = load_policy_set(json)?;
+    let mut sources = BTreeMap::new();
+    for policy in policies.policies() {
+        let id = policy.id().to_string();
+        let source = policy
+            .to_cedar()
+            .ok_or_else(|| format!("{id}: linked policy cannot render as Cedar text"))?;
+        let reparsed = cedar_policy::Policy::parse(Some(policy.id().clone()), &source)
+            .map_err(|error| format!("{id}: rendered Cedar policy parse: {error}"))?;
+        let expected = policy
+            .to_json()
+            .map_err(|error| format!("{id}: Cedar policy JSON: {error}"))?;
+        let actual = reparsed
+            .to_json()
+            .map_err(|error| format!("{id}: rendered Cedar policy JSON: {error}"))?;
+        if expected != actual || reparsed.id() != policy.id() {
+            return Err(format!(
+                "{id}: rendered Cedar policy changed identity or body"
+            ));
+        }
+        if sources.insert(id.clone(), source).is_some() {
+            return Err(format!("duplicate rendered Cedar policy ID: {id}"));
+        }
+    }
+    Ok(sources)
 }
 
 /// Render each revision to Cedar's human-readable policy language.

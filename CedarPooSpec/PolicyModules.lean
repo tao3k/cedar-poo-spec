@@ -1,6 +1,8 @@
 import Cedar.Spec.Policy
 import LeanPoo.Object.Builder
 import LeanPoo.Object.Memo
+import LeanPoo.Object.Definition
+import LeanPoo.Object.Debug
 import LeanPoo.Compose
 
 /-!
@@ -17,6 +19,10 @@ inductive Edit where
   | overlay (policy : Policy)
   | remove (policyId : PolicyID)
   deriving DecidableEq
+
+def Edit.policyId : Edit → PolicyID
+  | .extend policy | .overlay policy => policy.id
+  | .remove id => id
 
 /-- Lift a generated policy family into explicit POO edits. -/
 def Edit.extendAll (policies : Policies) : List Edit :=
@@ -36,15 +42,33 @@ def Module.node (module : Module) : LeanPoo.C4.Node :=
   { name := module.name, parentOrders := module.parentOrders,
     suffix := module.suffix }
 
+inductive Built where
+  | schema (source : List Module)
+      (value : LeanPoo.Object.Schema PolicyID (fun _ => Option Policy))
+  | object (source : List Module)
+      (value : LeanPoo.Object.Memoized PolicyID (fun _ => Option Policy))
+
 structure Model where
   modules : List Module
-  builtSchema : Option (LeanPoo.Object.Schema PolicyID (fun _ => Option Policy)) := none
-  builtModules : Option (List Module) := none
+  built : Option Built := none
 
 /-- A record update to `modules` invalidates the cached LeanPOO schema. -/
 private def Model.activeSchema? (model : Model) :
     Option (LeanPoo.Object.Schema PolicyID (fun _ => Option Policy)) :=
-  if model.builtModules = some model.modules then model.builtSchema else none
+  match model.built with
+  | some (.schema source schema) =>
+      if source == model.modules then some schema else none
+  | some (.object source object) =>
+      if source == model.modules then some object.plan.schema else none
+  | none => none
+
+/-- Return the active first-class object only while its source modules match. -/
+def Model.currentObject? (model : Model) :
+    Option (LeanPoo.Object.Memoized PolicyID (fun _ => Option Policy)) :=
+  match model.built with
+  | some (.object source object) =>
+      if source == model.modules then some object else none
+  | _ => none
 
 def Model.graph (model : Model) : LeanPoo.C4.Graph :=
   match model.activeSchema? with
@@ -53,15 +77,26 @@ def Model.graph (model : Model) : LeanPoo.C4.Graph :=
 
 /-- Policy IDs are typed object slots. Each direct edit writes the slot body;
     removal writes an explicit tombstone. Edit validation stays Cedar-specific. -/
-private def Module.declaration (module : Module) :
-    LeanPoo.Object.Declaration PolicyID (fun _ => Option Policy) :=
-  LeanPoo.Object.Declaration.build do
+private def Module.program (module : Module) :
+    LeanPoo.Object.Declaration.Builder PolicyID (fun _ => Option Policy) PUnit := do
     for edit in module.edits do
       match edit with
       | .extend policy | .overlay policy =>
           LeanPoo.Object.Declaration.Builder.value policy.id (some policy)
       | .remove id =>
           LeanPoo.Object.Declaration.Builder.value id none
+
+private def Module.declaration (module : Module) :
+    LeanPoo.Object.Declaration PolicyID (fun _ => Option Policy) :=
+  LeanPoo.Object.Declaration.build module.program
+
+/-- Create one policy owner as a first-class LeanPOO object. -/
+def Model.define (name : String) (edits : List Edit := []) :
+    Except LeanPoo.C4.Error Model := do
+  let module : Module := { name, edits }
+  let object ← LeanPoo.Object.define name module.program
+  let modules := [module]
+  return { modules, built := some (.object modules object) }
 
 private def Model.schema (model : Model) :
     LeanPoo.Object.Schema PolicyID (fun _ => Option Policy) :=
@@ -73,28 +108,70 @@ private def Model.schema (model : Model) :
           (model.modules.find? (fun module => module.name == name)).map
             Module.declaration }
 
+/-- Obtain a first-class object for any valid root in this policy family.
+    This is a composition view; publish through Cedar validation instead. -/
+def Model.objectAt (model : Model) (root : String) :
+    Except LeanPoo.C4.Error
+      (LeanPoo.Object.Memoized PolicyID (fun _ => Option Policy)) := do
+  if let some object := model.currentObject? then
+    if object.plan.root == root then return object
+  let plan ← LeanPoo.Object.compile model.schema root
+  return plan.memoize
+
+/-- Inspect C4 resolution even if the Cedar edit sequence is invalid. -/
+def Model.explainResolution (model : Model) (root : String) (id : PolicyID) :
+    Except LeanPoo.C4.Error (LeanPoo.Object.Debug.Resolution PolicyID) := do
+  let object ← model.objectAt root
+  return LeanPoo.Object.Debug.Plan.explain object.plan id
+
 /-- Stage a single-parent policy owner through LeanPOO's extension API.
     The final mix or publication compiles the complete C4 topology. -/
 def Model.extend (model : Model) (name parent : String)
     (edits : List Edit := []) : Except LeanPoo.C4.Error Model := do
   let module : Module := { name, parentOrders := [[parent]], edits }
+  if let some receiver := model.currentObject? then
+    if receiver.plan.root == parent then
+      let object ← receiver.extendWith name module.program
+      let modules := model.modules ++ [module]
+      return { modules, built := some (.object modules object) }
   let schema ← LeanPoo.extendSchema model.schema name parent module.declaration
   let modules := model.modules ++ [module]
-  return { modules, builtSchema := some schema, builtModules := some modules }
+  return { modules, built := some (.schema modules schema) }
 
 /-- Compose ordered policy owners through LeanPOO's C4 mix operation. -/
 def Model.mix (model : Model) (name : String) (supers : List String)
     (edits : List Edit := []) : Except LeanPoo.C4.Error Model := do
   let module : Module := { name, parentOrders := if supers.isEmpty then [] else [supers], edits }
-  let plan ← LeanPoo.mix model.schema name supers module.declaration
+  let object ← match model.currentObject? with
+    | some receiver => receiver.defineNodeWith module.node module.program
+    | none => LeanPoo.Object.defineNodeIn model.schema module.node module.program
   let modules := model.modules ++ [module]
-  return { modules, builtSchema := some plan.schema, builtModules := some modules }
+  return { modules, built := some (.object modules object) }
+
+/-- Compose independently built policy-owner families by their selected roots.
+    LeanPOO rejects overlapping node names; Cedar still validates edit intent
+    and authorization when the combined root is compiled or published. -/
+def Model.combine (first : Model) (firstRoot : String)
+    (others : List (Model × String)) (name : String)
+    (edits : List Edit := []) :
+    Except LeanPoo.Object.CombineError Model := do
+  let receiver ← (first.objectAt firstRoot).mapError .c4
+  let parents ← others.mapM fun (model, root) =>
+    (model.objectAt root).mapError .c4
+  let module : Module :=
+    { name, parentOrders := [firstRoot :: others.map Prod.snd], edits }
+  let object ← receiver.defineFrom name parents module.program
+  let modules := first.modules ++ others.flatMap (·.1.modules) ++ [module]
+  return { modules, built := some (.object modules object) }
 
 /-- Inspect the C4-composed policy slots before Cedar edit validation.
     Publication must still go through `compile` or `compileWithTrace`. -/
 def Model.compilePlan (model : Model) (root : String) :
     Except LeanPoo.C4.Error
       (LeanPoo.Object.CompiledPlan PolicyID (fun _ => Option Policy)) := do
+  if let some object := model.currentObject? then
+    if object.plan.root == root then
+      return object.plan.compileMemo
   let plan ← LeanPoo.Object.compile model.schema root
   return plan.compileMemo
 
@@ -121,6 +198,12 @@ structure AppliedEdit where
 
 structure Compilation where
   policies : List CompiledPolicy
+  applied : List AppliedEdit
+
+/-- C4 declaration chain together with the Cedar-validated policy and edits. -/
+structure PolicyExplanation where
+  resolution : LeanPoo.Object.Debug.Resolution PolicyID
+  effective : Option CompiledPolicy
   applied : List AppliedEdit
 
 private structure PolicyOrigin where
@@ -153,10 +236,11 @@ private def applyEdit (owner : String) (ancestors : List String)
         throw (.competingEdits id previous.lastEditedBy owner)
       return current.filter (fun entry => entry.id != id)
 
-/-- C4 and compiled object slots choose policy bodies. The Cedar-specific fold
-    checks edit intent, keeps policy order, and records provenance only. -/
-def Model.compileWithTrace (model : Model) (root : String) :
-    Except Error Compilation := do
+/-- Share the compiled C4 plan with diagnostics without resolving the graph
+    a second time. Cedar's fold retains edit intent, order, and provenance. -/
+private def Model.compileWithPlan (model : Model) (root : String) :
+    Except Error
+      (LeanPoo.Object.CompiledPlan PolicyID (fun _ => Option Policy) × Compilation) := do
   let compiled ← (model.compilePlan root).mapError .c4
   let reversed ← compiled.plan.precedence.reverse.foldlM (fun current name => do
     let some module := model.modules.find? (fun item => item.name == name)
@@ -173,7 +257,13 @@ def Model.compileWithTrace (model : Model) (root : String) :
       { policy := policy, introducedBy := origin.introducedBy,
         lastEditedBy := origin.lastEditedBy }
     return compiled
-  return { policies, applied := reversed.2.reverse }
+  return (compiled, { policies, applied := reversed.2.reverse })
+
+/-- C4 and compiled object slots choose policy bodies. The Cedar-specific fold
+    checks edit intent, keeps policy order, and records provenance only. -/
+def Model.compileWithTrace (model : Model) (root : String) :
+    Except Error Compilation := do
+  return (← model.compileWithPlan root).2
 
 def Model.compileWithProvenance (model : Model) (root : String) :
     Except Error (List CompiledPolicy) :=
@@ -182,6 +272,17 @@ def Model.compileWithProvenance (model : Model) (root : String) :
 /-- Materialize the compiled policies for Cedar's validator and authorizer. -/
 def Model.compile (model : Model) (root : String) : Except Error Policies :=
   (model.compileWithProvenance root).map (·.map CompiledPolicy.policy)
+
+/-- Explain one policy ID after Cedar edit validation. Declaration nodes include
+    tombstones; `effective` reports whether a policy survives those edits. -/
+def Model.explainPolicy (model : Model) (root : String) (id : PolicyID) :
+    Except Error PolicyExplanation := do
+  let (compiled, compilation) ← model.compileWithPlan root
+  let resolution := LeanPoo.Object.Debug.Plan.explain compiled.plan id
+  return {
+    resolution
+    effective := compilation.policies.find? (fun item => item.policy.id == id)
+    applied := compilation.applied.filter (fun item => item.edit.policyId == id) }
 
 /-- Check a generated edit sequence with the same C4 compiler used by public
     policy modules. New policies append; existing policy order is preserved. -/

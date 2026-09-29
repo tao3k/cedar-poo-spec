@@ -36,7 +36,7 @@ path; those components are outside this case.
 
 | Published observation | This example's projection | Boundary |
 |-----------------------+---------------------------+----------|
-| A collision-free next step can still skip a required checkpoint. | =Platform= and =Mission= are independent POO owners; only their C4 composition rejects both classes. | The modeled successor list is illustrative, not the paper's predictor. |
+| A collision-free next step can still skip a required checkpoint. | =Platform= and =Mission= are independent POO owners; =Model.extend= stages both branches and =Model.mix= combines them with =Evidence= through C4. | The modeled successor list is illustrative, not the paper's predictor. |
 | Restricted-region or budget failure can occur later in a finite horizon. | Lean folds every predicted successor into separate platform and mission summaries; Cedar authorizes the command from those summaries. | The host must calculate and authenticate the real predictions and mission state. |
 | A rejected nominal command requires a safe fallback. | The =fallback-handoff= authorization remains available when =proceed= is denied. | This rule does not construct, select, or certify a physical fallback controller. |
 | A stale horizon can make a once-valid result irrelevant. | =Current= overlays the nominal permit with a Cedar check of raw observation and decision ticks; =Evidence= checks raw proposal, mission, and vehicle-state IDs. | The host must authenticate the witness and clock. |
