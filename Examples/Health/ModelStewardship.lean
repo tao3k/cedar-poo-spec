@@ -116,15 +116,18 @@ def incidentControl : Veto :=
     actionScope := .actionInAny [publish, infer],
     denyWhen := .lit (.bool true) }
 
-def modelResult : Except LeanPoo.C4.Error Model := do
+def integratedResult : Except LeanPoo.C4.Error Model := do
   let base : Model := { modules := [{ name := "Base" }] }
   let training ← base.extend "Training" "Base" [.extend trainingPermit]
   let publication ← training.extend "Publication" "Base" [.extend publicationPermit]
   let clinical ← publication.extend "Clinical" "Base" [.extend inferencePermit]
   let lineage ← clinical.extend "Lineage" "Base"
     [lineageControl.edit .introduce]
-  let integrated ← lineage.mix "MedicalModel"
+  lineage.mix "MedicalModel"
     ["Training", "Publication", "Clinical", "Lineage"]
+
+def modelResult : Except LeanPoo.C4.Error Model := do
+  let integrated ← integratedResult
   let incident ← integrated.extend "ModelIncident" "MedicalModel"
     [incidentControl.edit .introduce]
   incident.extend "Recovered" "ModelIncident"

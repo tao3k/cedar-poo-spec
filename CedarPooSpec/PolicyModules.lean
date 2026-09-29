@@ -1,6 +1,7 @@
 import Cedar.Spec.Policy
 import LeanPoo.Object.Builder
 import LeanPoo.Object.Memo
+import LeanPoo.Object.Definition
 import LeanPoo.Compose
 
 /-!
@@ -39,12 +40,19 @@ def Module.node (module : Module) : LeanPoo.C4.Node :=
 structure Model where
   modules : List Module
   builtSchema : Option (LeanPoo.Object.Schema PolicyID (fun _ => Option Policy)) := none
+  builtObject : Option (LeanPoo.Object.Memoized PolicyID (fun _ => Option Policy)) := none
   builtModules : Option (List Module) := none
 
 /-- A record update to `modules` invalidates the cached LeanPOO schema. -/
 private def Model.activeSchema? (model : Model) :
     Option (LeanPoo.Object.Schema PolicyID (fun _ => Option Policy)) :=
   if model.builtModules = some model.modules then model.builtSchema else none
+
+/-- A mixed root is a first-class LeanPOO object only while the module list
+    still matches the one from which it was constructed. -/
+private def Model.activeObject? (model : Model) :
+    Option (LeanPoo.Object.Memoized PolicyID (fun _ => Option Policy)) :=
+  if model.builtModules = some model.modules then model.builtObject else none
 
 def Model.graph (model : Model) : LeanPoo.C4.Graph :=
   match model.activeSchema? with
@@ -53,15 +61,18 @@ def Model.graph (model : Model) : LeanPoo.C4.Graph :=
 
 /-- Policy IDs are typed object slots. Each direct edit writes the slot body;
     removal writes an explicit tombstone. Edit validation stays Cedar-specific. -/
-private def Module.declaration (module : Module) :
-    LeanPoo.Object.Declaration PolicyID (fun _ => Option Policy) :=
-  LeanPoo.Object.Declaration.build do
+private def Module.program (module : Module) :
+    LeanPoo.Object.Declaration.Builder PolicyID (fun _ => Option Policy) PUnit := do
     for edit in module.edits do
       match edit with
       | .extend policy | .overlay policy =>
           LeanPoo.Object.Declaration.Builder.value policy.id (some policy)
       | .remove id =>
           LeanPoo.Object.Declaration.Builder.value id none
+
+private def Module.declaration (module : Module) :
+    LeanPoo.Object.Declaration PolicyID (fun _ => Option Policy) :=
+  LeanPoo.Object.Declaration.build module.program
 
 private def Model.schema (model : Model) :
     LeanPoo.Object.Schema PolicyID (fun _ => Option Policy) :=
@@ -78,6 +89,11 @@ private def Model.schema (model : Model) :
 def Model.extend (model : Model) (name parent : String)
     (edits : List Edit := []) : Except LeanPoo.C4.Error Model := do
   let module : Module := { name, parentOrders := [[parent]], edits }
+  if let some receiver := model.activeObject? then
+    if receiver.plan.root == parent then
+      let object ← receiver.extendWith name module.program
+      let modules := model.modules ++ [module]
+      return { modules, builtSchema := some object.plan.schema, builtObject := some object, builtModules := some modules }
   let schema ← LeanPoo.extendSchema model.schema name parent module.declaration
   let modules := model.modules ++ [module]
   return { modules, builtSchema := some schema, builtModules := some modules }
@@ -86,15 +102,20 @@ def Model.extend (model : Model) (name parent : String)
 def Model.mix (model : Model) (name : String) (supers : List String)
     (edits : List Edit := []) : Except LeanPoo.C4.Error Model := do
   let module : Module := { name, parentOrders := if supers.isEmpty then [] else [supers], edits }
-  let plan ← LeanPoo.mix model.schema name supers module.declaration
+  let object ← match model.activeObject? with
+    | some receiver => receiver.defineNodeWith module.node module.program
+    | none => LeanPoo.Object.defineNodeIn model.schema module.node module.program
   let modules := model.modules ++ [module]
-  return { modules, builtSchema := some plan.schema, builtModules := some modules }
+  return { modules, builtSchema := some object.plan.schema, builtObject := some object, builtModules := some modules }
 
 /-- Inspect the C4-composed policy slots before Cedar edit validation.
     Publication must still go through `compile` or `compileWithTrace`. -/
 def Model.compilePlan (model : Model) (root : String) :
     Except LeanPoo.C4.Error
       (LeanPoo.Object.CompiledPlan PolicyID (fun _ => Option Policy)) := do
+  if let some object := model.activeObject? then
+    if object.plan.root == root then
+      return object.plan.compileMemo
   let plan ← LeanPoo.Object.compile model.schema root
   return plan.compileMemo
 

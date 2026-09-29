@@ -47,6 +47,9 @@ stateDiagram-v2
 implemented authorization and entity-slicing certificate contract.
 [[file:docs/rfc/0002-policy-module-composition.org][RFC 0002]] defines
 policy module edits and conflict handling.
+[[file:CedarPooSpec/PolicyModules.org][The adjacent implementation note]]
+describes how the pinned LeanPOO object-definition APIs construct and reuse
+the composed policy object.
 [[file:docs/rfc/0003-cedar-language-export.org][Cedar language export]]
 connects compiled Lean policy modules to the official Rust authorizer through
 Cedar's public JSON policy-set format.

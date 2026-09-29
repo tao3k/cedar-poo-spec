@@ -5,6 +5,29 @@ namespace CedarPooSpec.ModelStewardshipTest
 open CedarPooSpec.ModelStewardshipExample
 open CedarPooSpec.ModelStewardshipExample.Admission
 
+private def integrated : CedarPooSpec.PolicyModules.Model :=
+  integratedResult.toOption.get (by native_decide)
+
+theorem mixedRootIsFirstClassObject : integrated.builtObject.isSome = true := by
+  native_decide
+
+theorem extendedRootRemainsFirstClassObject : model.builtObject.isSome = true := by
+  native_decide
+
+theorem objectBackedCompilationAgreesWithUncached :
+    (integrated.compile "MedicalModel").toOption =
+      (({ modules := integrated.modules } : CedarPooSpec.PolicyModules.Model).compile
+        "MedicalModel").toOption := by native_decide
+
+theorem changedModulesInvalidateObjectCache :
+    (({ integrated with modules := [] } : CedarPooSpec.PolicyModules.Model).compile
+      "MedicalModel").isOk = false := by native_decide
+
+theorem extendedObjectCompilationAgreesWithUncached :
+    (model.compile "Recovered").toOption =
+      (({ modules := model.modules } : CedarPooSpec.PolicyModules.Model).compile
+        "Recovered").toOption := by native_decide
+
 private def permits (root : String) (effect : Effect) (state : Snapshot) : Bool :=
   admitted root ⟨effect, state⟩ effect state
 
