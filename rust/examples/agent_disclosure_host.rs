@@ -5,6 +5,7 @@ use cedar_poo_bridge::authority_consumption::{AuthorityGrant, AuthorityId, Autho
 use cedar_poo_bridge::disclosure_host::{
     Effect, Evidence, Grant, InMemoryDisclosureHost, ValidatedDisclosurePolicy,
 };
+use cedar_poo_bridge::operation_identity::OperationId;
 use serde_json::json;
 use std::{env, fs, process, sync::Arc, thread};
 
@@ -49,8 +50,9 @@ fn evidence() -> Evidence {
     }
 }
 
-fn effect(digest: &str, channel: &str, candidates: &[&str]) -> Effect {
+fn effect(operation_id: &str, digest: &str, channel: &str, candidates: &[&str]) -> Effect {
     Effect {
+        operation_id: OperationId::from(operation_id),
         sources: vec![HOSPITAL.into(), RESEARCH.into()],
         destination: SINK.into(),
         purpose: "study-one".into(),
@@ -60,11 +62,12 @@ fn effect(digest: &str, channel: &str, candidates: &[&str]) -> Effect {
     }
 }
 
-fn authority(first: &Effect, second: &Effect) -> AuthorityLedger<Effect> {
+fn authority(first: &Effect, independent: &Effect, second: &Effect) -> AuthorityLedger<Effect> {
     AuthorityLedger {
         grants: [
             ("approval-first", first),
-            ("approval-independent", first),
+            ("approval-retry", first),
+            ("approval-independent", independent),
             ("approval-second", second),
         ]
         .into_iter()
@@ -84,9 +87,29 @@ fn run() -> Result<(), String> {
         serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
     let policy = ValidatedDisclosurePolicy::from_manifest(&manifest)?;
-    let first = effect("cohort-first", "workspace", &["p1", "p2", "p3", "p4"]);
-    let second = effect("cohort-second", "message", &["p3", "p4", "p5", "p6"]);
-    let host = InMemoryDisclosureHost::new(&policy, evidence(), authority(&first, &second));
+    let first = effect(
+        "release-one",
+        "cohort-first",
+        "workspace",
+        &["p1", "p2", "p3", "p4"],
+    );
+    let independent = effect(
+        "release-independent",
+        "cohort-first",
+        "workspace",
+        &["p1", "p2", "p3", "p4"],
+    );
+    let second = effect(
+        "release-two",
+        "cohort-second",
+        "message",
+        &["p3", "p4", "p5", "p6"],
+    );
+    let host = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
     let ticket = host
         .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("first release was denied")?;
@@ -113,18 +136,34 @@ fn run() -> Result<(), String> {
         return Err("a fresh ticket reused the consumed approval".into());
     }
 
-    let independent = InMemoryDisclosureHost::new(&policy, evidence(), authority(&first, &second));
-    let first_independent = independent
+    let cross_approval_replay_denied = host
+        .prepare(AuthorityId::from("approval-retry"), first.clone())?
+        .is_none()
+        && host.authority_used(&AuthorityId::from("approval-retry"))? == Some(0)
+        && host.operation_admitted(&OperationId::from("release-one"))?;
+    if !cross_approval_replay_denied {
+        return Err("a new approval replayed the same workflow operation".into());
+    }
+
+    let separate = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
+    let first_independent = separate
         .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("first independent preparation denied")?;
-    independent
+    separate
         .commit(first_independent, &first)?
         .ok_or("first independent commit denied")?;
-    let other_ticket = independent
-        .prepare(AuthorityId::from("approval-independent"), first.clone())?
+    let other_ticket = separate
+        .prepare(
+            AuthorityId::from("approval-independent"),
+            independent.clone(),
+        )?
         .ok_or("distinct approval preparation denied")?;
-    let distinct_approval_accepted = independent.commit(other_ticket, &first)?.is_some()
-        && independent.authority_used(&AuthorityId::from("approval-independent"))? == Some(1);
+    let distinct_approval_accepted = separate.commit(other_ticket, &independent)?.is_some()
+        && separate.authority_used(&AuthorityId::from("approval-independent"))? == Some(1);
     if !distinct_approval_accepted {
         return Err("distinct approval could not use remaining budget".into());
     }
@@ -132,7 +171,7 @@ fn run() -> Result<(), String> {
     let concurrent = Arc::new(InMemoryDisclosureHost::new(
         &policy,
         evidence(),
-        authority(&first, &second),
+        authority(&first, &independent, &second),
     ));
     let attempts = (0..2)
         .map(|_| {
@@ -176,7 +215,7 @@ fn run() -> Result<(), String> {
             observed_candidate_ids: ["p3", "p4", "p5", "p6"].map(str::to_owned).to_vec(),
             ..evidence()
         },
-        authority(&first, &second),
+        authority(&first, &independent, &second),
     );
     let second_alone_allowed = alone
         .prepare(AuthorityId::from("approval-second"), second.clone())?
@@ -185,7 +224,11 @@ fn run() -> Result<(), String> {
         return Err("independent second release was denied".into());
     }
 
-    let revoked = InMemoryDisclosureHost::new(&policy, evidence(), authority(&first, &second));
+    let revoked = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
     let before_revoke = revoked
         .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("revoke prepare was denied")?;
@@ -195,7 +238,11 @@ fn run() -> Result<(), String> {
         return Err("revoked delegation committed".into());
     }
 
-    let failed_audit = InMemoryDisclosureHost::new(&policy, evidence(), authority(&first, &second));
+    let failed_audit = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
     let before_failure = failed_audit
         .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("audit prepare was denied")?;
@@ -210,25 +257,31 @@ fn run() -> Result<(), String> {
 
     let mut wrong_issuer = evidence();
     wrong_issuer.approvals[0].issuer = "Actor::\"other-steward\"".into();
-    let wrong_issuer_denied =
-        InMemoryDisclosureHost::new(&policy, wrong_issuer, authority(&first, &second))
-            .prepare(AuthorityId::from("approval-first"), first.clone())?
-            .is_none();
+    let wrong_issuer_denied = InMemoryDisclosureHost::new(
+        &policy,
+        wrong_issuer,
+        authority(&first, &independent, &second),
+    )
+    .prepare(AuthorityId::from("approval-first"), first.clone())?
+    .is_none();
     if !wrong_issuer_denied {
         return Err("wrong grant issuer was accepted".into());
     }
 
     let mut substituted_candidates = evidence();
     substituted_candidates.observed_candidate_ids = ["p1", "p2"].map(str::to_owned).to_vec();
-    let candidate_substitution_denied =
-        InMemoryDisclosureHost::new(&policy, substituted_candidates, authority(&first, &second))
-            .prepare(AuthorityId::from("approval-first"), first.clone())?
-            .is_none();
+    let candidate_substitution_denied = InMemoryDisclosureHost::new(
+        &policy,
+        substituted_candidates,
+        authority(&first, &independent, &second),
+    )
+    .prepare(AuthorityId::from("approval-first"), first.clone())?
+    .is_none();
     if !candidate_substitution_denied {
         return Err("proposed candidate set overrode observed output".into());
     }
 
-    let mut duplicate_authority = authority(&first, &second);
+    let mut duplicate_authority = authority(&first, &independent, &second);
     duplicate_authority
         .grants
         .push(duplicate_authority.grants[0].clone());
@@ -248,6 +301,7 @@ fn run() -> Result<(), String> {
             "cumulativeSecondDenied": cumulative_denied,
             "concurrentSingleCommit": concurrent_single_commit,
             "freshReissueDenied": fresh_reissue_denied,
+            "crossApprovalReplayDenied": cross_approval_replay_denied,
             "distinctApprovalAccepted": distinct_approval_accepted,
             "duplicateApprovalDenied": duplicate_approval_denied,
             "revokedDenied": revoke_denied,

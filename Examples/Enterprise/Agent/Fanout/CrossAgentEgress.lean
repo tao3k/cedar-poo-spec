@@ -2,6 +2,7 @@ import Examples.Enterprise.Agent.Fanout.SharedBudget
 import CedarPooSpec.SchemaJson
 import CedarPooSpec.Admission.PolicySnapshot
 import CedarPooSpec.Admission.AuthorityConsumption
+import CedarPooSpec.Admission.OperationIdentity
 
 /-!
 One worker reads a sensitive document and another proposes external egress.
@@ -93,6 +94,7 @@ structure Attempt where
 
 /-- The Host binds a checked request to the exact proposed tool effect. -/
 structure BoundEffect where
+  operationId : CedarPooSpec.Admission.OperationId
   attempt : Attempt
   payloadDigest : String
   deriving BEq, Repr
@@ -100,6 +102,7 @@ structure BoundEffect where
 structure State where
   budget : CedarPooSpec.SharedBudgetExample.State := {}
   authority : CedarPooSpec.Admission.AuthorityLedger BoundEffect := {}
+  operations : CedarPooSpec.Admission.OperationLedger := {}
   aSeen : Bool := false
   bSeen : Bool := false
   sharedSeen : Bool := false
@@ -175,7 +178,8 @@ def prepare (activeModel : Model) (root : String) (view : LedgerView) (state : S
   | .error _ => none
   | .ok snapshot =>
       if authorizedBy snapshot.policies view state effect.attempt &&
-          (state.authority.check grantId effect).isOk then
+          (state.authority.check grantId effect).isOk &&
+          state.operations.check effect.operationId then
         some ⟨snapshot, view, state.epoch, grantId, effect⟩
       else none
 
@@ -189,13 +193,17 @@ def commit (activeModel : Model) (root : String) (view : LedgerView) (state : St
     match ticket.policy.currentPolicies activeModel with
     | .error _ => none
     | .ok policies =>
-        if !authorizedBy policies view state effect.attempt then none
+        if !authorizedBy policies view state effect.attempt ||
+            !state.operations.check effect.operationId then none
         else
           match state.authority.consume ticket.grantId effect with
           | .error _ => none
           | .ok authority =>
-              let next := advance state effect.attempt
-              some { next with authority, epoch := state.epoch + 1 }
+              match state.operations.admit effect.operationId with
+              | none => none
+              | some operations =>
+                  let next := advance state effect.attempt
+                  some { next with authority, operations, epoch := state.epoch + 1 }
 
 def replay (root : String) (view : LedgerView) (initial : State)
     (attempts : List Attempt) : List (Request × Bool) × State :=
@@ -252,9 +260,9 @@ theorem survivingOwners :
       some ["Base", "Shared", "Local", "Read", "Intent", "History"] := by
   native_decide
 
-def publicSendA : BoundEffect := ⟨sendA, "payload-a"⟩
-def publicSendB : BoundEffect := ⟨sendB, "payload-b"⟩
-def secretReadA : BoundEffect := ⟨readSecretA, "document-version-1"⟩
+def publicSendA : BoundEffect := ⟨⟨"send-a-one"⟩, sendA, "payload-a"⟩
+def publicSendB : BoundEffect := ⟨⟨"send-b-one"⟩, sendB, "payload-b"⟩
+def secretReadA : BoundEffect := ⟨⟨"read-a-one"⟩, readSecretA, "document-version-1"⟩
 
 def ticketState : State := { authority := { grants := [
   ⟨"send-a", publicSendA, 1, 0⟩,
@@ -287,7 +295,7 @@ theorem staleFanoutTicketRejected :
 theorem substitutedPayloadRejected :
     let root := "CrossAgentGoverned"
     let ticket := (prepare model root .delegationShared ticketState "send-a" publicSendA).get firstTicketExists
-    commit model root .delegationShared ticketState ticket ⟨sendA, "substituted-payload"⟩ = none := by
+    commit model root .delegationShared ticketState ticket ⟨⟨"send-a-one"⟩, sendA, "substituted-payload"⟩ = none := by
   native_decide
 
 /-- A sensitive read invalidates an earlier send ticket. Rechecking against
@@ -361,15 +369,20 @@ theorem reloadedPolicyFreshTicketCommits :
                   ⟨"send-a", publicSendA, 1, 1⟩,
                   ⟨"send-b", publicSendB, 1, 0⟩,
                   ⟨"read-a", secretReadA, 1, 0⟩] },
+                operations := { admitted := [⟨"send-a-one"⟩] },
                 epoch := 1 } : State)) = true := by
   native_decide
 
 /-- The Cedar aggregate budget permits three sends, but each stable Host
     approval instance below permits only one execution. -/
+def independentSendA : BoundEffect :=
+  ⟨⟨"send-a-independent"⟩, sendA, "payload-a"⟩
+
 def multiGrantState : State :=
   { budget := { localMax := 3, sharedMax := 3 }, authority := { grants := [
       ⟨"approval-one", publicSendA, 1, 0⟩,
-      ⟨"approval-two", publicSendA, 1, 0⟩] } }
+      ⟨"approval-retry", publicSendA, 1, 0⟩,
+      ⟨"approval-two", independentSendA, 1, 0⟩] } }
 
 def firstApprovedSend : Option State := do
   let ticket ← prepare model "CrossAgentGoverned" .delegationShared
@@ -386,10 +399,20 @@ theorem consumedApprovalCannotBeReissued :
 theorem independentApprovalCanStillExecute :
     (firstApprovedSend.bind fun state => do
       let ticket ← prepare model "CrossAgentGoverned" .delegationShared
-        state "approval-two" publicSendA
-      commit model "CrossAgentGoverned" .delegationShared state ticket publicSendA).map
+        state "approval-two" independentSendA
+      commit model "CrossAgentGoverned" .delegationShared state ticket independentSendA).map
       (fun state => (state.budget.sharedUsed, state.authority.grants.map (·.used))) =
-      some (2, [1, 1]) := by
+      some (2, [1, 0, 1]) := by
+  native_decide
+
+/-- A new approval cannot turn a retry of the same workflow operation into
+    a second admission, although Cedar and the new approval still allow it. -/
+theorem newApprovalCannotReplayOperation :
+    firstApprovedSend.map (fun state =>
+      (authorized "CrossAgentGoverned" .delegationShared state sendA,
+       (state.authority.check "approval-retry" publicSendA).isOk,
+       (prepare model "CrossAgentGoverned" .delegationShared state
+         "approval-retry" publicSendA).isNone)) = some (true, true, true) := by
   native_decide
 
 theorem preparedTicketCannotCommitTwice :
@@ -403,7 +426,7 @@ theorem preparedTicketCannotCommitTwice :
 
 theorem grantCannotChangeEffect :
     (prepare model "CrossAgentGoverned" .delegationShared multiGrantState
-      "approval-one" ⟨sendA, "different-payload"⟩).isNone = true := by
+      "approval-one" ⟨⟨"send-a-one"⟩, sendA, "different-payload"⟩).isNone = true := by
   native_decide
 
 theorem duplicateGrantIdFailsClosed :

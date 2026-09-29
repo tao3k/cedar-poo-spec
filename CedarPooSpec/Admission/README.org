@@ -13,13 +13,17 @@ root is republished with changed policies.
 [[file:AuthorityConsumption.lean][AuthorityConsumption]] models a Host-owned approval instance with a stable ID,
 exact effect, use limit, and consumed count. Its pure =check= and =consume=
 operations reject missing, duplicate, mismatched, and exhausted grants.
+[[file:OperationIdentity.lean][OperationIdentity]] records a stable logical operation ID separately from an
+approval ID. Its =check= and =admit= prevent a fresh approval from admitting
+the same operation twice within the modeled ledger. The
+[[file:../../rust/src/operation_identity.rs][Rust counterpart]] also binds that ID to the exact effect.
 The [[file:../../Examples/Enterprise/Agent/Fanout/README.org][cross-agent fanout example]] combines this ledger with policy snapshots.
 The [[file:../../rust/src/authority_consumption.rs][Rust counterpart]] is exercised by the
 [[file:../../Examples/Health/Pseudonymization/AgentDisclosure.org][medical disclosure Host scenario]] under the same process-local lock as
 its Cedar recheck, budget debit, cohort update, and audit entry.
 The Host must authenticate grant provenance, persist its counters, and couple
-consumption to a serialized effect reservation; these pure functions do not
-provide durable storage or external idempotency.
+consumption and operation admission to a serialized effect reservation; these
+pure functions do not provide durable storage or external idempotency.
 [[file:Handoff.lean][Handoff]] adds an exact case, data digest, actor, policy-root, and
 credential-mode expectation for a cross-organization operation. Its
 [[file:Handoff.org][adjacent contract]] separates the pure checks from Host authentication

@@ -66,6 +66,11 @@ under the same lock as its budget, cohort, and audit update. The
 [[file:../examples/agent_disclosure_host.rs][offline consumer]] exercises fresh-ticket replay, concurrent tickets,
 separate approvals, and failure before consumption.
 
+[[file:operation_identity.rs][OperationLedger]] binds a logical operation ID to its exact effect.
+The Host checks it at preparation and commits it alongside approval use and
+budget debit. The offline consumer rejects a fresh approval for the same
+operation while allowing an independent operation with identical payload.
+
 This lock gives process-local serialization only. A downstream Host must
 authenticate the approval store and implement the same mutation in durable
 transactional storage. It also needs an idempotent external-effect protocol:

@@ -1,4 +1,4 @@
-use super::{AuthorityGrant, AuthorityId, AuthorityLedger, Error};
+use super::{AuthorityError, AuthorityGrant, AuthorityId, AuthorityLedger};
 
 fn grant(id: &str, effect: &str, max_uses: u64) -> AuthorityGrant<String> {
     AuthorityGrant {
@@ -19,12 +19,12 @@ fn exact_effect_and_stable_id_are_consumed() {
     };
     assert_eq!(
         ledger.check(&"first".into(), &"effect-b".into()),
-        Err(Error::EffectMismatch)
+        Err(AuthorityError::EffectMismatch)
     );
     ledger.consume(&"first".into(), &"effect-a".into()).unwrap();
     assert_eq!(
         ledger.check(&"first".into(), &"effect-a".into()),
-        Err(Error::Exhausted)
+        Err(AuthorityError::Exhausted)
     );
     assert_eq!(ledger.used(&"first".into()), Ok(1));
     ledger
@@ -40,11 +40,11 @@ fn missing_duplicate_and_zero_use_grants_fail_closed() {
     };
     assert_eq!(
         ledger.check(&"absent".into(), &"effect".into()),
-        Err(Error::Missing)
+        Err(AuthorityError::Missing)
     );
     assert_eq!(
         ledger.consume(&"same".into(), &"effect".into()),
-        Err(Error::Duplicate)
+        Err(AuthorityError::Duplicate)
     );
     assert_eq!(ledger.grants.iter().map(|grant| grant.used).sum::<u64>(), 0);
     let zero = AuthorityLedger {
@@ -52,6 +52,6 @@ fn missing_duplicate_and_zero_use_grants_fail_closed() {
     };
     assert_eq!(
         zero.check(&"zero".into(), &"effect".into()),
-        Err(Error::Exhausted)
+        Err(AuthorityError::Exhausted)
     );
 }

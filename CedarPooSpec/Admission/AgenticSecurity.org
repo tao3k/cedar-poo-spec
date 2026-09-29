@@ -16,7 +16,7 @@ ancestry and cumulative release state. The [[file:../../Examples/Health/Pseudony
 combines them with scoped approval, delegation, and Cedar policy replay.
 The [[file:../../rust/src/disclosure_host.rs][process-local Rust Host reference]] rechecks the
 composed Cedar policy and commits the [[file:../../rust/src/authority_consumption.rs][approval-instance ledger]],
-disclosure ledger, and audit under one lock. These
+[[file:../../rust/src/operation_identity.rs][operation ledger]], disclosure ledger, and audit under one lock. These
 models do not authenticate source data or supply a durable transaction.
 
 * References and precise use
@@ -27,7 +27,7 @@ models do not authenticate source data or supply a durable transaction.
 | [[https://arxiv.org/abs/2609.14003][Shim et al., FLOWSEAL, arXiv:2609.14003, 2026]] | Reports collaborative-workspace and channel-decoupling privacy attacks and proposes provenance-aware tool interception. | Source labels and the final recipient must be checked at every external effect. |
 | [[https://arxiv.org/abs/2606.12341][Xie and Li, OCELOT, arXiv:2606.12341, 2026]] | Treats disclosure risk as cumulative and proposes witness-verified declassification with a budget ledger. | The shared ledger is checked again at execution. SPEC does not implement its semantic risk estimator. |
 | [[https://aclanthology.org/2026.privatenlp-main.1/][Shayesteh and Wilson, From Conventional Web Privacy to Agentic Disclosure, PrivateNLP 2026]] | Identifies weakly constrained tool arguments as possible disclosure paths; this is a diagnostic analysis, not measured leakage. | Exact output, destination, and channel belong in the admitted effect rather than free-form Agent intent. |
-| [[https://datatracker.ietf.org/doc/html/draft-saha-aadp-04][Saha, Agent Action Decision Protocol, individual Internet-Draft -04, 27 September 2026]] | Separates permit consumption, decision/report state, and the external effect; an uncertain attempted action must not be blindly reissued. | Research input, not an adopted standard or a claim of conformance. SPEC currently models approval consumption, not the full decide/report or effect lifecycle. |
+| [[https://datatracker.ietf.org/doc/html/draft-saha-aadp-04][Saha, Agent Action Decision Protocol, individual Internet-Draft -04, 27 September 2026]] | Separates permit consumption, decision/report state, and the external effect; an uncertain attempted action must not be blindly reissued. | Research input, not an adopted standard or a claim of conformance. SPEC models admission identity but not the full decide/report or effect lifecycle. |
 | [[https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html][AWS Prescriptive Guidance, transactional outbox]] | Stores a state change and outbound event atomically, while warning that relays may deliver duplicates. | A durable journal can bridge admission and dispatch, but the downstream consumer still needs an idempotency contract. |
 | [[https://docs.stripe.com/api/idempotent_requests][Stripe, idempotent requests]] | Binds retries to one key and the same parameters, with a documented retention window. | Illustrates target participation; a provider key is not a Cedar permit or proof of a permanent exactly-once effect. |
 | [[https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html][Amazon SQS FIFO deduplication]] | Deduplicates repeated sends within a five-minute interval. | A finite provider window cannot replace a durable Host record for long-running Agent workflows. |
@@ -35,19 +35,19 @@ models do not authenticate source data or supply a durable transaction.
 * Distinct identities and the unresolved effect gap
 
 An approval-instance ID identifies one authorized use. A logical-operation ID
-would identify one requested disclosure across retries and replanning. A
+identifies one requested disclosure across retries and replanning. A
 dispatch-attempt ID would identify one outbound call and its result. These
 identities cannot be inferred from the output digest: a new, separately
 approved disclosure may legitimately send the same bytes, while one retry
 must not become a new operation merely because the Agent obtained another
 approval.
 
-The current [[file:../../rust/examples/agent_disclosure_host.rs][Host example]] checks =distinctApprovalAccepted=: two distinct approvals
-can commit the same exact =Effect= while budget remains. That is a valid
-independent-operation case. The =Effect= does not carry a logical-operation
-ID, however, so the Host cannot tell that case from reapproval after an
-uncertain first delivery. =CommitReceipt= records the process-local admission
-transaction before any sink call; it is not a delivery receipt.
+The current [[file:../../rust/examples/agent_disclosure_host.rs][Host example]] checks =crossApprovalReplayDenied=: a fresh approval cannot
+admit the same logical operation again. =distinctApprovalAccepted= uses a
+different operation ID with the same payload, demonstrating an independent
+disclosure while budget remains. [[file:OperationIdentity.lean][Lean]] and [[file:../../rust/src/operation_identity.rs][Rust]] expose the
+operation ledger. =CommitReceipt= records process-local admission before any
+sink call; it is not a delivery receipt.
 
 The safe execution contract needs one durable record keyed by logical
 operation and exact effect. The admission transaction must consume approval,
@@ -84,7 +84,8 @@ identity on the Agent's behalf.
 2. Project those facts to the current POO-composed Cedar policy and require an
    error-free Allow for the exact proposed effect.
 3. Within one serializable transaction, compare the ticket epoch and all
-   revisions again; require one exact, unspent approval instance; consume it,
+   revisions again; require one exact, unspent approval instance and an
+   unadmitted logical operation; consume the approval, admit the operation,
    debit budget, update cumulative disclosure state, and write the audit
    event. Abort the entire transaction on any failure.
 4. Only after admission commit may the Host attempt the external effect. A
@@ -96,6 +97,6 @@ identity on the Agent's behalf.
 The process-local Host example executes reauthorization and one in-memory
 commit; it is not the durable Host required by this contract. Production
 closure additionally requires authenticated provider and query receipts,
-durable operation identity, transaction and effect execution tests, and a deployment-specific
+authenticated operation identity, a durable journal, transaction and effect execution tests, and a deployment-specific
 privacy assessment. The cited sources do not claim that SPEC has completed
 those integrations.

@@ -157,10 +157,12 @@ transaction automatically.
 
 =prepare= and =commit= specify the host-facing boundary more precisely. A
 ticket binds the C4 root, its exact compiled Cedar policies, ledger view,
-state epoch, stable approval instance ID, proposed call, and payload digest.
+state epoch, stable approval instance ID, logical operation ID, proposed call,
+and payload digest.
 =prepare= checks the approval's exact effect and remaining uses.
 =commit= rechecks those fields and current Cedar authorization, consumes one
-use from the [[file:../../../../CedarPooSpec/Admission/AuthorityConsumption.lean][public authority ledger]], and advances the epoch on success.
+use from the [[file:../../../../CedarPooSpec/Admission/AuthorityConsumption.lean][public authority ledger]], admits the ID through the
+[[file:../../../../CedarPooSpec/Admission/OperationIdentity.lean][operation ledger]], and advances the epoch on success.
 Lean checks three failure
 paths: two sends prepared on one budget snapshot cannot both commit; changing
 the payload after approval fails; and a sensitive read invalidates a
@@ -173,8 +175,9 @@ persist the ledger, and make compare-and-swap plus effect reservation atomic.
 =consumedApprovalCannotBeReissued= demonstrates a separate limit from the
 Cedar aggregate budget: after one send, Cedar still allows another send, but
 the same one-use approval instance cannot issue a fresh ticket. A distinct
-approval instance can execute while budget remains
-(=independentApprovalCanStillExecute=). Old tickets, effect substitution, and
+approval instance can execute a separate operation while budget remains
+(=independentApprovalCanStillExecute=). =newApprovalCannotReplayOperation=
+checks that a fresh approval cannot reopen the first operation. Old tickets, effect substitution, and
 duplicate approval IDs fail closed. =prepare= does not reserve a use: competing
 tickets may be prepared, and the Host must serialize their commits.
 

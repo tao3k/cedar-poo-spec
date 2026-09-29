@@ -23,7 +23,7 @@ fanout:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Fanout/SharedBudget.lean
 
 cross-agent-egress-lean:
-    lake build CedarPooSpec.Admission.PolicySnapshot CedarPooSpec.Admission.AuthorityConsumption
+    lake build CedarPooSpec.Admission.PolicySnapshot CedarPooSpec.Admission.AuthorityConsumption CedarPooSpec.Admission.OperationIdentity
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Agent/Fanout/CrossAgentEgress.lean
 
 cross-agent-egress:

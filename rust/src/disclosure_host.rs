@@ -2,6 +2,7 @@
 //! Authenticated inputs and durable storage remain the deploying Host's duty.
 
 use crate::authority_consumption::{AuthorityId, AuthorityLedger};
+use crate::operation_identity::{OperationId, OperationLedger};
 use crate::{
     ValidatedManifest, load_policy_set, render_validated_policy_sources, replay_validated_manifest,
 };
@@ -18,6 +19,7 @@ use std::sync::{Arc, Mutex};
 /// channel, and cohort evidence. The Host must verify these values independently.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Effect {
+    pub operation_id: OperationId,
     pub sources: Vec<String>,
     pub destination: String,
     pub purpose: String,
@@ -223,6 +225,7 @@ pub struct Ticket {
 #[serde(rename_all = "camelCase")]
 pub struct CommitReceipt {
     pub epoch: u64,
+    pub operation_id: String,
     pub authority_id: String,
     pub authority_used: u64,
     pub sources: Vec<String>,
@@ -241,7 +244,81 @@ struct Inner {
     policies: Arc<PolicyBundle>,
     evidence: Evidence,
     authority: AuthorityLedger<Effect>,
+    operations: OperationLedger<Effect>,
     audit: Vec<CommitReceipt>,
+}
+
+fn ticket_current(inner: &Inner, ticket: &Ticket, actual: &Effect) -> Result<bool, String> {
+    let state = &inner.evidence;
+    Ok(ticket.effect == *actual
+        && ticket.epoch == state.epoch
+        && ticket.policy_revision == state.policy_revision
+        && ticket.approval_revision == state.approval_revision
+        && ticket.delegation_revision == state.delegation_revision
+        && inner.authority.check(&ticket.authority_id, actual).is_ok()
+        && inner.operations.check(&actual.operation_id, actual).is_ok()
+        && inner.policies.allows(state, actual)?)
+}
+
+fn admission_receipt(
+    inner: &Inner,
+    ticket: &Ticket,
+    actual: &Effect,
+) -> Result<(CommitReceipt, Vec<String>, bool), String> {
+    let state = &inner.evidence;
+    let narrowed = state.narrowed(actual);
+    let update_cohort = state.minimum_cohort != 0;
+    let authority_used = inner
+        .authority
+        .used(&ticket.authority_id)
+        .map_err(|error| format!("authority changed during commit: {error:?}"))?
+        + 1;
+    let receipt = CommitReceipt {
+        epoch: state.epoch + 1,
+        operation_id: actual.operation_id.0.clone(),
+        authority_id: ticket.authority_id.0.clone(),
+        authority_used,
+        sources: actual.sources.clone(),
+        destination: actual.destination.clone(),
+        purpose: actual.purpose.clone(),
+        payload_digest: actual.payload_digest.clone(),
+        channel: actual.channel.clone(),
+        policy_revision: state.policy_revision,
+        approval_revision: state.approval_revision,
+        delegation_revision: state.delegation_revision,
+        remaining_budget: state.budget - 1,
+        remaining_candidates: if update_cohort {
+            narrowed.len()
+        } else {
+            state.possible_ids.len()
+        },
+    };
+    Ok((receipt, narrowed, update_cohort))
+}
+
+fn commit_admitted(
+    inner: &mut Inner,
+    ticket: &Ticket,
+    actual: &Effect,
+) -> Result<CommitReceipt, String> {
+    let (receipt, narrowed, update_cohort) = admission_receipt(inner, ticket, actual)?;
+    let mut authority = inner.authority.clone();
+    authority
+        .consume(&ticket.authority_id, actual)
+        .map_err(|error| format!("authority changed during commit: {error:?}"))?;
+    let mut operations = inner.operations.clone();
+    operations
+        .admit(&actual.operation_id, actual)
+        .map_err(|error| format!("operation changed during commit: {error:?}"))?;
+    inner.authority = authority;
+    inner.operations = operations;
+    if update_cohort {
+        inner.evidence.possible_ids = narrowed;
+    }
+    inner.evidence.budget -= 1;
+    inner.evidence.epoch += 1;
+    inner.audit.push(receipt.clone());
+    Ok(receipt)
 }
 
 /// A process-local serializable model. `commit` keeps Cedar reauthorization,
@@ -262,6 +339,7 @@ impl InMemoryDisclosureHost {
                 policies: Arc::clone(&policy.0),
                 evidence,
                 authority,
+                operations: OperationLedger::default(),
                 audit: Vec::new(),
             }),
         }
@@ -274,6 +352,10 @@ impl InMemoryDisclosureHost {
     ) -> Result<Option<Ticket>, String> {
         let inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
         if inner.authority.check(&authority_id, &effect).is_err()
+            || inner
+                .operations
+                .check(&effect.operation_id, &effect)
+                .is_err()
             || !inner.policies.allows(&inner.evidence, &effect)?
         {
             return Ok(None);
@@ -293,54 +375,10 @@ impl InMemoryDisclosureHost {
     /// Durable stores must implement an equivalent single transaction.
     pub fn commit(&self, ticket: Ticket, actual: &Effect) -> Result<Option<CommitReceipt>, String> {
         let mut inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
-        let state = &inner.evidence;
-        if ticket.effect != *actual
-            || ticket.epoch != state.epoch
-            || ticket.policy_revision != state.policy_revision
-            || ticket.approval_revision != state.approval_revision
-            || ticket.delegation_revision != state.delegation_revision
-            || inner.authority.check(&ticket.authority_id, actual).is_err()
-            || !inner.policies.allows(state, actual)?
-        {
+        if !ticket_current(&inner, &ticket, actual)? {
             return Ok(None);
         }
-        let narrowed = state.narrowed(actual);
-        let update_cohort = state.minimum_cohort != 0;
-        let authority_used = inner
-            .authority
-            .used(&ticket.authority_id)
-            .map_err(|error| format!("authority changed during commit: {error:?}"))?
-            + 1;
-        let receipt = CommitReceipt {
-            epoch: state.epoch + 1,
-            authority_id: ticket.authority_id.0.clone(),
-            authority_used,
-            sources: actual.sources.clone(),
-            destination: actual.destination.clone(),
-            purpose: actual.purpose.clone(),
-            payload_digest: actual.payload_digest.clone(),
-            channel: actual.channel.clone(),
-            policy_revision: state.policy_revision,
-            approval_revision: state.approval_revision,
-            delegation_revision: state.delegation_revision,
-            remaining_budget: state.budget - 1,
-            remaining_candidates: if state.minimum_cohort == 0 {
-                state.possible_ids.len()
-            } else {
-                narrowed.len()
-            },
-        };
-        inner
-            .authority
-            .consume(&ticket.authority_id, actual)
-            .map_err(|error| format!("authority changed during commit: {error:?}"))?;
-        if update_cohort {
-            inner.evidence.possible_ids = narrowed;
-        }
-        inner.evidence.budget -= 1;
-        inner.evidence.epoch += 1;
-        inner.audit.push(receipt.clone());
-        Ok(Some(receipt))
+        commit_admitted(&mut inner, &ticket, actual).map(Some)
     }
 
     pub fn observe_output(&self, digest: String, candidate_ids: Vec<String>) -> Result<(), String> {
@@ -373,5 +411,10 @@ impl InMemoryDisclosureHost {
     pub fn authority_used(&self, id: &AuthorityId) -> Result<Option<u64>, String> {
         let inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
         Ok(inner.authority.used(id).ok())
+    }
+
+    pub fn operation_admitted(&self, id: &OperationId) -> Result<bool, String> {
+        let inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
+        Ok(inner.operations.admitted(id).is_some())
     }
 }

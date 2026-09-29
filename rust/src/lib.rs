@@ -14,6 +14,7 @@ pub mod disclosure_host;
 pub mod google_sdp;
 #[cfg(feature = "google-sdp-host")]
 pub mod google_sdp_host;
+pub mod operation_identity;
 #[cfg(feature = "cedar-runtime")]
 mod schema;
 

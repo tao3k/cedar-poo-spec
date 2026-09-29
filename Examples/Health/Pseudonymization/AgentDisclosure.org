@@ -88,22 +88,22 @@ the official Cedar Rust validator and authorizer. =just example health
 agent-disclosure= checks exact allow/deny outcomes, empty policy errors, and
 schema fingerprints. The same recipe runs the [[file:../../../rust/examples/agent_disclosure_host.rs][Rust Host example]]:
 one release commits, only one of two concurrent commits succeeds, a fresh
-ticket cannot reuse the consumed approval, a separate approval may consume
+ticket cannot reuse the consumed approval, a fresh approval cannot replay the
+same logical operation, a separate operation with the same payload may consume
 remaining budget, duplicate approval IDs fail closed, a stale ticket and
 altered channel fail, a later
 message is denied by the shared cohort state, and revocation, audit failure,
 wrong grant issuer, and a substituted candidate set fail before release.
-The commit receipt records approval ID and use count, source, destination,
+The commit receipt records operation ID, approval ID and use count, source, destination,
 purpose, and revisions without
 logging patient identifiers. This is a process-local Host
 reference with synthetic facts. It does not authenticate a real query or
 provider receipt, durably persist the transaction, send an external effect,
 or establish a measured privacy guarantee.
 
-The two approvals exercised by =distinctApprovalAccepted= demonstrate a
-remaining ambiguity: a second independent disclosure is valid, but a new
-approval for a retry of the first disclosure could look identical here. The
-effect has no stable logical-operation ID and the commit receipt precedes
-any sink response. The cross-industry [[file:../../../CedarPooSpec/Admission/AgenticSecurity.org][effect-gap analysis]] specifies the
-required distinction between approval use, operation identity, and delivery
-result. No current example claims that a timeout is safe to reissue.
+=crossApprovalReplayDenied= and =distinctApprovalAccepted= distinguish a
+retry with fresh approval from an independent disclosure with the same
+payload. The operation ledger is process-local and the commit receipt
+precedes any sink response. The cross-industry [[file:../../../CedarPooSpec/Admission/AgenticSecurity.org][effect-gap analysis]] specifies the
+remaining durable journal, dispatch-attempt state, and reconciliation
+requirements. No current example claims that a timeout is safe to reissue.
