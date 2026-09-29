@@ -39,6 +39,52 @@ def ProvenanceClaim.schemaEntry : EntitySchemaEntry :=
 def ProvenanceClaim.entityData (claim : ProvenanceClaim) : EntityData :=
   { attrs := Map.make claim.values, ancestors := Set.empty, tags := Map.empty }
 
+/-- Host-projected record of the exact change admitted to a protected ref. -/
+structure SourceChangeClaim where
+  repository : String
+  commit : String
+  branch : String
+  author : String
+  reviewer : String
+  reviewerHuman : Bool
+  policyEpoch : Int64
+  reviewApproved : Bool
+  checksPassed : Bool
+  branchProtected : Bool
+  bypassUsed : Bool
+  historyRewritten : Bool
+
+def SourceChangeClaim.schemaEntry : EntitySchemaEntry :=
+  .standard ⟨Set.empty, Map.make [
+    ("repository", .required .string),
+    ("commit", .required .string),
+    ("branch", .required .string),
+    ("author", .required .string),
+    ("reviewer", .required .string),
+    ("reviewerHuman", .required (.bool .anyBool)),
+    ("policyEpoch", .required .int),
+    ("reviewApproved", .required (.bool .anyBool)),
+    ("checksPassed", .required (.bool .anyBool)),
+    ("branchProtected", .required (.bool .anyBool)),
+    ("bypassUsed", .required (.bool .anyBool)),
+    ("historyRewritten", .required (.bool .anyBool))], none⟩
+
+def SourceChangeClaim.entityData (claim : SourceChangeClaim) : EntityData :=
+  { attrs := Map.make [
+      ("repository", .prim (.string claim.repository)),
+      ("commit", .prim (.string claim.commit)),
+      ("branch", .prim (.string claim.branch)),
+      ("author", .prim (.string claim.author)),
+      ("reviewer", .prim (.string claim.reviewer)),
+      ("reviewerHuman", .prim (.bool claim.reviewerHuman)),
+      ("policyEpoch", .prim (.int claim.policyEpoch)),
+      ("reviewApproved", .prim (.bool claim.reviewApproved)),
+      ("checksPassed", .prim (.bool claim.checksPassed)),
+      ("branchProtected", .prim (.bool claim.branchProtected)),
+      ("bypassUsed", .prim (.bool claim.bypassUsed)),
+      ("historyRewritten", .prim (.bool claim.historyRewritten))],
+    ancestors := Set.empty, tags := Map.empty }
+
 structure AttestationClaim where
   subjectDigest : String
   attestor : String

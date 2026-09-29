@@ -3,7 +3,7 @@
 
 * Source and question
 
-[[https://cloud.google.com/blog/topics/threat-intelligence/hardening-code-pipelines-and-ci-cd-infrastructure][Google Cloud Threat Intelligence and Mandiant, September 24, 2026]]
+[[https://cloud.google.com/blog/topics/threat-intelligence/hardening-code-pipelines-and-ci-cd-infrastructure][Google Cloud Threat Intelligence and Mandiant, September 25, 2026]]
 describe attacks crossing developer tools, code repositories, dependencies,
 runner caches, OIDC identity, artifact provenance, and deployment. Their
 [[https://cloud.google.com/blog/topics/threat-intelligence/mitigation-guidance-for-supply-chain-compromise][July 2026 supply-chain analysis]] describes malicious dependencies and
@@ -18,7 +18,8 @@ verification alone cannot establish that the upstream build path was safe.
 #+begin_src mermaid
 stateDiagram-v2
   [*] --> Base: candidate grant
-  Base --> SourceBound: reviewed commit and workflow
+  Base --> SourcePrecheck: source fields and protected ref
+  SourcePrecheck --> SourceBound: bound review and current ruleset
   SourceBound --> DependencyBound: lock and quarantine
   DependencyBound --> RunnerBound: ephemeral runner and isolated cache
   RunnerBound --> ArtifactBound: digest, builder and signature
@@ -30,7 +31,8 @@ stateDiagram-v2
 * Object composition
 
 [[file:GoogleThreatCase.lean][The Lean scenario]] creates a Base permit and
-five independent stage owners with =Model.define=. It combines those objects
+five independent pipeline stage owners and one source-control owner with
+=Model.define=. It combines those objects
 with =Model.combine=, preserving their separate policy IDs and C4 origins.
 The common [[file:../../../CedarPooSpec/Cloud/Pipeline/ReleaseBoundary.lean][ReleaseBoundary]]
 generates one Cedar forbid control per stage. An incident appends a veto for
@@ -40,8 +42,11 @@ owners remain inherited. The
 the ordered owners, all expected decisions, Cedar schema validity, and the
 one-policy incident/recovery delta.
 
-The stage progression exposes the need for composition: SourceBound rejects
-the wrong commit but still accepts an unquarantined package; DependencyBound
+The stage progression exposes the need for composition: SourcePrecheck still
+accepts a review record for a different commit. SourceBound rejects that
+record, a self-review, failed checks, rule bypass, rewritten history, a stale
+rule epoch, or another branch. It still accepts an unquarantined package;
+DependencyBound
 closes that gap but still accepts a shared cache; RunnerBound blocks that
 cache but still accepts missing provenance. ArtifactBound checks signature
 and digest, yet still accepts a claim for another source commit.
@@ -51,10 +56,34 @@ projected commit, workflow, lock digest, OIDC audience, artifact digest, and
 builder identity. The provenance claim entity must separately bind the
 source repository, commit, workflow, lock, OIDC audience, build type, builder
 and subject digest to that target. =just example cloud pipeline-google-threat=
-exports the same 30 decisions and replays them with the official Cedar Rust
+exports the same 43 decisions and replays them with the official Cedar Rust
 authorizer.
 [[file:Deployment.lean][The typed deployment selector]] admits only ReleaseReady, Quarantined,
 and Recovered; incomplete stage roots are diagnostic cases.
+
+* Source code management
+
+The public [[file:../../../CedarPooSpec/Cloud/Pipeline/SourceControlBoundary.lean][SourceControlBoundary]] is an independent POO owner. Its
+[[file:../../../CedarPooSpec/Cloud/Pipeline/Evidence.lean][SourceChangeClaim]] binds a reviewed repository and commit to a protected
+branch, distinct author and reviewer, required checks, bypass status, history
+status, human reviewer status, and the current ruleset epoch. SourcePrecheck
+and SourceBound expose the exact one-policy delta from adding that owner;
+downstream dependency,
+runner, provenance, and deployment objects inherit it without copying the
+rule body. The example changes one evidence field at a time to show the
+boundary's effect.
+
+The same owner admits an Agent-authored change after authenticated human
+review and denies an Agent-only approval; no second policy body is needed.
+
+The source model follows the article's [[https://cloud.google.com/blog/topics/threat-intelligence/hardening-code-pipelines-and-ci-cd-infrastructure][Code Repositories]] section. GitHub's
+[[https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository][ruleset documentation]] describes required pull requests, status checks,
+and bypass configuration. The Host must read the actual repository rules,
+merge history, review state, check producer identity, and current account
+and device posture, then authenticate the exact claim. A request-supplied
+claim or boolean has no source authority. The Host must recheck the ref and
+epoch at the publish boundary; this policy does not prevent an out-of-band
+push, leaked clone, or already copied source.
 
 [[https://slsa.dev/spec/v1.0/provenance][SLSA provenance]] gives the build-definition and builder fields;
 [[https://docs.cloud.google.com/build/docs/securing-builds/generate-validate-build-provenance][Google Cloud Build documentation]] shows a signed in-toto statement with

@@ -11,6 +11,14 @@ digest, OIDC audience, build type, builder identity, and immutable artifact dige
 signature or a generic =provenanceVerified= flag alone does not establish
 that these claims describe the selected release.
 
+[[file:SourceControlBoundary.lean][SourceControlBoundary]] adds a separately owned source-admission control.
+It consumes the [[file:Evidence.lean][SourceChangeClaim]] for the exact
+repository and commit and requires a distinct reviewer, successful checks,
+human review, protected branch, no bypass or history rewrite, and the
+current ruleset epoch. Its branch name and policy ID are caller-supplied, so a downstream
+profile can choose its own protected ref and compose the owner without
+duplicating the pipeline controls.
+
 [[https://slsa.dev/spec/v1.0/provenance][SLSA provenance]] separates build definition, resolved dependencies,
 builder identity, and artifact subject. [[https://docs.cloud.google.com/build/docs/securing-builds/generate-validate-build-provenance][Google Cloud Build documentation]]
 shows those fields in a concrete provenance statement. This module compares
@@ -19,7 +27,8 @@ chosen build type before constructing the claim entity. It does not parse a
 DSSE envelope or claim completeness of every transitive dependency.
 
 [[file:Evidence.lean][Evidence]] provides reusable typed projections for the
-provenance claim, deployment attestation, and release receipt. A caller owns
+source change, provenance claim, deployment attestation, and release receipt.
+A caller owns
 the Cedar entity identity and can extend a claim through Lean record updates;
 the common schema and entity-data methods preserve the field contract. The
 receipt binds digest, source commit, policy root, and state epoch. Each

@@ -13,7 +13,7 @@ theorem stageDecisionsExact :
       allowed root resource facts == expected) = true := by native_decide
 
 theorem allDiagnosticRootsValidate :
-    ["Base", "SourceBound", "DependencyBound", "RunnerBound", "ArtifactBound",
+    ["Base", "SourcePrecheck", "SourceBound", "DependencyBound", "RunnerBound", "ArtifactBound",
       "ReleaseReady", "Quarantined", "Recovered"].all (fun root =>
         (CedarPooSpec.PolicyJson.publish model root schema).isOk) = true := by
   native_decide
@@ -26,8 +26,13 @@ theorem independentStageOwnersPresent :
     ((model.objectAt "ReleaseReady").toOption.get
       (by native_decide)).plan.precedence =
         ["ReleaseReady", "ArtifactBound", "RunnerBound", "DependencyBound",
-          "SourceBound", "Base", "Source", "Dependencies", "Runner",
-          "Artifact", "Provenance"] := by
+          "SourceBound", "SourcePrecheck", "Base", "Source", "SourceControl",
+          "Dependencies", "Runner", "Artifact", "Provenance"] := by
+  native_decide
+
+theorem sourceControlAddsOnlyItsOwnedPolicy :
+    ((model.compileRevision "SourcePrecheck" "SourceBound").toOption.get
+      (by native_decide)).changedPolicyIds = [sourceControl.policyId] := by
   native_decide
 
 theorem quarantineTouchesOnlyIncidentPolicy :

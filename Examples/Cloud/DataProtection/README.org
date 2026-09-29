@@ -24,7 +24,7 @@ It selects a named =customer_id= and =campaign= column through the public
 
 #+begin_src mermaid
 stateDiagram-v2
-  [*] --> ReleaseReady: five independent pipeline owners
+  [*] --> ReleaseReady: source control and five pipeline owners
   [*] --> SdpReady: permit and recipe gate
   ReleaseReady --> CustomerDataRelease: mix SdpReady
   SdpReady --> CustomerDataRelease: mix ReleaseReady

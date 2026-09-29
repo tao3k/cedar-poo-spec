@@ -1,5 +1,6 @@
 import CedarPooSpec.Cloud.Pipeline.ReleaseBoundary
 import CedarPooSpec.Cloud.Pipeline.Evidence
+import CedarPooSpec.Cloud.Pipeline.SourceControlBoundary
 import CedarPooSpec.PolicyJson
 
 /-!
@@ -16,6 +17,7 @@ open CedarPooSpec.Cloud.Pipeline CedarPooSpec.Governance
 def builderType : EntityType := ⟨"Builder", []⟩
 def artifactType : EntityType := ⟨"Artifact", []⟩
 def provenanceType : EntityType := ⟨"Provenance", []⟩
+def sourceChangeType : EntityType := ⟨"SourceChange", []⟩
 def actionType : EntityType := ⟨"Action", []⟩
 def builder : EntityUID := ⟨builderType, "release-bot"⟩
 def candidate : EntityUID := ⟨artifactType, "service-release"⟩
@@ -28,6 +30,18 @@ def substitutedWorkflow : EntityUID := ⟨provenanceType, "other-workflow"⟩
 def substitutedAudience : EntityUID := ⟨provenanceType, "other-audience"⟩
 def substitutedBuilder : EntityUID := ⟨provenanceType, "other-builder"⟩
 def substitutedSubject : EntityUID := ⟨provenanceType, "other-subject"⟩
+def reviewedChange : EntityUID := ⟨sourceChangeType, "reviewed-candidate"⟩
+def independentChange : EntityUID := ⟨sourceChangeType, "reviewed-independent"⟩
+def otherCommitChange : EntityUID := ⟨sourceChangeType, "other-commit"⟩
+def otherRepositoryChange : EntityUID := ⟨sourceChangeType, "other-repository"⟩
+def selfReviewedChange : EntityUID := ⟨sourceChangeType, "self-review"⟩
+def failedChecksChange : EntityUID := ⟨sourceChangeType, "failed-checks"⟩
+def bypassedChange : EntityUID := ⟨sourceChangeType, "bypass"⟩
+def rewrittenChange : EntityUID := ⟨sourceChangeType, "rewritten-history"⟩
+def staleReviewChange : EntityUID := ⟨sourceChangeType, "stale-review"⟩
+def otherBranchChange : EntityUID := ⟨sourceChangeType, "other-branch"⟩
+def agentAuthoredChange : EntityUID := ⟨sourceChangeType, "agent-authored-human-reviewed"⟩
+def agentApprovedChange : EntityUID := ⟨sourceChangeType, "agent-approved"⟩
 
 def fields : List String := ProvenanceClaim.fields
 
@@ -40,7 +54,11 @@ def signals : List String :=
 def contextType : RecordType := Map.make
   (fields.map (fun key => (key, .required .string)) ++
     signals.map (fun key => (key, .required (.bool .anyBool))) ++
-    [("provenance", .required (.entity provenanceType))])
+    [("provenance", .required (.entity provenanceType)),
+      ("sourceChange", .required (.entity sourceChangeType)),
+      ("sourceChangeVerified", .required (.bool .anyBool)),
+      ("sourceIdentityVerified", .required (.bool .anyBool)),
+      ("currentSourceEpoch", .required .int)])
 
 def artifactEntry : EntitySchemaEntry :=
   .standard ⟨Set.empty, Map.make
@@ -54,7 +72,8 @@ def actionEntry : ActionSchemaEntry :=
 
 def schema : Schema :=
   ⟨Map.make [(builderType, .standard ⟨Set.empty, Map.empty, none⟩),
-    (artifactType, artifactEntry), (provenanceType, provenanceEntry)],
+    (artifactType, artifactEntry), (provenanceType, provenanceEntry),
+    (sourceChangeType, SourceChangeClaim.schemaEntry)],
     Map.make [(promote, actionEntry)]⟩
 
 structure Target extends ProvenanceClaim where
@@ -82,6 +101,20 @@ def provenanceData (target : Target) : EntityData :=
 def emptyData : EntityData :=
   { attrs := Map.empty, ancestors := Set.empty, tags := Map.empty }
 
+def acceptedChange : SourceChangeClaim :=
+  { repository := "repo-a", commit := "commit-a", branch := "main",
+    author := "developer-a", reviewer := "reviewer-b", reviewerHuman := true,
+    policyEpoch := 7,
+    reviewApproved := true, checksPassed := true, branchProtected := true,
+    bypassUsed := false, historyRewritten := false }
+
+def agentAuthoredClaim : SourceChangeClaim :=
+  { acceptedChange with author := "coding-agent" }
+
+def agentApprovedClaim : SourceChangeClaim :=
+  { { agentAuthoredClaim with reviewer := "review-bot" } with
+    reviewerHuman := false }
+
 def entities : Entities := Map.make
   [(builder, emptyData),
    (candidate, artifactData {}),
@@ -97,10 +130,26 @@ def entities : Entities := Map.make
    (substitutedAudience, provenanceData { oidcAudience := "other-audience" }),
    (substitutedBuilder, provenanceData { builderIdentity := "other-builder" }),
    (substitutedSubject, provenanceData { artifactDigest := "sha256:other" }),
+   (reviewedChange, acceptedChange.entityData),
+   (independentChange, { acceptedChange with commit := "commit-b" }.entityData),
+   (otherCommitChange, { acceptedChange with commit := "other-commit" }.entityData),
+   (otherRepositoryChange, { acceptedChange with repository := "other-repository" }.entityData),
+   (selfReviewedChange, { acceptedChange with reviewer := "developer-a" }.entityData),
+   (failedChecksChange, { acceptedChange with checksPassed := false }.entityData),
+   (bypassedChange, { acceptedChange with bypassUsed := true }.entityData),
+   (rewrittenChange, { acceptedChange with historyRewritten := true }.entityData),
+   (staleReviewChange, { acceptedChange with policyEpoch := 6 }.entityData),
+   (otherBranchChange, { acceptedChange with branch := "feature" }.entityData),
+   (agentAuthoredChange, agentAuthoredClaim.entityData),
+   (agentApprovedChange, agentApprovedClaim.entityData),
    (promote, actionSchemaEntryToEntityData actionEntry)]
 
 structure Facts extends Target where
   provenance : EntityUID := candidateProvenance
+  sourceChange : EntityUID := reviewedChange
+  sourceChangeVerified : Bool := true
+  sourceIdentityVerified : Bool := true
+  currentSourceEpoch : Int64 := 7
   reviewed : Bool := true
   protectedRef : Bool := true
   lockVerified : Bool := true
@@ -126,7 +175,11 @@ def context (facts : Facts) : Map String Value := Map.make
     ("signatureVerified", .prim (.bool facts.signatureVerified)),
     ("provenanceVerified", .prim (.bool facts.provenanceVerified)),
     ("incidentActive", .prim (.bool facts.incidentActive)),
-    ("provenance", .prim (.entityUID facts.provenance))])
+    ("provenance", .prim (.entityUID facts.provenance)),
+    ("sourceChange", .prim (.entityUID facts.sourceChange)),
+    ("sourceChangeVerified", .prim (.bool facts.sourceChangeVerified)),
+    ("sourceIdentityVerified", .prim (.bool facts.sourceIdentityVerified)),
+    ("currentSourceEpoch", .prim (.int facts.currentSourceEpoch))])
 
 def request (resource : EntityUID) (facts : Facts) : Request :=
   ⟨builder, promote, resource, context facts⟩
@@ -143,6 +196,12 @@ def boundary (stage : Stage) : ReleaseBoundary :=
     resourceScope := .resourceScope (.is artifactType)
     stage }
 
+def sourceControl : SourceControlBoundary :=
+  { policyId := "pipeline-source-control",
+    actionScope := .actionScope (.eq promote),
+    resourceScope := .resourceScope (.is artifactType),
+    protectedBranch := "main" }
+
 def incident : Veto :=
   { policyId := "affected-artifact-quarantine",
     actionScope := .actionScope (.eq promote),
@@ -155,13 +214,17 @@ def incident : Veto :=
 def modelResult : Except LeanPoo.Object.CombineError Model := do
   let base ← (Model.define "Base" [.extend grant]).mapError .c4
   let source ← (Model.define "Source" [(boundary .source).veto.edit .introduce]).mapError .c4
+  let review ← (Model.define "SourceControl"
+    [sourceControl.veto.edit .introduce]).mapError .c4
   let dependency ← (Model.define "Dependencies"
     [(boundary .dependencies).veto.edit .introduce]).mapError .c4
   let runner ← (Model.define "Runner" [(boundary .runner).veto.edit .introduce]).mapError .c4
   let artifact ← (Model.define "Artifact" [(boundary .artifact).veto.edit .introduce]).mapError .c4
   let provenance ← (Model.define "Provenance"
     [(boundary .provenance).veto.edit .introduce]).mapError .c4
-  let sourceBound ← base.combine "Base" [(source, "Source")] "SourceBound"
+  let sourcePrecheck ← base.combine "Base" [(source, "Source")] "SourcePrecheck"
+  let sourceBound ← sourcePrecheck.combine "SourcePrecheck"
+    [(review, "SourceControl")] "SourceBound"
   let dependencyBound ← sourceBound.combine "SourceBound"
     [(dependency, "Dependencies")] "DependencyBound"
   let runnerBound ← dependencyBound.combine "DependencyBound"
@@ -187,7 +250,7 @@ def allowed (root : String) (resource : EntityUID) (facts : Facts) : Bool :=
 def independentFacts : Facts :=
   { sourceCommit := "commit-b", lockDigest := "lock-b",
     artifactDigest := "sha256:independent", affected := false,
-    provenance := independentProvenance }
+    provenance := independentProvenance, sourceChange := independentChange }
 
 def cases : List (String × String × EntityUID × Facts × Bool) := [
   ("base-accepts-wrong-commit", "Base", candidate,
@@ -200,6 +263,32 @@ def cases : List (String × String × EntityUID × Facts × Bool) := [
     { workflow := "untrusted-workflow" }, false),
   ("source-blocks-other-repository", "SourceBound", candidate,
     { sourceRepository := "other-repository" }, false),
+  ("source-precheck-misses-other-review-commit", "SourcePrecheck", candidate,
+    { sourceChange := otherCommitChange }, true),
+  ("source-control-binds-reviewed-commit", "SourceBound", candidate,
+    { sourceChange := otherCommitChange }, false),
+  ("source-control-binds-repository", "SourceBound", candidate,
+    { sourceChange := otherRepositoryChange }, false),
+  ("source-control-rejects-self-review", "SourceBound", candidate,
+    { sourceChange := selfReviewedChange }, false),
+  ("source-control-rejects-failed-checks", "SourceBound", candidate,
+    { sourceChange := failedChecksChange }, false),
+  ("source-control-rejects-bypass", "SourceBound", candidate,
+    { sourceChange := bypassedChange }, false),
+  ("source-control-rejects-history-rewrite", "SourceBound", candidate,
+    { sourceChange := rewrittenChange }, false),
+  ("source-control-rejects-stale-ruleset", "SourceBound", candidate,
+    { sourceChange := staleReviewChange }, false),
+  ("source-control-rejects-other-branch", "SourceBound", candidate,
+    { sourceChange := otherBranchChange }, false),
+  ("source-control-rejects-unverified-review", "SourceBound", candidate,
+    { sourceChangeVerified := false }, false),
+  ("source-control-rejects-unverified-identity", "SourceBound", candidate,
+    { sourceIdentityVerified := false }, false),
+  ("source-control-accepts-agent-code-human-review", "SourceBound", candidate,
+    { sourceChange := agentAuthoredChange }, true),
+  ("source-control-rejects-agent-only-review", "SourceBound", candidate,
+    { sourceChange := agentApprovedChange }, false),
   ("source-alone-misses-poisoned-package", "SourceBound", candidate,
     { dependenciesQuarantined := false }, true),
   ("dependency-blocks-poisoned-package", "DependencyBound", candidate,
