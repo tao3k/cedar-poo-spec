@@ -63,7 +63,7 @@ check-quick: check-docs
 check-lean: check-tests check-authorization-delta-proof check-policy-reuse
 
 # Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.
-check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-health-authorization-impact check-personnel-governance
+check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-agent-trace-delta check-health-authorization-impact check-personnel-governance
 
 check-personnel-governance:
     lake build Examples.Manifests Tests.Enterprise.Personnel.SourceCustody
@@ -74,7 +74,7 @@ check-personnel-governance:
 check-tests: build-examples
     lake build Tests
 
-check-delta: check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-health-authorization-impact
+check-delta: check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-agent-trace-delta check-health-authorization-impact
 
 check-replay-receipts: prepare-agent-payment-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < .lake/build/agent-payment-manifest.json > .lake/build/agent-payment-replay-receipts.json
@@ -149,6 +149,9 @@ check-payment-interaction:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Agent/Payment/JointRelease.lean > .lake/build/payment-joint-release.json
     jq -e -f Tests/Conformance/payment-joint-release.jq .lake/build/payment-joint-release.json > /dev/null
     jq '.manifest' .lake/build/payment-joint-release.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
+
+check-agent-trace-delta:
+    just example enterprise agent session-trace-delta
 
 check-health-authorization-impact:
     lake build Examples.Health.Pseudonymization.AuthorizationImpact

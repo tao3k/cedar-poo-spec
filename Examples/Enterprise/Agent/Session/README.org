@@ -100,6 +100,33 @@ The state transitions correspond to =replay= and =advance= in the Lean
 file. =Incident= and =Recovered= are policy revisions selected by the host,
 not hidden session states.
 
+* Authorization delta over a finite session trace
+
+[[file:AuthorizationTraceDelta.lean][AuthorizationTraceDelta.lean]] uses the
+public [[file:../../../../CedarPooSpec/AuthorizationDeltaTrace.lean][trace-delta API]] to replay the *same proposed actions* under =Base=
+and =Integrated=. Each side carries its own state forward only after an
+error-free Cedar Allow. A sensitive read followed by external send changes
+=[Allow, Allow]= to =[Allow, Deny]=. In a separate four-proposal trace, the
+integrated budget denies the second and third external sends; the old root
+continues to spend its ledger. The final proposals are the same operation,
+but their Cedar contexts differ because prior decisions changed the states.
+The API rejects a Host projection that silently substitutes a different
+operation at that point. Twelve step decisions are replayed by official
+Cedar Rust, and the report retains the C4 History owner and proof footprint.
+
+This addresses a finite observation raised by [[https://arxiv.org/abs/2608.15888][Bounded Agents]]: independent
+request checks miss effects of earlier actions. The September 2026
+[[https://arxiv.org/abs/2609.15803][study of sequential agent authorization]] goes further and analyzes safety
+over possible future state transitions. This example does not prove that
+universal claim. The proposal sequence, request projection, and state
+transition are supplied by the Host model; real execution still requires
+authenticated facts, complete tool coverage, serialized admission, and
+effect receipts.
+
+#+begin_src sh
+just example enterprise agent session-trace-delta
+#+end_src
+
 * Composition and proof receipts
 
 | Root | Owner-local edit | Materialized policy bodies | Fresh body work against stated baseline |

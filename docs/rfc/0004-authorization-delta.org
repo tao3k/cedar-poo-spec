@@ -267,6 +267,20 @@ This does not replace symbolic analysis of individual policies, and does
 not establish delegated authority or temporal budget safety for arbitrary
 agent histories.
 
+[[file:../../CedarPooSpec/AuthorizationDeltaTrace.lean][AuthorizationDeltaTrace]] compares one fixed proposal sequence under two C4
+roots. A Host-supplied projection constructs each request and entity store
+from the state reached on that side; a shared transition advances only after
+an error-free Cedar Allow. Requests and entities are schema checked at every
+step, and a substituted principal/action/resource is rejected. The report
+retains before/after decisions, final states, changed POO policy owners, and
+the proof footprint. The [[file:../../Examples/Enterprise/Agent/Session/README.org][bounded-agent session]] shows that the same later
+proposal can have a different context after earlier decisions diverge;
+twelve step decisions are replayed by official Cedar Rust. This is a finite
+trace over the supplied proposals and transition function. It does not
+quantify over all Agent choices, authenticate the state transitions, or
+establish the sequential safety condition studied in
+[[https://arxiv.org/abs/2609.15803][the 2026 delegated-authorization paper]].
+
 [[file:../../CedarPooSpec/AuthorizationDeltaInteraction.lean][AuthorizationDeltaInteraction]] compares a base, two independent POO
 branches, and their combined root under one Cedar schema. If neither branch
 adds an Allow but the combined root does, it reports a joint-only gain and
@@ -330,6 +344,8 @@ The effective-reason analysis has a separate
 =just check-delta= and CI.
 The four-root payment interaction uses =just check-payment-interaction= and
 replays all four responses through the official Rust authorizer.
+The finite session trace uses =just example enterprise agent session-trace-delta=
+and the =check-agent-trace-delta= conformance gate.
 The payment case has its own =just check-payment-delta= gate.
 The healthcare impact case has =just check-health-authorization-impact=; it
 replays the incident, recovery, approval-withdrawal, and dataset-lineage decisions through the
@@ -352,8 +368,9 @@ evidence. They must remain separate in release decisions:
 | POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
+| Sequential Agent proposals | Two C4 roots replay one finite Host-supplied proposal list with separate evolving states | No quantifier over unseen proposals, unauthenticated state transitions, or concurrent effects. |
 | C4 edit ownership and proof reuse | Compiled owner/edit trail and dependency footprint | Potential invalidation, not proof that one edit caused a witness. |
-| Schema evolution and operation history | No unified delta query | Revalidate, reproject, and analyze with an explicit migration relation before any cross-schema claim. |
+| Schema evolution and unbounded operation history | No unified delta query | Revalidate and reproject across schemas; finite trace replay does not establish unbounded history safety. |
 
 For release review, policy-body changes still require explicit Cedar queries.
 =changed_policy_ids= alone cannot establish a behavior change: edits can be
