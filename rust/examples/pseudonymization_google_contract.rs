@@ -25,6 +25,9 @@ fn run() -> Result<(), String> {
     let selected_bytes = read_json(&input_path)?;
     let selected: SelectedTabularInput =
         serde_json::from_slice(&selected_bytes).map_err(|error| error.to_string())?;
+    let expected_value_field = selected.value_field.clone();
+    let expected_context_field = selected.context_field.clone();
+    let expected_context = selected.context.clone();
     let same_input: SelectedTabularInput =
         serde_json::from_slice(&selected_bytes).map_err(|error| error.to_string())?;
     let mismatched_key = WrappedKeyBinding {
@@ -62,10 +65,10 @@ fn run() -> Result<(), String> {
     let field = deidentify
         .pointer("/deidentifyConfig/recordTransformations/fieldTransformations/0")
         .ok_or("missing Google record transformation")?;
-    if field["fields"][0]["name"] != "patient_id"
+    if field["fields"][0]["name"] != expected_value_field
         || field["primitiveTransformation"]["cryptoDeterministicConfig"]["context"]["name"]
-            != "tenant_scope"
-        || deidentify["item"]["table"]["rows"][0]["values"][1]["stringValue"] != "hospital-a"
+            != expected_context_field
+        || deidentify["item"]["table"]["rows"][0]["values"][1]["stringValue"] != expected_context
     {
         return Err("Google request differs from the selected Lean columns".into());
     }
@@ -89,14 +92,16 @@ fn run() -> Result<(), String> {
         plan.check_reidentify_response(&checked_token.value, &recovery_response)?;
     let mut changed_context: Value =
         serde_json::from_slice(&token_bytes).map_err(|error| error.to_string())?;
-    changed_context["item"]["table"]["rows"][0]["values"][1]["stringValue"] = json!("other-study");
+    changed_context["item"]["table"]["rows"][0]["values"][1]["stringValue"] =
+        json!(format!("{expected_context}-other"));
     let rejected = GoogleSdpResponse::from_json_bytes(
         &serde_json::to_vec(&changed_context).map_err(|error| error.to_string())?,
     )?;
     if plan.check_deidentify_response(&rejected).is_ok() {
         return Err("Google response with changed context was accepted".into());
     }
-    changed_context["item"]["table"]["rows"][0]["values"][1]["stringValue"] = json!("hospital-a");
+    changed_context["item"]["table"]["rows"][0]["values"][1]["stringValue"] =
+        json!(expected_context);
     changed_context["item"]["table"]["rows"][0]["values"][0]["stringValue"] = json!("not-base64");
     let malformed = GoogleSdpResponse::from_json_bytes(
         &serde_json::to_vec(&changed_context).map_err(|error| error.to_string())?,

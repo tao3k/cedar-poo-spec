@@ -1,0 +1,17 @@
+{
+  "item": {
+    "table": {
+      "headers": [{"name": "customer_id"}, {"name": "campaign"}],
+      "rows": [{"values": [
+        {"stringValue": "synthetic-customer-1"},
+        {"stringValue": "campaign-a"}
+      ]}]
+    }
+  },
+  "overview": {
+    "transformationSummaries": [{
+      "field": {"name": "customer_id"},
+      "results": [{"count": "1", "code": "SUCCESS"}]
+    }]
+  }
+}

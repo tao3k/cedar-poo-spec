@@ -82,6 +82,8 @@ The separate [[file:../../rust/src/README.org][Google SDP REST boundary]] constr
 and checks a caller-supplied response against the selected row and KMS key
 lineage. It does not send a Google request. RustCrypto's local AES-SIV token
 is not asserted to match Google's token bytes.
+The [[file:../../Examples/Cloud/DataProtection/README.org][Cloud customer profile]] reuses the same recipe selection and Google
+REST adapter while combining it with independent code-to-artifact controls.
 
 Google Sensitive Data Protection also supports FPE-FFX, which this library
 does not currently model. The AES-GCM branch is a separate randomized

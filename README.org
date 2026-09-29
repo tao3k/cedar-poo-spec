@@ -81,6 +81,9 @@ AgentCore projection.
 The [[file:Examples/Cloud/Pipeline/README.org][cloud pipeline case]] composes
 source, dependency, runner, and artifact controls through separate LeanPOO
 owners, then adds an artifact-specific incident revision.
+The [[file:Examples/Cloud/DataProtection/README.org][cloud data protection case]] selects that release boundary with
+top-level pseudonymization and the existing Google SDP REST adapter as a
+customer-specific profile.
 The current APIs bind typed operations to Cedar requests, revise owned
 permit and forbid slots, compare data attributes through Cedar's expression
 AST, check source-network and token-catalog boundaries, and strengthen

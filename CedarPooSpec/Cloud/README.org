@@ -6,3 +6,6 @@ deployment targets. These modules are provider-neutral. A platform adapter
 under =Platform= maps a provider's evidence into these controls; a vertical
 module selects the controls appropriate to its domain. The
 [[file:Pipeline/README.org][pipeline boundary]] is the first component.
+[[file:DataProtection/README.org][Data protection]] composes a published artifact with the
+top-level pseudonymization capability; a customer selects the resulting
+profile for a particular data effect.

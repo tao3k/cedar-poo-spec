@@ -1,4 +1,5 @@
 import CedarPooSpec.Pseudonymization
+import CedarPooSpec.Platform.Google.SensitiveDataProtection
 import Examples.Health.Pseudonymization
 
 /-! A synthetic structured record whose AES-SIV context is selected from a
@@ -50,16 +51,7 @@ theorem duplicatePatientColumnCannotSelect :
 
 def fixture : Except String Lean.Json := do
   let selected ← (recipe.select row).mapError (fun _ => "invalid tabular AES-SIV selection")
-  return Lean.Json.mkObj [
-    ("dataset", Lean.toJson recipe.dataset),
-    ("valueField", Lean.toJson recipe.valueField),
-    ("contextField", Lean.toJson recipe.contextField),
-    ("value", Lean.toJson selected.value),
-    ("context", Lean.toJson selected.context),
-    ("keyDomain", Lean.toJson recipe.profile.lineage.keyDomain),
-    ("tokenKeyVersion", Lean.toJson recipe.profile.lineage.tokenKeyVersion),
-    ("transformVersion", Lean.toJson recipe.profile.lineage.transformVersion),
-    ("wrappingVersion", Lean.toJson recipe.profile.lineage.wrappingVersion),
-    ("surrogateInfoType", Lean.toJson recipe.surrogateInfoType)]
+  return CedarPooSpec.Platform.Google.SensitiveDataProtection.selectedTableJson
+    recipe selected
 
 end CedarPooSpec.PseudonymizationExample.Tabular

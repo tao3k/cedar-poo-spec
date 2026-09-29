@@ -15,6 +15,7 @@ import CedarPooSpec.Governance.Personnel.Assignment
 import CedarPooSpec.Governance.Personnel.KnowledgeScope
 import CedarPooSpec.Governance.Personnel.Admission
 import CedarPooSpec.Platform.AWS.AgentCore.Gateway
+import CedarPooSpec.Platform.Google.SensitiveDataProtection
 import CedarPooSpec.Vertical.Health.DisclosureChannel
 import CedarPooSpec.Vertical.Health.EmergencyAccess
 import CedarPooSpec.Vertical.Health.FHIR.ConsumerAccess
@@ -27,6 +28,7 @@ import CedarPooSpec.Vertical.FinancialServices.ClaimSummaryVeto
 import CedarPooSpec.Admission.BoundOperation
 import CedarPooSpec.Admission.SourceNetwork
 import CedarPooSpec.Cloud.Pipeline.ReleaseBoundary
+import CedarPooSpec.Cloud.DataProtection.PseudonymizationGate
 import CedarPooSpec.Data.Relation
 import CedarPooSpec.Data.Lineage
 import CedarPooSpec.Data.LineageUse
