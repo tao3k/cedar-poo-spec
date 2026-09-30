@@ -13,6 +13,8 @@ sibling vetoes, and the difference between an absent policy slot and an
 explicit removal tombstone. [[file:Language/SchemaProjection.lean][SchemaProjection.lean]] checks invalid schema
 admission. [[file:ReuseScale.lean][ReuseScale.lean]] checks proof dependency
 impact at scale.
+[[file:Governance/AuthorizationDeltaInvalidation.lean][AuthorizationDeltaInvalidation.lean]] checks that sibling C4 editors
+of one changed policy invalidate descendants on both branches.
 [[file:Health/Pseudonymization.lean][Health/Pseudonymization.lean]] checks hospital Cedar decisions and
 local POO composition. Rust unit tests remain in the Rust crate's
 =rust/tests/unit/= directory.

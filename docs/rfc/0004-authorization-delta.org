@@ -155,6 +155,10 @@ witness only when original Cedar responses actually have different
 =determiningPolicies=. The report carries C4 edit owners, proof footprint,
 and potentially invalidated roots as candidate provenance; it does not
 assign sole causality when multiple edits are present.
+For sibling revision roots, invalidation starts at the last relevant editor
+on each side and includes descendants of both branches. The
+[[file:../../Tests/Governance/AuthorizationDeltaInvalidation.lean][sibling-editor regression]] checks this closure without treating it as
+a Cedar behavior change.
 
 The outcome has three useful cases. A concrete changed reason is replayed by
 the official Rust Cedar authorizer. If the decision is equivalent in the

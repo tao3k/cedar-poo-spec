@@ -91,15 +91,16 @@ def Revision.proofFootprint (revision : Revision) : ProofFootprint :=
     authorizationDependencies := changedDependencies
       CedarPooSpec.Soundness.policiesObligation revision.authorizationPatch }
 
-/-- C4 descendants whose compilation may depend on the modules that last
-    edited a changed policy. This is an invalidation set, not a behavioral
-    witness or proof of individual edit causality. -/
+/-- C4 descendants whose compilation may depend on the last editor on either
+    side of a changed policy. The roots may be siblings, so both branches
+    contribute. This is an invalidation set, not a behavioral witness or proof
+    of individual edit causality. -/
 def affectedRoots (model : Model) (changes : List PolicyChange) : List String :=
-  let owners := changes.filterMap fun change =>
-    match change.afterEdits.getLast? with
-    | some source => some source.moduleName
-    | none => change.beforeEdits.getLast?.map (·.moduleName)
-  invalidatedNodes model.graph owners
+  let beforeOwners := changes.filterMap fun change =>
+    change.beforeEdits.getLast?.map (·.moduleName)
+  let afterOwners := changes.filterMap fun change =>
+    change.afterEdits.getLast?.map (·.moduleName)
+  invalidatedNodes model.graph (beforeOwners ++ afterOwners).eraseDups
 
 /-- Symbolic result together with C4 provenance and proof-reuse footprint. -/
 structure ExplainedReport where
