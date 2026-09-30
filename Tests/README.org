@@ -24,6 +24,8 @@ decision matrix.
 small-team and large-team source decisions, scoped approval revocation, device
 and Agent boundaries, incident recovery, schema validation, and admission
 snapshot mismatch.
+[[file:Data/StorageEffect.lean][StorageEffect.lean]] fixes the expected decisions
+for the versioned storage-effect fixture exported to physical storage consumers.
 [[file:Conformance/personnel-governance-receipts.jq][Personnel governance receipts]]
 assert the named decision matrix after official Cedar Rust replay.
 

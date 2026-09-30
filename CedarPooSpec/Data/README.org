@@ -31,6 +31,11 @@ the complete source list against a destination. The Host authenticates those
 labels and binds the artifact digest to the actual output; this module does
 not classify content or provide semantic declassification.
 
+[[file:StorageEffect.org][Storage Effect V1]] binds those labels to one physical
+storage operation, exact snapshot CID, destination, policy root and lineage
+revision. Its raw-path rule rejects restricted bytes even if a destination
+could accept a separately protected artifact.
+
 [[file:CumulativeDisclosure.lean][CumulativeDisclosure]] intersects Host-attested candidate sets across accepted
 releases and rejects a result below the configured minimum. It is a finite
 singling-out proxy and must be persisted with the budget and audit before

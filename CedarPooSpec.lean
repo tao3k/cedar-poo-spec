@@ -41,6 +41,7 @@ import CedarPooSpec.Data.Lineage
 import CedarPooSpec.Data.LineageUse
 import CedarPooSpec.Data.ArtifactAssessment
 import CedarPooSpec.Data.DerivedArtifact
+import CedarPooSpec.Data.StorageEffect
 import CedarPooSpec.Data.CumulativeDisclosure
 import CedarPooSpec.Data.Lakehouse.LocationBoundary
 import CedarPooSpec.Data.Lakehouse.LocationProfile

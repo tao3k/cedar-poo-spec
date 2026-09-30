@@ -71,8 +71,11 @@ check-personnel-governance:
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
     jq -e -f Tests/Conformance/personnel-governance-receipts.jq .lake/build/source-custody-validated-receipts.json > /dev/null
 
-check-tests: build-examples
+check-tests: build-examples check-storage-effect-v1
     lake build Tests
+
+check-storage-effect-v1:
+    lake env lean --run Examples/Data/StorageEffectFixture.lean | diff -u Tests/Conformance/storage-effect-v1.json -
 
 check-delta: check-authorization-delta check-payment-delta check-health-authorization-impact
 
