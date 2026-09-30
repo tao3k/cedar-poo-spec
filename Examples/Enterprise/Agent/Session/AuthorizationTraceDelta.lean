@@ -70,10 +70,33 @@ def run : IO Lean.Json := do
   match changedProposal with
   | .error .operationChanged => pure ()
   | _ => throw (IO.userError "state-dependent operation substitution was admitted")
+  let alphabet := [readSecret, sendExternal, sendExternal "off-task"]
+  let .ok bounded := compareBoundedTraces schema model "Base" "Integrated"
+      ({} : Session) alphabet 3 39 observe advance
+    | throw (IO.userError "bounded proposal comparison failed")
+  let boundedGains := bounded.filter fun (_, impact) => impact.gained
+  let boundedDirectLosses := bounded.filter fun (_, impact) =>
+    impact.steps.any fun step => step.directDifference && step.lost
+  let boundedDivergentLosses := bounded.filter fun (_, impact) =>
+    impact.steps.any fun step => step.divergentInputDifference && step.lost
+  let boundedByLength := [1, 2, 3].map fun length =>
+    (bounded.filter fun (proposals, _) => proposals.length == length).length
+  if bounded.length != 39 || boundedByLength != [3, 9, 27] ||
+      !boundedGains.isEmpty ||
+      boundedDirectLosses.isEmpty || boundedDivergentLosses.isEmpty then
+    throw (IO.userError "bounded scope lost a direct or divergent loss")
+  match compareBoundedTraces schema model "Base" "Integrated"
+      ({} : Session) alphabet 3 38 observe advance with
+  | .error .invalidBoundedScope => pure ()
+  | _ => throw (IO.userError "undersized bounded-scope cap was admitted")
   let .ok sensitiveCases := receiptCases "sensitive" sensitive
     | throw (IO.userError "cannot export sensitive Cedar replay")
   let .ok budgetCases := receiptCases "budget" budget
     | throw (IO.userError "cannot export budget Cedar replay")
+  let .ok boundedCaseLists := bounded.zipIdx.mapM fun ((_, impact), index) =>
+      receiptCases s!"bounded-{index}" impact
+    | throw (IO.userError "cannot export bounded Cedar replay")
+  let boundedCases := boundedCaseLists.flatten
   return Lean.Json.mkObj [
     ("sensitive_before", Lean.toJson (sensitive.steps.map TraceStep.beforeAllowed)),
     ("sensitive_after", Lean.toJson (sensitive.steps.map TraceStep.afterAllowed)),
@@ -92,7 +115,16 @@ def run : IO Lean.Json := do
         (fun change => change.afterOwner.map (·.lastEditedBy)))),
     ("different_later_context", Lean.toJson true),
     ("operation_substitution_rejected", Lean.toJson true),
-    ("manifest", Lean.Json.mkObj [("cases", Lean.toJson (sensitiveCases ++ budgetCases))])]
+    ("bounded_alphabet_size", Lean.toJson alphabet.length),
+    ("bounded_horizon", Lean.toJson (3 : Nat)),
+    ("bounded_sequence_count", Lean.toJson bounded.length),
+    ("bounded_by_length", Lean.toJson boundedByLength),
+    ("bounded_gains", Lean.toJson boundedGains.length),
+    ("bounded_direct_loss_sequences", Lean.toJson boundedDirectLosses.length),
+    ("bounded_divergent_loss_sequences", Lean.toJson boundedDivergentLosses.length),
+    ("bounded_cap_rejected", Lean.toJson true),
+    ("manifest", Lean.Json.mkObj [
+      ("cases", Lean.toJson (sensitiveCases ++ budgetCases ++ boundedCases))])]
 
 end CedarPooSpec.BoundedSessionTraceDelta
 

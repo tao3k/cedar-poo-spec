@@ -114,4 +114,47 @@ def compareTrace (schema : Schema) (model : Model)
     CedarPooSpec.AuthorizationDelta.Revision.proofFootprint revision,
     affectedRoots model changes⟩
 
+/-- All lists of one exact length over the supplied alphabet. Alphabet entries
+    are treated as distinct choices by position; callers should avoid duplicates. -/
+def proposalSequencesOfLength (alphabet : List Action) : Nat → List (List Action)
+  | 0 => [[]]
+  | length + 1 =>
+      (proposalSequencesOfLength alphabet length).flatMap fun proposalPrefix =>
+        alphabet.map fun action => proposalPrefix ++ [action]
+
+theorem proposalSequencesOfLength_count (alphabet : List Action) (length : Nat) :
+    (proposalSequencesOfLength alphabet length).length = alphabet.length ^ length := by
+  induction length with
+  | zero => simp [proposalSequencesOfLength]
+  | succ length ih =>
+      simp [proposalSequencesOfLength, List.map_const', List.sum_replicate_nat,
+        ih, Nat.pow_succ]
+
+/-- Every nonempty proposal list through the specified finite horizon. -/
+def proposalSequencesUpTo (alphabet : List Action) (horizon : Nat) :
+    List (List Action) :=
+  (List.range horizon).flatMap fun length =>
+    proposalSequencesOfLength alphabet (length + 1)
+
+/-- Replay every proposal list in a bounded alphabet/horizon. The explicit case
+    cap rejects unexpectedly large scopes before constructing the lists. This
+    is exhaustive only for the listed choices and the supplied Host model. -/
+def compareBoundedTraces (schema : Schema) (model : Model)
+    (beforeRoot afterRoot : String) (initial : State)
+    (alphabet : List Action) (horizon maxSequences : Nat)
+    (observe : State → Action → Cedar.Spec.Env)
+    (advance : State → Action → State) :
+    Except Error (List (List Action × TraceImpact State)) := do
+  if alphabet.isEmpty || horizon == 0 || maxSequences == 0 ||
+      horizon > maxSequences then
+    throw .invalidBoundedScope
+  let (_, count) := (List.range horizon).foldl (fun (power, total) _ =>
+    let next := power * alphabet.length
+    (next, total + next)) (1, 0)
+  if count > maxSequences then throw .invalidBoundedScope
+  (proposalSequencesUpTo alphabet horizon).mapM fun proposals => do
+    let impact ← compareTrace schema model beforeRoot afterRoot initial
+      proposals observe advance
+    return (proposals, impact)
+
 end CedarPooSpec.AuthorizationDelta

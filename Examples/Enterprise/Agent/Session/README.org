@@ -120,6 +120,21 @@ The API rejects a Host projection that silently substitutes a different
 operation at that point. Twelve step decisions are replayed by official
 Cedar Rust, and the report retains the C4 History owner and proof footprint.
 
+The bounded extension enumerates all nonempty lists of length at most three
+over the explicit choices =readSecret=, on-task =sendExternal=, and off-task
+=sendExternal=. It checks 39 proposal lists from a fresh session, including
+denied proposals that leave the ledger unchanged. None has an Allow gain
+from =Base= to =Integrated=. Thirty-three lists contain a direct loss at an
+identical Cedar input, and sixteen contain a loss after the two inputs
+diverge; those sets overlap. All 204 step decisions from the bounded lists,
+plus the twelve named-trace decisions, are replayed by official Cedar Rust.
+The API rejects a case cap below 39 before constructing the lists. This is
+exhaustive only for those three choices, that initial state, and that
+three-step horizon; it says nothing about other actions or longer runs.
+The generic generator has a Lean proof that a length-=n= enumeration contains
+exactly =alphabet.length ^ n= entries. The example also checks the three
+level counts =3, 9, 27=.
+
 This addresses a finite observation raised by [[https://arxiv.org/abs/2608.15888][Bounded Agents]]: independent
 request checks miss effects of earlier actions. The September 2026
 [[https://arxiv.org/abs/2609.15803][study of sequential agent authorization]] goes further and analyzes safety

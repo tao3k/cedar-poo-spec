@@ -296,6 +296,16 @@ It does not quantify over all Agent choices, authenticate the state transitions,
 establish the sequential safety condition studied in
 [[https://arxiv.org/abs/2609.15803][the 2026 delegated-authorization paper]].
 
+=compareBoundedTraces= enumerates every nonempty proposal list over an
+explicit alphabet through a finite horizon, rejecting a scope whose case
+count exceeds its supplied cap. The session example checks 39 lists over
+three choices through three steps, with 204 bounded step decisions replayed
+by Cedar Rust. Lean proves the generator's exact-length count is
+=alphabet.length ^ length=, and the example checks the level counts. The
+bounded result applies only to the declared alphabet, initial state,
+projection, transition, and horizon. It does not
+establish the paper's every-state sequential safety condition.
+
 [[file:../../CedarPooSpec/AuthorizationDeltaInteraction.lean][AuthorizationDeltaInteraction]] compares a base, two independent POO
 branches, and their combined root under one Cedar schema. If neither branch
 adds an Allow but the combined root does, it reports a joint-only gain and
@@ -383,7 +393,7 @@ evidence. They must remain separate in release decisions:
 | POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
-| Sequential Agent proposals | Two C4 roots replay one finite Host-supplied proposal list with separate evolving states | No quantifier over unseen proposals, unauthenticated state transitions, or concurrent effects. |
+| Sequential Agent proposals | Two C4 roots replay fixed traces or all lists over an explicit finite alphabet and horizon, with separate evolving states | No quantifier over actions outside the alphabet, longer runs, unauthenticated state transitions, or concurrent effects. |
 | C4 edit ownership and proof reuse | Compiled owner/edit trail and dependency footprint | Potential invalidation, not proof that one edit caused a witness. |
 | Schema evolution and unbounded operation history | No unified delta query | Revalidate and reproject across schemas; finite trace replay does not establish unbounded history safety. |
 

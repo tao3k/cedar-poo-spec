@@ -14,8 +14,16 @@
   and .sensitive_owner == "History"
   and .different_later_context == true
   and .operation_substitution_rejected == true
-  and (.manifest.cases | length) == 12
-  and (.manifest.cases | map(.expected)) ==
+  and .bounded_alphabet_size == 3
+  and .bounded_horizon == 3
+  and .bounded_sequence_count == 39
+  and .bounded_by_length == [3, 9, 27]
+  and .bounded_gains == 0
+  and .bounded_direct_loss_sequences == 33
+  and .bounded_divergent_loss_sequences == 16
+  and .bounded_cap_rejected == true
+  and (.manifest.cases | length) == 216
+  and (.manifest.cases[:12] | map(.expected)) ==
     ["allow", "allow", "allow", "deny",
      "allow", "allow", "allow", "allow",
      "allow", "allow", "deny", "deny"]

@@ -22,6 +22,7 @@ inductive Error where
   | solver (message : String)
   | invalidWitness
   | operationChanged
+  | invalidBoundedScope
   | beforeRequestInvalid
   | afterRequestInvalid
   | beforeEntitiesInvalid
