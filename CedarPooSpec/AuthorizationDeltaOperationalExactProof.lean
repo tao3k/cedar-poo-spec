@@ -5,6 +5,9 @@ import Cedar.Thm.SymCC.Authorizer
 import Cedar.Thm.SymCC.Enforcer
 import Cedar.Thm.SymCC.WellTyped
 import Cedar.Thm.SymCC.Term.Interpret.Factory
+import Cedar.Thm.SymCC.Env.Soundness
+import Cedar.Thm.SymCC.Env.ofEnv
+import Cedar.Thm.Validation.RequestEntityValidation
 
 /-!
 Proof obligations for the composed error-free authorization query. Keep the
@@ -362,5 +365,63 @@ theorem errorFreeAllow_preserved_by_typecheck
     errorFreeAllow policies env = errorFreeAllow typed env := by
   simp only [errorFreeAllow]
   rw [Cedar.Thm.wellTypedPolicies_preserves_isAuthorized hInstance hTyped]
+
+/-- Cedar's schema validator covers a concrete, strongly well-formed input
+    with at least one of the type environments queried by this analyzer. -/
+theorem validatedInputCoveredBySchema
+    (schema : Cedar.Validation.Schema) (env : Cedar.Spec.Env)
+    (hSchema : schema.validateWellFormed = .ok ())
+    (hRequest : Cedar.Validation.validateRequest schema env.request = .ok ())
+    (hEntities : Cedar.Validation.validateEntities schema env.entities = .ok ())
+    (hEnv : env.StronglyWellFormed) :
+    ∃ Γ ∈ schema.environments,
+      Cedar.Thm.InstanceOfWellFormedEnvironment env.request env.entities Γ ∧
+      env ∈ᵢ Cedar.SymCC.SymEnv.ofTypeEnv Γ := by
+  obtain ⟨Γ, hΓ, hInstance⟩ :=
+    Cedar.Thm.request_and_entities_validate_implies_instance_of_wf_schema
+      schema env.request env.entities hSchema hRequest hEntities
+  exact ⟨Γ, hΓ, hInstance, Cedar.Thm.ofEnv_soundness hEnv hInstance⟩
+
+/-- Per-environment mathematical UNSAT results lift to all concrete inputs
+    admitted by the schema validator. The solver run is still an external
+    premise: this theorem consumes proofs of UNSAT, not solver strings. -/
+theorem noErrorFreeAllowExpansionForValidatedSchema
+    (schema : Cedar.Validation.Schema) (before after : Policies)
+    (hSchema : schema.validateWellFormed = .ok ())
+    (hQueries : ∀ Γ ∈ schema.environments,
+      ∃ typedBefore typedAfter asserts,
+        Cedar.SymCC.wellTypedPolicies before Γ = .ok typedBefore ∧
+        Cedar.SymCC.wellTypedPolicies after Γ = .ok typedAfter ∧
+        verifyErrorFreeAllowExpansion typedBefore typedAfter
+          (Cedar.SymCC.SymEnv.ofTypeEnv Γ) = .ok asserts ∧
+        Cedar.SymCC.SymEnv.ofTypeEnv Γ ⊭ asserts)
+    (env : Cedar.Spec.Env)
+    (hRequest : Cedar.Validation.validateRequest schema env.request = .ok ())
+    (hEntities : Cedar.Validation.validateEntities schema env.entities = .ok ())
+    (hEnv : env.StronglyWellFormed)
+    (hBefore : env.StronglyWellFormedForPolicies before)
+    (hAfter : env.StronglyWellFormedForPolicies after)
+    (hAllowed : errorFreeAllow after env = true) :
+    errorFreeAllow before env = true := by
+  obtain ⟨Γ, hΓ, hInstance, hMember⟩ :=
+    validatedInputCoveredBySchema schema env hSchema hRequest hEntities hEnv
+  obtain ⟨typedBefore, typedAfter, asserts, hTypedBefore, hTypedAfter,
+    hQuery, hUnsat⟩ := hQueries Γ hΓ
+  have hSymbolicBefore := Cedar.Thm.ofEnv_swf_for_policies
+    hInstance.wf_env hTypedBefore
+  have hSymbolicAfter := Cedar.Thm.ofEnv_swf_for_policies
+    hInstance.wf_env hTypedAfter
+  have hConcreteBefore := Cedar.Thm.wellTypedPolicies_preserves_StronglyWellFormedForPolicies
+    hInstance hTypedBefore hBefore
+  have hConcreteAfter := Cedar.Thm.wellTypedPolicies_preserves_StronglyWellFormedForPolicies
+    hInstance hTypedAfter hAfter
+  have hTypedAllowed : errorFreeAllow typedAfter env = true := by
+    rw [← errorFreeAllow_preserved_by_typecheck hInstance hTypedAfter]
+    exact hAllowed
+  have hTypedBeforeAllowed := verifyErrorFreeAllowExpansion_is_sound
+    hSymbolicBefore hSymbolicAfter hQuery hUnsat env hMember
+    hConcreteBefore hConcreteAfter hTypedAllowed
+  rw [errorFreeAllow_preserved_by_typecheck hInstance hTypedBefore]
+  exact hTypedBeforeAllowed
 
 end CedarPooSpec.AuthorizationDelta

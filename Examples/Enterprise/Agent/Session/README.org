@@ -163,6 +163,12 @@ export. The transition cases use the actual =Integrated= Cedar decision.
 The executable =run= constructs a valid receipt chain for every operation
 list, and =runEqReplayFinal= proves its final ledger equals the existing
 =replay= implementation for the same operations.
+The =verifyClaims= function also accepts claimed Host receipts. It checks
+their serialized before ledger, Cedar request and decision, and committed
+after ledger. A successful result carries a =Reachable= proof, so the same
+external-send theorem applies to the checked chain. =verifyClaimsFor= proves
+that receipts emitted by =run= are accepted with the same final ledger; a
+regression rejects alterations to each checked field.
 The Host must authenticate the ledger and effect receipts and enforce the
 listed operation mapping; Lean cannot infer those properties from a prompt or
 tool output.

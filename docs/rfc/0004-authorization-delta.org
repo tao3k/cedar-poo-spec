@@ -136,6 +136,16 @@ An external solver's UNSAT answer remains solver evidence, not a kernel proof
 of that particular run. Coverage of schema environments and truth of Host
 facts remain separate obligations.
 
+The =validatedInputCoveredBySchema= theorem now connects Cedar's request
+and entity validators to at least one queried type environment for each
+strongly well-formed concrete input. =noErrorFreeAllowExpansionForValidatedSchema=
+then lifts mathematical UNSAT in every schema environment through typecheck
+preservation to the original policy sets. Its premises explicitly require
+validated inputs, strong well-formedness of the concrete policies, successful
+typechecking, and a proof of UNSAT for each generated query. The executable
+analyzer obtains solver answers, not those Lean proofs; deployment must also
+ensure that actual Host inputs pass the validators.
+
 The operational regression checks an error-only loss and a deny-only error.
 The former is =loss-only= for the exact query while ordinary Allow/Deny is
 =equivalent-in-schema=. The latter is =equivalent-in-schema= for the exact

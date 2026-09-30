@@ -71,6 +71,80 @@ theorem reachableRun (operations : List Operation) :
     Reachable (run {} operations) :=
   reachableRunFrom operations {} Reachable.initial
 
+/-- Fields supplied by the Host before their consistency is checked. Receipt
+    authenticity and serialization are obligations of the Host transport. -/
+structure ClaimedReceipt where
+  before : Session
+  after : Session
+  operation : Operation
+  observedRequest : Cedar.Spec.Request
+  allowed : Bool
+
+/-- Check a claimed receipt against the current committed ledger and Cedar. -/
+def verifyReceipt (before : Session) (claim : ClaimedReceipt) :
+    Option (Receipt before claim.after claim.operation) := do
+  if _hBefore : claim.before = before then pure () else none
+  if hRequest : claim.observedRequest = request before claim.operation.attempt then
+    if hDecision : claim.allowed = authorized "Integrated" before claim.operation.attempt then
+      if hEffect : claim.after = step before claim.operation then
+        some { observedRequest := claim.observedRequest
+               allowed := claim.allowed
+               requestExact := hRequest
+               decisionExact := hDecision
+               effectExact := by simpa [step, hDecision] using hEffect }
+      else none
+    else none
+  else none
+
+/-- Only a fully checked serialized chain yields a reachable final ledger. -/
+def verifyChain (before : Session) (reachable : Reachable before) :
+    List ClaimedReceipt → Option {after : Session // Reachable after}
+  | [] => some ⟨before, reachable⟩
+  | claim :: rest => do
+      let receipt ← verifyReceipt before claim
+      verifyChain claim.after (Reachable.next reachable receipt) rest
+
+def verifyClaims (claims : List ClaimedReceipt) :
+    Option {after : Session // Reachable after} :=
+  verifyChain {} Reachable.initial claims
+
+/-- The trusted runner can emit the same raw fields that the verifier checks. -/
+def claimFor (before : Session) (operation : Operation) : ClaimedReceipt :=
+  { before
+    after := step before operation
+    operation
+    observedRequest := request before operation.attempt
+    allowed := authorized "Integrated" before operation.attempt }
+
+def claimsFor (before : Session) : List Operation → List ClaimedReceipt
+  | [] => []
+  | operation :: rest =>
+      claimFor before operation :: claimsFor (step before operation) rest
+
+private theorem verifyClaimFor (before : Session) (operation : Operation) :
+    verifyReceipt before (claimFor before operation) =
+      some (stepReceipt before operation) := by
+  simp [verifyReceipt, claimFor, stepReceipt]
+
+/-- Checked raw receipts from the runner recover the same final ledger. -/
+theorem verifyChainClaimsFor (operations : List Operation) :
+    ∀ (before : Session) (reachable : Reachable before),
+      (verifyChain before reachable (claimsFor before operations)).map Subtype.val =
+        some (run before operations) := by
+  induction operations with
+  | nil =>
+      intro before reachable
+      rfl
+  | cons operation rest ih =>
+      intro before reachable
+      simp only [claimsFor, verifyChain, verifyClaimFor]
+      exact ih (step before operation) (Reachable.next reachable (stepReceipt before operation))
+
+theorem verifyClaimsFor (operations : List Operation) :
+    (verifyClaims (claimsFor {} operations)).map Subtype.val =
+      some (run {} operations) :=
+  verifyChainClaimsFor operations {} Reachable.initial
+
 private theorem replayFoldlState (root : String) (attempts : List Attempt) :
     ∀ (state : Session) (rows : List (Cedar.Spec.Request × Bool)),
       (attempts.foldl (fun (state, rows) attempt =>
@@ -139,6 +213,13 @@ theorem reachableEnclosed {state : Session} (h : Reachable state) :
       rw [receipt.effectExact, receipt.decisionExact]
       exact enclosedAfter _ _ ih
 
+/-- A verifier result carries a proof that the submitted receipt chain stayed
+    in the four-state enclosure. -/
+theorem verifiedClaimsEnclosed (claims : List ClaimedReceipt)
+    {result : {after : Session // Reachable after}}
+    (_accepted : verifyClaims claims = some result) : Enclosed result.val :=
+  reachableEnclosed result.property
+
 /-- A granted external send cannot follow a sensitive read or spend an
     exhausted export budget. This checks the actual Cedar decision. -/
 private theorem safeExternalFromEnclosed (state : Session)
@@ -175,6 +256,14 @@ theorem externalSendSafeAfterRun (operations : List Operation)
       (run {} operations).usedExports = 0 :=
   safeExternalFromEnclosed _ (reachableEnclosed (reachableRun operations)) allowed
 
+theorem externalSendSafeAfterVerifiedClaims (claims : List ClaimedReceipt)
+    {result : {after : Session // Reachable after}}
+    (accepted : verifyClaims claims = some result)
+    (allowed : authorized "Integrated" result.val
+      CedarPooSpec.BoundedSessionExample.sendExternal = true) :
+    result.val.sensitiveSeen = false ∧ result.val.usedExports = 0 :=
+  safeExternalFromEnclosed _ (verifiedClaimsEnclosed claims accepted) allowed
+
 theorem deniedReceiptPreservesLedger {before after : Session}
     {operation : Operation} (receipt : Receipt before after operation)
     (denied : receipt.allowed = false) : after = before := by
@@ -187,5 +276,17 @@ theorem offTaskExternalDenied {before after : Session}
   have enclosed := reachableEnclosed h
   rcases enclosed with hs | hs | hs | hs <;> subst before <;>
     rw [receipt.decisionExact] <;> native_decide
+
+/-- Changes to any checked field of a valid public-read receipt are rejected. -/
+theorem alteredClaimsRejected :
+    (verifyReceipt {} { (claimFor {} .readPublic) with
+      before := { sensitiveSeen := true } }).isNone = true ∧
+    (verifyReceipt {} { (claimFor {} .readPublic) with
+      observedRequest := request {} CedarPooSpec.BoundedSessionExample.sendExternal }).isNone = true ∧
+    (verifyReceipt {} { (claimFor {} .readPublic) with
+      allowed := false }).isNone = true ∧
+    (verifyReceipt {} { (claimFor {} .readPublic) with
+      after := { sensitiveSeen := true } }).isNone = true := by
+  native_decide
 
 end CedarPooSpec.BoundedSessionHostSafety
