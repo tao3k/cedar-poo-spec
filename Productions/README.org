@@ -16,8 +16,10 @@ versioned JSON matrices. Their checked copies under =Tests/Conformance/=
 are replayed by MRR Data Rust; they are test vectors, not credentials.
 [[file:Data/StorageProfileMatrix.lean][The storage profile matrix]] crosses
 source sensitivity, destination acceptance, tenant match and storage tier for
-both raw and protected decisions. Lean exports 16 composed cases that Rust
-replays from the same checked JSON.
+both raw and protected decisions. Its protected cases derive a child LeanPoo
+profile from a base configuration and override the storage effect. Lean exports
+16 composed cases that Rust replays from the same checked JSON. The protected
+fixture also exports intent, pre-root and post-root commit dispositions.
 
 A new production profile must state its input identity, source labels,
 destination, selected policy revision, expected decision and effect receipt.

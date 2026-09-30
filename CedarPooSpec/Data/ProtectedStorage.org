@@ -11,10 +11,19 @@ encryption or provider I/O.
 
 After encryption, =ProtectedPublicationV1= binds the intent to a distinct outer
 root CID and envelope version, and requires the actual key version to equal
-the authorized intent. =commitAdmitted= rechecks the
-claim and current policy, lineage, epoch and expiry. A restricted source may
-enter only a destination that explicitly accepts it; protection does not
-declassify that source.
+the authorized intent. =preRootAdmitted= rechecks the claim and current
+policy, lineage, epoch and expiry immediately before the outer-root PUT. A
+restricted source may enter only a destination that explicitly accepts it;
+protection does not declassify that source.
+
+=commitDisposition= then projects a separate Host ledger decision. A fresh
+commit requires a physical root acknowledgement for the exact inner and outer
+roots, positive outer bytes, bounded child count, and current authority. An
+authenticated existing receipt for the exact publication yields =replay= even
+if authority later expires; it creates no new effect and grants no read access.
+A conflicting receipt or missing acknowledgement yields =reject=. The Host
+owns atomic compare-and-set of the operation ledger, discoverability pointer,
+approval redemption, and audit.
 
 The Host must verify the actual encrypted envelope and complete inner and
 outer snapshot closures, bind the outer root to the exact authorized intent,
@@ -24,10 +33,16 @@ control concurrent state, or commit a durable effect. A failed publication may
 leave undiscoverable ciphertext that the Host later collects.
 
 [[file:../../Productions/Data/ProtectedStorageFixture.lean][The fixture]] exports
-fourteen intent cases and nine commit cases to
+fourteen intent, nine pre-root, and fourteen commit disposition cases to
 [[file:../../Tests/Conformance/protected-storage-v1.json][checked JSON]].
 [[file:../../Tests/Data/ProtectedStorage.lean][Lean tests]] fix two accepted
-intents and one accepted publication. Rust consumers replay the same fixture.
+intents, one accepted publication, and apply/replay/reject outcomes. Rust
+consumers replay the same fixture. [[file:ProtectionProfile.lean][ProtectionProfile]]
+uses LeanPoo object slots and inheritance to recompute an intent after a
+profile override; [[file:../../Tests/Data/ProtectionProfile.lean][tests]] retain
+the parent version and source custody. The
+[[file:../../docs/reflection/protected-storage-commit.org][iteration Reflection]]
+records the LeanPoo capability choice and its executable evidence.
 
 #+begin_src sh
 lake build Tests.Data.ProtectedStorage

@@ -1,5 +1,6 @@
 import Productions.Data.StorageEffectFixture
 import Productions.Data.ProtectedStorageFixture
+import CedarPooSpec.Data.ProtectionProfile
 import Lean
 
 /-!
@@ -34,9 +35,16 @@ def cases : List (String × StorageEffectV1 × CurrentStorageStateV1) := Id.run 
 def rawAllowed (effect : StorageEffectV1) (current : CurrentStorageStateV1) : Bool :=
   effect.rawAdmitted { effect, epoch := 4, expiresAt := 100, allowed := true } current
 
+def protectedDecision? (effect : StorageEffectV1)
+    (current : CurrentStorageStateV1) : Option Bool := do
+  let base ← (ProtectionProfile.define "matrix-base"
+    ProtectedStorageFixture.baseIntent).toOption
+  let variant ← (ProtectionProfile.withStorage base "matrix-case" effect).toOption
+  let intent ← ProtectionProfile.intent? variant
+  return intent.admitted { intent, epoch := 4, expiresAt := 100, allowed := true } current
+
 def protectedAllowed (effect : StorageEffectV1) (current : CurrentStorageStateV1) : Bool :=
-  let intent := { ProtectedStorageFixture.baseIntent with storage := effect }
-  intent.admitted { intent, epoch := 4, expiresAt := 100, allowed := true } current
+  (protectedDecision? effect current).getD false
 
 def fixture : Json :=
   obj [("schema", toJson "cedar-poo-storage-profiles-v1"),
@@ -49,6 +57,7 @@ def fixture : Json :=
           ("key_version", toJson ProtectedStorageFixture.baseIntent.keyVersion),
           ("residency", toJson ProtectedStorageFixture.baseIntent.residency)]),
         ("raw_allow", toJson (rawAllowed effect current)),
+        ("profile_composed", toJson ((protectedDecision? effect current).isSome)),
         ("protected_allow", toJson (protectedAllowed effect current))]))]
 
 end CedarPooSpec.Data.StorageProfileMatrix

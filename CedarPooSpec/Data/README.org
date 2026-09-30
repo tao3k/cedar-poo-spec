@@ -38,8 +38,12 @@ could accept a separately protected artifact.
 
 [[file:ProtectedStorage.org][Protected Storage V1]] admits a Host-selected
 protection intent before encryption and checks a distinct outer-root
-publication against current state before commit. The Host verifies encrypted
-bytes and atomically persists the effect and audit.
+publication against current state before the root write. Its commit disposition
+requires an exact physical acknowledgement for a fresh effect and recognizes
+an authenticated exact receipt for idempotent replay. The Host verifies
+encrypted bytes and atomically persists the effect and audit. A
+[[file:ProtectionProfile.lean][LeanPoo profile object]] composes and overrides
+intent configuration without changing the versioned wire contract.
 
 [[file:CumulativeDisclosure.lean][CumulativeDisclosure]] intersects Host-attested candidate sets across accepted
 releases and rejects a result below the configured minimum. It is a finite

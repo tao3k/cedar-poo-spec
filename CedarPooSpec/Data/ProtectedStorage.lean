@@ -69,15 +69,71 @@ def ProtectionIntentV1.admitted (intent : ProtectionIntentV1)
   ({ digest := intent.storage.snapshotCid, sources := intent.storage.sources } :
     DerivedArtifact).canFlowTo intent.storage.destination
 
-/-- Recheck current authority at the commit boundary. Outer identity is
-    distinct from the plaintext inner identity; the Host must verify that the
-    outer CID names authenticated ciphertext and a complete protected root. -/
-def ProtectedPublicationV1.commitAdmitted (publication : ProtectedPublicationV1)
+/-- Recheck current authority immediately before publishing the protected
+    manifest root. This is not the later Host ledger commit. -/
+def ProtectedPublicationV1.preRootAdmitted (publication : ProtectedPublicationV1)
     (claim : ProtectionClaimV1) (current : CurrentStorageStateV1) : Bool :=
   publication.intent.admitted claim current &&
   !publication.outerRootCid.isEmpty &&
   publication.outerRootCid != publication.intent.storage.snapshotCid &&
   publication.envelopeVersion == 1 &&
   publication.keyVersion == publication.intent.keyVersion
+
+/-- Projected acknowledgement of a successful physical root write. Only the
+    publishing library can issue a trustworthy acknowledgement; the pure SPEC
+    does not prove provider I/O. -/
+structure ProtectedPhysicalAckV1 where
+  innerRootCid : String
+  outerRootCid : String
+  childCount : Nat
+  totalOuterBytes : Nat
+  deriving DecidableEq
+
+/-- Host-owned ledger entry, stored atomically with approval redemption,
+    discoverability and audit. An existing entry is authenticated input. -/
+structure ProtectedCommitReceiptV1 where
+  publication : ProtectedPublicationV1
+  childCount : Nat
+  totalOuterBytes : Nat
+  deriving DecidableEq
+
+inductive ProtectedCommitDispositionV1 where
+  | apply
+  | replay
+  | reject
+  deriving DecidableEq, Repr
+
+private def staticPublicationValid (publication : ProtectedPublicationV1) : Bool :=
+  wellFormed publication.intent &&
+  !publication.outerRootCid.isEmpty &&
+  publication.outerRootCid != publication.intent.storage.snapshotCid &&
+  publication.envelopeVersion == 1 &&
+  publication.keyVersion == publication.intent.keyVersion
+
+/-- Decide whether a Host may atomically create a commit receipt, replay an
+    exact committed operation, or reject it. A replay creates no new effect and
+    grants no read authorization. An uncommitted request needs a physical root
+    acknowledgement and fresh authority. The Host owns the atomic ledger CAS. -/
+def ProtectedPublicationV1.commitDisposition (publication : ProtectedPublicationV1)
+    (claim : ProtectionClaimV1) (current : CurrentStorageStateV1)
+    (physical : Option ProtectedPhysicalAckV1)
+    (existing : Option ProtectedCommitReceiptV1) : ProtectedCommitDispositionV1 :=
+  match existing with
+  | some receipt =>
+    if staticPublicationValid publication &&
+       receipt.publication == publication &&
+       receipt.totalOuterBytes > 0 && receipt.childCount ≤ 4096 then
+      .replay
+    else .reject
+  | none =>
+    match physical with
+    | some ack =>
+      if publication.preRootAdmitted claim current &&
+         ack.innerRootCid == publication.intent.storage.snapshotCid &&
+         ack.outerRootCid == publication.outerRootCid &&
+         ack.totalOuterBytes > 0 && ack.childCount ≤ 4096 then
+        .apply
+      else .reject
+    | none => .reject
 
 end CedarPooSpec.Data
