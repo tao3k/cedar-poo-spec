@@ -1,4 +1,4 @@
-import CedarPooSpec.Data.ProtectedStorage
+import CedarPooSpec.Data.ProtectedRead
 import Productions.Data.StorageEffectFixture
 import Lean
 
@@ -44,6 +44,29 @@ private def dispositionJson : ProtectedCommitDispositionV1 → Json
   | .replay => toJson "replay"
   | .reject => toJson "reject"
 
+private def readerJson (reader : Destination) : Json :=
+  obj [("resource", CedarPooSpec.PolicyJson.entity reader.resource),
+    ("tenant", toJson reader.tenant),
+    ("accepted_owners", toJson
+      (reader.acceptedOwners.map CedarPooSpec.PolicyJson.entity)),
+    ("accepts_restricted", toJson reader.acceptsRestricted)]
+
+private def readJson (read : ProtectedReadIntentV1) : Json :=
+  obj [("version", toJson (1 : Nat)),
+    ("operation_id", toJson read.operationId),
+    ("subject", CedarPooSpec.PolicyJson.entity read.subject),
+    ("purpose", toJson read.purpose),
+    ("publication", publicationJson read.publication),
+    ("reader", readerJson read.reader),
+    ("policy_root", toJson read.policyRoot),
+    ("lineage_revision", toJson read.lineageRevision)]
+
+private def readClaimJson (claim : ProtectedReadClaimV1) : Json :=
+  obj [("intent", readJson claim.intent),
+    ("epoch", toJson claim.epoch),
+    ("expires_at", toJson claim.expiresAt),
+    ("allowed", toJson claim.allowed)]
+
 def baseIntent : ProtectionIntentV1 :=
   { storage := { baseEffect with
       sources := [{ baseSource with restricted := true }],
@@ -66,6 +89,17 @@ def baseAck : ProtectedPhysicalAckV1 :=
 
 def baseReceipt : ProtectedCommitReceiptV1 :=
   { publication := basePublication, childCount := 2, totalOuterBytes := 256 }
+
+private def readerSubject : Cedar.Spec.EntityUID :=
+  ⟨⟨"Service", []⟩, "reader"⟩
+
+def baseRead : ProtectedReadIntentV1 :=
+  { operationId := "read-001", subject := readerSubject, purpose := "analysis",
+    publication := basePublication, reader := baseIntent.storage.destination,
+    policyRoot := "policy-root-1", lineageRevision := "lineage-1" }
+
+def baseReadClaim : ProtectedReadClaimV1 :=
+  { intent := baseRead, epoch := 4, expiresAt := 100, allowed := true }
 
 def intentCases : List (String × ProtectionIntentV1 × ProtectionClaimV1 × CurrentStorageStateV1) :=
   [("restricted-accepted", baseIntent, baseClaim, baseCurrent),
@@ -148,6 +182,51 @@ def commitCases : List
       baseClaim, baseCurrent, none,
       some { baseReceipt with publication := { basePublication with envelopeVersion := 2 } })]
 
+def readCases : List
+    (String × ProtectedReadIntentV1 × ProtectedReadClaimV1 × CurrentStorageStateV1 ×
+     Option ProtectedCommitReceiptV1) :=
+  [("read-allowed", baseRead, baseReadClaim, baseCurrent, some baseReceipt),
+   ("fresh-read-after-write-expiry", baseRead,
+      { baseReadClaim with epoch := 5, expiresAt := 200 },
+      { baseCurrent with epoch := 5, now := 101 }, some baseReceipt),
+   ("missing-commit", baseRead, baseReadClaim, baseCurrent, none),
+   ("different-root-commit", baseRead, baseReadClaim, baseCurrent,
+      some { baseReceipt with publication := { basePublication with
+        outerRootCid := baseIntent.storage.snapshotCid } }),
+   ("invalid-commit", baseRead, baseReadClaim, baseCurrent,
+      some { baseReceipt with totalOuterBytes := 0 }),
+   ("stale-policy", baseRead, baseReadClaim,
+      { baseCurrent with policyRoot := "policy-root-2" }, some baseReceipt),
+   ("stale-lineage", baseRead, baseReadClaim,
+      { baseCurrent with lineageRevision := "lineage-2" }, some baseReceipt),
+   ("stale-epoch", baseRead, baseReadClaim,
+      { baseCurrent with epoch := 5 }, some baseReceipt),
+   ("expired", baseRead, baseReadClaim,
+      { baseCurrent with now := 100 }, some baseReceipt),
+   ("denied", baseRead, { baseReadClaim with allowed := false },
+      baseCurrent, some baseReceipt),
+   ("claim-other-operation", baseRead,
+      { baseReadClaim with intent := { baseRead with operationId := "read-002" } },
+      baseCurrent, some baseReceipt),
+   ("claim-other-subject", baseRead,
+      { baseReadClaim with intent := { baseRead with subject := baseIntent.storage.subject } },
+      baseCurrent, some baseReceipt),
+   ("reader-tenant", { baseRead with reader :=
+      { baseRead.reader with tenant := "tenant-b" } },
+      { baseReadClaim with intent := { baseRead with reader :=
+        { baseRead.reader with tenant := "tenant-b" } } },
+      baseCurrent, some baseReceipt),
+   ("reader-owner", { baseRead with reader :=
+      { baseRead.reader with acceptedOwners := [] } },
+      { baseReadClaim with intent := { baseRead with reader :=
+        { baseRead.reader with acceptedOwners := [] } } },
+      baseCurrent, some baseReceipt),
+   ("restricted-reader", { baseRead with reader :=
+      { baseRead.reader with acceptsRestricted := false } },
+      { baseReadClaim with intent := { baseRead with reader :=
+        { baseRead.reader with acceptsRestricted := false } } },
+      baseCurrent, some baseReceipt)]
+
 def fixture : Json :=
   obj [("schema", toJson "cedar-poo-protected-storage-v1"),
     ("intent_cases", toJson (intentCases.map fun (name, intent, claim, current) =>
@@ -165,6 +244,11 @@ def fixture : Json :=
         ("physical", physical.elim Json.null ackJson),
         ("existing", existing.elim Json.null receiptJson),
         ("disposition", dispositionJson
-          (publication.commitDisposition claim current physical existing))]))]
+          (publication.commitDisposition claim current physical existing))])),
+    ("read_cases", toJson (readCases.map fun (name, read, claim, current, committed) =>
+      obj [("name", toJson name), ("read", readJson read),
+        ("claim", readClaimJson claim), ("current", currentJson current),
+        ("committed", committed.elim Json.null receiptJson),
+        ("allow", toJson (read.admitted claim current committed))]))]
 
 end CedarPooSpec.Data.ProtectedStorageFixture

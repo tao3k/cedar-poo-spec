@@ -23,4 +23,10 @@ theorem exactCommitDispositions :
        .reject, .reject, .replay, .reject, .reject, .reject, .reject] := by
   native_decide
 
+theorem exactReadDecisions :
+    (readCases.map fun (_, read, claim, current, committed) =>
+      read.admitted claim current committed) =
+      [true, true] ++ List.replicate 13 false := by
+  native_decide
+
 end CedarPooSpec.Data.ProtectedStorageTests

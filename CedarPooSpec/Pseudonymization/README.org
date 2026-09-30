@@ -53,6 +53,13 @@ dataset-level =scope= declaration alone cannot establish token equality. The
 selection remains a pure input projection; the Host must authenticate the
 record and execute the cryptographic operation.
 
+[[file:TableBatch.org][TableBatch V1]] applies that selection to a strictly
+ordered, bounded set of rows. Its Production fixture and Rust replay fix
+the all-or-none row, context and byte decisions. The separate Rust Cloud
+planner rechecks each row against one verified Arrow child and a current
+claim before returning per-row plans; it does not form a Google multi-row
+wire request.
+
 [[file:Compatibility.lean][TokenRelation]] expresses that same recipe
 comparison directly in Cedar's expression AST. A consumer chooses the
 source and target expressions; Cedar evaluates the resulting policy. Tenant

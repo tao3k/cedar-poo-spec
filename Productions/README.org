@@ -20,6 +20,8 @@ both raw and protected decisions. Its protected cases derive a child LeanPoo
 profile from a base configuration and override the storage effect. Lean exports
 16 composed cases that Rust replays from the same checked JSON. The protected
 fixture also exports intent, pre-root and post-root commit dispositions.
+It now exports protected read cases, including a fresh read after the old
+write claim expires and denial without an exact committed record.
 
 A new production profile must state its input identity, source labels,
 destination, selected policy revision, expected decision and effect receipt.
@@ -32,4 +34,5 @@ just build-productions
 just check-storage-effect-v1
 just check-protected-storage-v1
 just check-storage-profiles-v1
+just check-google-table-batch-v1
 #+end_src

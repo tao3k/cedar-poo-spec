@@ -43,6 +43,8 @@ import CedarPooSpec.Data.ArtifactAssessment
 import CedarPooSpec.Data.DerivedArtifact
 import CedarPooSpec.Data.StorageEffect
 import CedarPooSpec.Data.ProtectedStorage
+import CedarPooSpec.Data.ProtectedRead
+import CedarPooSpec.Pseudonymization.TableBatch
 import CedarPooSpec.Data.ProtectionProfile
 import CedarPooSpec.Data.CumulativeDisclosure
 import CedarPooSpec.Data.Lakehouse.LocationBoundary

@@ -43,7 +43,7 @@ structure ProtectedPublicationV1 where
 private def uidNonempty (uid : EntityUID) : Bool :=
   !(toString uid.ty).isEmpty && !uid.eid.isEmpty
 
-private def wellFormed (intent : ProtectionIntentV1) : Bool :=
+private def intentWellFormed (intent : ProtectionIntentV1) : Bool :=
   let effect := intent.storage
   !effect.operationId.isEmpty && uidNonempty effect.subject &&
   !effect.purpose.isEmpty && !effect.snapshotCid.isEmpty &&
@@ -62,7 +62,7 @@ private def wellFormed (intent : ProtectionIntentV1) : Bool :=
     them. Protection does not declassify a source. -/
 def ProtectionIntentV1.admitted (intent : ProtectionIntentV1)
     (claim : ProtectionClaimV1) (current : CurrentStorageStateV1) : Bool :=
-  wellFormed intent && decide (intent = claim.intent) && claim.allowed &&
+  intentWellFormed intent && decide (intent = claim.intent) && claim.allowed &&
   current.policyRoot == intent.storage.policyRoot &&
   current.lineageRevision == intent.storage.lineageRevision &&
   current.epoch == claim.epoch && current.now < claim.expiresAt &&
@@ -103,8 +103,9 @@ inductive ProtectedCommitDispositionV1 where
   | reject
   deriving DecidableEq, Repr
 
-private def staticPublicationValid (publication : ProtectedPublicationV1) : Bool :=
-  wellFormed publication.intent &&
+/-- Static identity checks shared by commit and later protected reads. -/
+def ProtectedPublicationV1.wellFormed (publication : ProtectedPublicationV1) : Bool :=
+  intentWellFormed publication.intent &&
   !publication.outerRootCid.isEmpty &&
   publication.outerRootCid != publication.intent.storage.snapshotCid &&
   publication.envelopeVersion == 1 &&
@@ -120,7 +121,7 @@ def ProtectedPublicationV1.commitDisposition (publication : ProtectedPublication
     (existing : Option ProtectedCommitReceiptV1) : ProtectedCommitDispositionV1 :=
   match existing with
   | some receipt =>
-    if staticPublicationValid publication &&
+    if publication.wellFormed &&
        receipt.publication == publication &&
        receipt.totalOuterBytes > 0 && receipt.childCount ≤ 4096 then
       .replay

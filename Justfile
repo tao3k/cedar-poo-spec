@@ -74,7 +74,7 @@ check-personnel-governance:
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
     jq -e -f Tests/Conformance/personnel-governance-receipts.jq .lake/build/source-custody-validated-receipts.json > /dev/null
 
-check-tests: build-productions check-storage-effect-v1 check-protected-storage-v1 check-storage-profiles-v1
+check-tests: build-productions check-storage-effect-v1 check-protected-storage-v1 check-storage-profiles-v1 check-google-table-batch-v1
     lake build Tests
 
 check-storage-effect-v1:
@@ -85,6 +85,9 @@ check-protected-storage-v1:
 
 check-storage-profiles-v1:
     lake env lean --run Productions/Data/StorageProfileMatrixMain.lean | diff -u Tests/Conformance/storage-profiles-v1.json -
+
+check-google-table-batch-v1:
+    lake env lean --run Productions/Pseudonymization/TableBatchFixtureMain.lean | diff -u Tests/Conformance/google-table-batch-v1.json -
 
 check-delta: check-authorization-delta check-payment-delta check-health-authorization-impact
 

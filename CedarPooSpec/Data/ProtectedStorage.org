@@ -44,6 +44,15 @@ the parent version and source custody. The
 [[file:../../docs/reflection/protected-storage-commit.org][iteration Reflection]]
 records the LeanPoo capability choice and its executable evidence.
 
+[[file:ProtectedRead.lean][Protected Read V1]] requires an authenticated exact
+commit receipt plus a fresh, action-specific read claim for the reader,
+purpose, destination, policy root, lineage, epoch and expiry. It checks all
+retained source labels against that reader. A write approval or commit replay
+does not authorize a read; neither does possession of a key or a warm cache.
+The same checked JSON now includes fifteen read cases (two allow, thirteen
+deny). The [[file:../../docs/reflection/protected-storage-read.org][read
+Reflection]] records the LeanPoo assessment for this slice.
+
 #+begin_src sh
 lake build Tests.Data.ProtectedStorage
 just check-protected-storage-v1

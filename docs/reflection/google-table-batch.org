@@ -1,0 +1,27 @@
+#+TITLE: Reflection: Google Table Batch and LeanPoo
+#+OPTIONS: toc:nil
+
+* LeanPoo fit for this iteration
+
+The table recipe's token profile is already a declared, typed selection. A
+batch repeats one recipe over ordered rows and sums a bounded byte cost.
+These rows do not contribute independent method definitions, inherited
+slots or a reusable dependency graph. A LeanPoo object per row would add
+construction and lookup without strengthening ordinal, byte, or all-or-none
+selection checks. The existing LeanPoo protection profile is used in the
+storage branch; this independent Google branch uses a simple pure fold.
+
+* Executable evidence and boundary
+
+[[file:../../Tests/Pseudonymization/TableBatch.lean][The Lean test]] and
+[[file:../../Tests/Conformance/google-table-batch-v1.json][checked fixture]]
+fix two accepted and eleven denied cases. Rust replays the exact fixture,
+then its Cloud batch planner rechecks current per-row authorization and
+actual Arrow cells. Neither pure fold authenticates a provider response or
+joins separate policy claims into one grant.
+
+* Reconsideration trigger
+
+If table recipes acquire independently owned, inherited transformations,
+compose those owners through LeanPoo and retain the explicit ordered row and
+current claim checks at the physical boundary.

@@ -1,0 +1,30 @@
+#+TITLE: Reflection: Protected Read and LeanPoo
+#+OPTIONS: toc:nil
+
+* LeanPoo fit for this iteration
+
+Protected Read V1 reuses the publication whose profile was constructed with
+[[file:../../CedarPooSpec/Data/ProtectionProfile.lean][LeanPoo typed slots and
+inheritance]]. The new read rule itself evaluates one immutable request, one
+authenticated ledger row and current Host facts. It has no independent
+profile owners, ordered edits, repeated policy construction or reusable proof
+dependency graph. Adding C4, multimethod dispatch or a cache to this decision
+would add state without proving an extra property. In particular, a cached
+Allow must not survive a changed read epoch, purpose or reader.
+
+* Executable evidence and boundary
+
+[[file:../../Tests/Data/ProtectedStorage.lean][Lean tests]] fix two allowed and
+thirteen denied reads. The checked
+[[file:../../Tests/Conformance/protected-storage-v1.json][production fixture]]
+is replayed by Rust. The Rust restore wrapper rejects missing or stale read
+authority before either cache or provider GET, including on a warm cache hit.
+These checks compare Host projections; LeanPoo and the pure SPEC cannot
+authenticate a ledger row, key possession or the current policy decision.
+
+* Reconsideration trigger
+
+If independent reader or destination owners later contribute ordered policy
+construction, model those contributions with LeanPoo and test the resulting
+order and deny preservation. Keep current read authorization at the Host
+boundary and rerun it for every read.
