@@ -21,6 +21,11 @@ roots = ["Examples"]
 globs = ["Examples.+"]
 
 [[lean_lib]]
+name = "Productions"
+roots = ["Productions"]
+globs = ["Productions.+"]
+
+[[lean_lib]]
 name = "Tests"
 roots = ["Tests"]
 globs = ["Tests.+"]

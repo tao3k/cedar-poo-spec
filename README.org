@@ -96,8 +96,9 @@ ticket-redemption lifecycle with synthetic-data cryptographic checks.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.
-The [[file:Examples/README.org][examples index]] links each case and its
-source and modeling notes. [[file:Tests/README.org][Tests]] hold exact regressions
+The [[file:Examples/README.org][examples index]] links each scenario and its
+source and modeling notes. [[file:Productions/README.org][Productions]] owns composed Lean entrypoints
+and versioned exports consumed by Rust. [[file:Tests/README.org][Tests]] hold exact regressions
 and rejection paths; [[file:Benchmarks/README.org][Benchmarks]] hold timing
 probes. The [[file:Examples/Health/README.org][health example]] connects a clinical
 emergency-access diamond to published EHR studies and HL7 guidance. It also
@@ -149,8 +150,9 @@ and keep their assumptions explicit.
 | Identified source handoff | Strictly validate a selected manifest case with official Rust Cedar before rendering separate policy sources with stable IDs; runtime authority admission remains external. |
 | Reuse probe | Check dependency selection across 10,000 indexed evaluator obligations. |
 
-Industry-specific scenario facts and Host execution remain in Examples or
-downstream projects. Reusable healthcare and finance controls live under
+Industry-specific scenario facts remain in Examples. Composed export cases
+live in Productions; deployed Host execution remains in downstream projects.
+Reusable healthcare and finance controls live under
 =Vertical/=; platform-specific projections live under =Platform/=, and
 cross-industry data capabilities live under =Data/=, and cross-industry build
 and release controls live under =Cloud/=.

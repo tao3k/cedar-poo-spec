@@ -110,7 +110,7 @@ in Lean; the Rust gate then compares their computed responses with official
 Cedar and the regenerated policy text.
 The [[file:../../Examples/Language/README.org][concrete-language example]]
 checks five more requests across a POO overlay and two generated revisions.
-The [[file:../../Examples/Governance/TemplateSourceExport.lean][template source
+The [[file:../../Productions/Governance/TemplateSourceExport.lean][template source
 entrypoint]] emits the ticket-sharing contributor and viewer templates with
 their links beside the Lean-linked policy set. The Rust boundary checks their
 exact materialized policy bodies and IDs. The committed
@@ -196,7 +196,7 @@ just check-cedar-language
 #+end_src
 
 The =Examples= Lake library builds example modules incrementally. The
-[[file:../../Examples/Manifests.lean][manifest entrypoint]] evaluates all
+[[file:../../Productions/Manifests.lean][manifest entrypoint]] evaluates all
 source-owned exporters in one Lean process for the full gate; named manifest
 selection remains available through the corresponding =prepare-*= recipes.
 
@@ -211,7 +211,7 @@ A downstream project maintains its POO extension in Lean. Its Lake manifest
 depends on =CedarPooSpec=, which already depends on Lean-POO and Cedar Lean.
 An executable Lean entrypoint compiles a chosen root and writes the resulting
 JSON policy set to standard output. The
-[[file:../../Examples/Governance/ExpandedPolicy.lean][expanded policy entrypoint]]
+[[file:../../Productions/Governance/ExpandedPolicy.lean][expanded policy entrypoint]]
 is a working example.
 
 #+begin_src toml

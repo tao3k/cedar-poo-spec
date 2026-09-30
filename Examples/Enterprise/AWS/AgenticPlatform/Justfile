@@ -4,7 +4,7 @@ export CARGO_TARGET_DIR := "rust/target"
 expense:
     just build-examples
     lake build Tests.Enterprise.AWS.ExpenseDepartmentProfile
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean expense-governance-validated > .lake/build/expense-governance-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean expense-governance-validated > .lake/build/expense-governance-validated-manifest.json
     jq -e '.schema.AnyCompany.entityTypes.Expense.shape.attributes.department == {"type":"String"} and (.schema.AnyCompany.actions | length) == 2 and (.cases | length) == 27' .lake/build/expense-governance-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/expense-governance-validated-manifest.json > .lake/build/expense-governance-validated-receipts.json
     jq -e 'length == 27 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["approval-scope-cross-reject","duties-self-reject","governed-approved-reject","governed-cross-read","governed-cross-reject","governed-manager-cross-read","governed-nonmanager-reject","governed-self-reject","incident-frozen-reject","recovered-self-still-denied","role-nonmanager-reject","state-approved-reject","team-cross-read"]' .lake/build/expense-governance-validated-receipts.json > /dev/null

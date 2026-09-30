@@ -27,8 +27,11 @@ build:
 build-examples: build
     lake build Examples
 
+build-productions: build-examples
+    lake build Productions
+
 check-docs:
-    emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "CedarPooSpec" "\\.org$") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$") (directory-files-recursively "rust" "\\.org$") (directory-files-recursively "Tests" "\\.org$") (directory-files-recursively "Benchmarks" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
+    emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "CedarPooSpec" "\\.org$") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$") (directory-files-recursively "Productions" "\\.org$") (directory-files-recursively "rust" "\\.org$") (directory-files-recursively "Tests" "\\.org$") (directory-files-recursively "Benchmarks" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
 
 check: check-tests check-docs
     just check-conformance
@@ -66,16 +69,22 @@ check-lean: check-tests check-authorization-delta-proof check-policy-reuse
 check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-payment-delta check-health-authorization-impact check-personnel-governance
 
 check-personnel-governance:
-    lake build Examples.Manifests Tests.Enterprise.Personnel.SourceCustody
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean source-custody-validated > .lake/build/source-custody-validated-manifest.json
+    lake build Productions.Manifests Tests.Enterprise.Personnel.SourceCustody
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean source-custody-validated > .lake/build/source-custody-validated-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
     jq -e -f Tests/Conformance/personnel-governance-receipts.jq .lake/build/source-custody-validated-receipts.json > /dev/null
 
-check-tests: build-examples check-storage-effect-v1
+check-tests: build-productions check-storage-effect-v1 check-protected-storage-v1 check-storage-profiles-v1
     lake build Tests
 
 check-storage-effect-v1:
-    lake env lean --run Examples/Data/StorageEffectFixture.lean | diff -u Tests/Conformance/storage-effect-v1.json -
+    lake env lean --run Productions/Data/StorageEffectFixtureMain.lean | diff -u Tests/Conformance/storage-effect-v1.json -
+
+check-protected-storage-v1:
+    lake env lean --run Productions/Data/ProtectedStorageFixtureMain.lean | diff -u Tests/Conformance/protected-storage-v1.json -
+
+check-storage-profiles-v1:
+    lake env lean --run Productions/Data/StorageProfileMatrixMain.lean | diff -u Tests/Conformance/storage-profiles-v1.json -
 
 check-delta: check-authorization-delta check-payment-delta check-health-authorization-impact
 
@@ -84,18 +93,18 @@ check-replay-receipts: prepare-agent-payment-manifest
     jq -e --slurpfile manifest .lake/build/agent-payment-manifest.json -f Tests/Conformance/agent-payment-replay-receipts.jq .lake/build/agent-payment-replay-receipts.json > /dev/null
 
 prepare-agent-payment-validated-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-payment-validated > .lake/build/agent-payment-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean agent-payment-validated > .lake/build/agent-payment-validated-manifest.json
 
 check-schema-bound-receipts: prepare-agent-payment-validated-manifest
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/agent-payment-validated-manifest.json > .lake/build/agent-payment-validated-receipts.json
     jq -e --slurpfile manifest .lake/build/agent-payment-validated-manifest.json -f Tests/Conformance/agent-payment-validated-receipts.jq .lake/build/agent-payment-validated-receipts.json > /dev/null
 
 prepare-schema-bound-scenarios: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean scope-pattern-validated > .lake/build/scope-pattern-validated-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean namespaced-enum-validated > .lake/build/namespaced-enum-validated-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-data-flow-validated > .lake/build/agent-data-flow-validated-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean network-validated > .lake/build/network-validated-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean country-approval-validated > .lake/build/country-approval-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean scope-pattern-validated > .lake/build/scope-pattern-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean namespaced-enum-validated > .lake/build/namespaced-enum-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean agent-data-flow-validated > .lake/build/agent-data-flow-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean network-validated > .lake/build/network-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean country-approval-validated > .lake/build/country-approval-validated-manifest.json
 
 check-schema-bound-scenarios: prepare-schema-bound-scenarios
     jq -e -f Tests/Conformance/scope-pattern-validated-manifest.jq .lake/build/scope-pattern-validated-manifest.json > /dev/null
@@ -116,7 +125,7 @@ check-schema-bound-scenarios: prepare-schema-bound-scenarios
     jq -e -f Tests/Conformance/country-approval-validated-receipts.jq .lake/build/country-approval-validated-receipts.json > /dev/null
 
 prepare-attested-schema-evolution: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean attested-schema-evolution > .lake/build/attested-schema-evolution.json
 
 check-attested-schema-evolution: prepare-attested-schema-evolution
     jq -e -f Tests/Conformance/attested-schema-evolution.jq .lake/build/attested-schema-evolution.json > /dev/null
@@ -124,13 +133,13 @@ check-attested-schema-evolution: prepare-attested-schema-evolution
     jq -e -f Tests/Conformance/attested-schema-evolution-receipt.jq .lake/build/attested-schema-evolution-receipt.json > /dev/null
 
 check-authorization-delta: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
     jq -e -f Tests/Conformance/authorization-delta.jq .lake/build/authorization-delta.json > /dev/null
     jq '.manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-health-authorization-impact:
-    lake build Examples.Health.Pseudonymization.AuthorizationImpact
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Health/Pseudonymization/AuthorizationImpact.lean > .lake/build/health-authorization-impact.json
+    lake build Productions.Health.Pseudonymization.AuthorizationImpact
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Health/Pseudonymization/AuthorizationImpact.lean > .lake/build/health-authorization-impact.json
     jq -e -f Tests/Conformance/health-authorization-impact.jq .lake/build/health-authorization-impact.json > /dev/null
     jq '.suspended_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
     jq '.restored_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
@@ -141,7 +150,7 @@ check-authorization-delta-proof:
     lake build CedarPooSpec.AuthorizationDeltaProof
 
 check-payment-delta: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean > .lake/build/payment-delta.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Enterprise/Agent/Payment/AuthorizationDelta.lean > .lake/build/payment-delta.json
     jq -e -f Tests/Conformance/payment-delta.jq .lake/build/payment-delta.json > /dev/null
     jq '.manifest' .lake/build/payment-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
@@ -149,84 +158,84 @@ check-payment-delta: build-examples
 check-examples: example::core::evaluation example::core::composition example::core::authorization example::cloud::pipeline-google-threat example::cloud::pipeline-google-deployment example::cloud::data-protection-google-sdp example::scenarios::tenant-device example::health::clinical-break-glass example::health::wearable-triage example::health::prior-authorization-lean example::health::prior-authorization-internal-channels-lean example::governance::attested-data example::governance::trusted-network example::governance::country-approval example::governance::ticket-sharing example::language::scope-and-enum example::language::extension-coverage example::enterprise::agent::delegation example::enterprise::agent::chain example::enterprise::agent::payment example::enterprise::agent::data-flow example::enterprise::agent::session example::enterprise::agent::fanout example::enterprise::agent::cross-agent-egress-lean example::enterprise::agent::department-synthesis-lean example::enterprise::payment::release example::enterprise::procurement::purchase-approval example::enterprise::procurement::delegated-approval example::enterprise::vehicle::supplier-transition example::enterprise::vehicle::vla-command example::enterprise::vehicle::mission-successor example::enterprise::vehicle::mission-replay example::enterprise::vehicle::mission-maintenance example::enterprise::vehicle::tara
 
 prepare-cedar-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean ticket-sharing > .lake/build/ticket-sharing-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/ExpandedPolicy.lean > .lake/build/expanded-policy.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean ticket-sharing > .lake/build/ticket-sharing-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Governance/ExpandedPolicy.lean > .lake/build/expanded-policy.json
 
 prepare-source-case-manifests: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean clinical > .lake/build/clinical-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean attested > .lake/build/attested-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean clinical > .lake/build/clinical-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean attested > .lake/build/attested-manifest.json
 
 prepare-wearable-triage-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean wearable-triage > .lake/build/wearable-triage-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean wearable-triage > .lake/build/wearable-triage-manifest.json
 
 prepare-language-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean scope-pattern > .lake/build/scope-pattern-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean scope-pattern > .lake/build/scope-pattern-manifest.json
 
 prepare-network-manifest: prepare-source-case-manifests
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean network > .lake/build/network-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean network > .lake/build/network-manifest.json
 
 prepare-country-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean country-approval > .lake/build/country-approval-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean country-approval > .lake/build/country-approval-manifest.json
 
 prepare-purchase-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean purchase-approval > .lake/build/purchase-approval-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean purchase-approval > .lake/build/purchase-approval-manifest.json
 
 prepare-delegated-manifest: prepare-purchase-manifest
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean delegated-approval > .lake/build/delegated-approval-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Procurement/PublishedPolicy.lean > .lake/build/delegated-published.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean delegated-approval > .lake/build/delegated-approval-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Enterprise/Procurement/PublishedPolicy.lean > .lake/build/delegated-published.json
 
 prepare-delegated-matrix: prepare-delegated-manifest
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean delegated-matrix > .lake/build/delegated-matrix-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean delegated-matrix > .lake/build/delegated-matrix-manifest.json
 
 prepare-payment-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean payment-release > .lake/build/payment-release-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Payment/PublishedPayment.lean > .lake/build/payment-published.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean payment-release > .lake/build/payment-release-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Enterprise/Payment/PublishedPayment.lean > .lake/build/payment-published.json
 
 prepare-agent-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-delegation > .lake/build/agent-delegation-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean agent-delegation > .lake/build/agent-delegation-manifest.json
 
 prepare-agent-chain-manifest: prepare-agent-manifest
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-chain > .lake/build/agent-chain-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean agent-chain > .lake/build/agent-chain-manifest.json
 
 prepare-agent-payment-manifest: prepare-agent-manifest
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-payment > .lake/build/agent-payment-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean agent-payment > .lake/build/agent-payment-manifest.json
 
 prepare-agent-data-flow-manifest: prepare-agent-manifest
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean agent-data-flow > .lake/build/agent-data-flow-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean agent-data-flow > .lake/build/agent-data-flow-manifest.json
 
 prepare-bounded-session-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean bounded-session > .lake/build/bounded-session-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean bounded-session > .lake/build/bounded-session-manifest.json
 
 prepare-shared-budget-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean shared-budget > .lake/build/shared-budget-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean shared-budget > .lake/build/shared-budget-manifest.json
 
 prepare-supplier-transition-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean supplier-transition > .lake/build/supplier-transition-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean supplier-transition > .lake/build/supplier-transition-manifest.json
 
 prepare-vla-command-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean vla-command > .lake/build/vla-command-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean vla-command > .lake/build/vla-command-manifest.json
 
 prepare-mission-successor-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean mission-successor > .lake/build/mission-successor-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean mission-successor > .lake/build/mission-successor-manifest.json
 
 check-mission-comparison: prepare-mission-successor-manifest
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Vehicle/Mission/MaintenanceComparison.lean > .lake/build/mission-maintenance-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Enterprise/Vehicle/Mission/MaintenanceComparison.lean > .lake/build/mission-maintenance-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-direct Examples/Enterprise/Vehicle/Mission/DirectPolicies < .lake/build/mission-successor-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- check-direct Examples/Enterprise/Vehicle/Mission/DirectChangePolicies < .lake/build/mission-maintenance-manifest.json
 
 prepare-extension-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean extension-coverage > .lake/build/extension-coverage-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean extension-coverage > .lake/build/extension-coverage-manifest.json
 
 prepare-tenant-device-manifest: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean tenant-device > .lake/build/tenant-device-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean tenant-device > .lake/build/tenant-device-manifest.json
 
 prepare-all-manifests: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean all
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/ExpandedPolicy.lean > .lake/build/expanded-policy.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Procurement/PublishedPolicy.lean > .lake/build/delegated-published.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Payment/PublishedPayment.lean > .lake/build/payment-published.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/TemplateSourceExport.lean > .lake/build/template-source-bundle.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/TemplateSourceExport.lean mixed > .lake/build/mixed-template-source-bundle.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean all
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Governance/ExpandedPolicy.lean > .lake/build/expanded-policy.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Enterprise/Procurement/PublishedPolicy.lean > .lake/build/delegated-published.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Enterprise/Payment/PublishedPayment.lean > .lake/build/payment-published.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Governance/TemplateSourceExport.lean > .lake/build/template-source-bundle.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Governance/TemplateSourceExport.lean mixed > .lake/build/mixed-template-source-bundle.json
 
 export-cedar-language: prepare-all-manifests
     mkdir -p Examples/Governance/TemplateSources

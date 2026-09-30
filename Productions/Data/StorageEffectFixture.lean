@@ -20,7 +20,7 @@ private def destinationJson (destination : Destination) (tier : StorageTier) : J
     ("accepts_restricted", toJson destination.acceptsRestricted),
     ("tier", toJson (if tier == .remote then "remote" else "durable-local"))]
 
-private def effectJson (effect : StorageEffectV1) : Json :=
+def effectJson (effect : StorageEffectV1) : Json :=
   obj [("version", toJson (1 : Nat)), ("operation_id", toJson effect.operationId),
     ("subject", CedarPooSpec.PolicyJson.entity effect.subject),
     ("purpose", toJson effect.purpose), ("snapshot_cid", toJson effect.snapshotCid),
@@ -33,7 +33,7 @@ private def claimJson (claim : StorageClaimV1) : Json :=
   obj [("effect", effectJson claim.effect), ("epoch", toJson claim.epoch),
     ("expires_at", toJson claim.expiresAt), ("allowed", toJson claim.allowed)]
 
-private def currentJson (current : CurrentStorageStateV1) : Json :=
+def currentJson (current : CurrentStorageStateV1) : Json :=
   obj [("policy_root", toJson current.policyRoot),
     ("lineage_revision", toJson current.lineageRevision),
     ("epoch", toJson current.epoch), ("now", toJson current.now)]
@@ -44,14 +44,14 @@ private def owner : EntityUID := ⟨⟨"Team", []⟩, "analytics"⟩
 private def otherOwner : EntityUID := ⟨⟨"Team", []⟩, "other"⟩
 private def destinationId : EntityUID := ⟨⟨"Bucket", []⟩, "archive"⟩
 
-private def baseSource : SourceLabel :=
+def baseSource : SourceLabel :=
   { resource := sourceId, owner, tenant := "tenant-a", restricted := false }
 
-private def baseDestination : Destination :=
+def baseDestination : Destination :=
   { resource := destinationId, tenant := "tenant-a",
     acceptedOwners := [owner], acceptsRestricted := false }
 
-private def baseEffect : StorageEffectV1 :=
+def baseEffect : StorageEffectV1 :=
   { operationId := "op-001", subject := service, purpose := "archive",
     snapshotCid := "bafyreibsgh7hsmqsgp42ls3jdd26u4coplmgk5vl4l5fbff3vjziaoidai",
     sources := [baseSource], destination := baseDestination, tier := .remote,
@@ -60,7 +60,7 @@ private def baseEffect : StorageEffectV1 :=
 private def baseClaim : StorageClaimV1 :=
   { effect := baseEffect, epoch := 4, expiresAt := 100, allowed := true }
 
-private def baseCurrent : CurrentStorageStateV1 :=
+def baseCurrent : CurrentStorageStateV1 :=
   { policyRoot := "policy-root-1", lineageRevision := "lineage-1", epoch := 4, now := 99 }
 
 def cases : List (String × StorageEffectV1 × StorageClaimV1 × CurrentStorageStateV1) :=
@@ -114,6 +114,3 @@ def fixture : Json :=
         ("allow", toJson (effect.rawAdmitted claim current))]))]
 
 end CedarPooSpec.Data.StorageEffectFixture
-
-def main : IO Unit :=
-  IO.println CedarPooSpec.Data.StorageEffectFixture.fixture.compress

@@ -21,7 +21,7 @@ configured physical store, authenticate lineage revision and current policy,
 atomically redeem approval, and commit the effect and audit. This pure Lean
 check does none of those tasks and does not encrypt or transfer bytes.
 
-[[file:../../Examples/Data/StorageEffectFixture.lean][StorageEffectFixture]]
+[[file:../../Productions/Data/StorageEffectFixture.lean][StorageEffectFixture]]
 exports 17 named JSON cases into
 [[file:../../Tests/Conformance/storage-effect-v1.json][the checked fixture]].
 [[file:../../Tests/Data/StorageEffect.lean][The Lean test]] fixes their

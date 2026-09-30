@@ -1,4 +1,4 @@
-import Examples.Data.StorageEffectFixture
+import Productions.Data.StorageEffectFixture
 
 namespace CedarPooSpec.Data.StorageEffectTests
 

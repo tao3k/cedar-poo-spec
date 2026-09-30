@@ -186,7 +186,7 @@ claim of complete real-world authorization coverage.
 
 * Ticket-sharing template revision
 
-The [[file:AuthorizationDelta.lean][authorization-delta example]] compares two
+The [[file:../../Productions/Governance/AuthorizationDelta.lean][authorization-delta production case]] compares two
 revisions of this same C4 graph with upstream Cedar SymCC. The posture overlay
 has no new Allow within the schema; the later ticket grant yields a concrete
 new-Allow/old-Deny witness. The witness is replayed by official Rust Cedar.

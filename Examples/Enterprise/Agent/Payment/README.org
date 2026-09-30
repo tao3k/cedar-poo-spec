@@ -79,7 +79,7 @@ atomic. Idempotency, replay prevention, human approval workflow, and the
 integrity of those inputs remain host responsibilities. The case checks
 authorization behavior; it does not claim to implement a payment processor.
 
-The [[file:AuthorizationDelta.lean][authorization-delta example]] also checks
+The [[file:../../../../Productions/Enterprise/Agent/Payment/AuthorizationDelta.lean][authorization-delta production case]] also checks
 the entire schema-defined authorization space for two changes. Adding the
 emergency freeze produces no new Allow across four request types. Removing
 that freeze produces a concrete new-Allow/old-Deny witness, which the official

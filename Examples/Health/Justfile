@@ -2,33 +2,33 @@ set working-directory := '../..'
 
 package-metadata:
     lake build CedarPooSpec.Vertical.Health.Region.PackageMetadata
-    timeout --signal=TERM --kill-after=3s 30s lake env lean -M 1024 -T 2000000 --run Examples/Health/Interoperability/PackageCheck.lean
+    timeout --signal=TERM --kill-after=3s 30s lake env lean -M 1024 -T 2000000 --run Productions/Health/Interoperability/PackageCheck.lean
 
 multi-hospital-ai:
     lake build Examples.Health.MultiHospitalAI Tests.Health.MultiHospitalAI
 
 model-stewardship:
-    lake build Examples.Health.ModelStewardship.ReplayMain Tests.Health.ModelStewardship
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Health/ModelStewardship/ReplayMain.lean > .lake/build/model-stewardship-manifest.json
+    lake build Productions.Health.ModelStewardship.ReplayMain Tests.Health.ModelStewardship
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Health/ModelStewardship/ReplayMain.lean > .lake/build/model-stewardship-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- < .lake/build/model-stewardship-manifest.json
 
 australian-emr: package-metadata
-    lake build Examples.Health.Interoperability.Admission Examples.Health.Interoperability.ValidatedExport Examples.Manifests
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean australian-emr-upload > .lake/build/australian-emr-upload-manifest.json
+    lake build Examples.Health.Interoperability.Admission Examples.Health.Interoperability.ValidatedExport Productions.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean australian-emr-upload > .lake/build/australian-emr-upload-manifest.json
     jq -e '(.cases | length) == 17 and ([.cases[].name] | unique | length) == 17' .lake/build/australian-emr-upload-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/australian-emr-upload-manifest.json > .lake/build/australian-emr-upload-receipts.json
     jq -e 'length == 17 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["admission-au-other-publication", "admission-au-other-resource", "admission-au-substituted-selection", "agent-cannot-upload", "document-unattested", "ihi-unverified", "incident-freezes-upload", "other-patient", "patient-declined", "recovered-still-honors-instruction", "source-swapped", "wrong-document-class", "wrong-purpose"]' .lake/build/australian-emr-upload-receipts.json > /dev/null
 
 united-states-payer: package-metadata
-    lake build Examples.Health.Interoperability.UnitedStatesPayer Examples.Health.Interoperability.UnitedStatesAdmission Examples.Health.Interoperability.UnitedStatesExport Examples.Manifests
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean united-states-payer-exchange > .lake/build/united-states-payer-exchange-manifest.json
+    lake build Examples.Health.Interoperability.UnitedStatesPayer Examples.Health.Interoperability.UnitedStatesAdmission Examples.Health.Interoperability.UnitedStatesExport Productions.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean united-states-payer-exchange > .lake/build/united-states-payer-exchange-manifest.json
     jq -e '(.cases | length) == 22 and ([.cases[].name] | unique | length) == 22' .lake/build/united-states-payer-exchange-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/united-states-payer-exchange-manifest.json > .lake/build/united-states-payer-exchange-receipts.json
     jq -e 'length == 22 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["admission-us-other-patient", "admission-us-other-publication", "admission-us-other-resource", "admission-us-payer-no-opt-in", "incident-freezes-payer", "incident-freezes-provider", "payer-not-opted-in", "payer-swapped-source", "payer-wrong-patient", "provider-cannot-transfer", "provider-no-relationship", "provider-opted-out", "provider-unattested-content", "provider-unverified-identity", "provider-wrong-patient", "recovered-keeps-opt-in"]' .lake/build/united-states-payer-exchange-receipts.json > /dev/null
 
 my-health-record:
-    lake build Examples.Health.MyHealthRecord.ConsumerPlatform Examples.Health.MyHealthRecord.Lifecycle Examples.Health.MyHealthRecord.ValidatedExport Examples.Manifests
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean my-health-record-consumer-platform > .lake/build/my-health-record-consumer-platform-manifest.json
+    lake build Examples.Health.MyHealthRecord.ConsumerPlatform Examples.Health.MyHealthRecord.Lifecycle Examples.Health.MyHealthRecord.ValidatedExport Productions.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean my-health-record-consumer-platform > .lake/build/my-health-record-consumer-platform-manifest.json
     jq -e '(.cases | length) == 26 and ([.cases[].name] | unique | length) == 26' .lake/build/my-health-record-consumer-platform-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/my-health-record-consumer-platform-manifest.json > .lake/build/my-health-record-consumer-platform-receipts.json
     jq -e 'length == 26 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["fetch-expired-oauth", "fetch-expired-session", "fetch-other-document-class", "fetch-other-patient", "fetch-six-month-inactivity", "fetch-wrong-purpose", "incident-blocks-agent", "recovery-keeps-revocation", "release-broad-payload", "release-expired-delegation", "release-no-audit", "release-stale-summary", "release-unreviewed", "revoked-fetch", "revoked-release", "revoked-summary", "summarize-stale-source", "summarize-unapproved-model"]' .lake/build/my-health-record-consumer-platform-receipts.json > /dev/null
@@ -37,8 +37,8 @@ clinical-break-glass:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Health/ClinicalBreakGlass.lean
 
 agent-disclosure:
-    lake build Examples.Health.Pseudonymization.CrossStep Examples.Health.Pseudonymization.AgentDisclosureExport Examples.Manifests
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-agent-disclosure > .lake/build/pseudonymization-agent-disclosure-manifest.json
+    lake build Examples.Health.Pseudonymization.CrossStep Examples.Health.Pseudonymization.AgentDisclosureExport Productions.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean pseudonymization-agent-disclosure > .lake/build/pseudonymization-agent-disclosure-manifest.json
     jq -e '(.cases | length) == 14 and ([.cases[].name] | unique | length) == 14' .lake/build/pseudonymization-agent-disclosure-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/pseudonymization-agent-disclosure-manifest.json > .lake/build/pseudonymization-agent-disclosure-receipts.json
     jq -e 'length == 14 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["source-budget-exhausted", "source-cohort-second-after-first", "source-delegation-missing", "source-delegation-revoked", "source-dropped-label", "source-governed-external", "source-incident", "source-missing-owner", "source-substituted-output"]' .lake/build/pseudonymization-agent-disclosure-receipts.json > /dev/null
@@ -46,28 +46,28 @@ agent-disclosure:
     jq -e '.committed.epoch == 1 and .committed.remainingBudget == 1 and .committed.remainingCandidates == 4 and .committed.destination == "DisclosureSink::\"study-workspace\"" and .committed.purpose == "study-one" and .committed.policyRevision == 0 and .auditEntries == 1 and .secondAloneAllowed and .cumulativeSecondDenied and .concurrentSingleCommit and .revokedDenied and .auditFailureDenied and .wrongIssuerDenied and .candidateSubstitutionDenied' .lake/build/agent-disclosure-host-receipt.json > /dev/null
 
 pseudonymization-google-contract:
-    lake build Examples.Manifests
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-tabular > .lake/build/pseudonymization-tabular.json
+    lake build Productions.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean pseudonymization-tabular > .lake/build/pseudonymization-tabular.json
     cmp .lake/build/pseudonymization-tabular.json Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json
     cargo run --locked --quiet --features google-sdp --manifest-path rust/Cargo.toml --example pseudonymization_google_contract -- Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json Examples/Health/Pseudonymization/Fixtures/google-deidentify-response.json Examples/Health/Pseudonymization/Fixtures/google-reidentify-response.json > .lake/build/pseudonymization-google-contract-receipt.json
     jq -e -f Tests/Conformance/pseudonymization-google-contract-receipt.jq .lake/build/pseudonymization-google-contract-receipt.json > /dev/null
 
 pseudonymization-google-admission:
-    lake build Examples.Manifests
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-validated > .lake/build/pseudonymization-validated-manifest.json
+    lake build Productions.Manifests
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean pseudonymization-validated > .lake/build/pseudonymization-validated-manifest.json
     cargo run --locked --quiet --features google-sdp-host --manifest-path rust/Cargo.toml --example pseudonymization_google_admission -- .lake/build/pseudonymization-validated-manifest.json Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json Examples/Health/Pseudonymization/Fixtures/google-deidentify-response.json Examples/Health/Pseudonymization/Fixtures/google-reidentify-response.json > .lake/build/pseudonymization-google-admission-receipt.json
     jq -e -f Tests/Conformance/pseudonymization-google-admission-receipt.jq .lake/build/pseudonymization-google-admission-receipt.json > /dev/null
 
 pseudonymization: pseudonymization-google-contract pseudonymization-google-admission
     just build-examples
     timeout --signal=TERM --kill-after=3s 20s lake env lean -M 2048 -T 10000000 Examples/Health/Pseudonymization/Lifecycle.lean
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-tabular > .lake/build/pseudonymization-tabular.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean pseudonymization-tabular > .lake/build/pseudonymization-tabular.json
     cmp .lake/build/pseudonymization-tabular.json Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-validated > .lake/build/pseudonymization-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean pseudonymization-validated > .lake/build/pseudonymization-validated-manifest.json
     jq -e -f Tests/Conformance/pseudonymization-validated-manifest.jq .lake/build/pseudonymization-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/pseudonymization-validated-manifest.json > .lake/build/pseudonymization-validated-receipts.json
     jq -e -f Tests/Conformance/pseudonymization-validated-receipts.jq .lake/build/pseudonymization-validated-receipts.json > /dev/null
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean pseudonymization-deployable > .lake/build/pseudonymization-deployable.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean pseudonymization-deployable > .lake/build/pseudonymization-deployable.json
     jq -e -f Tests/Conformance/pseudonymization-deployable.jq .lake/build/pseudonymization-deployable.json > /dev/null
     cargo test --locked --features cedar-runtime,google-sdp --manifest-path rust/Cargo.toml --test pseudonymization_crypto
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml --example pseudonymization_local -- .lake/build/pseudonymization-validated-manifest.json Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json > .lake/build/pseudonymization-local-receipt.json
@@ -100,18 +100,18 @@ prior-authorization-internal-channels-lean:
 
 prior-authorization-internal-channels:
     just build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean prior-authorization-internal-channels > .lake/build/prior-authorization-internal-channels-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean prior-authorization-internal-channels > .lake/build/prior-authorization-internal-channels-manifest.json
     jq -e -f Tests/Conformance/prior-authorization-internal-channels-manifest.jq .lake/build/prior-authorization-internal-channels-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/prior-authorization-internal-channels-manifest.json > .lake/build/prior-authorization-internal-channels-receipts.json
     jq -e -f Tests/Conformance/prior-authorization-internal-channels-receipts.jq .lake/build/prior-authorization-internal-channels-receipts.json > /dev/null
 
 prior-authorization:
     just build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean prior-authorization-validated > .lake/build/prior-authorization-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean prior-authorization-validated > .lake/build/prior-authorization-validated-manifest.json
     jq -e -f Tests/Conformance/prior-authorization-validated-manifest.jq .lake/build/prior-authorization-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/prior-authorization-validated-manifest.json > .lake/build/prior-authorization-validated-receipts.json
     jq -e -f Tests/Conformance/prior-authorization-validated-receipts.jq .lake/build/prior-authorization-validated-receipts.json > /dev/null
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean prior-authorization-malformed > .lake/build/prior-authorization-malformed-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean prior-authorization-malformed > .lake/build/prior-authorization-malformed-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < .lake/build/prior-authorization-malformed-manifest.json > .lake/build/prior-authorization-malformed-receipts.json
     jq -e -f Tests/Conformance/prior-authorization-malformed-receipts.jq .lake/build/prior-authorization-malformed-receipts.json > /dev/null
     jq '[.cases[] | select(.revision == "Governed")][0].policies' .lake/build/prior-authorization-validated-manifest.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render > .lake/build/prior-authorization-governed.cedar

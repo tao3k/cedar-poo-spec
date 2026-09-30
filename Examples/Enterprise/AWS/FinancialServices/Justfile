@@ -4,7 +4,7 @@ export CARGO_TARGET_DIR := "rust/target"
 lakehouse:
     just build-examples
     lake build Tests.Enterprise.AWS.LakehouseLocationProfile
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean lakehouse-gateway-validated > .lake/build/lakehouse-gateway-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean lakehouse-gateway-validated > .lake/build/lakehouse-gateway-validated-manifest.json
     jq -e '.schema.AgentCore.entityTypes.OAuthUser.tags == {"type":"String"} and .schema.AgentCore.actions["lakehouse-mcp-target___query_claims"].appliesTo.context.attributes.input.attributes.geography == {"required":false,"type":"String"} and (.cases | length) == 16' .lake/build/lakehouse-gateway-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/lakehouse-gateway-validated-manifest.json > .lake/build/lakehouse-gateway-validated-receipts.json
     jq -e 'length == 16 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | {key:.replay.case_name,value:.replay.decision}] | from_entries) == {"policyholder-us-query":"allow","hardened-policyholder-us-query":"allow","policyholder-eu-query":"deny","hardened-policyholder-eu-query":"deny","policyholder-eu-summary":"deny","hardened-policyholder-eu-summary":"deny","adjuster-us-summary":"allow","hardened-adjuster-us-summary":"allow","adjuster-eu-details":"deny","hardened-adjuster-eu-details":"deny","restricted-tool":"deny","hardened-restricted-tool":"deny","sourcecombined-missing-geography":"allow","failclosed-missing-geography":"deny","sourcecombined-unknown-geography":"allow","failclosed-unknown-geography":"deny"}' .lake/build/lakehouse-gateway-validated-receipts.json > /dev/null
@@ -16,7 +16,7 @@ lakehouse:
 multi-account-banking:
     just build-examples
     lake build Tests.Enterprise.AWS.BankingToolProfile
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean multi-account-banking-validated > .lake/build/multi-account-banking-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean multi-account-banking-validated > .lake/build/multi-account-banking-validated-manifest.json
     jq -e '.schema.AgentCore.entityTypes.OAuthUser != null and (.schema.AgentCore.actions | length) == 18 and (.cases | length) == 41' .lake/build/multi-account-banking-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/multi-account-banking-validated-manifest.json > .lake/build/multi-account-banking-validated-receipts.json
     jq -e 'length == 41 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$")) and (.replay.case_name | test("^(source|owners|paused|resumed)-")) and .replay.decision == (if (.replay.case_name | endswith("delete-customer")) or .replay.case_name == "paused-transfer" then "deny" else "allow" end)) and ([.[] | select(.replay.case_name | test("^(source|owners)-"))] | group_by(.replay.case_name | sub("^(source|owners)-"; "")) | length == 18 and all(.[]; length == 2 and (map(.replay.case_name | split("-")[0]) | sort) == ["owners", "source"])) and ([.[] | select(.replay.case_name | test("^(paused|resumed)-"))] | map(.replay.case_name) | sort) == ["paused-balance","paused-delete-customer","paused-payments","paused-transfer","resumed-transfer"]' .lake/build/multi-account-banking-validated-receipts.json > /dev/null
@@ -35,7 +35,7 @@ claim-settlement:
 reconciliation:
     just build-examples
     lake build Examples.Enterprise.AWS.FinancialServices.Reconciliation.Workflow Tests.Enterprise.AWS.ReconciliationProfile
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean reconciliation-validated > .lake/build/reconciliation-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean reconciliation-validated > .lake/build/reconciliation-validated-manifest.json
     jq -e '.schema.AgentCore.entityTypes.IamEntity != null and (.schema.AgentCore.actions | length) == 10 and (.cases | length) == 32' .lake/build/reconciliation-validated-manifest.json > /dev/null
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/reconciliation-validated-manifest.json > .lake/build/reconciliation-validated-receipts.json
     jq -e 'length == 32 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["agent-status-denied","joint-graph-send","joint-worker-85","paused-graph-send","raised-threshold-denies","worker-below-threshold","worker-missing-confidence"]' .lake/build/reconciliation-validated-receipts.json > /dev/null

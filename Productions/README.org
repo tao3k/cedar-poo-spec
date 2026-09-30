@@ -1,0 +1,33 @@
+#+TITLE: Production Cases and Cross-language Exports
+#+OPTIONS: toc:nil
+
+=Productions/= owns composed, versioned cases that are executed by Lean or
+exported to Rust and other consumers. =Examples/= remains the source of
+illustrative policy scenarios and reusable example ingredients. A production
+case may import those ingredients, but the executable export entrypoint and
+its stable wire shape live here.
+
+The central [[file:Manifests.lean][manifest dispatcher]] selects composed
+scenario cases for the Cedar Rust replay runner. Dedicated entrypoints under
+=Cloud/=, =Enterprise/=, =Governance/= and =Health/= emit their own bounded
+receipts. [[file:Data/StorageEffectFixture.lean][Raw storage]] and
+[[file:Data/ProtectedStorageFixture.lean][protected storage]] publish
+versioned JSON matrices. Their checked copies under =Tests/Conformance/=
+are replayed by MRR Data Rust; they are test vectors, not credentials.
+[[file:Data/StorageProfileMatrix.lean][The storage profile matrix]] crosses
+source sensitivity, destination acceptance, tenant match and storage tier for
+both raw and protected decisions. Lean exports 16 composed cases that Rust
+replays from the same checked JSON.
+
+A new production profile must state its input identity, source labels,
+destination, selected policy revision, expected decision and effect receipt.
+The Host remains responsible for authenticating those inputs, enforcing the
+decision and persisting the effect. Lean evaluation and Rust replay are
+conformance evidence, not proof of deployed Host behavior.
+
+#+begin_src sh
+just build-productions
+just check-storage-effect-v1
+just check-protected-storage-v1
+just check-storage-profiles-v1
+#+end_src

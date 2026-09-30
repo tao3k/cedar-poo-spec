@@ -13,7 +13,7 @@ mission-replay:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Mission/TrajectoryReplay.lean
 
 mission-maintenance:
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/Mission/MaintenanceComparison.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Productions/Enterprise/Vehicle/Mission/MaintenanceComparison.lean
 
 tara:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Examples/Enterprise/Vehicle/TARA/TaraProjection.lean

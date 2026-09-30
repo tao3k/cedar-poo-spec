@@ -1,0 +1,35 @@
+#+TITLE: Protected Storage V1
+#+OPTIONS: toc:nil
+
+[[file:ProtectedStorage.lean][ProtectedStorage V1]] separates intent admission
+from publication commit. =ProtectionIntentV1= binds the inner snapshot CID,
+complete source labels, destination, subject, purpose, policy root, lineage,
+storage tier, protection profile, key reference, key version and residency.
+The key reference is an identity, never secret material. The Host authenticates the
+source catalog, destination configuration and current policy before any
+encryption or provider I/O.
+
+After encryption, =ProtectedPublicationV1= binds the intent to a distinct outer
+root CID and envelope version, and requires the actual key version to equal
+the authorized intent. =commitAdmitted= rechecks the
+claim and current policy, lineage, epoch and expiry. A restricted source may
+enter only a destination that explicitly accepts it; protection does not
+declassify that source.
+
+The Host must verify the actual encrypted envelope and complete inner and
+outer snapshot closures, bind the outer root to the exact authorized intent,
+redeem the operation ID once, and atomically persist its result and audit.
+These pure Lean checks cannot establish encryption, authenticate a claim,
+control concurrent state, or commit a durable effect. A failed publication may
+leave undiscoverable ciphertext that the Host later collects.
+
+[[file:../../Productions/Data/ProtectedStorageFixture.lean][The fixture]] exports
+fourteen intent cases and nine commit cases to
+[[file:../../Tests/Conformance/protected-storage-v1.json][checked JSON]].
+[[file:../../Tests/Data/ProtectedStorage.lean][Lean tests]] fix two accepted
+intents and one accepted publication. Rust consumers replay the same fixture.
+
+#+begin_src sh
+lake build Tests.Data.ProtectedStorage
+just check-protected-storage-v1
+#+end_src

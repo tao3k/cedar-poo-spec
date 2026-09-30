@@ -36,6 +36,11 @@ storage operation, exact snapshot CID, destination, policy root and lineage
 revision. Its raw-path rule rejects restricted bytes even if a destination
 could accept a separately protected artifact.
 
+[[file:ProtectedStorage.org][Protected Storage V1]] admits a Host-selected
+protection intent before encryption and checks a distinct outer-root
+publication against current state before commit. The Host verifies encrypted
+bytes and atomically persists the effect and audit.
+
 [[file:CumulativeDisclosure.lean][CumulativeDisclosure]] intersects Host-attested candidate sets across accepted
 releases and rejects a result below the configured minimum. It is a finite
 singling-out proxy and must be persisted with the budget and audit before

@@ -48,7 +48,7 @@ generated assertions are unsatisfiable. The current external solver does not
 produce such a Lean proof. The executable report and the theorem therefore
 remain distinct evidence types.
 
-The [[file:../../Examples/Governance/AuthorizationDelta.lean][ticket-sharing
+The [[file:../../Productions/Governance/AuthorizationDelta.lean][ticket-sharing
 case]] checks two revisions from the same POO graph. A device-posture overlay
 does not expand Allow within the schema. A later ticket grant produces a
 counterexample with =User::"alice"= reading =Ticket::"ticket-b"=: the old
@@ -56,7 +56,7 @@ revision denies and the new revision allows. The generated Rust manifest
 replays both responses, their reason IDs, and their error IDs through the
 official Cedar authorizer.
 
-The [[file:../../Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean][finance-agent payment case]] checks an emergency account freeze and its
+The [[file:../../Productions/Enterprise/Agent/Payment/AuthorizationDelta.lean][finance-agent payment case]] checks an emergency account freeze and its
 removal over four schema request types. The freeze has no new Allow; removing
 it produces a payment authorization witness that is also replayed in Rust.
 
@@ -72,7 +72,7 @@ the change without making that governance decision.
 contains requests denied before and allowed after; =losses= contains requests
 allowed before and denied after. Both directions validate the policies, check
 every schema environment, and replay each witness against the original Cedar
-policy sets. A provider-independent healthcare [[file:../../Examples/Health/Pseudonymization/AuthorizationImpact.lean][impact example]] checks that a POO
+policy sets. A provider-independent healthcare [[file:../../Productions/Health/Pseudonymization/AuthorizationImpact.lean][impact example]] checks that a POO
 incident overlay only removes access and that withdrawing the overlay only
 restores access.
 
