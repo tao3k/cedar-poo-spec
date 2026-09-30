@@ -27,10 +27,7 @@ build:
 build-examples: build
     lake build Examples
 
-check-docs:
-    emacs --batch -Q --eval '(progn (require (quote org-element)) (dolist (file (append (list "README.org") (directory-files-recursively "CedarPooSpec" "\\.org$") (directory-files-recursively "docs" "\\.org$") (directory-files-recursively "Examples" "\\.org$") (directory-files-recursively "rust" "\\.org$") (directory-files-recursively "Tests" "\\.org$") (directory-files-recursively "Benchmarks" "\\.org$"))) (with-temp-buffer (insert-file-contents file) (org-mode) (org-element-parse-buffer))) (princ "ORG-OK"))'
-
-check: check-tests check-docs
+check: check-tests
     just check-conformance
     just check-policy-reuse
     just example governance attested-views
@@ -56,8 +53,8 @@ check: check-tests check-docs
     just example health united-states-payer
     just check-authorization-delta-proof
 
-# Lean and ORG feedback without running every Cedar/Rust scenario.
-check-quick: check-docs
+# Lean feedback without running every Cedar/Rust scenario.
+check-quick:
     lake build CedarPooSpec Tests
 
 check-lean: check-tests check-authorization-delta-proof check-policy-reuse

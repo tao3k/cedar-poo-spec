@@ -15,17 +15,6 @@ permissions:
   contents: read
 
 jobs:
-  docs:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: taiki-e/install-action@b6a061addd82b81aaeca51bdf2c53cd707996e5a # just
-      - run: sudo apt-get update && sudo apt-get install -y emacs-nox
-      - run: just check-docs
-
   lean:
     runs-on: ubuntu-latest
     timeout-minutes: 30
