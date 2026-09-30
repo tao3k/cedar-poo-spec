@@ -17,12 +17,57 @@ structure TraceStep where
   afterEnv : Cedar.Spec.Env
   beforeResponse : Response
   afterResponse : Response
+  beforeOnAfterResponse : Response
+  afterOnBeforeResponse : Response
 
 def TraceStep.beforeAllowed (step : TraceStep) : Bool :=
   step.beforeResponse.decision == .allow
 
 def TraceStep.afterAllowed (step : TraceStep) : Bool :=
   step.afterResponse.decision == .allow
+
+def TraceStep.beforeOnAfterAllowed (step : TraceStep) : Bool :=
+  step.beforeOnAfterResponse.decision == .allow
+
+def TraceStep.afterOnBeforeAllowed (step : TraceStep) : Bool :=
+  step.afterOnBeforeResponse.decision == .allow
+
+/-- Compare policies while holding the before-side Cedar input fixed. -/
+def TraceStep.policyDifferenceAtBeforeInput (step : TraceStep) : Bool :=
+  step.beforeAllowed != step.afterOnBeforeAllowed
+
+/-- Compare policies while holding the after-side Cedar input fixed. -/
+def TraceStep.policyDifferenceAtAfterInput (step : TraceStep) : Bool :=
+  step.beforeOnAfterAllowed != step.afterAllowed
+
+/-- Compare inputs while holding the before policy fixed. -/
+def TraceStep.inputDifferenceUnderBeforePolicy (step : TraceStep) : Bool :=
+  step.beforeAllowed != step.beforeOnAfterAllowed
+
+/-- Compare inputs while holding the after policy fixed. -/
+def TraceStep.inputDifferenceUnderAfterPolicy (step : TraceStep) : Bool :=
+  step.afterOnBeforeAllowed != step.afterAllowed
+
+def TraceStep.decisionDifference (step : TraceStep) : Bool :=
+  step.beforeAllowed != step.afterAllowed
+
+/-- Across either path of the 2-by-2 table, two Boolean changes cancel.
+    This is an equality of observed Cedar decisions, not a causal account
+    of how the Host reached its two inputs. -/
+theorem TraceStep.differenceFactorization (step : TraceStep) :
+    step.decisionDifference =
+      (step.policyDifferenceAtBeforeInput !=
+        step.inputDifferenceUnderAfterPolicy) ∧
+    step.decisionDifference =
+      (step.inputDifferenceUnderBeforePolicy !=
+        step.policyDifferenceAtAfterInput) := by
+  unfold TraceStep.decisionDifference TraceStep.policyDifferenceAtBeforeInput
+    TraceStep.policyDifferenceAtAfterInput
+    TraceStep.inputDifferenceUnderBeforePolicy
+    TraceStep.inputDifferenceUnderAfterPolicy
+  cases step.beforeAllowed <;> cases step.afterAllowed <;>
+    cases step.beforeOnAfterAllowed <;>
+    cases step.afterOnBeforeAllowed <;> decide
 
 /-- Exact Cedar input equality, including the request context and entities. -/
 def TraceStep.sameInput (step : TraceStep) : Bool :=
@@ -63,8 +108,9 @@ def TraceImpact.lost (impact : TraceImpact State) : Bool :=
 /-- Replay one fixed proposal list under two POO roots. =observe= and =advance=
     are supplied by the Host model. Both sides use the same functions, but
     their states may diverge after an authorization difference. Every observed
-    request and entity store is schema validated; an erroring Cedar response
-    fails the comparison instead of being treated as an executable Allow. -/
+    request and entity store is schema validated. Both policies are evaluated
+    at both observed inputs; any erroring response fails the comparison
+    instead of being treated as an executable Allow. -/
 def compareTrace (schema : Schema) (model : Model)
     (beforeRoot afterRoot : String) (initial : State) (proposals : List Action)
     (observe : State → Action → Cedar.Spec.Env)
@@ -99,11 +145,18 @@ def compareTrace (schema : Schema) (model : Model)
       Cedar.Spec.isAuthorized before.request before.entities revision.beforePolicies
     let afterResponse :=
       Cedar.Spec.isAuthorized after.request after.entities revision.afterPolicies
+    let beforeOnAfterResponse :=
+      Cedar.Spec.isAuthorized after.request after.entities revision.beforePolicies
+    let afterOnBeforeResponse :=
+      Cedar.Spec.isAuthorized before.request before.entities revision.afterPolicies
     if !beforeResponse.erroringPolicies.isEmpty ||
-        !afterResponse.erroringPolicies.isEmpty then
+        !afterResponse.erroringPolicies.isEmpty ||
+        !beforeOnAfterResponse.erroringPolicies.isEmpty ||
+        !afterOnBeforeResponse.erroringPolicies.isEmpty then
       throw .policyEvaluationError
     reversedSteps := ⟨before, after,
-                       beforeResponse, afterResponse⟩ :: reversedSteps
+                       beforeResponse, afterResponse,
+                       beforeOnAfterResponse, afterOnBeforeResponse⟩ :: reversedSteps
     if beforeResponse.decision == .allow then
       beforeState := advance beforeState proposal
     if afterResponse.decision == .allow then

@@ -32,6 +32,19 @@ private def receiptCases (name : String) (impact : TraceImpact Session) :
       model "Integrated" step.afterEnv.request step.afterEnv.entities
   return before ++ after
 
+private def crossReceiptCases (name : String) (impact : TraceImpact Session) :
+    Except String (List Lean.Json) := do
+  let indexed := impact.steps.zipIdx
+  let beforeOnAfter ← indexed.mapM fun (step, index) =>
+    CedarPooSpec.PolicyJson.authorizationCase
+      s!"{name}-before-on-after-{index}" "Base"
+      model "Base" step.afterEnv.request step.afterEnv.entities
+  let afterOnBefore ← indexed.mapM fun (step, index) =>
+    CedarPooSpec.PolicyJson.authorizationCase
+      s!"{name}-after-on-before-{index}" "Integrated"
+      model "Integrated" step.beforeEnv.request step.beforeEnv.entities
+  return beforeOnAfter ++ afterOnBefore
+
 def run : IO Lean.Json := do
   let .ok sensitive := compare [readSecret, sendExternal]
     | throw (IO.userError "sensitive-read trace comparison failed")
@@ -60,8 +73,24 @@ def run : IO Lean.Json := do
     throw (IO.userError "budget trace did not preserve separate Host states")
   let some last := budget.steps.getLast?
     | throw (IO.userError "budget trace has no final proposal")
-  if last.beforeEnv.request.context == last.afterEnv.request.context then
-    throw (IO.userError "later requests did not reflect divergent ledgers")
+  if last.beforeEnv.request.context == last.afterEnv.request.context ||
+      !last.policyDifferenceAtBeforeInput ||
+      !last.policyDifferenceAtAfterInput ||
+      last.inputDifferenceUnderBeforePolicy ||
+      last.inputDifferenceUnderAfterPolicy then
+    throw (IO.userError "budget cross-check changed the observed policy effect")
+  let .ok masked := compare [sendExternal "off-task", sendExternal]
+    | throw (IO.userError "masked-policy trace comparison failed")
+  let some maskedLast := masked.steps.getLast?
+    | throw (IO.userError "masked-policy trace has no final proposal")
+  if masked.steps.map TraceStep.beforeAllowed != [true, true] ||
+      masked.steps.map TraceStep.afterAllowed != [false, true] ||
+      maskedLast.sameInput || maskedLast.gained || maskedLast.lost ||
+      !maskedLast.policyDifferenceAtBeforeInput ||
+      maskedLast.policyDifferenceAtAfterInput ||
+      maskedLast.inputDifferenceUnderBeforePolicy ||
+      !maskedLast.inputDifferenceUnderAfterPolicy then
+    throw (IO.userError "Host ledger did not mask the later policy difference")
   let changedProposal := compareTrace schema model "Base" "Integrated"
       ({} : Session) [readPublic, sendExternal, sendExternal, sendExternal]
       (fun state attempt =>
@@ -81,6 +110,10 @@ def run : IO Lean.Json := do
     impact.steps.any fun step => step.divergentInputDifference && step.lost
   let boundedByLength := [1, 2, 3].map fun length =>
     (bounded.filter fun (proposals, _) => proposals.length == length).length
+  let boundedInputEffectUnderBefore := bounded.filter fun (_, impact) =>
+    impact.steps.any TraceStep.inputDifferenceUnderBeforePolicy
+  let boundedInputEffectUnderAfter := bounded.filter fun (_, impact) =>
+    impact.steps.any TraceStep.inputDifferenceUnderAfterPolicy
   if bounded.length != 39 || boundedByLength != [3, 9, 27] ||
       !boundedGains.isEmpty ||
       boundedDirectLosses.isEmpty || boundedDivergentLosses.isEmpty then
@@ -93,15 +126,29 @@ def run : IO Lean.Json := do
     | throw (IO.userError "cannot export sensitive Cedar replay")
   let .ok budgetCases := receiptCases "budget" budget
     | throw (IO.userError "cannot export budget Cedar replay")
+  let .ok maskedCases := receiptCases "masked" masked
+    | throw (IO.userError "cannot export masked Cedar replay")
   let .ok boundedCaseLists := bounded.zipIdx.mapM fun ((_, impact), index) =>
       receiptCases s!"bounded-{index}" impact
     | throw (IO.userError "cannot export bounded Cedar replay")
   let boundedCases := boundedCaseLists.flatten
+  let .ok sensitiveCrossCases := crossReceiptCases "sensitive" sensitive
+    | throw (IO.userError "cannot export sensitive cross replay")
+  let .ok budgetCrossCases := crossReceiptCases "budget" budget
+    | throw (IO.userError "cannot export budget cross replay")
+  let .ok maskedCrossCases := crossReceiptCases "masked" masked
+    | throw (IO.userError "cannot export masked cross replay")
+  let .ok boundedCrossCaseLists := bounded.zipIdx.mapM fun ((_, impact), index) =>
+      crossReceiptCases s!"bounded-{index}" impact
+    | throw (IO.userError "cannot export bounded cross replay")
+  let boundedCrossCases := boundedCrossCaseLists.flatten
   return Lean.Json.mkObj [
     ("sensitive_before", Lean.toJson (sensitive.steps.map TraceStep.beforeAllowed)),
     ("sensitive_after", Lean.toJson (sensitive.steps.map TraceStep.afterAllowed)),
     ("budget_before", Lean.toJson (budget.steps.map TraceStep.beforeAllowed)),
     ("budget_after", Lean.toJson (budget.steps.map TraceStep.afterAllowed)),
+    ("masked_before", Lean.toJson (masked.steps.map TraceStep.beforeAllowed)),
+    ("masked_after", Lean.toJson (masked.steps.map TraceStep.afterAllowed)),
     ("sensitive_same_input", Lean.toJson (sensitive.steps.map TraceStep.sameInput)),
     ("sensitive_direct_difference", Lean.toJson
       (sensitive.steps.map TraceStep.directDifference)),
@@ -122,9 +169,19 @@ def run : IO Lean.Json := do
     ("bounded_gains", Lean.toJson boundedGains.length),
     ("bounded_direct_loss_sequences", Lean.toJson boundedDirectLosses.length),
     ("bounded_divergent_loss_sequences", Lean.toJson boundedDivergentLosses.length),
+    ("bounded_input_effect_under_before_sequences",
+      Lean.toJson boundedInputEffectUnderBefore.length),
+    ("bounded_input_effect_under_after_sequences",
+      Lean.toJson boundedInputEffectUnderAfter.length),
+    ("budget_final_policy_diff_at_both_inputs", Lean.toJson true),
+    ("budget_final_no_input_decision_diff", Lean.toJson true),
+    ("masked_final_policy_diff_at_before_input", Lean.toJson true),
+    ("masked_final_input_effect_under_after_policy", Lean.toJson true),
     ("bounded_cap_rejected", Lean.toJson true),
     ("manifest", Lean.Json.mkObj [
-      ("cases", Lean.toJson (sensitiveCases ++ budgetCases ++ boundedCases))])]
+      ("cases", Lean.toJson (sensitiveCases ++ budgetCases ++ maskedCases ++
+        boundedCases ++ sensitiveCrossCases ++ budgetCrossCases ++
+        maskedCrossCases ++ boundedCrossCases))])]
 
 end CedarPooSpec.BoundedSessionTraceDelta
 

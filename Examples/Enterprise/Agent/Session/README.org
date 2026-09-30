@@ -116,9 +116,22 @@ send, the inputs differ, so its changed decision cannot be assigned solely
 to the policy revision. The equality check includes the full entity store,
 not only the request context. The sensitive-read veto is also a direct
 difference at an identical Cedar input.
+The trace additionally evaluates both policies on *both* observed inputs.
+At the final budget proposal, =Base= allows and =Integrated= denies at
+either input: the changed ledger does not change either policy's decision
+there. A second two-step trace first proposes an off-task external send.
+=Base= accepts it and spends one export; =Integrated= denies it and spends
+none. Both allow the following on-task send, masking a policy difference
+that appears when both policies are evaluated on the old ledger's input.
+Under =Integrated=, moving to its own unspent-ledger input changes Deny to
+Allow. These cross-evaluations compare concrete Cedar snapshots; they do
+not simulate the alternative Host trajectory. A Lean theorem expresses the
+actual decision difference as the Boolean exclusive-or of the policy change
+at the old input and the input change under the new policy. In this masked
+case both terms are true, so the observed decisions agree.
 The API rejects a Host projection that silently substitutes a different
-operation at that point. Twelve step decisions are replayed by official
-Cedar Rust, and the report retains the C4 History owner and proof footprint.
+operation at that point. The report retains the C4 History owner and proof
+footprint.
 
 The bounded extension enumerates all nonempty lists of length at most three
 over the explicit choices =readSecret=, on-task =sendExternal=, and off-task
@@ -126,8 +139,11 @@ over the explicit choices =readSecret=, on-task =sendExternal=, and off-task
 denied proposals that leave the ledger unchanged. None has an Allow gain
 from =Base= to =Integrated=. Thirty-three lists contain a direct loss at an
 identical Cedar input, and sixteen contain a loss after the two inputs
-diverge; those sets overlap. All 204 step decisions from the bounded lists,
-plus the twelve named-trace decisions, are replayed by official Cedar Rust.
+diverge; those sets overlap. Five lists contain an input-driven decision
+change under =Integrated=; none do under =Base=. The 102 bounded steps and
+eight named-trace steps each produce four Cedar decisions: both policy roots
+at both observed inputs. All 440 decisions are replayed by official Cedar
+Rust.
 The API rejects a case cap below 39 before constructing the lists. This is
 exhaustive only for those three choices, that initial state, and that
 three-step horizon; it says nothing about other actions or longer runs.

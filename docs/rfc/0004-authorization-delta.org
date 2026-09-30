@@ -287,10 +287,21 @@ step, and a substituted principal/action/resource is rejected. The report
 retains before/after decisions, final states, changed POO policy owners, and
 the proof footprint. The [[file:../../Examples/Enterprise/Agent/Session/README.org][bounded-agent session]] shows that the same later
 proposal can have a different context after earlier decisions diverge;
-twelve step decisions are replayed by official Cedar Rust. The trace marks
+the step decisions are replayed by official Cedar Rust. The trace marks
 decision differences at identical full Cedar inputs separately from those
 at divergent inputs. An identical-input difference isolates a policy effect;
 a divergent-input difference may reflect policy, prior Host history, or both.
+For each step the API also evaluates both policy roots on both observed
+inputs. This 2-by-2 table identifies decision changes when one concrete
+input or one concrete policy root is held fixed. It does not identify a
+counterfactual Host trajectory or prove that either state would be reached
+under an alternate admission history. An error in any of the four Cedar
+responses rejects the table. Lean proves that the observed Boolean decision
+difference is the exclusive-or of the policy and input differences along
+either path through the table. In the budget trace the policy
+difference persists at both inputs; in the off-task-then-on-task trace, the
+later decision is equal because Integrated's earlier denial left its export
+ledger unspent.
 This is a finite trace over the supplied proposals and transition function.
 It does not quantify over all Agent choices, authenticate the state transitions, or
 establish the sequential safety condition studied in
@@ -300,7 +311,9 @@ establish the sequential safety condition studied in
 explicit alphabet through a finite horizon, rejecting a scope whose case
 count exceeds its supplied cap. The session example checks 39 lists over
 three choices through three steps, with 204 bounded step decisions replayed
-by Cedar Rust. Lean proves the generator's exact-length count is
+under the two actual roots and another 204 cross-input decisions replayed
+by Cedar Rust. Including the three named traces, the replay covers 440
+decisions. Lean proves the generator's exact-length count is
 =alphabet.length ^ length=, and the example checks the level counts. The
 bounded result applies only to the declared alphabet, initial state,
 projection, transition, and horizon. It does not
@@ -393,7 +406,7 @@ evidence. They must remain separate in release decisions:
 | POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
 | Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
 | Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
-| Sequential Agent proposals | Two C4 roots replay fixed traces or all lists over an explicit finite alphabet and horizon, with separate evolving states | No quantifier over actions outside the alphabet, longer runs, unauthenticated state transitions, or concurrent effects. |
+| Sequential Agent proposals | Two C4 roots replay fixed traces or all lists over an explicit finite alphabet and horizon, with separate evolving states and a concrete 2-by-2 policy/input table | No quantifier over actions outside the alphabet, longer runs, counterfactual Host trajectories, unauthenticated state transitions, or concurrent effects. |
 | C4 edit ownership and proof reuse | Compiled owner/edit trail and dependency footprint | Potential invalidation, not proof that one edit caused a witness. |
 | Schema evolution and unbounded operation history | No unified delta query | Revalidate and reproject across schemas; finite trace replay does not establish unbounded history safety. |
 
