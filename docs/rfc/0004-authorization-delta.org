@@ -35,6 +35,18 @@ its implication and equivalence queries, and the soundness and completeness
 theorems. SPEC calls those public Cedar APIs instead of implementing another
 authorization semantics.
 
+* Why POO
+
+The revision is a change to a C4-composed policy root. POO keeps each policy
+owner, inheritance relation, edit trail, and proof dependency attached to
+that root, so a reviewer can connect a Cedar decision delta to the exact
+composition that would be published. Cedar decides the request; POO identifies
+which composed revision is being compared and which proof obligations may
+need another check. Host observations, authenticated context, session
+ledgers, and effect commits are external inputs and transitions. Encoding
+them as POO policy inheritance would not make those facts authentic or the
+Host transaction atomic.
+
 * Evidence and trust boundary
 
 Cedar's [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/Thm/Verification.lean][verification theorems]] establish the meaning of symbolic implication
@@ -275,9 +287,12 @@ step, and a substituted principal/action/resource is rejected. The report
 retains before/after decisions, final states, changed POO policy owners, and
 the proof footprint. The [[file:../../Examples/Enterprise/Agent/Session/README.org][bounded-agent session]] shows that the same later
 proposal can have a different context after earlier decisions diverge;
-twelve step decisions are replayed by official Cedar Rust. This is a finite
-trace over the supplied proposals and transition function. It does not
-quantify over all Agent choices, authenticate the state transitions, or
+twelve step decisions are replayed by official Cedar Rust. The trace marks
+decision differences at identical full Cedar inputs separately from those
+at divergent inputs. An identical-input difference isolates a policy effect;
+a divergent-input difference may reflect policy, prior Host history, or both.
+This is a finite trace over the supplied proposals and transition function.
+It does not quantify over all Agent choices, authenticate the state transitions, or
 establish the sequential safety condition studied in
 [[https://arxiv.org/abs/2609.15803][the 2026 delegated-authorization paper]].
 

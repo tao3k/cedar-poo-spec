@@ -24,6 +24,25 @@ def TraceStep.beforeAllowed (step : TraceStep) : Bool :=
 def TraceStep.afterAllowed (step : TraceStep) : Bool :=
   step.afterResponse.decision == .allow
 
+/-- Exact Cedar input equality, including the request context and entities. -/
+def TraceStep.sameInput (step : TraceStep) : Bool :=
+  decide (step.beforeEnv = step.afterEnv)
+
+def TraceStep.gained (step : TraceStep) : Bool :=
+  !step.beforeAllowed && step.afterAllowed
+
+def TraceStep.lost (step : TraceStep) : Bool :=
+  step.beforeAllowed && !step.afterAllowed
+
+/-- A decision difference at identical Cedar inputs isolates the policy revision. -/
+def TraceStep.directDifference (step : TraceStep) : Bool :=
+  step.sameInput && (step.gained || step.lost)
+
+/-- At different inputs the trace alone cannot apportion the difference between
+    the policy revision and the Host history that produced those inputs. -/
+def TraceStep.divergentInputDifference (step : TraceStep) : Bool :=
+  !step.sameInput && (step.gained || step.lost)
+
 /-- Finite behavior plus the C4 policy revision that produced it. -/
 structure TraceImpact (State : Type) where
   beforeRoot : String
@@ -36,10 +55,10 @@ structure TraceImpact (State : Type) where
   potentiallyInvalidatedRoots : List String
 
 def TraceImpact.gained (impact : TraceImpact State) : Bool :=
-  impact.steps.any fun step => !step.beforeAllowed && step.afterAllowed
+  impact.steps.any TraceStep.gained
 
 def TraceImpact.lost (impact : TraceImpact State) : Bool :=
-  impact.steps.any fun step => step.beforeAllowed && !step.afterAllowed
+  impact.steps.any TraceStep.lost
 
 /-- Replay one fixed proposal list under two POO roots. =observe= and =advance=
     are supplied by the Host model. Both sides use the same functions, but

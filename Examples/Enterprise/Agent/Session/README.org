@@ -110,6 +110,12 @@ error-free Cedar Allow. A sensitive read followed by external send changes
 integrated budget denies the second and third external sends; the old root
 continues to spend its ledger. The final proposals are the same operation,
 but their Cedar contexts differ because prior decisions changed the states.
+The trace marks the second external send as a direct policy difference:
+both roots receive exactly the same Cedar request and entities. At the third
+send, the inputs differ, so its changed decision cannot be assigned solely
+to the policy revision. The equality check includes the full entity store,
+not only the request context. The sensitive-read veto is also a direct
+difference at an identical Cedar input.
 The API rejects a Host projection that silently substitutes a different
 operation at that point. Twelve step decisions are replayed by official
 Cedar Rust, and the report retains the C4 History owner and proof footprint.

@@ -37,6 +37,9 @@ def run : IO Lean.Json := do
     | throw (IO.userError "sensitive-read trace comparison failed")
   if sensitive.steps.map TraceStep.beforeAllowed != [true, true] ||
       sensitive.steps.map TraceStep.afterAllowed != [true, false] ||
+      sensitive.steps.map TraceStep.sameInput != [true, true] ||
+      sensitive.steps.map TraceStep.directDifference != [false, true] ||
+      sensitive.steps.any TraceStep.divergentInputDifference ||
       !sensitive.lost || sensitive.gained ||
       !sensitive.beforeFinal.sensitiveSeen ||
       !sensitive.afterFinal.sensitiveSeen ||
@@ -48,6 +51,9 @@ def run : IO Lean.Json := do
     | throw (IO.userError "budget trace comparison failed")
   if budget.steps.map TraceStep.beforeAllowed != [true, true, true, true] ||
       budget.steps.map TraceStep.afterAllowed != [true, true, false, false] ||
+      budget.steps.map TraceStep.sameInput != [true, true, true, false] ||
+      budget.steps.map TraceStep.directDifference != [false, false, true, false] ||
+      budget.steps.map TraceStep.divergentInputDifference != [false, false, false, true] ||
       budget.beforeFinal.usedExports != 3 ||
       budget.afterFinal.usedExports != 1 ||
       !(budget.changes.map (·.id)).contains budgetVeto.id then
@@ -73,6 +79,14 @@ def run : IO Lean.Json := do
     ("sensitive_after", Lean.toJson (sensitive.steps.map TraceStep.afterAllowed)),
     ("budget_before", Lean.toJson (budget.steps.map TraceStep.beforeAllowed)),
     ("budget_after", Lean.toJson (budget.steps.map TraceStep.afterAllowed)),
+    ("sensitive_same_input", Lean.toJson (sensitive.steps.map TraceStep.sameInput)),
+    ("sensitive_direct_difference", Lean.toJson
+      (sensitive.steps.map TraceStep.directDifference)),
+    ("budget_same_input", Lean.toJson (budget.steps.map TraceStep.sameInput)),
+    ("budget_direct_difference", Lean.toJson
+      (budget.steps.map TraceStep.directDifference)),
+    ("budget_divergent_input_difference", Lean.toJson
+      (budget.steps.map TraceStep.divergentInputDifference)),
     ("sensitive_owner", Lean.toJson
       ((sensitive.changes.find? (·.id == historyVeto.id)).bind
         (fun change => change.afterOwner.map (·.lastEditedBy)))),
