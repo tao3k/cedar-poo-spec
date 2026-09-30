@@ -166,6 +166,25 @@ would require a checker that accepts the full query, verifies its proof, and
 binds the checked assumptions to these exact generated assertions. A CPC
 file or a second =unsat= string alone does not supply that binding.
 
+An Ethos 0.2.4 experiment narrows this gap. After renaming the four
+datatype constructors =E0=, =E1=, =R2=, and =R3= to distinct names, cvc5
+1.3.4 generated a CPC proof for the resulting query. Ethos returned
+=correct= with =--require-proof-of-false= and reference checking enabled.
+For this check, the reference file omitted the leading =(reset)= (which
+clears Ethos's loaded CPC signature), and Ethos used
+=--reference-define-fun=; the proof file omitted its duplicate datatype,
+constant, and function declarations so they were read from the reference
+file. The original generated input has SHA-256
+=93ee56de8354e4b38044b225290b4a58f4b476fc6377dfbbc4c41e96ff627de5=.
+Ethos rejects that input directly because its datatype and constructor
+share each of those four names. The constructor rename preserves the
+intended SMT datatype meaning, but this experiment has no independently
+checked equivalence proof between the original bytes and the renamed
+reference. It therefore does not discharge the Lean UNSAT premise for the
+original query. A next checker integration needs a verified translation or
+direct support for these generated declarations, followed by a checked
+connection from the proof conclusion to the Lean theorem's premise.
+
 The operational regression checks an error-only loss and a deny-only error.
 The former is =loss-only= for the exact query while ordinary Allow/Deny is
 =equivalent-in-schema=. The latter is =equivalent-in-schema= for the exact
