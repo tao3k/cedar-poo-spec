@@ -121,10 +121,20 @@ of every policy body, then asks Cedar's solver for an after-only execution
 witness. It repeats the query in the reverse direction. Every satisfiable
 model is validated and replayed against the original =Cedar.Spec.isAuthorized=
 responses, including =erroringPolicies=. Unknown solver results, compilation
-errors, and invalid models fail the analysis. Its unsatisfiable result is
-solver evidence under the pinned Cedar compiler and schema environments; the
-composed diagnostic query has no separate Lean kernel soundness theorem here.
-It therefore does not replace an upstream proof of that composition.
+errors, and invalid models fail the analysis.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaOperationalExactProof.lean][AuthorizationDeltaOperationalExactProof]]
+proves the composition against Cedar's concrete response using upstream
+=compile_bisimulation= and =isAuthorized_bisimulation=. Under Cedar's strong
+well-formedness assumptions, mathematical unsatisfiability of the query
+implies no after-only error-free Allow in the covered environment; a concrete
+after-only witness conversely makes the query satisfiable. The module also
+uses Cedar's verified typecheck transformation to show that the original and
+typed policy sets produce the same executable predicate on instances of the
+type environment. These are Lean kernel theorems about the query formula.
+An external solver's UNSAT answer remains solver evidence, not a kernel proof
+of that particular run. Coverage of schema environments and truth of Host
+facts remain separate obligations.
 
 The operational regression checks an error-only loss and a deny-only error.
 The former is =loss-only= for the exact query while ordinary Allow/Deny is

@@ -127,7 +127,7 @@ check-authorization-delta: build-examples
     jq '.manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-authorization-delta-operational:
-    lake build Tests.Governance.AuthorizationDeltaOperational
+    lake build CedarPooSpec.AuthorizationDeltaOperationalExactProof Tests.Governance.AuthorizationDeltaOperational
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Tests/Governance/AuthorizationDeltaOperational.lean > .lake/build/authorization-delta-operational.json
     jq -e -f Tests/Conformance/authorization-delta-operational.jq .lake/build/authorization-delta-operational.json > /dev/null
     jq '.manifest' .lake/build/authorization-delta-operational.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml

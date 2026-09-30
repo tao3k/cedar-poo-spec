@@ -160,6 +160,9 @@ finite serialized receipt chain from the default ledger stays in four concrete
 states. A second theorem proves that an allowed external send in any such
 reachable state has not seen a sensitive document and has not spent its one
 export. The transition cases use the actual =Integrated= Cedar decision.
+The executable =run= constructs a valid receipt chain for every operation
+list, and =runEqReplayFinal= proves its final ledger equals the existing
+=replay= implementation for the same operations.
 The Host must authenticate the ledger and effect receipts and enforce the
 listed operation mapping; Lean cannot infer those properties from a prompt or
 tool output.

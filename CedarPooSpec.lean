@@ -55,6 +55,7 @@ import CedarPooSpec.SchemaJson
 import CedarPooSpec.AuthorizationDelta
 import CedarPooSpec.AuthorizationDeltaOperational
 import CedarPooSpec.AuthorizationDeltaOperationalExact
+import CedarPooSpec.AuthorizationDeltaOperationalExactProof
 import CedarPooSpec.AuthorizationDeltaReasons
 import CedarPooSpec.AuthorizationDeltaEffectiveReasons
 import CedarPooSpec.AuthorizationDeltaEffectiveReasonsProof

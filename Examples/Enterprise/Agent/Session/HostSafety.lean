@@ -40,6 +40,76 @@ inductive Reachable : Session → Prop where
   | next {before after : Session} {operation : Operation} :
       Reachable before → Receipt before after operation → Reachable after
 
+/-- The executable step uses the same Cedar check and Host effect as replay. -/
+def step (before : Session) (operation : Operation) : Session :=
+  if authorized "Integrated" before operation.attempt then
+    advance before operation.attempt else before
+
+def run (before : Session) : List Operation → Session
+  | [] => before
+  | operation :: rest => run (step before operation) rest
+
+def stepReceipt (before : Session) (operation : Operation) :
+    Receipt before (step before operation) operation :=
+  { observedRequest := request before operation.attempt
+    allowed := authorized "Integrated" before operation.attempt
+    requestExact := rfl
+    decisionExact := rfl
+    effectExact := rfl }
+
+/-- The executable runner constructs a valid receipt chain for every finite
+    operation list; the length is unrestricted. -/
+theorem reachableRunFrom (operations : List Operation) :
+    ∀ before, Reachable before → Reachable (run before operations) := by
+  induction operations with
+  | nil => intro before h; exact h
+  | cons operation rest ih =>
+      intro before h
+      exact ih (step before operation) (Reachable.next h (stepReceipt before operation))
+
+theorem reachableRun (operations : List Operation) :
+    Reachable (run {} operations) :=
+  reachableRunFrom operations {} Reachable.initial
+
+private theorem replayFoldlState (root : String) (attempts : List Attempt) :
+    ∀ (state : Session) (rows : List (Cedar.Spec.Request × Bool)),
+      (attempts.foldl (fun (state, rows) attempt =>
+        let req := request state attempt
+        let allowed := authorized root state attempt
+        let next := if allowed then advance state attempt else state
+        (next, rows ++ [(req, allowed)])) (state, rows)).1 =
+      attempts.foldl (fun state attempt =>
+        if authorized root state attempt then advance state attempt else state) state := by
+  induction attempts with
+  | nil => intro state rows; rfl
+  | cons attempt rest ih =>
+      intro state rows
+      simpa only [List.foldl] using
+        ih (if authorized root state attempt then advance state attempt else state)
+          (rows ++ [(request state attempt, authorized root state attempt)])
+
+private theorem runFoldl (operations : List Operation) :
+    ∀ state,
+      run state operations =
+        (operations.map Operation.attempt).foldl (fun state attempt =>
+          if authorized "Integrated" state attempt then
+            advance state attempt else state) state := by
+  induction operations with
+  | nil => intro state; rfl
+  | cons operation rest ih =>
+      intro state
+      simpa only [run, step, List.map, List.foldl] using
+        ih (step state operation)
+
+/-- The proof runner and the earlier replay implementation have the same
+    final committed ledger for every operation list. -/
+theorem runEqReplayFinal (operations : List Operation) (initial : Session) :
+    run initial operations =
+      (replay "Integrated" initial (operations.map Operation.attempt)).2 := by
+  rw [runFoldl]
+  unfold replay
+  exact (replayFoldlState "Integrated" (operations.map Operation.attempt) initial []).symm
+
 private def state0 : Session := {}
 private def state1 : Session := { sensitiveSeen := true }
 private def state2 : Session := { usedExports := 1 }
@@ -97,6 +167,13 @@ theorem externalSendSafe {state : Session} (h : Reachable state)
     authorized "Integrated" state CedarPooSpec.BoundedSessionExample.sendExternal =
         receipt.allowed := by simpa [Operation.attempt] using receipt.decisionExact.symm
     _ = true := allowed
+
+theorem externalSendSafeAfterRun (operations : List Operation)
+    (allowed : authorized "Integrated" (run {} operations)
+      CedarPooSpec.BoundedSessionExample.sendExternal = true) :
+    (run {} operations).sensitiveSeen = false ∧
+      (run {} operations).usedExports = 0 :=
+  safeExternalFromEnclosed _ (reachableEnclosed (reachableRun operations)) allowed
 
 theorem deniedReceiptPreservesLedger {before after : Session}
     {operation : Operation} (receipt : Receipt before after operation)

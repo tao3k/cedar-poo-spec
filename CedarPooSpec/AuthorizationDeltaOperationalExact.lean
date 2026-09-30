@@ -17,9 +17,17 @@ def errorFreeAllow (policies : Policies) (env : Cedar.Spec.Env) : Bool :=
   let response := Cedar.Spec.isAuthorized env.request env.entities policies
   response.decision == .allow && response.erroringPolicies.isEmpty
 
-private def allEvaluated (terms : List Cedar.SymCC.Term) : Cedar.SymCC.Term :=
-  terms.foldl (fun acc term => Cedar.SymCC.Factory.and acc
-    (Cedar.SymCC.Factory.isSome term)) true
+/-- Every policy evaluation returns a value rather than an error. -/
+def allEvaluated : List Cedar.SymCC.Term → Cedar.SymCC.Term
+  | [] => true
+  | term :: rest => Cedar.SymCC.Factory.and
+      (Cedar.SymCC.Factory.isSome term) (allEvaluated rest)
+
+/-- Cedar's Allow decision conjoined with successful evaluation of every
+    policy, matching the Host's error-free execution rule. -/
+def symbolicErrorFreeAllow (decision : Cedar.SymCC.Term)
+    (policyResults : List Cedar.SymCC.Term) : Cedar.SymCC.Term :=
+  Cedar.SymCC.Factory.and decision (allEvaluated policyResults)
 
 /-- Asserts are satisfiable exactly when the after revision has an error-free
     Allow and the before revision does not. Both authorization decisions and
@@ -32,10 +40,8 @@ def verifyErrorFreeAllowExpansion (before after : Policies)
     Cedar.SymCC.compile policy.toExpr εnv
   let afterResults ← after.mapM fun policy =>
     Cedar.SymCC.compile policy.toExpr εnv
-  let beforeExecutable := Cedar.SymCC.Factory.and beforeDecision
-    (allEvaluated beforeResults)
-  let afterExecutable := Cedar.SymCC.Factory.and afterDecision
-    (allEvaluated afterResults)
+  let beforeExecutable := symbolicErrorFreeAllow beforeDecision beforeResults
+  let afterExecutable := symbolicErrorFreeAllow afterDecision afterResults
   let exprs := (before ++ after).map Policy.toExpr
   return (Cedar.SymCC.enforce exprs εnv).elts ++
     [Cedar.SymCC.Factory.and afterExecutable
