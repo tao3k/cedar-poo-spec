@@ -146,6 +146,26 @@ typechecking, and a proof of UNSAT for each generated query. The executable
 analyzer obtains solver answers, not those Lean proofs; deployment must also
 ensure that actual Host inputs pass the validators.
 
+** Reproducible solver-proof probe
+
+=just probe-authorization-delta-proof= emits the exact =Published= to =Posture=
+no-gain query through Cedar's own symbolic encoder and asks cvc5 for CPC proof
+output. The recipe checks that cvc5 reports =unsat= and leaves the SMT-LIB
+input and CPC output in =.lake/build/authorization-delta-exact.*= for inspection.
+It enables cvc5's internal lazy proof check.
+It covers the one type environment in that ticket-sharing fixture. With local
+cvc5 1.3.4, the emitted input was 1,576 bytes and the CPC output 12,280 bytes.
+This is a reproducible solver transcript with an internal check, not an
+independently checked proof.
+
+[[https://cvc5.github.io/docs/latest/proofs/output_cpc.html][cvc5 documents CPC and external proof checkers]]. The current
+[[https://github.com/cvc5/logos][Lean-based Logos checker]] does not yet support
+some SMT-LIB features emitted by Cedar's encoder, notably parametric
+datatypes and =define-fun=. This probe uses both. Closing the UNSAT premise
+would require a checker that accepts the full query, verifies its proof, and
+binds the checked assumptions to these exact generated assertions. A CPC
+file or a second =unsat= string alone does not supply that binding.
+
 The operational regression checks an error-only loss and a deny-only error.
 The former is =loss-only= for the exact query while ordinary Allow/Deny is
 =equivalent-in-schema=. The latter is =equivalent-in-schema= for the exact

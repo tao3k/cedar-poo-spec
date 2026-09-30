@@ -132,6 +132,16 @@ check-authorization-delta-operational:
     jq -e -f Tests/Conformance/authorization-delta-operational.jq .lake/build/authorization-delta-operational.json > /dev/null
     jq '.manifest' .lake/build/authorization-delta-operational.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
+# Research artifact only: emits the exact query and cvc5's CPC output.
+# This does not check the CPC proof or discharge the Lean UNSAT premise.
+probe-authorization-delta-proof:
+    lake build CedarPooSpec.AuthorizationDeltaOperationalExactProof Examples.Governance.TicketSharing
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Tests/Governance/AuthorizationDeltaProofProbe.lean > .lake/build/authorization-delta-exact.smt2
+    timeout --signal=TERM --kill-after=3s 120s "$CVC5" --lang=smt --produce-proofs --proof-check=lazy --dump-proofs --proof-format-mode=cpc .lake/build/authorization-delta-exact.smt2 > .lake/build/authorization-delta-exact.cpc
+    rg -q '^\(check-sat\)$' .lake/build/authorization-delta-exact.smt2
+    test "$(head -n 1 .lake/build/authorization-delta-exact.cpc)" = unsat
+    rg -q '^\(step ' .lake/build/authorization-delta-exact.cpc
+
 check-authorization-delta-reasons:
     lake build Tests.Governance.AuthorizationDeltaReasons
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Tests/Governance/AuthorizationDeltaReasons.lean > .lake/build/authorization-delta-reasons.json
