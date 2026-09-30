@@ -1,4 +1,4 @@
-import CedarPooSpec.AuthorizationDeltaOperational
+import CedarPooSpec.AuthorizationDeltaOperationalExact
 import CedarPooSpec.PolicyJson
 import Examples.Governance.TicketSharing
 
@@ -46,6 +46,11 @@ def errorModel : Model :=
     (by native_decide) |>.extend "UnderflowGuard" "Baseline" [.extend underflowGuard]).toOption.get
     (by native_decide)
 
+def deniedModel : Model :=
+  (({ modules := [] } : Model).mix "Denied" [] [] |>.toOption.get
+    (by native_decide) |>.extend "DeniedWithError" "Denied"
+      [.extend underflowGuard]).toOption.get (by native_decide)
+
 def run : IO Lean.Json := do
   let qualified ← match ← analyzeOperationalModelImpact model "Published" "Posture" schema with
     | .ok result => pure result
@@ -53,12 +58,32 @@ def run : IO Lean.Json := do
   if qualified.impact.classification != "loss-only" ||
       qualified.policiesChecked != 5 || qualified.environmentsChecked != 1 then
     throw (IO.userError "error-free posture delta changed")
+  let exactPosture ← match ← analyzeExactOperationalModelImpact
+      model "Published" "Posture" schema with
+    | .ok result => pure result
+    | .error error => throw (IO.userError s!"exact posture delta: {reprStr error}")
+  if exactPosture.classification != "loss-only" then
+    throw (IO.userError "exact posture delta changed")
   let revision ← match errorModel.compileRevision "Baseline" "UnderflowGuard" with
     | .ok revision => pure revision
     | .error error => throw (IO.userError s!"revision: {reprStr error}")
   let ordinary ← match ← analyzeImpact revision amountSchema with
     | .ok result => pure result
     | .error error => throw (IO.userError s!"ordinary delta: {reprStr error}")
+  let exact ← match ← analyzeExactOperationalImpact revision amountSchema with
+    | .ok result => pure result
+    | .error error => throw (IO.userError s!"exact operational delta: {reprStr error}")
+  if exact.classification != "loss-only" || !exact.gains.isEmpty ||
+      exact.losses.length != 1 then
+    throw (IO.userError "exact query missed the error-only execution loss")
+  let some exactLoss := exact.losses.head?
+    | throw (IO.userError "exact operational loss has no witness")
+  if !errorFreeAllow revision.beforePolicies exactLoss.witness ||
+      errorFreeAllow revision.afterPolicies exactLoss.witness ||
+      exactLoss.beforeResponse.decision != .allow ||
+      exactLoss.afterResponse.decision != .allow ||
+      !exactLoss.afterResponse.erroringPolicies.contains underflowGuard.id then
+    throw (IO.userError "exact witness did not replay as an error-only loss")
   let (errorPolicy, errorWitness) ← match ← analyzeOperationalImpact revision amountSchema with
     | .error (.afterError id witness) =>
         let before := Cedar.Spec.isAuthorized witness.request witness.entities
@@ -74,6 +99,17 @@ def run : IO Lean.Json := do
     | .ok _ => throw (IO.userError "operational delta missed policy error")
   if ordinary.classification != "equivalent-in-schema" then
     throw (IO.userError "decision delta unexpectedly changed")
+  let deniedRevision ← match deniedModel.compileRevision "Denied" "DeniedWithError" with
+    | .ok result => pure result
+    | .error error => throw (IO.userError s!"denied revision: {reprStr error}")
+  let deniedExact ← match ← analyzeExactOperationalImpact deniedRevision amountSchema with
+    | .ok result => pure result
+    | .error error => throw (IO.userError s!"denied exact delta: {reprStr error}")
+  if deniedExact.classification != "equivalent-in-schema" then
+    throw (IO.userError "deny-only error affected exact execution result")
+  match ← analyzeOperationalImpact deniedRevision amountSchema with
+  | .error (.afterError _ _) => pure ()
+  | _ => throw (IO.userError "conservative qualification missed a deny-only error")
   let .ok beforeCase := CedarPooSpec.PolicyJson.authorizationCase
       "error-delta-before" "Baseline" errorModel "Baseline"
       errorWitness.request errorWitness.entities
@@ -82,12 +118,24 @@ def run : IO Lean.Json := do
       "error-delta-after" "UnderflowGuard" errorModel "UnderflowGuard"
       errorWitness.request errorWitness.entities
     | throw (IO.userError "could not export revised witness")
+  let .ok exactBeforeCase := CedarPooSpec.PolicyJson.authorizationCase
+      "exact-error-before" "Baseline" errorModel "Baseline"
+      exactLoss.witness.request exactLoss.witness.entities
+    | throw (IO.userError "could not export exact baseline witness")
+  let .ok exactAfterCase := CedarPooSpec.PolicyJson.authorizationCase
+      "exact-error-after" "UnderflowGuard" errorModel "UnderflowGuard"
+      exactLoss.witness.request exactLoss.witness.entities
+    | throw (IO.userError "could not export exact revised witness")
   return Lean.Json.mkObj [
     ("qualified_decision_delta", Lean.toJson qualified.impact.classification),
     ("qualified_policies_checked", Lean.toJson qualified.policiesChecked),
     ("decision_delta", Lean.toJson ordinary.classification),
+    ("exact_operational_delta", Lean.toJson exact.classification),
+    ("exact_error_policy", Lean.toJson underflowGuard.id),
+    ("deny_only_exact_delta", Lean.toJson deniedExact.classification),
     ("operational_error_policy", Lean.toJson errorPolicy),
-    ("manifest", Lean.Json.mkObj [("cases", Lean.toJson [beforeCase, afterCase])])]
+    ("manifest", Lean.Json.mkObj [("cases", Lean.toJson
+      [beforeCase, afterCase, exactBeforeCase, exactAfterCase])])]
 
 end CedarPooSpec.AuthorizationDeltaOperationalTest
 

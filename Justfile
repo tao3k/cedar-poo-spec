@@ -151,6 +151,7 @@ check-payment-interaction:
     jq '.manifest' .lake/build/payment-joint-release.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-agent-trace-delta:
+    lake build Examples.Enterprise.Agent.Session.HostSafety
     just example enterprise agent session-trace-delta
 
 check-health-authorization-impact:

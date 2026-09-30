@@ -112,9 +112,26 @@ is maintained under =just check-authorization-delta-operational=.
 This qualification is intentionally stricter than the exact proposition
 =error-free-Allow(after) -> error-free-Allow(before)=: it refuses any policy
 that might error anywhere in a covered schema environment, including requests
-both revisions deny. A future exact query should extend Cedar's verified
-symbolic semantics or use an upstream-supported predicate over diagnostics;
-it must not silently treat plain =implies?= as that query.
+both revisions deny.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaOperationalExact.lean][AuthorizationDeltaOperationalExact]]
+adds that exact operational query. It forms the execution predicate from
+Cedar's symbolic =isAuthorized= result and =isSome= of the symbolic evaluation
+of every policy body, then asks Cedar's solver for an after-only execution
+witness. It repeats the query in the reverse direction. Every satisfiable
+model is validated and replayed against the original =Cedar.Spec.isAuthorized=
+responses, including =erroringPolicies=. Unknown solver results, compilation
+errors, and invalid models fail the analysis. Its unsatisfiable result is
+solver evidence under the pinned Cedar compiler and schema environments; the
+composed diagnostic query has no separate Lean kernel soundness theorem here.
+It therefore does not replace an upstream proof of that composition.
+
+The operational regression checks an error-only loss and a deny-only error.
+The former is =loss-only= for the exact query while ordinary Allow/Deny is
+=equivalent-in-schema=. The latter is =equivalent-in-schema= for the exact
+query while the conservative qualification refuses it. The original error
+witness and the additional exact witness are replayed by Cedar Rust after
+Cedar Lean checks both concrete responses in the same gate.
 
 * Revision explanation and proof reuse
 
@@ -158,7 +175,13 @@ assign sole causality when multiple edits are present.
 For sibling revision roots, invalidation starts at the last relevant editor
 on each side and includes descendants of both branches. The
 [[file:../../Tests/Governance/AuthorizationDeltaInvalidation.lean][sibling-editor regression]] checks this closure without treating it as
-a Cedar behavior change.
+a Cedar behavior change. Lean additionally proves that every before or after
+last editor of any supplied =PolicyChange= enters the invalidation origins,
+that each bounded C4 descendant enters =affectedRoots=, and that every listed
+root has such an origin and path. The same regression exercises a =remove=
+with no after policy owner and a same-body provenance transfer. These are
+compilation dependencies, not claims that an edit individually caused a Cedar
+decision or that a provenance-only change alters policy behavior.
 
 The outcome has three useful cases. A concrete changed reason is replayed by
 the official Rust Cedar authorizer. If the decision is equivalent in the

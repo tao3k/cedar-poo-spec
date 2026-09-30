@@ -151,17 +151,32 @@ The generic generator has a Lean proof that a length-=n= enumeration contains
 exactly =alphabet.length ^ n= entries. The example also checks the three
 level counts =3, 9, 27=.
 
+[[file:HostSafety.lean][HostSafety]] goes beyond that three-step enumeration
+for a fixed five-operation alphabet (public read, sensitive read, external
+send, internal send, and off-task external send). Its =Receipt= contract binds
+each operation to the prior committed =Session=, exact Cedar request and
+error-free decision, and Host ledger effect. Lean induction proves that every
+finite serialized receipt chain from the default ledger stays in four concrete
+states. A second theorem proves that an allowed external send in any such
+reachable state has not seen a sensitive document and has not spent its one
+export. The transition cases use the actual =Integrated= Cedar decision.
+The Host must authenticate the ledger and effect receipts and enforce the
+listed operation mapping; Lean cannot infer those properties from a prompt or
+tool output.
+
 This addresses a finite observation raised by [[https://arxiv.org/abs/2608.15888][Bounded Agents]]: independent
 request checks miss effects of earlier actions. The September 2026
 [[https://arxiv.org/abs/2609.15803][study of sequential agent authorization]] goes further and analyzes safety
-over possible future state transitions. This example does not prove that
-universal claim. The proposal sequence, request projection, and state
+over possible future state transitions. This is an arbitrary-length invariant
+for its declared alphabet and initial ledger, not a universal claim for every
+Host action or state. The proposal sequence, request projection, and state
 transition are supplied by the Host model; real execution still requires
 authenticated facts, complete tool coverage, serialized admission, and
 effect receipts.
 
 #+begin_src sh
 just example enterprise agent session-trace-delta
+just check-agent-trace-delta
 #+end_src
 
 * Composition and proof receipts

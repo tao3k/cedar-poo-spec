@@ -91,16 +91,75 @@ def Revision.proofFootprint (revision : Revision) : ProofFootprint :=
     authorizationDependencies := changedDependencies
       CedarPooSpec.Soundness.policiesObligation revision.authorizationPatch }
 
+/-- Last editors on both sides of every changed policy, without duplicates. -/
+def invalidationOwners (changes : List PolicyChange) : List String :=
+  let beforeOwners := changes.filterMap fun change =>
+    change.beforeEdits.getLast?.map (·.moduleName)
+  let afterOwners := changes.filterMap fun change =>
+    change.afterEdits.getLast?.map (·.moduleName)
+  (beforeOwners ++ afterOwners).eraseDups
+
 /-- C4 descendants whose compilation may depend on the last editor on either
     side of a changed policy. The roots may be siblings, so both branches
     contribute. This is an invalidation set, not a behavioral witness or proof
     of individual edit causality. -/
 def affectedRoots (model : Model) (changes : List PolicyChange) : List String :=
-  let beforeOwners := changes.filterMap fun change =>
-    change.beforeEdits.getLast?.map (·.moduleName)
-  let afterOwners := changes.filterMap fun change =>
-    change.afterEdits.getLast?.map (·.moduleName)
-  invalidatedNodes model.graph (beforeOwners ++ afterOwners).eraseDups
+  invalidatedNodes model.graph (invalidationOwners changes)
+
+theorem affectedRoots_iff_bounded_descendant (model : Model)
+    (changes : List PolicyChange) (name : String) :
+    name ∈ affectedRoots model changes ↔
+      ∃ origin ∈ invalidationOwners changes, ∃ steps,
+        steps ≤ model.graph.nodes.length ∧
+          Descendant model.graph origin steps name := by
+  exact mem_invalidated_iff_bounded_descendant model.graph
+    (invalidationOwners changes) name
+
+theorem beforeEditorIsInvalidationOwner (changes : List PolicyChange)
+    (change : PolicyChange) (source : EditSource)
+    (member : change ∈ changes)
+    (last : change.beforeEdits.getLast? = some source) :
+    source.moduleName ∈ invalidationOwners changes := by
+  simp only [invalidationOwners, List.mem_eraseDups, List.mem_append]
+  left
+  apply List.mem_filterMap.mpr
+  exact ⟨change, member, by simp [last]⟩
+
+theorem afterEditorIsInvalidationOwner (changes : List PolicyChange)
+    (change : PolicyChange) (source : EditSource)
+    (member : change ∈ changes)
+    (last : change.afterEdits.getLast? = some source) :
+    source.moduleName ∈ invalidationOwners changes := by
+  simp only [invalidationOwners, List.mem_eraseDups, List.mem_append]
+  right
+  apply List.mem_filterMap.mpr
+  exact ⟨change, member, by simp [last]⟩
+
+theorem beforeEditorDescendantInvalidated (model : Model)
+    (changes : List PolicyChange) (change : PolicyChange) (source : EditSource)
+    (name : String) (steps : Nat)
+    (member : change ∈ changes)
+    (last : change.beforeEdits.getLast? = some source)
+    (path : Descendant model.graph source.moduleName steps name)
+    (withinBound : steps ≤ model.graph.nodes.length) :
+    name ∈ affectedRoots model changes := by
+  exact mem_invalidated_of_descendant model.graph (invalidationOwners changes)
+    source.moduleName name steps
+    (beforeEditorIsInvalidationOwner changes change source member last)
+    path withinBound
+
+theorem afterEditorDescendantInvalidated (model : Model)
+    (changes : List PolicyChange) (change : PolicyChange) (source : EditSource)
+    (name : String) (steps : Nat)
+    (member : change ∈ changes)
+    (last : change.afterEdits.getLast? = some source)
+    (path : Descendant model.graph source.moduleName steps name)
+    (withinBound : steps ≤ model.graph.nodes.length) :
+    name ∈ affectedRoots model changes := by
+  exact mem_invalidated_of_descendant model.graph (invalidationOwners changes)
+    source.moduleName name steps
+    (afterEditorIsInvalidationOwner changes change source member last)
+    path withinBound
 
 /-- Symbolic result together with C4 provenance and proof-reuse footprint. -/
 structure ExplainedReport where
