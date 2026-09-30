@@ -56,7 +56,7 @@ private def readJson (read : ProtectedReadIntentV1) : Json :=
     ("operation_id", toJson read.operationId),
     ("subject", CedarPooSpec.PolicyJson.entity read.subject),
     ("purpose", toJson read.purpose),
-    ("publication", publicationJson read.publication),
+    ("receipt", receiptJson read.receipt),
     ("reader", readerJson read.reader),
     ("policy_root", toJson read.policyRoot),
     ("lineage_revision", toJson read.lineageRevision)]
@@ -95,7 +95,7 @@ private def readerSubject : Cedar.Spec.EntityUID :=
 
 def baseRead : ProtectedReadIntentV1 :=
   { operationId := "read-001", subject := readerSubject, purpose := "analysis",
-    publication := basePublication, reader := baseIntent.storage.destination,
+    receipt := baseReceipt, reader := baseIntent.storage.destination,
     policyRoot := "policy-root-1", lineageRevision := "lineage-1" }
 
 def baseReadClaim : ProtectedReadClaimV1 :=
@@ -195,6 +195,10 @@ def readCases : List
         outerRootCid := baseIntent.storage.snapshotCid } }),
    ("invalid-commit", baseRead, baseReadClaim, baseCurrent,
       some { baseReceipt with totalOuterBytes := 0 }),
+   ("different-child-count-commit", baseRead, baseReadClaim, baseCurrent,
+      some { baseReceipt with childCount := 3 }),
+   ("different-byte-total-commit", baseRead, baseReadClaim, baseCurrent,
+      some { baseReceipt with totalOuterBytes := 257 }),
    ("stale-policy", baseRead, baseReadClaim,
       { baseCurrent with policyRoot := "policy-root-2" }, some baseReceipt),
    ("stale-lineage", baseRead, baseReadClaim,
@@ -210,6 +214,10 @@ def readCases : List
       baseCurrent, some baseReceipt),
    ("claim-other-subject", baseRead,
       { baseReadClaim with intent := { baseRead with subject := baseIntent.storage.subject } },
+      baseCurrent, some baseReceipt),
+   ("claim-other-receipt", baseRead,
+      { baseReadClaim with intent := { baseRead with
+        receipt := { baseReceipt with totalOuterBytes := 257 } } },
       baseCurrent, some baseReceipt),
    ("reader-tenant", { baseRead with reader :=
       { baseRead.reader with tenant := "tenant-b" } },
@@ -248,6 +256,10 @@ def readReleaseCases : List
    ("commit-replaced-during-fetch", baseRead, baseReadClaim, baseCurrent, some baseReceipt,
       baseCurrent, some { baseReceipt with publication := { basePublication with
         outerRootCid := baseIntent.storage.snapshotCid } }),
+   ("commit-count-changed-during-fetch", baseRead, baseReadClaim, baseCurrent,
+      some baseReceipt, baseCurrent, some { baseReceipt with childCount := 3 }),
+   ("commit-bytes-changed-during-fetch", baseRead, baseReadClaim, baseCurrent,
+      some baseReceipt, baseCurrent, some { baseReceipt with totalOuterBytes := 257 }),
    ("clock-rolled-back-during-fetch", baseRead, baseReadClaim,
       { baseCurrent with now := 99 }, some baseReceipt,
       { baseCurrent with now := 98 }, some baseReceipt),

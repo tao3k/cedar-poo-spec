@@ -15,9 +15,11 @@ Allow must not survive a changed read epoch, purpose or reader.
 * Executable evidence and boundary
 
 [[file:../../Tests/Data/ProtectedStorage.lean][Lean tests]] fix two allowed and
-thirteen denied reads. The checked
+sixteen denied reads. The read intent binds the entire committed receipt,
+including physical child count and ciphertext byte total; Rust checks the
+prepared closure against those values before cache or provider GET. The checked
 [[file:../../Tests/Conformance/protected-storage-v1.json][production fixture]]
-is replayed by Rust. Nine additional release cases require both the initial
+is replayed by Rust. Eleven additional release cases require both the initial
 and a final independently refreshed observation to allow disclosure. The Rust
 restore wrapper rejects missing or stale read authority before either cache
 or provider GET, including on a warm cache hit. It repeats that check after

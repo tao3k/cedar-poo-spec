@@ -2,7 +2,7 @@ import CedarPooSpec.Data.ProtectedStorage
 
 /-!
 Provider-neutral protected read projection. Reading requires a new decision
-for the exact committed publication and reader. A write approval, commit
+for the exact committed receipt and reader. A write approval, commit
 replay, ciphertext cache hit, or possession of a key is not read authority.
 The Host authenticates the ledger row, current lineage, reader and claim.
 -/
@@ -15,7 +15,7 @@ structure ProtectedReadIntentV1 where
   operationId : String
   subject : EntityUID
   purpose : String
-  publication : ProtectedPublicationV1
+  receipt : ProtectedCommitReceiptV1
   reader : Destination
   policyRoot : String
   lineageRevision : String
@@ -45,20 +45,20 @@ def ProtectedReadIntentV1.admitted (read : ProtectedReadIntentV1)
   !read.operationId.isEmpty && uidNonempty read.subject &&
   !read.purpose.isEmpty && !read.policyRoot.isEmpty &&
   !read.lineageRevision.isEmpty && readerWellFormed read.reader &&
-  read.publication.wellFormed &&
+  read.receipt.publication.wellFormed &&
+  read.receipt.totalOuterBytes > 0 && read.receipt.childCount ≤ 4096 &&
   (match committed with
-   | some receipt => receipt.publication == read.publication &&
-       receipt.totalOuterBytes > 0 && receipt.childCount ≤ 4096
+   | some receipt => decide (receipt = read.receipt)
    | none => false) &&
   decide (claim.intent = read) && claim.allowed &&
   current.policyRoot == read.policyRoot &&
   current.lineageRevision == read.lineageRevision &&
   current.epoch == claim.epoch && current.now < claim.expiresAt &&
-  ({ digest := read.publication.intent.storage.snapshotCid,
-     sources := read.publication.intent.storage.sources } : DerivedArtifact).canFlowTo read.reader
+  ({ digest := read.receipt.publication.intent.storage.snapshotCid,
+     sources := read.receipt.publication.intent.storage.sources } : DerivedArtifact).canFlowTo read.reader
 
 /-- A read may release plaintext only when the same claim and exact committed
-    publication remain current after all cache/provider I/O and verification.
+    receipt remain current after all cache/provider I/O and verification.
     The Host supplies two independently refreshed, authenticated observations. -/
 def ProtectedReadIntentV1.releaseAdmitted (read : ProtectedReadIntentV1)
     (claim : ProtectedReadClaimV1)
