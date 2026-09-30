@@ -21,7 +21,9 @@ profile from a base configuration and override the storage effect. Lean exports
 16 composed cases that Rust replays from the same checked JSON. The protected
 fixture also exports intent, pre-root and post-root commit dispositions.
 It now exports protected read cases, including a fresh read after the old
-write claim expires and denial without an exact committed record.
+write claim expires and denial without an exact committed record. Nine
+read-release cases require a second current observation after fetch and
+verification, before plaintext is returned.
 
 A new production profile must state its input identity, source labels,
 destination, selected policy revision, expected decision and effect receipt.

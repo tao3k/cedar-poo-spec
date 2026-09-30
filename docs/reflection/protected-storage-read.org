@@ -17,10 +17,15 @@ Allow must not survive a changed read epoch, purpose or reader.
 [[file:../../Tests/Data/ProtectedStorage.lean][Lean tests]] fix two allowed and
 thirteen denied reads. The checked
 [[file:../../Tests/Conformance/protected-storage-v1.json][production fixture]]
-is replayed by Rust. The Rust restore wrapper rejects missing or stale read
-authority before either cache or provider GET, including on a warm cache hit.
+is replayed by Rust. Nine additional release cases require both the initial
+and a final independently refreshed observation to allow disclosure. The Rust
+restore wrapper rejects missing or stale read authority before either cache
+or provider GET, including on a warm cache hit. It repeats that check after
+closure verification and before returning plaintext; a failed final check
+returns no plaintext result, whether ciphertext came from cache or provider.
 These checks compare Host projections; LeanPoo and the pure SPEC cannot
-authenticate a ledger row, key possession or the current policy decision.
+authenticate a ledger row, key possession or the current policy decision. The
+Host must serialize its final check with actual disclosure.
 
 * Reconsideration trigger
 

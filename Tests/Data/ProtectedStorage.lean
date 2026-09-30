@@ -29,4 +29,11 @@ theorem exactReadDecisions :
       [true, true] ++ List.replicate 13 false := by
   native_decide
 
+theorem exactReadReleaseDecisions :
+    (readReleaseCases.map fun (_, read, claim, before, committedBefore,
+        after, committedAfter) =>
+      read.releaseAdmitted claim before after committedBefore committedAfter) =
+      [true, true] ++ List.replicate 7 false := by
+  native_decide
+
 end CedarPooSpec.Data.ProtectedStorageTests

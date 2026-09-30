@@ -227,6 +227,34 @@ def readCases : List
         { baseRead.reader with acceptsRestricted := false } } },
       baseCurrent, some baseReceipt)]
 
+def readReleaseCases : List
+    (String × ProtectedReadIntentV1 × ProtectedReadClaimV1 ×
+     CurrentStorageStateV1 × Option ProtectedCommitReceiptV1 ×
+     CurrentStorageStateV1 × Option ProtectedCommitReceiptV1) :=
+  [("release-allowed", baseRead, baseReadClaim, baseCurrent, some baseReceipt,
+      { baseCurrent with now := 99 }, some baseReceipt),
+   ("release-after-write-expiry", baseRead,
+      { baseReadClaim with epoch := 5, expiresAt := 200 },
+      { baseCurrent with epoch := 5, now := 101 }, some baseReceipt,
+      { baseCurrent with epoch := 5, now := 150 }, some baseReceipt),
+   ("revoked-during-fetch", baseRead, baseReadClaim, baseCurrent, some baseReceipt,
+      { baseCurrent with epoch := 5 }, some baseReceipt),
+   ("policy-changed-during-fetch", baseRead, baseReadClaim, baseCurrent, some baseReceipt,
+      { baseCurrent with policyRoot := "policy-root-2" }, some baseReceipt),
+   ("expired-during-fetch", baseRead, baseReadClaim, baseCurrent, some baseReceipt,
+      { baseCurrent with now := 100 }, some baseReceipt),
+   ("commit-removed-during-fetch", baseRead, baseReadClaim, baseCurrent, some baseReceipt,
+      baseCurrent, none),
+   ("commit-replaced-during-fetch", baseRead, baseReadClaim, baseCurrent, some baseReceipt,
+      baseCurrent, some { baseReceipt with publication := { basePublication with
+        outerRootCid := baseIntent.storage.snapshotCid } }),
+   ("clock-rolled-back-during-fetch", baseRead, baseReadClaim,
+      { baseCurrent with now := 99 }, some baseReceipt,
+      { baseCurrent with now := 98 }, some baseReceipt),
+   ("denied-before-fetch", baseRead, baseReadClaim,
+      { baseCurrent with epoch := 5 }, some baseReceipt,
+      baseCurrent, some baseReceipt)]
+
 def fixture : Json :=
   obj [("schema", toJson "cedar-poo-protected-storage-v1"),
     ("intent_cases", toJson (intentCases.map fun (name, intent, claim, current) =>
@@ -249,6 +277,16 @@ def fixture : Json :=
       obj [("name", toJson name), ("read", readJson read),
         ("claim", readClaimJson claim), ("current", currentJson current),
         ("committed", committed.elim Json.null receiptJson),
-        ("allow", toJson (read.admitted claim current committed))]))]
+        ("allow", toJson (read.admitted claim current committed))])),
+    ("read_release_cases", toJson (readReleaseCases.map fun
+        (name, read, claim, before, committedBefore, after, committedAfter) =>
+      obj [("name", toJson name), ("read", readJson read),
+        ("claim", readClaimJson claim),
+        ("before", currentJson before),
+        ("committed_before", committedBefore.elim Json.null receiptJson),
+        ("after", currentJson after),
+        ("committed_after", committedAfter.elim Json.null receiptJson),
+        ("allow", toJson (read.releaseAdmitted claim before after
+          committedBefore committedAfter))]))]
 
 end CedarPooSpec.Data.ProtectedStorageFixture

@@ -50,7 +50,11 @@ purpose, destination, policy root, lineage, epoch and expiry. It checks all
 retained source labels against that reader. A write approval or commit replay
 does not authorize a read; neither does possession of a key or a warm cache.
 The same checked JSON now includes fifteen read cases (two allow, thirteen
-deny). The [[file:../../docs/reflection/protected-storage-read.org][read
+deny). =releaseAdmitted= requires an independently refreshed current state
+and exact committed row after cache/provider I/O and closure verification;
+nine further cases include expiry, revocation, clock rollback, and ledger removal or replacement
+between admission and plaintext release. The Host must serialize final
+authorization with any actual disclosure. The [[file:../../docs/reflection/protected-storage-read.org][read
 Reflection]] records the LeanPoo assessment for this slice.
 
 #+begin_src sh

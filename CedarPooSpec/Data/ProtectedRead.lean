@@ -57,4 +57,15 @@ def ProtectedReadIntentV1.admitted (read : ProtectedReadIntentV1)
   ({ digest := read.publication.intent.storage.snapshotCid,
      sources := read.publication.intent.storage.sources } : DerivedArtifact).canFlowTo read.reader
 
+/-- A read may release plaintext only when the same claim and exact committed
+    publication remain current after all cache/provider I/O and verification.
+    The Host supplies two independently refreshed, authenticated observations. -/
+def ProtectedReadIntentV1.releaseAdmitted (read : ProtectedReadIntentV1)
+    (claim : ProtectedReadClaimV1)
+    (before after : CurrentStorageStateV1)
+    (committedBefore committedAfter : Option ProtectedCommitReceiptV1) : Bool :=
+  read.admitted claim before committedBefore &&
+  before.now ≤ after.now &&
+  read.admitted claim after committedAfter
+
 end CedarPooSpec.Data
