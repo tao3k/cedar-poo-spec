@@ -1,4 +1,5 @@
 import Examples.Enterprise.Agent.Payment.PaymentAudit
+import CedarPooSpec.Vertical.FinancialServices.PaymentLifecycle
 
 namespace CedarPooSpec.AgentPaymentAuditTest
 
@@ -127,5 +128,47 @@ theorem cedarDeniesMalformedAmount :
 theorem cedarReservationConsumesNonce :
     (reserveWithCedar payment state threeEvidence).map
       (fun next => next.usedNonces) = some [payment.nonce] := by native_decide
+
+def pending : PaymentAttempt := { payment, phase := .reserved }
+def submitted : PaymentAttempt := { payment, phase := .submitted }
+def accepted : PaymentAttempt :=
+  { payment, phase := .accepted, providerReference := some "provider-42" }
+def acceptedEvidence : ProcessorEvidence :=
+  { payment, providerReference := "provider-42", outcome := .accepted,
+    verified := true }
+def settledEvidence : ProcessorEvidence :=
+  { payment, providerReference := "provider-42", outcome := .settled,
+    verified := true }
+
+theorem prepareConsumesNonce :
+    (payment.prepare authorization state threeEvidence).map
+      (fun result => result.1.usedNonces) = some [payment.nonce] := by decide
+theorem firstSubmitAllowed : pending.submit = some submitted := by decide
+theorem lostResponseCannotResubmit : submitted.submit = none := by decide
+theorem processorAcceptanceIsNotSettlement :
+    (submitted.observe acceptedEvidence).map PaymentAttempt.phase =
+      some .accepted := by decide
+theorem matchingSettlementFinalizes :
+    (accepted.observe settledEvidence).map PaymentAttempt.phase =
+      some .settled := by decide
+theorem matchingRejectionFinalizes :
+    (accepted.observe { settledEvidence with outcome := .rejected }).map
+      PaymentAttempt.phase = some .rejected := by decide
+theorem wrongProviderReferenceDenied :
+    accepted.observe { settledEvidence with providerReference := "other" } =
+      none := by decide
+theorem changedPaymentObservationDenied :
+    submitted.observe { settledEvidence with payment :=
+      { payment with beneficiary := "attacker" } } = none := by decide
+theorem unverifiedProcessorObservationDenied :
+    submitted.observe { settledEvidence with verified := false } = none := by decide
+theorem settledAttemptIsTerminal :
+    ({ payment, phase := .settled,
+       providerReference := some "provider-42" } : PaymentAttempt).observe
+      settledEvidence = none := by decide
+theorem rejectedAttemptIsTerminal :
+    ({ payment, phase := .rejected,
+       providerReference := some "provider-42" } : PaymentAttempt).observe
+      settledEvidence = none := by decide
 
 end CedarPooSpec.AgentPaymentAuditTest

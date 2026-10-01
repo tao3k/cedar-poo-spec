@@ -139,8 +139,8 @@ def PaymentOperation.admissible (payment : PaymentOperation)
   !(state.usedNonces.contains payment.nonce) &&
   state.auditPolicy.accepts payment state.now evidence
 
-/-- Pure reservation. The Host must combine nonce reservation and the actual
-    payment effect atomically; this function does not execute a transfer. -/
+/-- Pure reservation. The Host must durably bind this nonce to one pending
+    attempt before dispatch; this function does not execute a transfer. -/
 def PaymentOperation.reserve (payment : PaymentOperation)
     (authorization : PaymentAuthorization)
     (state : PaymentState) (evidence : List AuditEvidence) : Option PaymentState :=

@@ -16,7 +16,7 @@ separate:
 |-----------------+-------+--------------------------|
 | Authorization | Cedar policy and Host binding | An error-free Allow for this operation and the exact audit-policy snapshot is required. |
 | Audit | =PaymentAuditPolicy.accepts= | The policy selects any positive number of evidence stages. Every supplied item must be verified, current, affirmative, and bound to the operation and policy snapshot. |
-| Effect reservation | =PaymentOperation.reserve= plus Host | Only an authorized, audited, fresh operation consumes its nonce; an identical second reservation fails. Actual transfer execution remains Host-owned. |
+| Effect reservation | =PaymentOperation.prepare= plus Host | Only an authorized, audited, fresh operation consumes its nonce and creates a pending attempt; an identical second reservation fails. Actual transfer execution remains Host-owned. |
 
 AI model, human reviewer, deterministic rule, and external investigator are
 *kinds of audit evidence*, not Payment subclasses or hardcoded steps. A
@@ -41,11 +41,36 @@ The =verified= flags are Host assertions. This code does not verify signatures,
 run a risk model, persist a nonce, or execute a payment. A production Host
 must authenticate each evidence source, canonicalize and sign the complete
 operation including instrument-specific details, obtain the actual policy epoch
-and error-free Cedar response, and reserve the nonce atomically with the
-processor effect. Detection quality and reviewer load need measurement.
+and error-free Cedar response, and persist the nonce with its pending attempt
+before dispatch. Detection quality and reviewer load need measurement.
 This pure contract follows the ownership boundary in
 [[file:../../../../docs/rfc/0008-composable-control-objects.org][RFC 0008]]: Cedar owns authorization, the public library states control
 requirements, and the Host owns authentication and effects.
+
+* Payment attempt lifecycle and uncertain responses
+
+The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLifecycle.lean][PaymentLifecycle]] separates =reserved=, =submitted=,
+=accepted=, =settled=, and =rejected=. =prepare= pairs the nonce reservation
+with a pending attempt. =submit= permits one transition from =reserved= to
+=submitted=; the Host must persist that transition before calling the
+processor. An unanswered request stays =submitted=. Recovery queries the
+processor using the same operation and reference or idempotency key, then
+records authenticated =ProcessorEvidence=; it must not infer failure from a
+timeout and resend the payment.
+
+Processor acceptance is an acknowledgement, not settlement. A later
+settlement or rejection must match the accepted provider reference. Direct
+final outcomes from =submitted= are also modeled. Settlement and rejection
+are terminal. The [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][regressions]] check no second submit,
+acceptance without settlement, matching finality, forged or mismatched
+observations, and terminal states. =just check-payment-audit= compiles them.
+
+The pure model does not supply a durable transaction, a processor idempotency
+guarantee, an authenticated status query, or evidence of economic finality.
+The Host must enforce these at the adapter boundary and reconcile an uncertain
+response before declaring a final outcome. The local no-second-submit theorem
+concerns this state machine; it does not prove that a remote processor applies
+an effect at most once.
 
 * Cross-stage audit-policy binding
 
