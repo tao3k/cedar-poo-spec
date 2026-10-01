@@ -161,10 +161,13 @@ establishes =εnv ⊭ asserts= for this one query and type environment.
 to the original policy sets. It retains request/entity validation and
 concrete strong well-formedness premises, including valid policy references.
 
-The concrete fixture checks use =native_decide=, including the query-shape
-identity and some model construction witnesses. Consequently =exactUnsat=
-depends on native computation certificates and is not a kernel-only theorem.
-The conditional Boolean core is kernel checked; the fixed fixture closes its
+The six atomic well-formedness proofs now use Cedar's well-formedness and
+type theorems with kernel reduction, including an explicit request type
+environment. The attribute-function lookup also uses kernel =decide=.
+The compiled model, typed policy sets, generated query, and exact query-shape
+identity still use =native_decide=. Consequently =exactUnsat= still depends
+on native computation certificates and is not a kernel-only theorem. The
+conditional Boolean core is kernel checked; the fixed fixture closes its
 UNSAT premise with those certificates. The general analyzer still relies on
 external solver answers for arbitrary generated queries.
 

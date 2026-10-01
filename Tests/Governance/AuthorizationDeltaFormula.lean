@@ -15,7 +15,7 @@ def before := (wellTypedPolicies revision.beforePolicies typeEnv).toOption.get (
 def after := (wellTypedPolicies revision.afterPolicies typeEnv).toOption.get (by native_decide)
 def asserts := (verifyErrorFreeAllowExpansion before after symEnv).toOption.get (by native_decide)
 
-def attrs : UnaryFunction := (symEnv.entities.attrs ticketType).get (by native_decide)
+def attrs : UnaryFunction := (symEnv.entities.attrs ticketType).get (by decide)
 def pb : Term := Factory.eq symEnv.request.principal (.entity bob)
 def pa : Term := Factory.eq symEnv.request.principal (.entity alice)
 def ra : Term := Factory.eq symEnv.request.resource (.entity ticketA)
@@ -30,6 +30,27 @@ def v1a : Term := Factory.and pa (Factory.and ra st)
 def formula : Term := Factory.and (Factory.or base (Factory.or v2b v2a))
   (Factory.not (Factory.or base (Factory.or v1b v1a)))
 
+private def concreteTypeEnv : TypeEnv :=
+  ⟨schema.ets, schema.acts, ⟨userType, readAction, ticketType, contextType⟩⟩
+
+private theorem principalType : symEnv.request.principal.typeOf = .entity userType := by
+  change (SymEnv.ofTypeEnv concreteTypeEnv).request.principal.typeOf = _
+  simp [SymEnv.ofTypeEnv, SymEnv.ofEnv, SymRequest.ofRequestType,
+    TermType.ofType, concreteTypeEnv]
+
+private theorem resourceType : symEnv.request.resource.typeOf = .entity ticketType := by
+  change (SymEnv.ofTypeEnv concreteTypeEnv).request.resource.typeOf = _
+  simp [SymEnv.ofTypeEnv, SymEnv.ofEnv, SymRequest.ofRequestType,
+    TermType.ofType, concreteTypeEnv]
+
+private theorem contextTermType :
+    symEnv.request.context.typeOf =
+      .record (Cedar.Data.Map.mk [("deviceTrusted", TermType.bool)]) := by
+  change (SymEnv.ofTypeEnv concreteTypeEnv).request.context.typeOf = _
+  simp [SymEnv.ofTypeEnv, SymEnv.ofEnv, SymRequest.ofRequestType,
+    TermType.ofType, concreteTypeEnv, contextType]
+  decide
+
 /-- The pinned, typechecked ticket-sharing revision generates exactly this
     two-assertion symbolic query. This is a structural identity, not an UNSAT proof. -/
 theorem exactQueryShape : asserts = [(true : Term), formula] := by
@@ -39,32 +60,32 @@ theorem exactQueryShape : asserts = [(true : Term), formula] := by
 private theorem principalWF : symEnv.request.principal.WellFormed symEnv.entities := by
   apply Term.WellFormed.var_wf
   apply TermType.WellFormed.entity_wf
-  native_decide
+  decide
 
 private theorem resourceWF : symEnv.request.resource.WellFormed symEnv.entities := by
   apply Term.WellFormed.var_wf
   apply TermType.WellFormed.entity_wf
-  native_decide
+  decide
 
 private theorem bobWF : (Term.prim (.entity bob)).WellFormed symEnv.entities := by
   apply Term.WellFormed.prim_wf
   apply TermPrim.WellFormed.entity_wf
-  native_decide
+  decide
 
 private theorem aliceWF : (Term.prim (.entity alice)).WellFormed symEnv.entities := by
   apply Term.WellFormed.prim_wf
   apply TermPrim.WellFormed.entity_wf
-  native_decide
+  decide
 
 private theorem ticketAWF : (Term.prim (.entity ticketA)).WellFormed symEnv.entities := by
   apply Term.WellFormed.prim_wf
   apply TermPrim.WellFormed.entity_wf
-  native_decide
+  decide
 
 private theorem ticketBWF : (Term.prim (.entity ticketB)).WellFormed symEnv.entities := by
   apply Term.WellFormed.prim_wf
   apply TermPrim.WellFormed.entity_wf
-  native_decide
+  decide
 
 private theorem contextWF : symEnv.request.context.WellFormed symEnv.entities := by
   apply Term.WellFormed.var_wf
@@ -85,7 +106,7 @@ private theorem attrsWF : attrs.WellFormed symEnv.entities := by
     (TermType.record (Cedar.Data.Map.mk [("status", TermType.string)])).WellFormed symEnv.entities
   constructor
   · apply TermType.WellFormed.entity_wf
-    native_decide
+    decide
   · apply TermType.WellFormed.record_wf
     · intro a ty h
       change (Cedar.Data.Map.mk [("status", TermType.string)]).find? a = some ty at h
@@ -98,36 +119,46 @@ private theorem attrsWF : attrs.WellFormed symEnv.entities := by
     · rfl
 
 private theorem pbWF : pb.WellFormed symEnv.entities ∧ pb.typeOf = .bool := by
-  exact Cedar.Thm.wf_eq principalWF bobWF (by native_decide)
+  exact Cedar.Thm.wf_eq principalWF bobWF (by simpa [bob] using principalType)
 
 private theorem paWF : pa.WellFormed symEnv.entities ∧ pa.typeOf = .bool := by
-  exact Cedar.Thm.wf_eq principalWF aliceWF (by native_decide)
+  exact Cedar.Thm.wf_eq principalWF aliceWF (by simpa [alice] using principalType)
 
 private theorem raWF : ra.WellFormed symEnv.entities ∧ ra.typeOf = .bool := by
-  exact Cedar.Thm.wf_eq resourceWF ticketAWF (by native_decide)
+  exact Cedar.Thm.wf_eq resourceWF ticketAWF (by simpa [ticketA] using resourceType)
 
 private theorem rbWF : rb.WellFormed symEnv.entities ∧ rb.typeOf = .bool := by
-  exact Cedar.Thm.wf_eq resourceWF ticketBWF (by native_decide)
+  exact Cedar.Thm.wf_eq resourceWF ticketBWF (by simpa [ticketB] using resourceType)
 
 private theorem stWF : st.WellFormed symEnv.entities ∧ st.typeOf = .bool := by
-  have happ := Cedar.Thm.wf_app resourceWF
-    (by native_decide : symEnv.request.resource.typeOf = attrs.argType) attrsWF
+  have hArg : symEnv.request.resource.typeOf = attrs.argType := by
+    rw [resourceType]
+    change TermType.entity ticketType = TermType.entity ticketType
+    rfl
+  have happ := Cedar.Thm.wf_app resourceWF hArg attrsWF
   have hget := Cedar.Thm.wf_record_get happ.1
-    (by native_decide : (Factory.app attrs symEnv.request.resource).typeOf =
-      TermType.record (Cedar.Data.Map.mk [("status", TermType.string)]))
-    (by native_decide : (Cedar.Data.Map.mk [("status", TermType.string)]).find? "status" = some TermType.string)
+    (by
+      calc
+        (Factory.app attrs symEnv.request.resource).typeOf = attrs.outType := happ.2
+        _ = TermType.record (Cedar.Data.Map.mk [("status", TermType.string)]) := by rfl)
+    (by decide : (Cedar.Data.Map.mk [("status", TermType.string)]).find? "status" = some TermType.string)
   have hstr : (Term.prim (.string "OPEN")).WellFormed symEnv.entities := Cedar.Thm.wf_string
-  exact Cedar.Thm.wf_eq hget.1 hstr (by native_decide)
+  exact Cedar.Thm.wf_eq hget.1 hstr (by
+    calc
+      (Factory.record.get (Factory.app attrs symEnv.request.resource) "status").typeOf =
+          TermType.string := hget.2
+      _ = (Term.string "OPEN").typeOf :=
+        Cedar.Thm.typeOf_term_prim_string.symm)
 
 private theorem tdWF : td.WellFormed symEnv.entities ∧ td.typeOf = .bool := by
   exact Cedar.Thm.wf_record_get contextWF
-    (by native_decide : symEnv.request.context.typeOf =
+    (by simpa only using contextTermType : symEnv.request.context.typeOf =
       TermType.record (Cedar.Data.Map.mk [("deviceTrusted", TermType.bool)]))
-    (by native_decide : (Cedar.Data.Map.mk [("deviceTrusted", TermType.bool)]).find? "deviceTrusted" = some TermType.bool)
+    (by decide : (Cedar.Data.Map.mk [("deviceTrusted", TermType.bool)]).find? "deviceTrusted" = some TermType.bool)
 
-/-- UNSAT for the pinned ticket-sharing query. Its fixture-shape and
-    well-formedness certificates use `native_decide`; the reusable Boolean
-    implication in `AuthorizationDeltaBooleanCore` is kernel checked. -/
+/-- UNSAT for the pinned ticket-sharing query. The six atom well-formedness
+    proofs and reusable Boolean implication are kernel checked. Construction
+    of the compiled revision and exact query shape still uses `native_decide`. -/
 theorem exactUnsat : symEnv ⊭ asserts :=
   CedarPooSpec.AuthorizationDeltaBooleanCore.unsatOfShapeAndWellFormedAtoms
     symEnv asserts pb pa ra rb st td
