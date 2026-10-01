@@ -1,0 +1,86 @@
+#+TITLE: Payment Operations: Authorization, Audit, and Effect
+#+OPTIONS: toc:nil
+
+* Scope and executable model
+
+As of 2026-10-01, this is a research map and synthetic assurance case, not a
+deployed payment service. The public
+[[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentOperation.lean][PaymentOperation]] is a concrete instruction: direct or delegated authority
+mode, payer account, origin, payment instrument or rail, beneficiary, amount,
+asset, network, fee cap, mandate reference, nonce, policy epoch, and expiry.
+A delegated instruction requires a mandate reference; its authenticity and
+scope remain Host obligations. Its methods keep three decisions
+separate:
+
+| Method boundary | Owner | Current executable claim |
+|-----------------+-------+--------------------------|
+| Authorization | Cedar policy and Host binding | An error-free Allow for this operation is required. |
+| Audit | =PaymentAuditPolicy.accepts= | The policy selects any positive number of evidence stages. Every supplied item must be verified, current, affirmative, and bound to the exact operation. |
+| Effect reservation | =PaymentOperation.reserve= plus Host | Only an authorized, audited, fresh operation consumes its nonce; an identical second reservation fails. Actual transfer execution remains Host-owned. |
+
+AI model, human reviewer, deterministic rule, and external investigator are
+*kinds of audit evidence*, not Payment subclasses or hardcoded steps. A
+requirement selects source and minimum distinct actors. A policy may require
+human actors to differ across stages and exclude the proposer. A negative or
+escalated verdict blocks the audited operation; model output never creates a
+Cedar Allow. The downstream [[file:PaymentAudit.lean][example]] chooses three stages
+(one model, Risk human, Compliance human) and binds Cedar's
+=PaymentGoverned= decision. The [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][regressions]] exercise one-, two-, and
+three-stage policies, changed beneficiary or fee, adverse/unverified
+evidence, same reviewer, stale epoch, expiry, replay, and amount denial. Run
+=just check-payment-audit=.
+
+This object-level split follows the [[https://www.federalreserve.gov/newsevents/speech/waller20260928a.htm][Federal Reserve's distinction]] between
+agent-assisted and agent-delegated payments, and the [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 specification's]]
+separation of checkout, payment mandate, credential verification, and
+processor effect. Our =instrument= and =mandateRef= are opaque identifiers, not
+AP2-compliant credentials. The [[https://arxiv.org/abs/2609.00060][protocol analysis preprint]] similarly motivates
+checking bindings across lifecycle stages; it does not certify this model.
+
+The =verified= flags are Host assertions. This code does not verify signatures,
+run a risk model, persist a nonce, or execute a payment. A production Host
+must authenticate each evidence source, canonicalize and sign the complete
+operation including instrument-specific details, obtain the actual policy epoch
+and error-free Cedar response, and reserve the nonce atomically with the
+processor effect. Detection quality and reviewer load need measurement.
+This pure contract follows the ownership boundary in
+[[file:../../../../docs/rfc/0008-composable-control-objects.org][RFC 0008]]: Cedar owns authorization, the public library states control
+requirements, and the Host owns authentication and effects.
+
+* Industry and research evidence
+
+| Source | Relevant boundary | Next executable question |
+|--------+-------------------+--------------------------|
+| [[https://www.federalreserve.gov/newsevents/speech/waller20260928a.htm][Federal Reserve, Waller (2026)]] | Agent-assisted and delegated payments raise authentication, trust, fraud, and liability questions. | Bind a signed delegation mandate to each action. |
+| [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy.html][AWS AgentCore Policy]] and [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-iam-roles.html][Payments IAM roles]] | Cedar can constrain an agent tool call; session creation and =ProcessPayment= are separate authorities. | Replay exact arguments at the enforcement point and verify deployed mode. |
+| [[https://docs.aws.amazon.com/solutions/payments-fraud-prevention-on-aws/][AWS fraud prevention guidance]] | Near-real-time ML risk detection supplies evidence, not authorization. | Bind signed model version and risk result to the transaction. |
+| [[https://learn.microsoft.com/en-us/entra/agent-id/agent-identities][Microsoft Entra Agent ID]] and [[https://learn.microsoft.com/en-us/microsoft-copilot-studio/flows-advanced-approvals][multistage approvals]] | Agent identity and human approval are distinct; financial transactions are a human-approval use case. | Invalidate signatures after any payment edit. |
+| [[https://learn.microsoft.com/en-us/azure/security/fundamentals/shared-responsibility-ai-agent][Azure agent shared responsibility]] | Calls for action-level authorization and human gates. | Compare the approved action with the current policy epoch. |
+| [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][Google AP2 specification v0.2]] and [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/agent_authorization.md][agent authorization]] | Signed checkout and payment mandates support deterministic verification. | Model scope, revocation, canonical payload, and replay. |
+| [[https://docs.cloud.google.com/financial-services/anti-money-laundering/docs/concepts/overview][Google AML AI]] | Risk scores feed human investigation; its documented monthly AML workflow does not establish a real-time crypto payment blocker. | Keep investigation evidence separate from per-transaction release. |
+| [[https://www.amazon.science/publications/cedar-a-new-language-for-expressive-fast-safe-and-analyzable-authorization][Cedar paper]] and [[https://www.amazon.science/publications/symcert-verifying-smt-based-policy-analyses][SymCert (FMCAD 2026)]] | Authorization and symbolic analysis motivate the Cedar decision and proof boundary. | Check a certificate against the exact reviewed policy version. |
+| [[https://arxiv.org/abs/2609.00060][Formal Analysis of Agent Payment Protocols (2026 preprint)]] and [[https://arxiv.org/abs/2608.23858][Beyond the Mandate (2026 preprint)]] | Study agent payment protocols and preauthorization manipulation. | Test mandate substitution and interleaved approvals. |
+| [[https://arxiv.org/abs/2606.28679][ScopeGate]], [[https://arxiv.org/abs/2607.03656][AutoCedar]], and [[https://arxiv.org/abs/2601.22569][Whispers of Wealth]] (preprints) | Motivate tool-argument scope, whole-store review, and prompt-injection pressure on AP2. | Add adversarial cases without treating model output as approval. |
+
+* Incident evidence and limits
+
+The [[https://www.bitget.com/campaigns/bitget-security-incident-2026][Bitget disclosure]] reports that its security system detected abnormal
+transfers after a third-party product compromise led to stolen internal
+credentials and forged withdrawal commands that bypassed risk verification.
+Its [[https://www.bitget.com/support/articles/12560603896305/][investigation update]] also attributes the compromise to a third-party
+product. The public record does not establish whether AI detection was
+deployed or whether it would have prevented the incident. We use the bypass
+pattern to test whether execution independently verifies identity, exact
+command binding, risk evidence, and release authority.
+
+* Next research slices
+
+1. Define canonical intent serialization and signed evidence verification;
+   check substitution and replay against the public processor adapter.
+2. Connect the approved policy epoch and whole-store authorization-delta
+   review to an atomic Host publication/execution transaction.
+3. Compare AP2 mandate semantics and delegated authorization with the
+   synthetic model, then add protocol-level adversarial traces.
+4. Evaluate a real detector on a documented dataset with false-negative,
+   false-positive, latency, drift, and reviewer-load measurements. Do not
+   present fixture assertions as detection performance.

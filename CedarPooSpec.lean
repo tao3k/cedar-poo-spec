@@ -46,6 +46,7 @@ import CedarPooSpec.Data.Lakehouse.LocationBoundary
 import CedarPooSpec.Data.Lakehouse.LocationProfile
 import CedarPooSpec.Pseudonymization
 import CedarPooSpec.CompoundAuthorization
+import CedarPooSpec.Vertical.FinancialServices.PaymentOperation
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
 import CedarPooSpec.TemplateValidation

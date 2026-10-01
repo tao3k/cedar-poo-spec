@@ -79,6 +79,14 @@ atomic. Idempotency, replay prevention, human approval workflow, and the
 integrity of those inputs remain host responsibilities. The case checks
 authorization behavior; it does not claim to implement a payment processor.
 
+[[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentOperation.lean][PaymentOperation.lean]] owns the public payment object and its
+authorization, audit, and nonce-reservation methods. Audit requirements
+select one, two, three, or more evidence stages; no fixed AI/human count is
+part of the payment type. [[file:PaymentAudit.lean][PaymentAudit.lean]] is this
+example's three-stage policy and Cedar adapter. [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][Regressions]] cover
+different stage counts, substitution, stale evidence, and replay. See
+[[file:Research.org][the continuing research map]] for sources and boundaries.
+
 The [[file:AuthorizationDelta.lean][authorization-delta example]] also checks
 the entire schema-defined authorization space for two changes. Adding the
 emergency freeze produces no new Allow across four request types. Removing

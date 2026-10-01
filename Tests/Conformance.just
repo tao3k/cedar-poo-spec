@@ -1,5 +1,5 @@
 # Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.
-check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-agent-trace-delta check-health-authorization-impact check-personnel-governance
+check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance
 
 check-personnel-governance:
     lake build Examples.Manifests Tests.Enterprise.Personnel.SourceCustody
@@ -81,6 +81,10 @@ check-payment-interaction:
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Agent/Payment/JointRelease.lean > .lake/build/payment-joint-release.json
     jq -e -f Tests/Conformance/payment-joint-release.jq .lake/build/payment-joint-release.json > /dev/null
     jq '.manifest' .lake/build/payment-joint-release.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
+
+# Public payment operation, selectable audit stages, and concrete Cedar adapter.
+check-payment-audit:
+    lake build CedarPooSpec.Vertical.FinancialServices.PaymentOperation Tests.Enterprise.Agent.Payment.PaymentAudit
 
 check-agent-trace-delta:
     lake build Examples.Enterprise.Agent.Session.HostSafety
