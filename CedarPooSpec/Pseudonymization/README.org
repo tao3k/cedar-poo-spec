@@ -57,8 +57,9 @@ record and execute the cryptographic operation.
 ordered, bounded set of rows. Its Production fixture and Rust replay fix
 the all-or-none row, context and byte decisions. The separate Rust Cloud
 planner rechecks each row against one verified Arrow child and a current
-claim before returning per-row plans; it does not form a Google multi-row
-wire request.
+claim before returning per-row plans. [[file:TableBatchWire.lean][TableBatch
+Wire V1]] and its Rust bridge additionally form one Table request and reject
+any mismatched response without admitting local row outputs.
 
 [[file:Compatibility.lean][TokenRelation]] expresses that same recipe
 comparison directly in Cedar's expression AST. A consumer chooses the

@@ -24,7 +24,7 @@ pub struct TabularAesSiv {
 }
 
 /// A named surrogate annotation used by Google SDP for reversible tokens.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct SurrogateInfoType(pub String);
 
 /// The selected Lean table input, including catalog lineage. A Host must
@@ -103,6 +103,146 @@ impl GoogleSdpResponse {
         Ok(Self {
             body: serde_json::from_slice(bytes).map_err(|error| error.to_string())?,
         })
+    }
+}
+
+/// One bounded Google Table request formed from independently admitted rows.
+/// Row identities are retained by the caller in the same order; Google does
+/// not return MRR ordinals. The Host authenticates transport and response size.
+pub struct TabularAesSivBatch {
+    rows: Vec<TabularAesSiv>,
+}
+
+impl TabularAesSivBatch {
+    /// Combine rows only when they share one endpoint, recipe and wrapped key.
+    /// The hard row and input-byte ceilings mirror SPEC Table Batch V1.
+    pub fn new(rows: Vec<TabularAesSiv>) -> Result<Self, String> {
+        let first = rows.first().ok_or("empty Google SDP table batch")?;
+        if rows.len() > 256 {
+            return Err("Google SDP table batch exceeds 256 rows".into());
+        }
+        first.validate()?;
+        let mut bytes = 0usize;
+        for row in &rows {
+            row.validate()?;
+            if row.parent != first.parent
+                || row.value_field != first.value_field
+                || row.context_field != first.context_field
+                || row.kms_key_name != first.kms_key_name
+                || row.wrapped_key_base64 != first.wrapped_key_base64
+                || row.surrogate_info_type != first.surrogate_info_type
+            {
+                return Err("Google SDP table batch mixes provider recipes".into());
+            }
+            bytes = bytes
+                .checked_add(row.value.len())
+                .and_then(|used| used.checked_add(row.context.len()))
+                .filter(|used| *used <= 1_048_576)
+                .ok_or("Google SDP table batch exceeds selected UTF-8 budget")?;
+        }
+        Ok(Self { rows })
+    }
+
+    /// The shared de-identification endpoint for this batch.
+    pub fn endpoint(&self) -> Result<String, String> {
+        self.rows[0].endpoint(false)
+    }
+
+    /// Construct one Table request with ordered value/context rows.
+    pub fn deidentify_body(&self) -> Result<GoogleSdpRequest, String> {
+        let first = &self.rows[0];
+        let rows: Vec<Value> = self
+            .rows
+            .iter()
+            .map(|row| {
+                json!({"values": [
+                    {"stringValue": row.value}, {"stringValue": row.context}
+                ]})
+            })
+            .collect();
+        Ok(GoogleSdpRequest {
+            body: json!({
+                "deidentifyConfig": first.transformation(),
+                "item": {"table": {
+                    "headers": [
+                        {"name": first.value_field}, {"name": first.context_field}
+                    ],
+                    "rows": rows
+                }}
+            }),
+        })
+    }
+
+    /// Admit no local row output unless the entire response has the selected
+    /// shape, one success per row, unchanged contexts and valid changed tokens.
+    /// A rejected response says nothing about external provider side effects.
+    pub fn check_deidentify_response(
+        &self,
+        response: &GoogleSdpResponse,
+    ) -> Result<Vec<CheckedTableOutput>, String> {
+        let first = &self.rows[0];
+        let table = response
+            .body
+            .pointer("/item/table")
+            .ok_or("missing Google SDP response table")?;
+        let headers = table["headers"]
+            .as_array()
+            .ok_or("missing Google SDP response headers")?;
+        let output_rows = table["rows"]
+            .as_array()
+            .ok_or("missing Google SDP response rows")?;
+        if headers.len() != 2
+            || headers[0]["name"] != first.value_field
+            || headers[1]["name"] != first.context_field
+            || output_rows.len() != self.rows.len()
+        {
+            return Err("Google SDP response changed the batch table shape".into());
+        }
+        let summaries = response
+            .body
+            .pointer("/overview/transformationSummaries")
+            .and_then(Value::as_array)
+            .ok_or("missing Google SDP transformation overview")?;
+        if summaries.len() != 1
+            || summaries[0]["field"]["name"] != first.value_field
+            || summaries[0]["results"].as_array().is_none_or(|results| {
+                results.len() != 1
+                    || results[0]["code"] != "SUCCESS"
+                    || results[0]["count"]
+                        .as_str()
+                        .and_then(|count| count.parse::<usize>().ok())
+                        != Some(self.rows.len())
+            })
+        {
+            return Err("Google SDP did not report exact batch success".into());
+        }
+        let request = self.deidentify_body()?;
+        let request_sha256 = hex_digest(&request.body)?;
+        let response_sha256 = hex_digest(&response.body)?;
+        self.rows
+            .iter()
+            .zip(output_rows)
+            .map(|(selected, output)| {
+                let values = output["values"]
+                    .as_array()
+                    .ok_or("missing Google SDP response values")?;
+                if values.len() != 2 || values[1]["stringValue"] != selected.context {
+                    return Err("Google SDP changed a batch context or row shape".into());
+                }
+                let token = values[0]["stringValue"]
+                    .as_str()
+                    .ok_or("missing Google SDP batch token")?;
+                if token.is_empty() || token == selected.value {
+                    return Err("Google SDP did not transform a selected batch cell".into());
+                }
+                selected.check_token_format(token)?;
+                Ok(CheckedTableOutput {
+                    value: token.to_owned(),
+                    request_sha256: request_sha256.clone(),
+                    response_sha256: response_sha256.clone(),
+                })
+            })
+            .collect()
     }
 }
 

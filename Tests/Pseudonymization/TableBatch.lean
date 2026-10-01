@@ -10,4 +10,9 @@ theorem exactBatchDecisions :
     cases.length = 13 := by
   native_decide
 
+theorem exactWireDecisions :
+    (wireCases.map fun (_, selected, response) => response.admitted selected) =
+      [true, true] ++ List.replicate 8 false := by
+  native_decide
+
 end CedarPooSpec.Pseudonymization.TableBatchTests

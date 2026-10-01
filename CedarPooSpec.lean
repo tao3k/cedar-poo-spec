@@ -45,6 +45,7 @@ import CedarPooSpec.Data.StorageEffect
 import CedarPooSpec.Data.ProtectedStorage
 import CedarPooSpec.Data.ProtectedRead
 import CedarPooSpec.Pseudonymization.TableBatch
+import CedarPooSpec.Pseudonymization.TableBatchWire
 import CedarPooSpec.Data.ProtectionProfile
 import CedarPooSpec.Data.CumulativeDisclosure
 import CedarPooSpec.Data.Lakehouse.LocationBoundary

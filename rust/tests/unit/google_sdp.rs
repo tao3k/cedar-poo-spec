@@ -1,5 +1,6 @@
 use super::{
-    GoogleSdpResponse, SelectedTabularInput, SurrogateInfoType, TabularAesSiv, WrappedKeyBinding,
+    GoogleSdpResponse, SelectedTabularInput, SurrogateInfoType, TabularAesSiv, TabularAesSivBatch,
+    WrappedKeyBinding,
 };
 use serde_json::json;
 
@@ -156,4 +157,76 @@ fn surrogate_annotation_requires_the_declared_name_and_encoded_length() {
         ))
         .is_err()
     );
+}
+
+#[test]
+fn table_batch_wire_replays_lean_response_matrix() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../Tests/Conformance/google-table-batch-v1.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["version"], "google-table-batch-v1");
+    let cases = fixture["wire_cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 10);
+    for case in cases {
+        let selected = case["selected"].as_array().unwrap();
+        let plans = selected
+            .iter()
+            .map(|row| TabularAesSiv {
+                value: row["value"].as_str().unwrap().to_owned(),
+                context: row["context"].as_str().unwrap().to_owned(),
+                ..plan()
+            })
+            .collect();
+        let batch = TabularAesSivBatch::new(plans);
+        if selected.is_empty() {
+            assert!(batch.is_err(), "{}", case["name"]);
+            assert_eq!(case["allow"], false);
+            continue;
+        }
+        let batch = batch.unwrap();
+        let rows: Vec<_> = case["response_rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| {
+                json!({"values": [
+                    {"stringValue": row["value"]}, {"stringValue": row["context"]}
+                ]})
+            })
+            .collect();
+        let success = case["success_count"].as_u64().unwrap().to_string();
+        let mut results = vec![json!({"code": "SUCCESS", "count": success})];
+        if case["error_count"] != 0 {
+            results.push(json!({"code": "ERROR", "count": case["error_count"].as_u64().unwrap().to_string()}));
+        }
+        let response = GoogleSdpResponse {
+            body: json!({
+                "item": {"table": {
+                    "headers": [{"name": "patient_id"}, {"name": "tenant_scope"}],
+                    "rows": rows
+                }},
+                "overview": {"transformationSummaries": [{
+                    "field": {"name": "patient_id"}, "results": results
+                }]}
+            }),
+        };
+        assert_eq!(
+            batch.check_deidentify_response(&response).is_ok(),
+            case["allow"] == true,
+            "{}",
+            case["name"]
+        );
+        if case["allow"] == true {
+            let request = batch.deidentify_body().unwrap();
+            assert_eq!(
+                request.body["item"]["table"]["rows"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                selected.len()
+            );
+            assert_eq!(batch.endpoint().unwrap(), plan().endpoint(false).unwrap());
+        }
+    }
 }

@@ -1,4 +1,4 @@
-import CedarPooSpec.Pseudonymization.TableBatch
+import CedarPooSpec.Pseudonymization.TableBatchWire
 import Lean
 
 namespace CedarPooSpec.Pseudonymization.TableBatchFixture
@@ -42,6 +42,37 @@ def cases : List (String × AesSivTableRecipe × List AesSivTableBatchRow × Nat
    ("wrong-mode", { recipe with profile := { profile with mode := .hmacSha256 } },
      baseRows, 2, 100)]
 
+def wireSelected : List AesSivTableBatchInput :=
+  [⟨0, ⟨"patient-1", "study-a"⟩⟩, ⟨1, ⟨"patient-2", "study-a"⟩⟩]
+
+def wireRows : List TableBatchWireRowV1 :=
+  [⟨"c3ludGhldGljLWNpcGhlcnRleHQtMQ==", "study-a"⟩,
+   ⟨"c3ludGhldGljLWNpcGhlcnRleHQtMg==", "study-a"⟩]
+
+def wireResponse : TableBatchWireResponseV1 :=
+  ⟨wireRows, 2, 0⟩
+
+def wireCases : List (String × List AesSivTableBatchInput × TableBatchWireResponseV1) :=
+  [("two-rows", wireSelected, wireResponse),
+   ("two-contexts",
+     [⟨0, ⟨"patient-1", "study-a"⟩⟩, ⟨1, ⟨"patient-2", "study-b"⟩⟩],
+     { wireResponse with rows := [wireRows[0]!, ⟨wireRows[1]!.value, "study-b"⟩] }),
+   ("missing-row", wireSelected,
+     { wireResponse with rows := [wireRows[0]!] }),
+   ("extra-row", wireSelected,
+     { wireResponse with rows := wireRows ++ [wireRows[0]!] }),
+   ("changed-context", wireSelected,
+     { wireResponse with rows := [⟨wireRows[0]!.value, "study-b"⟩, wireRows[1]!] }),
+   ("unchanged-value", wireSelected,
+     { wireResponse with rows := [⟨"patient-1", "study-a"⟩, wireRows[1]!] }),
+   ("empty-token", wireSelected,
+     { wireResponse with rows := [⟨"", "study-a"⟩, wireRows[1]!] }),
+   ("partial-success", wireSelected,
+     { wireResponse with successCount := 1 }),
+   ("reported-error", wireSelected,
+     { wireResponse with errorCount := 1 }),
+   ("empty-selection", [], wireResponse)]
+
 def errorName : TableBatchError → String
   | .empty => "empty"
   | .invalidBudget => "invalid-budget"
@@ -75,8 +106,22 @@ private def caseJson
       | .error reason => Json.mkObj [("allow", toJson false),
           ("error", toJson (errorName reason))])]
 
+private def wireCaseJson
+    (entry : String × List AesSivTableBatchInput × TableBatchWireResponseV1) : Json :=
+  let (name, selected, response) := entry
+  Json.mkObj [("name", toJson name),
+    ("selected", toJson (selected.map fun row => Json.mkObj
+      [("ordinal", toJson row.ordinal), ("value", toJson row.input.value),
+       ("context", toJson row.input.context)])),
+    ("response_rows", toJson (response.rows.map fun row => Json.mkObj
+      [("value", toJson row.value), ("context", toJson row.context)])),
+    ("success_count", toJson response.successCount),
+    ("error_count", toJson response.errorCount),
+    ("allow", toJson (response.admitted selected))]
+
 def fixture : Json :=
   Json.mkObj [("version", toJson "google-table-batch-v1"),
-    ("cases", toJson (cases.map caseJson))]
+    ("cases", toJson (cases.map caseJson)),
+    ("wire_cases", toJson (wireCases.map wireCaseJson))]
 
 end CedarPooSpec.Pseudonymization.TableBatchFixture
