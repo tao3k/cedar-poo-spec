@@ -105,6 +105,31 @@ The [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specific
 our nonce key is a local Host convention, not an AP2 credential or AP2-mandated
 idempotency rule.
 
+* Numeric terms at the Cedar adapter boundary
+
+The [[https://docs.cedarpolicy.com/policies/syntax-operators.html][Cedar decimal constructor]] accepts one to four fractional digits and
+leading-zero spellings. Two strings can therefore denote one Cedar value
+while remaining distinct =PaymentOperation= fields and audit bindings. The
+[[file:PaymentAudit.lean][bank-rail example adapter]] now accepts only the fixed four-place spelling
+produced by Cedar's decimal =toString=, for both =amount= and =feeCap=. It
+rejects negative or overflowing fee caps. The ledger preparation helper uses
+the adapter's Cedar Allow and a separate synthetic Host =PaymentExecutionProfile=
+before reserving a request key. The profile fixes the example's delegated mode,
+instrument, beneficiary, asset, network, mandate reference, and maximum fee
+cap; its =verified= flag is an asserted Host fact, not a signature check. The
+tests rebind all audit evidence to altered terms so the negative results test
+the adapter checks rather than stale evidence.
+
+This is a local transport profile, not a claim that Cedar requires one spelling.
+The current Cedar policy authorizes =amount=, account, and origin; it does not
+see beneficiary or asset, and it does not compare =feeCap= to a policy limit.
+The fixture proves that Cedar alone still allows a changed beneficiary while
+the composite example decision denies it. Neither layer verifies the fee
+eventually charged by a processor or the delegated mandate's signature. The
+Host must authenticate the profile and mandate, then bind the final processor
+payload and fee result to these exact terms. Other rails need their own
+numeric range, precision, asset, and canonical encoding rules before dispatch.
+
 * Cross-stage audit-policy binding
 
 The authorization receipt and every audit item now carry the *exact*

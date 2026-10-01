@@ -125,6 +125,36 @@ theorem cedarDeniesExcessAmount :
     cedarAllowed { payment with amount := "100.0001" } = false := by native_decide
 theorem cedarDeniesMalformedAmount :
     cedarAllowed { payment with amount := "not-an-amount" } = false := by native_decide
+theorem cedarDeniesNoncanonicalAmount :
+    cedarAllowed { payment with amount := "050.0000" } = false := by native_decide
+theorem cedarDeniesShortDecimalAmount :
+    cedarAllowed { payment with amount := "50.0" } = false := by native_decide
+theorem cedarProjectionDoesNotSeeBeneficiary :
+    cedarAllowed { payment with beneficiary := "attacker" } = true := by native_decide
+theorem exampleDeniesMalformedFeeCap :
+    exampleAllowed { payment with feeCap := "not-a-fee" } = false := by native_decide
+theorem exampleDeniesNegativeFeeCap :
+    exampleAllowed { payment with feeCap := "-1.0000" } = false := by native_decide
+theorem exampleDeniesNoncanonicalFeeCap :
+    exampleAllowed { payment with feeCap := "01.0000" } = false := by native_decide
+theorem exampleDeniesOverflowFeeCap :
+    exampleAllowed { payment with feeCap := "922337203685477.5808" } = false := by native_decide
+theorem exampleAllowsSmallerFeeCap :
+    exampleAllowed { payment with feeCap := "0.5000" } = true := by native_decide
+theorem exampleDeniesExcessFeeCap :
+    exampleAllowed { payment with feeCap := "1.0001" } = false := by native_decide
+theorem exampleDeniesChangedBeneficiary :
+    exampleAllowed { payment with beneficiary := "attacker" } = false := by native_decide
+theorem exampleDeniesChangedAsset :
+    exampleAllowed { payment with asset := "BTC" } = false := by native_decide
+theorem exampleDeniesChangedRail :
+    exampleAllowed { payment with network := "other-rail" } = false := by native_decide
+theorem exampleDeniesChangedInstrument :
+    exampleAllowed { payment with instrument := "other-instrument" } = false := by native_decide
+theorem exampleDeniesChangedMandate :
+    exampleAllowed { payment with mandateRef := "other-mandate" } = false := by native_decide
+theorem unverifiedProfileDenies :
+    ({ executionProfile with verified := false }).allows payment = false := by decide
 theorem cedarReservationConsumesNonce :
     (reserveWithCedar payment state threeEvidence).map
       (fun next => next.usedNonces) = some [payment.nonce] := by native_decide
@@ -201,6 +231,29 @@ def acceptedLedger : PaymentLedger :=
 def settledLedger : PaymentLedger :=
   { reservedLedger with revision := 4, attempts :=
       [{ accepted with phase := .settled }] }
+
+def evidenceFor (target : PaymentOperation) : List AuditEvidence :=
+  threeEvidence.map fun item => { item with payment := target }
+
+theorem cedarLedgerPreparesCanonicalPayment :
+    prepareLedgerWithCedar emptyLedger payment threeEvidence =
+      some reservedLedger := by native_decide
+theorem cedarLedgerRejectsNoncanonicalAmount :
+    prepareLedgerWithCedar emptyLedger
+      { payment with amount := "050.0000" }
+      (evidenceFor { payment with amount := "050.0000" }) = none := by native_decide
+theorem cedarLedgerRejectsInvalidFeeCap :
+    prepareLedgerWithCedar emptyLedger
+      { payment with feeCap := "-1.0000" }
+      (evidenceFor { payment with feeCap := "-1.0000" }) = none := by native_decide
+theorem cedarLedgerRejectsRecapturedBeneficiary :
+    prepareLedgerWithCedar emptyLedger
+      { payment with beneficiary := "attacker" }
+      (evidenceFor { payment with beneficiary := "attacker" }) = none := by native_decide
+theorem cedarLedgerRejectsRecapturedExcessFeeCap :
+    prepareLedgerWithCedar emptyLedger
+      { payment with feeCap := "1.0001" }
+      (evidenceFor { payment with feeCap := "1.0001" }) = none := by native_decide
 
 theorem ledgerPrepareIsAtomicRecord :
     emptyLedger.prepare payment authorization threeEvidence =
