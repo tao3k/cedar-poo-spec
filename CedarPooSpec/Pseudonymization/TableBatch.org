@@ -20,18 +20,23 @@ row after physical child verification.
 
 [[file:TableBatchWire.lean][TableBatch Wire V1]] then checks one ordered Table
 response against the selected rows. The provider returns no MRR row ordinals,
-so the caller retains the ordinal vector and matches response rows by position.
+so the bridge adds an untransformed =__mrr_row_v1= column with a unique
+request-position marker. A response with reordered, missing or duplicate
+markers is rejected before assigning tokens to MRR row identities.
 All row counts and contexts must match, every value must change, and the
 reported success count must equal the batch size with no reported errors.
-The same checked JSON includes ten wire cases (two allow, eight deny), replayed
+The same checked JSON includes twelve wire cases (two allow, ten deny), replayed
 by the Rust Google bridge. That bridge also checks AES-SIV token syntax and
-forms one bounded Google Table request. A rejected response releases no local
+forms one bounded Google Table request. It checks the exact serialized body
+against a conservative 400 KB local ceiling below Google's currently documented
+0.5 MB request limit. A rejected response releases no local
 row output; this cannot roll back provider work or authenticate transport.
 The Host bounds response bytes and controls any durable effect or release.
 Google's documented =content:deidentify= endpoint accepts a Table for record
 transformations and reports transformation results in the response overview:
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.content/deidentify][method]],
-[[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/TransformationOverview][overview]].
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/TransformationOverview][overview]],
+[[https://docs.cloud.google.com/sensitive-data-protection/limits][limits]].
 
 #+begin_src sh
 just check-google-table-batch-v1

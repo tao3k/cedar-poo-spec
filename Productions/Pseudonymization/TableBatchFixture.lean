@@ -46,8 +46,8 @@ def wireSelected : List AesSivTableBatchInput :=
   [⟨0, ⟨"patient-1", "study-a"⟩⟩, ⟨1, ⟨"patient-2", "study-a"⟩⟩]
 
 def wireRows : List TableBatchWireRowV1 :=
-  [⟨"c3ludGhldGljLWNpcGhlcnRleHQtMQ==", "study-a"⟩,
-   ⟨"c3ludGhldGljLWNpcGhlcnRleHQtMg==", "study-a"⟩]
+  [⟨"c3ludGhldGljLWNpcGhlcnRleHQtMQ==", "study-a", "r0"⟩,
+   ⟨"c3ludGhldGljLWNpcGhlcnRleHQtMg==", "study-a", "r1"⟩]
 
 def wireResponse : TableBatchWireResponseV1 :=
   ⟨wireRows, 2, 0⟩
@@ -56,17 +56,21 @@ def wireCases : List (String × List AesSivTableBatchInput × TableBatchWireResp
   [("two-rows", wireSelected, wireResponse),
    ("two-contexts",
      [⟨0, ⟨"patient-1", "study-a"⟩⟩, ⟨1, ⟨"patient-2", "study-b"⟩⟩],
-     { wireResponse with rows := [wireRows[0]!, ⟨wireRows[1]!.value, "study-b"⟩] }),
+     { wireResponse with rows := [wireRows[0]!, ⟨wireRows[1]!.value, "study-b", "r1"⟩] }),
+   ("swapped-same-context", wireSelected,
+     { wireResponse with rows := [wireRows[1]!, wireRows[0]!] }),
+   ("duplicate-marker", wireSelected,
+     { wireResponse with rows := [wireRows[0]!, { wireRows[1]! with marker := "r0" }] }),
    ("missing-row", wireSelected,
      { wireResponse with rows := [wireRows[0]!] }),
    ("extra-row", wireSelected,
      { wireResponse with rows := wireRows ++ [wireRows[0]!] }),
    ("changed-context", wireSelected,
-     { wireResponse with rows := [⟨wireRows[0]!.value, "study-b"⟩, wireRows[1]!] }),
+     { wireResponse with rows := [⟨wireRows[0]!.value, "study-b", "r0"⟩, wireRows[1]!] }),
    ("unchanged-value", wireSelected,
-     { wireResponse with rows := [⟨"patient-1", "study-a"⟩, wireRows[1]!] }),
+     { wireResponse with rows := [⟨"patient-1", "study-a", "r0"⟩, wireRows[1]!] }),
    ("empty-token", wireSelected,
-     { wireResponse with rows := [⟨"", "study-a"⟩, wireRows[1]!] }),
+     { wireResponse with rows := [⟨"", "study-a", "r0"⟩, wireRows[1]!] }),
    ("partial-success", wireSelected,
      { wireResponse with successCount := 1 }),
    ("reported-error", wireSelected,
@@ -114,7 +118,8 @@ private def wireCaseJson
       [("ordinal", toJson row.ordinal), ("value", toJson row.input.value),
        ("context", toJson row.input.context)])),
     ("response_rows", toJson (response.rows.map fun row => Json.mkObj
-      [("value", toJson row.value), ("context", toJson row.context)])),
+      [("value", toJson row.value), ("context", toJson row.context),
+       ("marker", toJson row.marker)])),
     ("success_count", toJson response.successCount),
     ("error_count", toJson response.errorCount),
     ("allow", toJson (response.admitted selected))]

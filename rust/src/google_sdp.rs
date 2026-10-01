@@ -113,6 +113,9 @@ pub struct TabularAesSivBatch {
     rows: Vec<TabularAesSiv>,
 }
 
+const ROW_MARKER_FIELD: &str = "__mrr_row_v1";
+const MAX_BATCH_REQUEST_BYTES: usize = 400_000;
+
 impl TabularAesSivBatch {
     /// Combine rows only when they share one endpoint, recipe and wrapped key.
     /// The hard row and input-byte ceilings mirror SPEC Table Batch V1.
@@ -140,7 +143,14 @@ impl TabularAesSivBatch {
                 .filter(|used| *used <= 1_048_576)
                 .ok_or("Google SDP table batch exceeds selected UTF-8 budget")?;
         }
-        Ok(Self { rows })
+        if first.value_field == ROW_MARKER_FIELD || first.context_field == ROW_MARKER_FIELD {
+            return Err("Google SDP field conflicts with the batch row marker".into());
+        }
+        let batch = Self { rows };
+        if batch.deidentify_body()?.to_json_bytes()?.len() > MAX_BATCH_REQUEST_BYTES {
+            return Err("Google SDP serialized batch request exceeds local wire budget".into());
+        }
+        Ok(batch)
     }
 
     /// The shared de-identification endpoint for this batch.
@@ -154,9 +164,11 @@ impl TabularAesSivBatch {
         let rows: Vec<Value> = self
             .rows
             .iter()
-            .map(|row| {
+            .enumerate()
+            .map(|(index, row)| {
                 json!({"values": [
-                    {"stringValue": row.value}, {"stringValue": row.context}
+                    {"stringValue": row.value}, {"stringValue": row.context},
+                    {"stringValue": format!("r{index}")}
                 ]})
             })
             .collect();
@@ -165,7 +177,8 @@ impl TabularAesSivBatch {
                 "deidentifyConfig": first.transformation(),
                 "item": {"table": {
                     "headers": [
-                        {"name": first.value_field}, {"name": first.context_field}
+                        {"name": first.value_field}, {"name": first.context_field},
+                        {"name": ROW_MARKER_FIELD}
                     ],
                     "rows": rows
                 }}
@@ -180,6 +193,26 @@ impl TabularAesSivBatch {
         &self,
         response: &GoogleSdpResponse,
     ) -> Result<Vec<CheckedTableOutput>, String> {
+        let output_rows = self.response_rows(response)?;
+        self.check_summary(response)?;
+        let request_sha256 = hex_digest(&self.deidentify_body()?.body)?;
+        let response_sha256 = hex_digest(&response.body)?;
+        self.rows
+            .iter()
+            .zip(output_rows)
+            .enumerate()
+            .map(|(index, (selected, output))| {
+                let value = Self::checked_row(index, selected, output)?;
+                Ok(CheckedTableOutput {
+                    value,
+                    request_sha256: request_sha256.clone(),
+                    response_sha256: response_sha256.clone(),
+                })
+            })
+            .collect()
+    }
+
+    fn response_rows<'a>(&self, response: &'a GoogleSdpResponse) -> Result<&'a [Value], String> {
         let first = &self.rows[0];
         let table = response
             .body
@@ -191,13 +224,19 @@ impl TabularAesSivBatch {
         let output_rows = table["rows"]
             .as_array()
             .ok_or("missing Google SDP response rows")?;
-        if headers.len() != 2
+        if headers.len() != 3
             || headers[0]["name"] != first.value_field
             || headers[1]["name"] != first.context_field
+            || headers[2]["name"] != ROW_MARKER_FIELD
             || output_rows.len() != self.rows.len()
         {
             return Err("Google SDP response changed the batch table shape".into());
         }
+        Ok(output_rows)
+    }
+
+    fn check_summary(&self, response: &GoogleSdpResponse) -> Result<(), String> {
+        let first = &self.rows[0];
         let summaries = response
             .body
             .pointer("/overview/transformationSummaries")
@@ -216,33 +255,31 @@ impl TabularAesSivBatch {
         {
             return Err("Google SDP did not report exact batch success".into());
         }
-        let request = self.deidentify_body()?;
-        let request_sha256 = hex_digest(&request.body)?;
-        let response_sha256 = hex_digest(&response.body)?;
-        self.rows
-            .iter()
-            .zip(output_rows)
-            .map(|(selected, output)| {
-                let values = output["values"]
-                    .as_array()
-                    .ok_or("missing Google SDP response values")?;
-                if values.len() != 2 || values[1]["stringValue"] != selected.context {
-                    return Err("Google SDP changed a batch context or row shape".into());
-                }
-                let token = values[0]["stringValue"]
-                    .as_str()
-                    .ok_or("missing Google SDP batch token")?;
-                if token.is_empty() || token == selected.value {
-                    return Err("Google SDP did not transform a selected batch cell".into());
-                }
-                selected.check_token_format(token)?;
-                Ok(CheckedTableOutput {
-                    value: token.to_owned(),
-                    request_sha256: request_sha256.clone(),
-                    response_sha256: response_sha256.clone(),
-                })
-            })
-            .collect()
+        Ok(())
+    }
+
+    fn checked_row(
+        index: usize,
+        selected: &TabularAesSiv,
+        output: &Value,
+    ) -> Result<String, String> {
+        let values = output["values"]
+            .as_array()
+            .ok_or("missing Google SDP response values")?;
+        if values.len() != 3
+            || values[1]["stringValue"] != selected.context
+            || values[2]["stringValue"] != format!("r{index}")
+        {
+            return Err("Google SDP changed a batch context or row shape".into());
+        }
+        let token = values[0]["stringValue"]
+            .as_str()
+            .ok_or("missing Google SDP batch token")?;
+        if token.is_empty() || token == selected.value {
+            return Err("Google SDP did not transform a selected batch cell".into());
+        }
+        selected.check_token_format(token)?;
+        Ok(token.to_owned())
     }
 }
 

@@ -167,7 +167,7 @@ fn table_batch_wire_replays_lean_response_matrix() {
     .unwrap();
     assert_eq!(fixture["version"], "google-table-batch-v1");
     let cases = fixture["wire_cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 10);
+    assert_eq!(cases.len(), 12);
     for case in cases {
         let selected = case["selected"].as_array().unwrap();
         let plans = selected
@@ -191,7 +191,8 @@ fn table_batch_wire_replays_lean_response_matrix() {
             .iter()
             .map(|row| {
                 json!({"values": [
-                    {"stringValue": row["value"]}, {"stringValue": row["context"]}
+                    {"stringValue": row["value"]}, {"stringValue": row["context"]},
+                    {"stringValue": row["marker"]}
                 ]})
             })
             .collect();
@@ -203,7 +204,8 @@ fn table_batch_wire_replays_lean_response_matrix() {
         let response = GoogleSdpResponse {
             body: json!({
                 "item": {"table": {
-                    "headers": [{"name": "patient_id"}, {"name": "tenant_scope"}],
+                    "headers": [{"name": "patient_id"}, {"name": "tenant_scope"},
+                        {"name": "__mrr_row_v1"}],
                     "rows": rows
                 }},
                 "overview": {"transformationSummaries": [{
@@ -226,7 +228,29 @@ fn table_batch_wire_replays_lean_response_matrix() {
                     .len(),
                 selected.len()
             );
+            assert_eq!(
+                request.body["item"]["table"]["rows"][0]["values"][2]["stringValue"],
+                "r0"
+            );
             assert_eq!(batch.endpoint().unwrap(), plan().endpoint(false).unwrap());
         }
     }
+}
+
+#[test]
+fn table_batch_rejects_reserved_marker_and_oversized_serialized_request() {
+    assert!(
+        TabularAesSivBatch::new(vec![TabularAesSiv {
+            context_field: "__mrr_row_v1".into(),
+            ..plan()
+        }])
+        .is_err()
+    );
+    assert!(
+        TabularAesSivBatch::new(vec![TabularAesSiv {
+            value: "x".repeat(400_000),
+            ..plan()
+        }])
+        .is_err()
+    );
 }

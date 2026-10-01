@@ -17,10 +17,12 @@ storage branch; this independent Google branch uses a simple pure fold.
 [[file:../../Tests/Pseudonymization/TableBatch.lean][The Lean test]] and
 [[file:../../Tests/Conformance/google-table-batch-v1.json][checked fixture]]
 fix two accepted and eleven denied selection cases, plus two accepted and
-eight denied wire response cases. Rust replays the exact fixture, then its
+ten denied wire response cases, including swapped equal-context rows. Rust
+replays the exact fixture, then its
 Cloud batch planner rechecks current per-row authorization and actual Arrow
 cells before the bridge forms one request. The bridge structurally checks a
-Host-supplied response; neither pure fold authenticates its origin, reverses
+Host-supplied response and verifies a generated marker for every row; neither
+pure fold authenticates its origin, reverses
 external partial work, or joins separate policy claims into one grant.
 
 * Reconsideration trigger

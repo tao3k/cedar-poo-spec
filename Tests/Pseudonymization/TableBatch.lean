@@ -12,7 +12,7 @@ theorem exactBatchDecisions :
 
 theorem exactWireDecisions :
     (wireCases.map fun (_, selected, response) => response.admitted selected) =
-      [true, true] ++ List.replicate 8 false := by
+      [true, true] ++ List.replicate 10 false := by
   native_decide
 
 end CedarPooSpec.Pseudonymization.TableBatchTests
