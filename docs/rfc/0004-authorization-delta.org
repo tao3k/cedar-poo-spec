@@ -157,19 +157,24 @@ Lean's standard =propext=, =Classical.choice=, and =Quot.sound= axioms.
 =Published= to =Posture= ticket-sharing query, checks its structural shape,
 and supplies the six well-formedness facts. Its =exactUnsat= theorem then
 establishes =εnv ⊭ asserts= for this one query and type environment.
-=noGainForValidatedTicketSharing= applies the schema-level soundness theorem
-to the original policy sets. It retains request/entity validation and
-concrete strong well-formedness premises, including valid policy references.
+The query now uses the directly linked =policiesV1= and =policiesV2= lists.
+=noGainForValidatedPolicyBodies= applies schema-level soundness to those
+exact Cedar bodies without depending on C4 model construction.
+=noGainForValidatedTicketSharing= separately uses =policyRevisionBodies= to
+connect the compiled =Published= to =Posture= C4 revision to those lists.
+Both no-gain theorems retain request/entity validation and concrete strong
+well-formedness premises, including valid policy references.
 
 The six atomic well-formedness proofs now use Cedar's well-formedness and
 type theorems with kernel reduction, including an explicit request type
 environment. The attribute-function lookup also uses kernel =decide=.
-The compiled model, typed policy sets, generated query, and exact query-shape
-identity still use =native_decide=. Consequently =exactUnsat= still depends
-on native computation certificates and is not a kernel-only theorem. The
-conditional Boolean core is kernel checked; the fixed fixture closes its
-UNSAT premise with those certificates. The general analyzer still relies on
-external solver answers for arbitrary generated queries.
+The typechecked policy sets, generated query, and exact query-shape identity
+still use =native_decide=; =exactUnsat= depends on these four fixture-level
+certificates and is not a kernel-only theorem. The C4 bridge additionally
+depends on native certificates for model construction and compilation. This
+separation makes the trusted boundary of the policy-body claim smaller without
+implying that the end-to-end C4 claim is kernel-only. The general analyzer
+still relies on external solver answers for arbitrary generated queries.
 
 =just probe-authorization-delta-proof= emits the exact =Published= to =Posture=
 no-gain query through Cedar's own symbolic encoder and asks cvc5 for CPC proof

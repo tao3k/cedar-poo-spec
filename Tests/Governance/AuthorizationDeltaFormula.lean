@@ -10,9 +10,8 @@ namespace CedarPooSpec.AuthorizationDeltaFixture
 
 def typeEnv : TypeEnv := schema.environments.head!
 def symEnv : SymEnv := SymEnv.ofTypeEnv typeEnv
-def revision := (model.compileRevision "Published" "Posture").toOption.get (by native_decide)
-def before := (wellTypedPolicies revision.beforePolicies typeEnv).toOption.get (by native_decide)
-def after := (wellTypedPolicies revision.afterPolicies typeEnv).toOption.get (by native_decide)
+def before := (wellTypedPolicies policiesV1 typeEnv).toOption.get (by native_decide)
+def after := (wellTypedPolicies policiesV2 typeEnv).toOption.get (by native_decide)
 def asserts := (verifyErrorFreeAllowExpansion before after symEnv).toOption.get (by native_decide)
 
 def attrs : UnaryFunction := (symEnv.entities.attrs ticketType).get (by decide)
@@ -175,15 +174,15 @@ theorem schemaWF : schema.validateWellFormed = .ok () := by
   | ok u => cases u; rfl
   | error e => simp [h, Except.isOk, Except.toBool] at hOk
 
-theorem typecheckedBefore : wellTypedPolicies revision.beforePolicies typeEnv = .ok before := by
-  have hOk : (wellTypedPolicies revision.beforePolicies typeEnv).isOk = true := by native_decide
-  cases h : wellTypedPolicies revision.beforePolicies typeEnv with
+theorem typecheckedBefore : wellTypedPolicies policiesV1 typeEnv = .ok before := by
+  have hOk : (wellTypedPolicies policiesV1 typeEnv).isOk = true := by native_decide
+  cases h : wellTypedPolicies policiesV1 typeEnv with
   | ok ps => simp only [before, h, Except.toOption] ; rfl
   | error e => simp [h, Except.isOk, Except.toBool] at hOk
 
-theorem typecheckedAfter : wellTypedPolicies revision.afterPolicies typeEnv = .ok after := by
-  have hOk : (wellTypedPolicies revision.afterPolicies typeEnv).isOk = true := by native_decide
-  cases h : wellTypedPolicies revision.afterPolicies typeEnv with
+theorem typecheckedAfter : wellTypedPolicies policiesV2 typeEnv = .ok after := by
+  have hOk : (wellTypedPolicies policiesV2 typeEnv).isOk = true := by native_decide
+  cases h : wellTypedPolicies policiesV2 typeEnv with
   | ok ps => simp only [after, h, Except.toOption] ; rfl
   | error e => simp [h, Except.isOk, Except.toBool] at hOk
 
@@ -194,19 +193,19 @@ theorem exactQuery : verifyErrorFreeAllowExpansion before after symEnv = .ok ass
   | error e => simp [h, Except.isOk, Except.toBool] at hOk
 
 /-- For validated, strongly well-formed ticket-sharing requests and policy
-    references, the published-to-posture revision cannot add an error-free
-    Allow. The exact query's UNSAT premise is proved above in Lean. -/
-theorem noGainForValidatedTicketSharing
+    references, these exact linked Cedar policy lists cannot gain an error-free
+    Allow. This theorem does not depend on the C4 model construction. -/
+theorem noGainForValidatedPolicyBodies
     (env : Cedar.Spec.Env)
     (hRequest : Cedar.Validation.validateRequest schema env.request = .ok ())
     (hEntities : Cedar.Validation.validateEntities schema env.entities = .ok ())
     (hEnv : env.StronglyWellFormed)
-    (hBefore : env.StronglyWellFormedForPolicies revision.beforePolicies)
-    (hAfter : env.StronglyWellFormedForPolicies revision.afterPolicies)
-    (hAllowed : errorFreeAllow revision.afterPolicies env = true) :
-    errorFreeAllow revision.beforePolicies env = true := by
+    (hBefore : env.StronglyWellFormedForPolicies policiesV1)
+    (hAfter : env.StronglyWellFormedForPolicies policiesV2)
+    (hAllowed : errorFreeAllow policiesV2 env = true) :
+    errorFreeAllow policiesV1 env = true := by
   apply noErrorFreeAllowExpansionForValidatedSchema schema
-    revision.beforePolicies revision.afterPolicies schemaWF
+    policiesV1 policiesV2 schemaWF
     (by
       intro Γ hΓ
       rw [singletonTypeEnvironment] at hΓ
@@ -215,6 +214,22 @@ theorem noGainForValidatedTicketSharing
       exact ⟨before, after, asserts, typecheckedBefore, typecheckedAfter,
         exactQuery, exactUnsat⟩)
     env hRequest hEntities hEnv hBefore hAfter hAllowed
+
+/-- The compiled Published-to-Posture C4 revision has the linked policy bodies
+    above. This is the separate model-to-policy bridge. -/
+theorem noGainForValidatedTicketSharing
+    (env : Cedar.Spec.Env)
+    (hRequest : Cedar.Validation.validateRequest schema env.request = .ok ())
+    (hEntities : Cedar.Validation.validateEntities schema env.entities = .ok ())
+    (hEnv : env.StronglyWellFormed)
+    (hBefore : env.StronglyWellFormedForPolicies policyRevision.beforePolicies)
+    (hAfter : env.StronglyWellFormedForPolicies policyRevision.afterPolicies)
+    (hAllowed : errorFreeAllow policyRevision.afterPolicies env = true) :
+    errorFreeAllow policyRevision.beforePolicies env = true := by
+  obtain ⟨hBeforeBodies, hAfterBodies⟩ := policyRevisionBodies
+  rw [hBeforeBodies] at hBefore ⊢
+  rw [hAfterBodies] at hAfter hAllowed
+  exact noGainForValidatedPolicyBodies env hRequest hEntities hEnv hBefore hAfter hAllowed
 
 
 end CedarPooSpec.AuthorizationDeltaFixture
