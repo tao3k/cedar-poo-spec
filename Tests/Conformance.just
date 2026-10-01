@@ -50,7 +50,7 @@ check-authorization-delta-operational:
     jq '.manifest' .lake/build/authorization-delta-operational.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 # Research artifact only: emits the exact query and cvc5's CPC output.
-# This does not check the CPC proof or discharge the Lean UNSAT premise.
+# The fixture's UNSAT theorem is separate and uses native computation certificates.
 probe-authorization-delta-proof:
     lake build CedarPooSpec.AuthorizationDeltaOperationalExactProof Examples.Governance.TicketSharing
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Tests/Governance/AuthorizationDeltaProofProbe.lean > .lake/build/authorization-delta-exact.smt2
@@ -96,7 +96,7 @@ check-health-authorization-impact:
     jq '{cases: [.lineage_changes[].manifest.cases[]]}' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
 
 check-authorization-delta-proof:
-    lake build CedarPooSpec.AuthorizationDeltaProof
+    lake build CedarPooSpec.AuthorizationDeltaProof CedarPooSpec.AuthorizationDeltaBooleanCore Tests.Governance.AuthorizationDeltaFormula
 
 check-payment-delta: build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean > .lake/build/payment-delta.json

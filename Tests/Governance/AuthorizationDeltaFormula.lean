@@ -1,4 +1,5 @@
 import CedarPooSpec.AuthorizationDeltaOperationalExactProof
+import CedarPooSpec.AuthorizationDeltaBooleanCore
 import Examples.Governance.TicketSharing
 
 open Cedar.Spec Cedar.Validation Cedar.SymCC
@@ -34,11 +35,155 @@ def formula : Term := Factory.and (Factory.or base (Factory.or v2b v2a))
 theorem exactQueryShape : asserts = [(true : Term), formula] := by
   native_decide
 
-/-- Propositional core of the fixed revision: every new Allow case is already
-    covered by an old Allow case when the six atomic conditions are Boolean. -/
-theorem formulaBooleanCore (pb pa ra rb st td : Bool) :
-    (((pb && ra && st) || (pb && rb && st && td) || (pa && ra && st && td)) &&
-      !((pb && ra && st) || (pb && rb && st) || (pa && ra && st))) = false := by
-  cases pb <;> cases pa <;> cases ra <;> cases rb <;> cases st <;> cases td <;> decide
+/-- The concrete ticket-sharing symbols are well-formed for the pinned schema. -/
+private theorem principalWF : symEnv.request.principal.WellFormed symEnv.entities := by
+  apply Term.WellFormed.var_wf
+  apply TermType.WellFormed.entity_wf
+  native_decide
+
+private theorem resourceWF : symEnv.request.resource.WellFormed symEnv.entities := by
+  apply Term.WellFormed.var_wf
+  apply TermType.WellFormed.entity_wf
+  native_decide
+
+private theorem bobWF : (Term.prim (.entity bob)).WellFormed symEnv.entities := by
+  apply Term.WellFormed.prim_wf
+  apply TermPrim.WellFormed.entity_wf
+  native_decide
+
+private theorem aliceWF : (Term.prim (.entity alice)).WellFormed symEnv.entities := by
+  apply Term.WellFormed.prim_wf
+  apply TermPrim.WellFormed.entity_wf
+  native_decide
+
+private theorem ticketAWF : (Term.prim (.entity ticketA)).WellFormed symEnv.entities := by
+  apply Term.WellFormed.prim_wf
+  apply TermPrim.WellFormed.entity_wf
+  native_decide
+
+private theorem ticketBWF : (Term.prim (.entity ticketB)).WellFormed symEnv.entities := by
+  apply Term.WellFormed.prim_wf
+  apply TermPrim.WellFormed.entity_wf
+  native_decide
+
+private theorem contextWF : symEnv.request.context.WellFormed symEnv.entities := by
+  apply Term.WellFormed.var_wf
+  apply TermType.WellFormed.record_wf
+  · intro a ty h
+    change (Cedar.Data.Map.mk [("deviceTrusted", TermType.bool)]).find? a = some ty at h
+    by_cases ha : a = "deviceTrusted"
+    · subst a
+      simp [Cedar.Data.Map.find?] at h
+      subst ty
+      exact TermType.WellFormed.bool_wf
+    · simp [Cedar.Data.Map.find?, Ne.symm ha] at h
+  · change (Cedar.Data.Map.mk [("deviceTrusted", TermType.bool)]).WellFormed
+    rfl
+
+private theorem attrsWF : attrs.WellFormed symEnv.entities := by
+  change (TermType.entity ticketType).WellFormed symEnv.entities ∧
+    (TermType.record (Cedar.Data.Map.mk [("status", TermType.string)])).WellFormed symEnv.entities
+  constructor
+  · apply TermType.WellFormed.entity_wf
+    native_decide
+  · apply TermType.WellFormed.record_wf
+    · intro a ty h
+      change (Cedar.Data.Map.mk [("status", TermType.string)]).find? a = some ty at h
+      by_cases ha : a = "status"
+      · subst a
+        simp [Cedar.Data.Map.find?] at h
+        subst ty
+        exact TermType.WellFormed.string_wf
+      · simp [Cedar.Data.Map.find?, Ne.symm ha] at h
+    · rfl
+
+private theorem pbWF : pb.WellFormed symEnv.entities ∧ pb.typeOf = .bool := by
+  exact Cedar.Thm.wf_eq principalWF bobWF (by native_decide)
+
+private theorem paWF : pa.WellFormed symEnv.entities ∧ pa.typeOf = .bool := by
+  exact Cedar.Thm.wf_eq principalWF aliceWF (by native_decide)
+
+private theorem raWF : ra.WellFormed symEnv.entities ∧ ra.typeOf = .bool := by
+  exact Cedar.Thm.wf_eq resourceWF ticketAWF (by native_decide)
+
+private theorem rbWF : rb.WellFormed symEnv.entities ∧ rb.typeOf = .bool := by
+  exact Cedar.Thm.wf_eq resourceWF ticketBWF (by native_decide)
+
+private theorem stWF : st.WellFormed symEnv.entities ∧ st.typeOf = .bool := by
+  have happ := Cedar.Thm.wf_app resourceWF
+    (by native_decide : symEnv.request.resource.typeOf = attrs.argType) attrsWF
+  have hget := Cedar.Thm.wf_record_get happ.1
+    (by native_decide : (Factory.app attrs symEnv.request.resource).typeOf =
+      TermType.record (Cedar.Data.Map.mk [("status", TermType.string)]))
+    (by native_decide : (Cedar.Data.Map.mk [("status", TermType.string)]).find? "status" = some TermType.string)
+  have hstr : (Term.prim (.string "OPEN")).WellFormed symEnv.entities := Cedar.Thm.wf_string
+  exact Cedar.Thm.wf_eq hget.1 hstr (by native_decide)
+
+private theorem tdWF : td.WellFormed symEnv.entities ∧ td.typeOf = .bool := by
+  exact Cedar.Thm.wf_record_get contextWF
+    (by native_decide : symEnv.request.context.typeOf =
+      TermType.record (Cedar.Data.Map.mk [("deviceTrusted", TermType.bool)]))
+    (by native_decide : (Cedar.Data.Map.mk [("deviceTrusted", TermType.bool)]).find? "deviceTrusted" = some TermType.bool)
+
+/-- UNSAT for the pinned ticket-sharing query. Its fixture-shape and
+    well-formedness certificates use `native_decide`; the reusable Boolean
+    implication in `AuthorizationDeltaBooleanCore` is kernel checked. -/
+theorem exactUnsat : symEnv ⊭ asserts :=
+  CedarPooSpec.AuthorizationDeltaBooleanCore.unsatOfShapeAndWellFormedAtoms
+    symEnv asserts pb pa ra rb st td
+    (by simpa only [formula, base, v2b, v2a, v1b, v1a,
+      CedarPooSpec.AuthorizationDeltaBooleanCore.formula] using exactQueryShape)
+    pbWF paWF raWF rbWF stWF tdWF
+
+theorem singletonTypeEnvironment : schema.environments = [typeEnv] := by
+  rfl
+
+theorem schemaWF : schema.validateWellFormed = .ok () := by
+  have hOk : schema.validateWellFormed.isOk = true := by native_decide
+  cases h : schema.validateWellFormed with
+  | ok u => cases u; rfl
+  | error e => simp [h, Except.isOk, Except.toBool] at hOk
+
+theorem typecheckedBefore : wellTypedPolicies revision.beforePolicies typeEnv = .ok before := by
+  have hOk : (wellTypedPolicies revision.beforePolicies typeEnv).isOk = true := by native_decide
+  cases h : wellTypedPolicies revision.beforePolicies typeEnv with
+  | ok ps => simp only [before, h, Except.toOption] ; rfl
+  | error e => simp [h, Except.isOk, Except.toBool] at hOk
+
+theorem typecheckedAfter : wellTypedPolicies revision.afterPolicies typeEnv = .ok after := by
+  have hOk : (wellTypedPolicies revision.afterPolicies typeEnv).isOk = true := by native_decide
+  cases h : wellTypedPolicies revision.afterPolicies typeEnv with
+  | ok ps => simp only [after, h, Except.toOption] ; rfl
+  | error e => simp [h, Except.isOk, Except.toBool] at hOk
+
+theorem exactQuery : verifyErrorFreeAllowExpansion before after symEnv = .ok asserts := by
+  have hOk : (verifyErrorFreeAllowExpansion before after symEnv).isOk = true := by native_decide
+  cases h : verifyErrorFreeAllowExpansion before after symEnv with
+  | ok xs => simp only [asserts, h, Except.toOption] ; rfl
+  | error e => simp [h, Except.isOk, Except.toBool] at hOk
+
+/-- For validated, strongly well-formed ticket-sharing requests and policy
+    references, the published-to-posture revision cannot add an error-free
+    Allow. The exact query's UNSAT premise is proved above in Lean. -/
+theorem noGainForValidatedTicketSharing
+    (env : Cedar.Spec.Env)
+    (hRequest : Cedar.Validation.validateRequest schema env.request = .ok ())
+    (hEntities : Cedar.Validation.validateEntities schema env.entities = .ok ())
+    (hEnv : env.StronglyWellFormed)
+    (hBefore : env.StronglyWellFormedForPolicies revision.beforePolicies)
+    (hAfter : env.StronglyWellFormedForPolicies revision.afterPolicies)
+    (hAllowed : errorFreeAllow revision.afterPolicies env = true) :
+    errorFreeAllow revision.beforePolicies env = true := by
+  apply noErrorFreeAllowExpansionForValidatedSchema schema
+    revision.beforePolicies revision.afterPolicies schemaWF
+    (by
+      intro Γ hΓ
+      rw [singletonTypeEnvironment] at hΓ
+      simp only [List.mem_singleton] at hΓ
+      subst Γ
+      exact ⟨before, after, asserts, typecheckedBefore, typecheckedAfter,
+        exactQuery, exactUnsat⟩)
+    env hRequest hEntities hEnv hBefore hAfter hAllowed
+
 
 end CedarPooSpec.AuthorizationDeltaFixture

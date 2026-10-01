@@ -148,13 +148,25 @@ ensure that actual Host inputs pass the validators.
 
 ** Reproducible solver-proof probe
 
-=Tests/Governance/AuthorizationDeltaFormula.lean= now computes the exact
-two-assertion =Published= to =Posture= ticket-sharing query in Lean and proves
-its structural equality to a formula over six symbolic atomic conditions.
-It separately proves the corresponding six-Boolean implication by exhaustive
-case analysis. The remaining Lean step is to show that every well-formed
-interpretation of those six symbolic atoms satisfies the Boolean abstraction;
-these two lemmas alone do not establish =εnv ⊭ asserts=.
+=CedarPooSpec/AuthorizationDeltaBooleanCore.lean= proves that a six-atom
+Boolean formula has no satisfying interpretation when each atom is a well
+formed Boolean Cedar term and the query has the stated two-assertion shape.
+This reusable implication uses Cedar's interpretation theorems and has only
+Lean's standard =propext=, =Classical.choice=, and =Quot.sound= axioms.
+=Tests/Governance/AuthorizationDeltaFormula.lean= computes the exact
+=Published= to =Posture= ticket-sharing query, checks its structural shape,
+and supplies the six well-formedness facts. Its =exactUnsat= theorem then
+establishes =εnv ⊭ asserts= for this one query and type environment.
+=noGainForValidatedTicketSharing= applies the schema-level soundness theorem
+to the original policy sets. It retains request/entity validation and
+concrete strong well-formedness premises, including valid policy references.
+
+The concrete fixture checks use =native_decide=, including the query-shape
+identity and some model construction witnesses. Consequently =exactUnsat=
+depends on native computation certificates and is not a kernel-only theorem.
+The conditional Boolean core is kernel checked; the fixed fixture closes its
+UNSAT premise with those certificates. The general analyzer still relies on
+external solver answers for arbitrary generated queries.
 
 =just probe-authorization-delta-proof= emits the exact =Published= to =Posture=
 no-gain query through Cedar's own symbolic encoder and asks cvc5 for CPC proof
@@ -163,16 +175,17 @@ input and CPC output in =.lake/build/authorization-delta-exact.*= for inspection
 It enables cvc5's internal lazy proof check.
 It covers the one type environment in that ticket-sharing fixture. With local
 cvc5 1.3.4, the emitted input was 1,576 bytes and the CPC output 12,280 bytes.
-This is a reproducible solver transcript with an internal check, not an
-independently checked proof.
+This is a reproducible solver transcript with an internal check. The fixture's
+Lean UNSAT theorem above does not depend on that transcript.
 
 [[https://cvc5.github.io/docs/latest/proofs/output_cpc.html][cvc5 documents CPC and external proof checkers]]. The current
 [[https://github.com/cvc5/logos][Lean-based Logos checker]] does not yet support
 some SMT-LIB features emitted by Cedar's encoder, notably parametric
-datatypes and =define-fun=. This probe uses both. Closing the UNSAT premise
-would require a checker that accepts the full query, verifies its proof, and
-binds the checked assumptions to these exact generated assertions. A CPC
-file or a second =unsat= string alone does not supply that binding.
+datatypes and =define-fun=. This probe uses both. To turn external solver
+answers into Lean UNSAT proofs for other generated queries, a checker would
+need to accept the full query, verify its proof, and bind the checked
+assumptions to the generated assertions. A CPC file or a second =unsat= string
+alone does not supply that binding.
 
 An Ethos 0.2.4 experiment narrows this gap. After renaming the four
 datatype constructors =E0=, =E1=, =R2=, and =R3= to distinct names, cvc5
@@ -194,15 +207,17 @@ Ethos rejects that input directly because its datatype and constructor
 share each of those four names. The constructor rename preserves the
 intended SMT datatype meaning, but this experiment has no independently
 checked equivalence proof between the original bytes and the renamed
-reference. It therefore does not discharge the Lean UNSAT premise for the
-original query. A next checker integration needs a verified translation or
+reference. This Ethos experiment alone does not establish UNSAT for the
+original query; the fixture has a separate direct Lean proof above. A checker
+integration for general queries needs a verified translation or
 direct support for these generated declarations, followed by a checked
 connection from the proof conclusion to the Lean theorem's premise.
 That connection also needs an encoding-soundness argument: Cedar's pinned
 [[https://github.com/cedar-policy/cedar-spec/blob/017c35c3d1f856a0f8b62a66660ee6628870bbcf/cedar-lean/Cedar/SymCC/Encoder.lean][=Cedar.SymCC.Encoder=]] explicitly treats translation from symbolic =Term=
 values to SMT assertions as trusted. An external checker can establish UNSAT
 for an SMT script without, by itself, proving that the script preserves the
-meaning of the Lean =Asserts= consumed by the theorem. The remaining chain is
+meaning of the Lean =Asserts= consumed by the theorem. For general solver
+runs, the remaining chain is
 therefore source =Asserts=, encoder semantics, exact SMT input, checked UNSAT,
 and a Lean proof that these imply =εnv ⊭ asserts=.
 

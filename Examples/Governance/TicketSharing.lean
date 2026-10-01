@@ -78,9 +78,9 @@ def links : TemplateLinkedPolicies := [
   linked "bob-ticket-a" "viewer" bob ticketA]
 
 def policiesV1 : Policies :=
-  (Cedar.Spec.link? templatesV1 links).toOption.get (by native_decide)
+  (Cedar.Spec.link? templatesV1 links).toOption.get (by decide)
 def policiesV2 : Policies :=
-  (Cedar.Spec.link? templatesV2 links).toOption.get (by native_decide)
+  (Cedar.Spec.link? templatesV2 links).toOption.get (by decide)
 
 def baseline : LinkedSet schema :=
   (LinkedSet.create schema templatesV1 links).toOption.get (by native_decide)
@@ -120,7 +120,7 @@ theorem invalidTemplateRejected :
 def revokedLinks : TemplateLinkedPolicies :=
   links.filter fun link => link.id != "bob-ticket-b"
 def revokedPolicies : Policies :=
-  (Cedar.Spec.link? templatesV2 revokedLinks).toOption.get (by native_decide)
+  (Cedar.Spec.link? templatesV2 revokedLinks).toOption.get (by decide)
 
 def postureReconciliation : Reconciliation policiesV1 policiesV2 :=
   (Edit.reconcile policiesV1 policiesV2).toOption.get (by native_decide)
