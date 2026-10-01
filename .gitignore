@@ -6,3 +6,6 @@
 *.ilean
 rust/target/
 /target/
+python/.venv/
+__pycache__/
+*.pyc

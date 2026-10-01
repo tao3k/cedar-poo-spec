@@ -1,0 +1,31 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+
+[manifest]
+members = [
+    "cedar-poo-bridge",
+    "cedar-poo-python-workspace",
+    "cedar-poo-testing",
+]
+
+[[package]]
+name = "cedar-poo-bridge"
+version = "0.1.0"
+source = { editable = "packages/bridge" }
+
+[[package]]
+name = "cedar-poo-python-workspace"
+version = "0.1.0"
+source = { virtual = "." }
+
+[[package]]
+name = "cedar-poo-testing"
+version = "0.1.0"
+source = { editable = "packages/testing" }
+dependencies = [
+    { name = "cedar-poo-bridge" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cedar-poo-bridge", editable = "packages/bridge" }]

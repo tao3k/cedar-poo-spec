@@ -148,6 +148,14 @@ ensure that actual Host inputs pass the validators.
 
 ** Reproducible solver-proof probe
 
+=Tests/Governance/AuthorizationDeltaFormula.lean= now computes the exact
+two-assertion =Published= to =Posture= ticket-sharing query in Lean and proves
+its structural equality to a formula over six symbolic atomic conditions.
+It separately proves the corresponding six-Boolean implication by exhaustive
+case analysis. The remaining Lean step is to show that every well-formed
+interpretation of those six symbolic atoms satisfies the Boolean abstraction;
+these two lemmas alone do not establish =εnv ⊭ asserts=.
+
 =just probe-authorization-delta-proof= emits the exact =Published= to =Posture=
 no-gain query through Cedar's own symbolic encoder and asks cvc5 for CPC proof
 output. The recipe checks that cvc5 reports =unsat= and leaves the SMT-LIB

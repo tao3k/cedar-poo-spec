@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Check the pinned ticket-sharing CPC experiment against an Ethos reference.
 
 This checks the renamed SMT query. It does not prove that renaming the original
@@ -29,14 +28,14 @@ def require_success(result: subprocess.CompletedProcess[str], stage: str) -> Non
         )
 
 
-def main() -> None:
+def check(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--cvc5", required=True)
     parser.add_argument("--ethos", required=True)
     parser.add_argument("--signature-root", type=Path, required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     cvc5_version = run([args.cvc5, "--version"])
     require_success(cvc5_version, "cvc5 version check")
@@ -110,7 +109,3 @@ def main() -> None:
         raise RuntimeError("Ethos did not reject the changed reference assertion")
 
     print(f"ETHOS-OK renamed query; original SHA-256 {digest}; changed assertion rejected")
-
-
-if __name__ == "__main__":
-    main()

@@ -1,0 +1,16 @@
+check-policy-reuse: build
+    mkdir -p .lake/build/lib/lean/Examples/Governance
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 -o .lake/build/lib/lean/Examples/Governance/AttestedDataAccess.olean Examples/Governance/AttestedDataAccess.lean
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 Benchmarks/PolicyReuse.lean
+
+bench-policy-reuse: check-policy-reuse
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Benchmarks/PolicyReuse.lean
+
+bench-rust-export: prepare-cedar-manifest prepare-mission-successor-manifest
+    cargo build --release --locked --features cedar-runtime --manifest-path rust/Cargo.toml --example export_latency
+    rust/target/release/examples/export_latency .lake/build/expanded-policy.json
+    jq -c '[.cases[] | select(.revision == "integrated") | .policies][0]' .lake/build/mission-successor-manifest.json > .lake/build/mission-integrated-policy.json
+    rust/target/release/examples/export_latency .lake/build/mission-integrated-policy.json
+    rust/target/release/examples/export_latency .lake/build/expanded-policy.json 32 500
+    rust/target/release/examples/export_latency .lake/build/expanded-policy.json 128 200
+    rust/target/release/examples/export_latency --manifest .lake/build/mission-successor-manifest.json 100
