@@ -27,10 +27,10 @@ def cedarAllowed (payment : PaymentOperation) : Bool :=
       payment.amount
 
 def cedarAuthorization (payment : PaymentOperation) : PaymentAuthorization :=
-  { payment, allowed := cedarAllowed payment, verified := true }
+  { payment, auditPolicy, allowed := cedarAllowed payment, verified := true }
 
 def reserveWithCedar (payment : PaymentOperation) (state : PaymentState)
     (evidence : List AuditEvidence) : Option PaymentState :=
-  payment.reserve (cedarAuthorization payment) auditPolicy state evidence
+  payment.reserve (cedarAuthorization payment) state evidence
 
 end CedarPooSpec.AgentPaymentAuditExample

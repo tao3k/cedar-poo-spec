@@ -16,18 +16,19 @@ def payment : PaymentOperation :=
     nonce := "payment-123", proposer := "finance-bot",
     policyEpoch := 7, expiresAt := 20 }
 
-def state : PaymentState := { policyEpoch := 7, now := 10, usedNonces := [] }
+def state : PaymentState :=
+  { policyEpoch := 7, auditPolicy, now := 10, usedNonces := [] }
 def authorization : PaymentAuthorization :=
-  { payment, allowed := true, verified := true }
+  { payment, auditPolicy, allowed := true, verified := true }
 
 def modelEvidence : AuditEvidence :=
-  { payment, kind := .model, source := "risk-v1", actor := "risk-engine",
+  { payment, auditPolicy, kind := .model, source := "risk-v1", actor := "risk-engine",
     verdict := .pass, verified := true, expiresAt := 18 }
 def riskHuman : AuditEvidence :=
-  { payment, kind := .human, source := "risk", actor := "risk-officer",
+  { payment, auditPolicy, kind := .human, source := "risk", actor := "risk-officer",
     verdict := .pass, verified := true, expiresAt := 19 }
 def complianceHuman : AuditEvidence :=
-  { payment, kind := .human, source := "compliance",
+  { payment, auditPolicy, kind := .human, source := "compliance",
     actor := "compliance-officer", verdict := .pass,
     verified := true, expiresAt := 19 }
 
@@ -44,13 +45,19 @@ def twoStages : PaymentAuditPolicy :=
 def threeEvidence : List AuditEvidence := [modelEvidence, riskHuman, complianceHuman]
 
 theorem oneStageAccepted :
-    oneStage.accepts payment state.now [modelEvidence] = true := by decide
+    oneStage.accepts payment state.now
+      [{ modelEvidence with auditPolicy := oneStage }] = true := by decide
 theorem humanOnlyAccepted :
-    humanOnly.accepts payment state.now [riskHuman] = true := by decide
+    humanOnly.accepts payment state.now
+      [{ riskHuman with auditPolicy := humanOnly }] = true := by decide
 theorem emptyPlanDenied :
     ({ requirements := [] } : PaymentAuditPolicy).accepts payment state.now [] = false := by decide
 theorem twoStagesAccepted :
-    twoStages.accepts payment state.now [modelEvidence, riskHuman] = true := by decide
+    twoStages.accepts payment state.now
+      [{ modelEvidence with auditPolicy := twoStages },
+        { riskHuman with auditPolicy := twoStages }] = true := by decide
+theorem oldEvidenceCannotSatisfyNewPlan :
+    oneStage.accepts payment state.now [modelEvidence] = false := by decide
 theorem threeStagesAccepted :
     auditPolicy.accepts payment state.now threeEvidence = true := by decide
 theorem missingStageDenied :
@@ -73,10 +80,10 @@ theorem proposerAsReviewerDenied :
       [modelEvidence, { riskHuman with actor := "finance-bot" },
         complianceHuman] = false := by decide
 theorem changedBeneficiaryDenied :
-    { payment with beneficiary := "attacker" }.admissible authorization auditPolicy
+    { payment with beneficiary := "attacker" }.admissible authorization
       state threeEvidence = false := by decide
 theorem changedFeeDenied :
-    { payment with feeCap := "9.0000" }.admissible authorization auditPolicy
+    { payment with feeCap := "9.0000" }.admissible authorization
       state threeEvidence = false := by decide
 theorem delegatedWithoutMandateDenied :
     { payment with mandateRef := "" }.wellFormed = false := by decide
@@ -84,24 +91,33 @@ theorem directWithoutMandateWellFormed :
     { payment with authorityMode := .direct, mandateRef := "" }.wellFormed = true := by decide
 theorem differentAuthorizationDenied :
     payment.admissible { authorization with payment :=
-      { payment with beneficiary := "attacker" } } auditPolicy
+      { payment with beneficiary := "attacker" } }
       state threeEvidence = false := by decide
 theorem unverifiedAuthorizationDenied :
-    payment.admissible { authorization with verified := false } auditPolicy
+    payment.admissible { authorization with verified := false }
       state threeEvidence = false := by decide
+theorem weakenedAuditPolicyDenied :
+    payment.admissible authorization { state with auditPolicy := oneStage }
+      [modelEvidence] = false := by decide
+theorem recapturedAuthorizationStillRejectsOldEvidence :
+    payment.admissible { authorization with auditPolicy := oneStage }
+      { state with auditPolicy := oneStage } [modelEvidence] = false := by decide
+theorem weakenedAdapterDenied :
+    reserveWithCedar payment { state with auditPolicy := oneStage }
+      [modelEvidence] = none := by native_decide
 theorem staleEpochDenied :
-    payment.admissible authorization auditPolicy { state with policyEpoch := 8 }
+    payment.admissible authorization { state with policyEpoch := 8 }
       threeEvidence = false := by decide
 theorem expiredEvidenceDenied :
     auditPolicy.accepts payment 18 threeEvidence = false := by decide
 theorem repeatedNonceDenied :
-    (payment.reserve authorization auditPolicy state threeEvidence).bind
-      (fun next => payment.reserve authorization auditPolicy next threeEvidence) = none := by decide
+    (payment.reserve authorization state threeEvidence).bind
+      (fun next => payment.reserve authorization next threeEvidence) = none := by decide
 theorem deniedCedarCannotReserve :
-    payment.reserve { authorization with allowed := false } auditPolicy
+    payment.reserve { authorization with allowed := false }
       state threeEvidence = none := by
   exact deniedAuthorizationCannotReserve payment
-    { authorization with allowed := false } auditPolicy state threeEvidence (by decide)
+    { authorization with allowed := false } state threeEvidence (by decide)
 
 theorem cedarAllowsFixture : cedarAllowed payment = true := by native_decide
 theorem cedarDeniesExcessAmount :

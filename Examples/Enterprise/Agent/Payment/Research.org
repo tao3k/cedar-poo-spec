@@ -14,8 +14,8 @@ separate:
 
 | Method boundary | Owner | Current executable claim |
 |-----------------+-------+--------------------------|
-| Authorization | Cedar policy and Host binding | An error-free Allow for this operation is required. |
-| Audit | =PaymentAuditPolicy.accepts= | The policy selects any positive number of evidence stages. Every supplied item must be verified, current, affirmative, and bound to the exact operation. |
+| Authorization | Cedar policy and Host binding | An error-free Allow for this operation and the exact audit-policy snapshot is required. |
+| Audit | =PaymentAuditPolicy.accepts= | The policy selects any positive number of evidence stages. Every supplied item must be verified, current, affirmative, and bound to the operation and policy snapshot. |
 | Effect reservation | =PaymentOperation.reserve= plus Host | Only an authorized, audited, fresh operation consumes its nonce; an identical second reservation fails. Actual transfer execution remains Host-owned. |
 
 AI model, human reviewer, deterministic rule, and external investigator are
@@ -46,6 +46,27 @@ processor effect. Detection quality and reviewer load need measurement.
 This pure contract follows the ownership boundary in
 [[file:../../../../docs/rfc/0008-composable-control-objects.org][RFC 0008]]: Cedar owns authorization, the public library states control
 requirements, and the Host owns authentication and effects.
+
+* Cross-stage audit-policy binding
+
+The authorization receipt and every audit item now carry the *exact*
+=PaymentAuditPolicy=, while =PaymentState= supplies the currently active
+policy. =PaymentOperation.admissible= compares the authorization snapshot to
+that active policy, and =PaymentAuditPolicy.accepts= checks every evidence
+item against it. A three-stage authorization cannot be paired with a later
+one-stage plan even when the Cedar policy epoch is unchanged. Recapturing an
+authorization for the one-stage plan still cannot reuse evidence issued for
+the three-stage plan. These are executable negative cases in
+[[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][PaymentAudit.lean]]. The public =changedAuditPolicyCannotReserve= theorem
+proves the first rejection for any payment and evidence.
+
+This is a matched, local response to the cross-stage binding questions in
+[[https://arxiv.org/html/2609.00060][A Formal Analysis of Agent Payment Protocols]] and the state-binding
+family in [[https://arxiv.org/html/2608.23858][Beyond the Mandate]] (both 2026 preprints). Their broader
+protocol findings do not imply that any named provider has this exact bug.
+The comparison is structural Lean equality, not a cryptographic digest or a
+live policy-store read. The Host must authenticate evidence, read its actual
+active audit policy, and compare/reserve it atomically with execution.
 
 * Industry and research evidence
 

@@ -86,6 +86,8 @@ part of the payment type. [[file:PaymentAudit.lean][PaymentAudit.lean]] is this
 example's three-stage policy and Cedar adapter. [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][Regressions]] cover
 different stage counts, substitution, stale evidence, and replay. See
 [[file:Research.org][the continuing research map]] for sources and boundaries.
+Authorization and each audit item also bind the exact audit-policy snapshot;
+changing that policy invalidates their previous evidence.
 
 The [[file:AuthorizationDelta.lean][authorization-delta example]] also checks
 the entire schema-defined authorization space for two changes. Adding the
