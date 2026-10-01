@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from . import cpc, manifests, scenarios
+from . import artifacts, cpc, manifests, scenarios
 
 
 def main() -> None:
@@ -13,6 +13,8 @@ def main() -> None:
     prepare = commands.add_parser("prepare", help="run a named Lean manifest export")
     prepare.add_argument("recipe", choices=sorted(manifests.PREPARE))
     commands.add_parser("schema-bound", help="check and replay schema-bound scenarios")
+    commands.add_parser("emit-artifacts", help="generate Cedar artifacts from manifests")
+    commands.add_parser("check-artifacts", help="check Cedar artifacts against manifests")
     commands.add_parser("check-cpc", help="check the pinned Ethos research proof")
     args, remaining = parser.parse_known_args()
     if args.command != "check-cpc" and remaining:
@@ -21,5 +23,7 @@ def main() -> None:
         manifests.prepare(args.recipe, args.repository)
     elif args.command == "schema-bound":
         scenarios.check_schema_bound(args.repository)
+    elif args.command in {"emit-artifacts", "check-artifacts"}:
+        artifacts.run(args.repository, "emit" if args.command == "emit-artifacts" else "check-artifacts")
     else:
         cpc.check(remaining)
