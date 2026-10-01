@@ -94,6 +94,9 @@ key/payment matching for processor observations. The Host must persist the
 transition with an atomic state check before dispatch and require provider-side
 key resolution. See the
 [[file:Research.org][research map]] for the modeled guarantee and its limits.
+The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLedger.lean][PaymentLedger]] adds an abstract per-key record and cached outcome across
+multiple payments. Duplicate keys and malformed duplicate records fail closed;
+the Host still owns atomic persistence and the processor's idempotency contract.
 
 The [[file:AuthorizationDelta.lean][authorization-delta example]] also checks
 the entire schema-defined authorization space for two changes. Adding the

@@ -79,6 +79,23 @@ may leave an unsent pending request. If status lookup reports no record, this
 model does not authorize a resend; the Host must hold it for reconciliation or
 use a separately specified provider guarantee for safe same-key retry.
 
+The [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLedger.lean][PaymentLedger]] makes the Host's request-key record explicit across multiple
+payments. =prepare= inserts a pending record with nonce reservation;
+=dispatch= requires both that reservation and exactly one matching record,
+changes it to =submitted=, and returns its
+processor command; =cached= and =statusQuery= read the same record without a
+new command; =reconcile= caches an authenticated processor outcome. A missing
+or duplicate key fails closed, and a second payment cannot claim an existing
+key. The [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][tests]] exercise these transitions and show that dispatching one key leaves
+another payment reserved.
+
+The ledger is an abstract value, not durable storage or a transaction manager.
+Each successful mutation advances its =revision=; the Host must use the prior
+revision as an atomic compare-and-swap token when persisting the result and
+reject stale concurrent writers before it sends the command. A processor must
+also guarantee stable same-key resolution for status queries; otherwise the
+model cannot establish remote at-most-once effect or safe automated recovery.
+
 The [[https://arxiv.org/html/2609.00060][formal protocol study]] describes MPP-14 as a source-aligned symbolic trace:
 spend is recorded, a response is lost, and retry accounts the same logical
 request twice. Its patched reference atomically records a request key, cost,

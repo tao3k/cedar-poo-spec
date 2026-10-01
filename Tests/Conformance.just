@@ -84,7 +84,7 @@ check-payment-interaction:
 
 # Public payment operation, selectable audit stages, and concrete Cedar adapter.
 check-payment-audit:
-    lake build CedarPooSpec.Vertical.FinancialServices.PaymentLifecycle Tests.Enterprise.Agent.Payment.PaymentAudit
+    lake build CedarPooSpec.Vertical.FinancialServices.PaymentLedger Tests.Enterprise.Agent.Payment.PaymentAudit
 
 check-agent-trace-delta:
     lake build Examples.Enterprise.Agent.Session.HostSafety

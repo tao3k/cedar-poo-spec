@@ -179,8 +179,9 @@ The =check-replay-receipts= entrypoint checks the agent-payment diagnostic
 replay output. =check-schema-bound-receipts= checks the corresponding
 well-typed payment operations through Cedar's strict schema validation.
 =check-payment-audit= also compiles the pure
-[[file:CedarPooSpec/Vertical/FinancialServices/PaymentLifecycle.lean][payment attempt lifecycle]] and its
-[[file:Examples/Enterprise/Agent/Payment/Research.org][Host boundary notes]].
+[[file:CedarPooSpec/Vertical/FinancialServices/PaymentLifecycle.lean][payment attempt lifecycle]],
+[[file:CedarPooSpec/Vertical/FinancialServices/PaymentLedger.lean][abstract request ledger]], and
+the accompanying [[file:Examples/Enterprise/Agent/Payment/Research.org][Host boundary notes]].
 =check-schema-bound-scenarios= covers cross-tool data flow, the trusted
 network IP extension, and country-specific tags and Action inheritance
 under the same official Cedar boundary.

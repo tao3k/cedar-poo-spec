@@ -1,5 +1,5 @@
 import Examples.Enterprise.Agent.Payment.PaymentAudit
-import CedarPooSpec.Vertical.FinancialServices.PaymentLifecycle
+import CedarPooSpec.Vertical.FinancialServices.PaymentLedger
 
 namespace CedarPooSpec.AgentPaymentAuditTest
 
@@ -189,5 +189,73 @@ theorem rejectedAttemptIsTerminal :
     ({ payment, phase := .rejected,
        providerReference := some "provider-42" } : PaymentAttempt).observe
       settledEvidence = none := by decide
+
+def emptyLedger : PaymentLedger := { state }
+def reservedLedger : PaymentLedger :=
+  { revision := 1,
+    state := { state with usedNonces := [payment.nonce] }, attempts := [pending] }
+def submittedLedger : PaymentLedger :=
+  { reservedLedger with revision := 2, attempts := [submitted] }
+def acceptedLedger : PaymentLedger :=
+  { reservedLedger with revision := 3, attempts := [accepted] }
+def settledLedger : PaymentLedger :=
+  { reservedLedger with revision := 4, attempts :=
+      [{ accepted with phase := .settled }] }
+
+theorem ledgerPrepareIsAtomicRecord :
+    emptyLedger.prepare payment authorization threeEvidence =
+      some reservedLedger := by decide
+theorem ledgerDispatchReturnsStableKey :
+    reservedLedger.dispatch payment.nonce =
+      some (submittedLedger,
+        { payment, idempotencyKey := payment.nonce }) := by decide
+theorem ledgerRetryDoesNotDispatch :
+    submittedLedger.dispatch payment.nonce = none := by decide
+theorem ledgerRetryReadsPending :
+    submittedLedger.cached payment.nonce = some submitted := by decide
+theorem ledgerRetryQueriesSameKey :
+    submittedLedger.statusQuery payment.nonce =
+      submitted.statusQuery := by decide
+theorem ledgerWrongKeyDoesNotDispatch :
+    reservedLedger.dispatch "other" = none := by decide
+theorem unreservedRecordCannotDispatch :
+    ({ emptyLedger with attempts := [pending] }).dispatch payment.nonce =
+      none := by decide
+theorem ledgerCollisionCannotRebind :
+    ({ emptyLedger with attempts := [pending] }).prepare
+      { payment with beneficiary := "attacker" } authorization threeEvidence =
+      none := by decide
+theorem ledgerDuplicateKeyFailsClosed :
+    ({ reservedLedger with attempts := [pending, pending] }).dispatch
+      payment.nonce = none := by decide
+theorem ledgerAcceptsAuthenticatedOutcome :
+    submittedLedger.reconcile acceptedEvidence = some acceptedLedger := by decide
+theorem ledgerFinalizesMatchingOutcome :
+    acceptedLedger.reconcile settledEvidence = some settledLedger := by decide
+theorem ledgerCachesFinalOutcome :
+    settledLedger.cached payment.nonce =
+      some { accepted with phase := .settled } := by decide
+theorem ledgerCannotRedispatchFinalOutcome :
+    settledLedger.dispatch payment.nonce = none := by decide
+theorem ledgerRejectsWrongKeyEvidence :
+    submittedLedger.reconcile
+      { acceptedEvidence with idempotencyKey := "other" } = none := by decide
+
+def secondPayment : PaymentOperation := { payment with nonce := "payment-124" }
+def secondPending : PaymentAttempt := { payment := secondPayment, phase := .reserved }
+def twoPaymentLedger : PaymentLedger :=
+  { revision := 2,
+    state := { state with usedNonces := [secondPayment.nonce, payment.nonce] },
+    attempts := [secondPending, pending] }
+
+theorem ledgerKeepsSeparatePayments :
+    reservedLedger.prepare secondPayment
+      { authorization with payment := secondPayment }
+      (threeEvidence.map fun item => { item with payment := secondPayment }) =
+      some twoPaymentLedger := by decide
+theorem dispatchOneKeyLeavesOtherReserved :
+    (twoPaymentLedger.dispatch payment.nonce).map
+      (fun result => result.1.cached secondPayment.nonce) =
+      some (some secondPending) := by decide
 
 end CedarPooSpec.AgentPaymentAuditTest

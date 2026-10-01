@@ -48,6 +48,7 @@ import CedarPooSpec.Pseudonymization
 import CedarPooSpec.CompoundAuthorization
 import CedarPooSpec.Vertical.FinancialServices.PaymentOperation
 import CedarPooSpec.Vertical.FinancialServices.PaymentLifecycle
+import CedarPooSpec.Vertical.FinancialServices.PaymentLedger
 import CedarPooSpec.Revision
 import CedarPooSpec.PolicyValidation
 import CedarPooSpec.TemplateValidation
