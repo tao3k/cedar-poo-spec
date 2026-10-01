@@ -134,17 +134,30 @@ def submitted : PaymentAttempt := { payment, phase := .submitted }
 def accepted : PaymentAttempt :=
   { payment, phase := .accepted, providerReference := some "provider-42" }
 def acceptedEvidence : ProcessorEvidence :=
-  { payment, providerReference := "provider-42", outcome := .accepted,
+  { payment, idempotencyKey := payment.nonce,
+    providerReference := "provider-42", outcome := .accepted,
     verified := true }
 def settledEvidence : ProcessorEvidence :=
-  { payment, providerReference := "provider-42", outcome := .settled,
+  { payment, idempotencyKey := payment.nonce,
+    providerReference := "provider-42", outcome := .settled,
     verified := true }
 
 theorem prepareConsumesNonce :
     (payment.prepare authorization state threeEvidence).map
       (fun result => result.1.usedNonces) = some [payment.nonce] := by decide
-theorem firstSubmitAllowed : pending.submit = some submitted := by decide
+theorem firstSubmitAllowed : pending.submit =
+    some (submitted, { payment, idempotencyKey := payment.nonce }) := by decide
+theorem emptyKeyCannotSubmit :
+    ({ pending with payment := { payment with nonce := "" } }).submit = none := by decide
 theorem lostResponseCannotResubmit : submitted.submit = none := by decide
+theorem uncertainResponseCanQuery : submitted.statusQuery =
+    some { payment, idempotencyKey := payment.nonce,
+           providerReference := none } := by decide
+theorem acceptedCanQueryByReference : accepted.statusQuery =
+    some { payment, idempotencyKey := payment.nonce,
+           providerReference := some "provider-42" } := by decide
+theorem finalAttemptCannotQuery :
+    ({ accepted with phase := .settled }).statusQuery = none := by decide
 theorem processorAcceptanceIsNotSettlement :
     (submitted.observe acceptedEvidence).map PaymentAttempt.phase =
       some .accepted := by decide
@@ -160,6 +173,12 @@ theorem wrongProviderReferenceDenied :
 theorem changedPaymentObservationDenied :
     submitted.observe { settledEvidence with payment :=
       { payment with beneficiary := "attacker" } } = none := by decide
+theorem wrongIdempotencyKeyDenied :
+    submitted.observe { settledEvidence with idempotencyKey := "other" } =
+      none := by decide
+theorem wrongKeyCannotFinalizeAccepted :
+    accepted.observe { settledEvidence with idempotencyKey := "other" } =
+      none := by decide
 theorem unverifiedProcessorObservationDenied :
     submitted.observe { settledEvidence with verified := false } = none := by decide
 theorem settledAttemptIsTerminal :

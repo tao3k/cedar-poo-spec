@@ -19,14 +19,30 @@ structure PaymentAttempt where
   providerReference : Option String := none
   deriving DecidableEq, Repr
 
+/-- The only outbound effect request issued by the pure transition. The Host
+    must persist the returned `submitted` attempt before sending it. -/
+structure ProcessorRequest where
+  payment : PaymentOperation
+  idempotencyKey : String
+  deriving DecidableEq, Repr
+
+/-- A read-only lookup after an uncertain response. The provider must resolve
+    this key to the original request and return authenticated evidence. -/
+structure ProcessorStatusQuery where
+  payment : PaymentOperation
+  idempotencyKey : String
+  providerReference : Option String
+  deriving DecidableEq, Repr
+
 inductive ProcessorOutcome where
   | accepted | settled | rejected
   deriving DecidableEq, Repr
 
 /-- `verified` means the Host authenticated this observation. The exact
-    payment and provider reference remain part of the transition check. -/
+    payment, request key, and provider reference are transition checks. -/
 structure ProcessorEvidence where
   payment : PaymentOperation
+  idempotencyKey : String
   providerReference : String
   outcome : ProcessorOutcome
   verified : Bool
@@ -40,18 +56,35 @@ def PaymentOperation.prepare (payment : PaymentOperation)
   let next ← payment.reserve authorization state evidence
   pure (next, { payment, phase := .reserved })
 
-/-- A Host may dispatch only from `reserved`. A lost response leaves the
-    attempt `submitted`; re-invoking `submit` cannot authorize another send. -/
-def PaymentAttempt.submit (attempt : PaymentAttempt) : Option PaymentAttempt :=
-  if attempt.phase == .reserved then
-    some { attempt with phase := .submitted }
+/-- A Host may dispatch only from `reserved`. The nonce is the stable provider
+    idempotency key. A lost response leaves the attempt `submitted`; calling
+    `submit` on that returned state cannot issue another outbound request.
+    The Host must reject concurrent or stale copies of `reserved` atomically. -/
+def PaymentAttempt.submit (attempt : PaymentAttempt) :
+    Option (PaymentAttempt × ProcessorRequest) :=
+  if attempt.phase == .reserved && !attempt.payment.nonce.isEmpty then
+    some ({ attempt with phase := .submitted },
+      { payment := attempt.payment, idempotencyKey := attempt.payment.nonce })
+  else none
+
+/-- Recovery reads status using the same key; it never issues an effect
+    request. An accepted attempt additionally carries its provider reference. -/
+def PaymentAttempt.statusQuery (attempt : PaymentAttempt) :
+    Option ProcessorStatusQuery :=
+  if (attempt.phase == .submitted || attempt.phase == .accepted) &&
+      !attempt.payment.nonce.isEmpty then
+    some { payment := attempt.payment,
+           idempotencyKey := attempt.payment.nonce,
+           providerReference := attempt.providerReference }
   else none
 
 /-- Processor acceptance is not final settlement. A later settlement or
     rejection must carry the same provider reference; both are terminal. -/
 def PaymentAttempt.observe (attempt : PaymentAttempt)
     (evidence : ProcessorEvidence) : Option PaymentAttempt :=
-  if !evidence.verified || evidence.providerReference.isEmpty ||
+  if !evidence.verified || attempt.payment.nonce.isEmpty ||
+      evidence.providerReference.isEmpty ||
+      evidence.idempotencyKey != attempt.payment.nonce ||
       !decide (evidence.payment = attempt.payment) then none
   else
     match attempt.phase, evidence.outcome with
@@ -75,18 +108,26 @@ def PaymentAttempt.observe (attempt : PaymentAttempt)
     | _, _ => none
 
 theorem submittedCannotSubmitAgain (attempt next : PaymentAttempt)
-    (h : attempt.submit = some next) : next.submit = none := by
+    (request : ProcessorRequest)
+    (h : attempt.submit = some (next, request)) : next.submit = none := by
   unfold PaymentAttempt.submit at h ⊢
   split at h
   · cases h
     simp
   · simp at h
 
+theorem wrongIdempotencyKeyCannotAdvance (attempt : PaymentAttempt)
+    (evidence : ProcessorEvidence)
+    (h : evidence.idempotencyKey ≠ attempt.payment.nonce) :
+    attempt.observe evidence = none := by
+  simp [PaymentAttempt.observe, h]
+
 theorem acceptedIsNotSettlement (payment : PaymentOperation)
     (reference : String) :
     (PaymentAttempt.observe
       { payment, phase := .submitted }
-      { payment, providerReference := reference, outcome := .accepted,
+      { payment, idempotencyKey := payment.nonce,
+        providerReference := reference, outcome := .accepted,
         verified := true }).map PaymentAttempt.phase ≠ some .settled := by
   by_cases h : reference.isEmpty
   · simp [PaymentAttempt.observe, h]

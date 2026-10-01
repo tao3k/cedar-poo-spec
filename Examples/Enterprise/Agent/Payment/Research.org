@@ -52,25 +52,41 @@ requirements, and the Host owns authentication and effects.
 The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLifecycle.lean][PaymentLifecycle]] separates =reserved=, =submitted=,
 =accepted=, =settled=, and =rejected=. =prepare= pairs the nonce reservation
 with a pending attempt. =submit= permits one transition from =reserved= to
-=submitted=; the Host must persist that transition before calling the
-processor. An unanswered request stays =submitted=. Recovery queries the
-processor using the same operation and reference or idempotency key, then
-records authenticated =ProcessorEvidence=; it must not infer failure from a
-timeout and resend the payment.
+=submitted= and returns one =ProcessorRequest= carrying the complete payment
+and its nonce as a stable idempotency key. The Host must atomically compare and
+persist that transition before calling the processor, so a stale copy of
+=reserved= cannot emit another command. An unanswered request stays =submitted=.
+=statusQuery= permits a read-only lookup by the same key; after acceptance it
+also carries the provider reference. Recovery records authenticated
+=ProcessorEvidence= that matches the payment and key. It must not infer failure
+from a timeout and resend the payment.
 
 Processor acceptance is an acknowledgement, not settlement. A later
 settlement or rejection must match the accepted provider reference. Direct
 final outcomes from =submitted= are also modeled. Settlement and rejection
 are terminal. The [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][regressions]] check no second submit,
 acceptance without settlement, matching finality, forged or mismatched
-observations, and terminal states. =just check-payment-audit= compiles them.
+observations, wrong idempotency keys, and terminal states.
+=just check-payment-audit= compiles them.
 
 The pure model does not supply a durable transaction, a processor idempotency
 guarantee, an authenticated status query, or evidence of economic finality.
 The Host must enforce these at the adapter boundary and reconcile an uncertain
 response before declaring a final outcome. The local no-second-submit theorem
 concerns this state machine; it does not prove that a remote processor applies
-an effect at most once.
+an effect at most once. A crash after persisting =submitted= but before sending
+may leave an unsent pending request. If status lookup reports no record, this
+model does not authorize a resend; the Host must hold it for reconciliation or
+use a separately specified provider guarantee for safe same-key retry.
+
+The [[https://arxiv.org/html/2609.00060][formal protocol study]] describes MPP-14 as a source-aligned symbolic trace:
+spend is recorded, a response is lost, and retry accounts the same logical
+request twice. Its patched reference atomically records a request key, cost,
+and result state. This model addresses the *Host command* side of that pattern;
+it does not reproduce the studied protocol or assert a deployed vulnerability.
+The [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 specification]] separately binds mandates and receipts to a checkout;
+our nonce key is a local Host convention, not an AP2 credential or AP2-mandated
+idempotency rule.
 
 * Cross-stage audit-policy binding
 

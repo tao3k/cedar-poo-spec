@@ -88,6 +88,12 @@ different stage counts, substitution, stale evidence, and replay. See
 [[file:Research.org][the continuing research map]] for sources and boundaries.
 Authorization and each audit item also bind the exact audit-policy snapshot;
 changing that policy invalidates their previous evidence.
+The [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLifecycle.lean][payment lifecycle]] emits an effect request with the payment nonce as its
+idempotency key, a read-only status query for uncertain outcomes, and exact
+key/payment matching for processor observations. The Host must persist the
+transition with an atomic state check before dispatch and require provider-side
+key resolution. See the
+[[file:Research.org][research map]] for the modeled guarantee and its limits.
 
 The [[file:AuthorizationDelta.lean][authorization-delta example]] also checks
 the entire schema-defined authorization space for two changes. Adding the
