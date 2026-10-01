@@ -176,6 +176,14 @@ separation makes the trusted boundary of the policy-body claim smaller without
 implying that the end-to-end C4 claim is kernel-only. The general analyzer
 still relies on external solver answers for arbitrary generated queries.
 
+The [[file:../../Tests/Governance/AuthorizationDeltaAxiomAudit.lean][axiom audit]] runs under =just check-authorization-delta-proof= and compares
+the transitive dependencies of the Boolean core, exact fixture UNSAT,
+policy-body theorem, and C4 bridge against pinned allowlists. It also exposes
+native certificates inherited from Cedar's general Int64 and date theorems in
+the schema-level no-gain result; the ticket-sharing formula itself has no date
+operation. A passing audit means the declared dependency set did not grow. It
+does not turn any listed native certificate into a kernel proof.
+
 =just probe-authorization-delta-proof= emits the exact =Published= to =Posture=
 no-gain query through Cedar's own symbolic encoder and asks cvc5 for CPC proof
 output. The recipe checks that cvc5 reports =unsat= and leaves the SMT-LIB
