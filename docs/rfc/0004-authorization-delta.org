@@ -178,11 +178,24 @@ still relies on external solver answers for arbitrary generated queries.
 
 The [[file:../../Tests/Governance/AuthorizationDeltaAxiomAudit.lean][axiom audit]] runs under =just check-authorization-delta-proof= and compares
 the transitive dependencies of the Boolean core, exact fixture UNSAT,
-policy-body theorem, and C4 bridge against pinned allowlists. It also exposes
-native certificates inherited from Cedar's general Int64 and date theorems in
+policy-body theorem, C4 bridge, and direct execution proof against pinned
+allowlists. It also exposes native certificates inherited from Cedar's general
+Int64 and date theorems in
 the schema-level no-gain result; the ticket-sharing formula itself has no date
 operation. A passing audit means the declared dependency set did not grow. It
 does not turn any listed native certificate into a kernel proof.
+
+The [[file:../../Tests/Governance/AuthorizationDeltaDirect.lean][direct Cedar evaluation proof]] gives a stronger result for the exact linked
+=policiesV1= and =policiesV2=: for every Cedar request and entity store, an
+error-free Allow under =policiesV2= implies an error-free Allow under
+=policiesV1=. It checks all three concrete permit policies. The two revised
+contributor policies add a conjunct, and the viewer policy is shared; the proof
+also shows that the stricter condition cannot hide a policy error present in
+the earlier body. This linked-policy theorem uses only Lean's standard axioms
+and needs no solver, typechecking, or schema-validation premise. Its C4
+=policyRevision= wrapper inherits five native certificates from fixture model
+construction and the =policyRevisionBodies= identity. The general symbolic
+analyzer and its broader schema-level theorem remain separate.
 
 =just probe-authorization-delta-proof= emits the exact =Published= to =Posture=
 no-gain query through Cedar's own symbolic encoder and asks cvc5 for CPC proof

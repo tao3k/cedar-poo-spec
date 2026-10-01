@@ -1,4 +1,5 @@
 import Tests.Governance.AuthorizationDeltaFormula
+import Tests.Governance.AuthorizationDeltaDirect
 
 /-!
 Keep the trust boundary of the ticket-sharing proof visible to the build.
@@ -42,6 +43,14 @@ private def revisionAxioms : List String := policyBodyAxioms ++
   , "CedarPooSpec.TicketSharingExample.revokedReconciliation._native.native_decide.ax_1"
   ]
 
+private def directRevisionAxioms : List String := standardAxioms ++
+  [ "CedarPooSpec.TicketSharingExample.model._native.native_decide.ax_1"
+  , "CedarPooSpec.TicketSharingExample.policyRevision._native.native_decide.ax_1"
+  , "CedarPooSpec.TicketSharingExample.policyRevisionBodies._native.native_decide.ax_1_1"
+  , "CedarPooSpec.TicketSharingExample.postureReconciliation._native.native_decide.ax_1"
+  , "CedarPooSpec.TicketSharingExample.revokedReconciliation._native.native_decide.ax_1"
+  ]
+
 private def sameNames (actual : Array Name) (expected : List String) : Bool :=
   actual.size == expected.length && actual.toList.all (expected.contains ∘ toString)
 
@@ -64,3 +73,13 @@ run_cmd do
     ``CedarPooSpec.AuthorizationDeltaFixture.noGainForValidatedTicketSharing
   unless sameNames revision revisionAxioms do
     throwError "C4 ticket-sharing theorem axiom boundary changed: {revision}"
+
+  let direct ← collectAxioms
+    ``CedarPooSpec.AuthorizationDeltaDirect.noErrorFreeAllowGain
+  unless sameNames direct standardAxioms do
+    throwError "Direct linked-policy theorem axiom boundary changed: {direct}"
+
+  let directRevision ← collectAxioms
+    ``CedarPooSpec.AuthorizationDeltaDirect.noErrorFreeAllowGainForRevision
+  unless sameNames directRevision directRevisionAxioms do
+    throwError "Direct C4 theorem axiom boundary changed: {directRevision}"
