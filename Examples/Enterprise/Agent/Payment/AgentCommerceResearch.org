@@ -12,7 +12,8 @@ merchant's actual offer. This repository models that question separately from
 processor acceptance, settlement, and bank clearing.
 
 The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerce.lean][AgentCommerce]] kernel represents a verified mandate, a verified
-merchant offer, exact selected purchase terms, and one mandate's cumulative
+merchant offer, exact selected purchase terms (including an opaque checkout
+commitment), and one mandate's cumulative
 budget. It admits a purchase only when agent identity, mandate ID, merchant,
 product, offer, amount, asset, policy epoch, expiry, revocation state, and
 remaining budget agree. The budget also retains the *whole active mandate* so
@@ -29,6 +30,39 @@ payment instrument. The model does not sign mandates, authenticate merchant
 quotes, issue agent-specific tokens, perform identity proofing, detect fraud,
 publish policy, or execute a purchase. Its =verified= flags are Host assertions.
 Its multi-purchase budget is a synthetic local contract, not AP2 conformance.
+The checkout commitment is an opaque value until the Host computes and verifies
+it against a canonical merchant checkout.
+
+The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerceDelegation.lean][delegation kernel]] additionally checks that each child Agent can only
+narrow the preceding mandate's merchant, product, per-purchase, cumulative,
+asset, principal, policy epoch, and expiry constraints. It resolves an exact
+chain of parent snapshots and issuer Agent identities. Its =verified= flag
+still asserts Host authentication. The current budget belongs to one mandate;
+the chain does *not* authorize a child to spend from a parent's budget yet.
+
+The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerceCredential.lean][credential boundary]] requires a credential to name the exact
+reserved purchase, full active mandate, checkout commitment, issuer, and
+expiry. The [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommercePayment.lean][public HKD cents adapter]] checks that those objects
+correspond to a downstream =PaymentOperation=, including payer, merchant,
+amount in canonical cents, agent, mandate, nonce, and checkout commitment.
+The latter field is optional for generic payments but mandatory in this
+adapter. A matching envelope is *not* a Cedar Allow or an instruction to send
+funds. The Host still verifies signatures, applies policy, ensures durable
+single use of the credential, and binds the same checkout to the provider's
+real request and response.
+
+The optional Rust [[file:../../../../rust/src/agent_commerce_auth.rs][Host verifier prototype]] checks raw P-256 ECDSA signatures
+over domain-separated, length-prefixed mandate, child delegation, and offer
+payloads. Its trust table maps the complete Cedar principal UID components or
+a merchant ID to a public key. The principal-signed mandate binds the Agent's
+public key; that parent Agent key must sign each child grant. The offer verifier
+also recomputes SHA-256 over the exact checkout bytes. Positive and
+altered-agent, altered-principal, altered-price, altered-checkout,
+wrong-issuer, and widening-child cases are executable under the
+=agent-commerce-auth= Cargo feature, which =just check-rust= covers. This is a
+local versioned encoding, not AP2 JWT or a live issuer integration. The Host
+must map *every* verified Rust field to the corresponding Lean object before
+setting =verified=, and must manage key enrollment, rotation, and revocation.
 
 * Evidence from Hong Kong and the wider market
 
@@ -66,14 +100,14 @@ specific production exploit or validation of this implementation.
 
 * Next code and evaluation slices
 
-1. Define canonical mandate and offer serialization with signatures, issuer
-   trust roots, revocation source, and exact key binding; replace asserted
-   =verified= flags only at a concrete Host boundary.
+1. Connect the Rust verifier's complete typed output to Lean admission through
+   a checked Host mapping; add authenticated issuer-key lifecycle and a live
+   revocation source before replacing asserted =verified= flags.
 2. Prove attenuation for agent-to-agent handoff: a child may narrow merchant,
    product, time, and budget scope but cannot expand any parent grant.
-3. Bind the reserved purchase to a merchant checkout, scoped payment
-   credential, and fulfillment evidence; preserve distinct receipt issuers and
-   dispute artifacts. Reuse the downstream payment model only at this edge.
+3. Connect the structurally bound checkout and credential to provider request,
+   payment receipt, fulfillment evidence, and dispute artifacts, preserving
+   the independent issuers and signatures of each record.
 4. Test a durable multi-agent budget allocator under concurrent reservations,
    failures, and retries. The current revision is a pure compare-and-swap
    obligation, not a database transaction.

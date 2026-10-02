@@ -33,6 +33,19 @@ Cognito group projection, then composes the insurance rule with independent
 Lakehouse location controls. The public object neither assumes Cognito nor
 imports an AWS module.
 
+* Agent commerce and payment
+
+[[file:AgentCommerce.lean][AgentCommerce]] owns bounded mandate admission and cumulative purchase
+reservation. [[file:AgentCommerceDelegation.lean][AgentCommerceDelegation]] checks each child grant against its exact
+parent. [[file:AgentCommerceCredential.lean][AgentCommerceCredential]] binds a credential to one reserved purchase,
+and [[file:AgentCommercePayment.lean][AgentCommercePayment]] maps that purchase to a public =PaymentOperation=
+using a canonical HKD cents profile. These modules are part of the public
+Lean library. The [[file:../../../Examples/Enterprise/Agent/Payment/AgentCommerceResearch.org][research scenario]] and [[file:../../../Tests/Enterprise/Agent/Payment/AgentCommerce.lean][regressions]] consume them.
+The optional Rust signature verifier is a public crate module behind the
+=agent-commerce-auth= Cargo feature; see [[file:../../../rust/src/README.org][Rust feature boundaries]]. The Host must
+authenticate and map the verified Rust fields into these Lean structures,
+then persist reservations and effect receipts durably.
+
 * Boundary
 
 =Vertical/FinancialServices/= holds finance-specific reusable controls.

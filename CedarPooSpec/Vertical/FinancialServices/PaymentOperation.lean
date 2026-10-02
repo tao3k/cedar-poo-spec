@@ -29,6 +29,9 @@ structure PaymentOperation where
   network : String
   feeCap : String
   mandateRef : String
+  /-- Optional for generic payments; agent-commerce adapters require the exact
+      merchant checkout commitment before issuing a payment request. -/
+  checkoutCommitment : String := ""
   nonce : String
   proposer : String
   policyEpoch : Nat

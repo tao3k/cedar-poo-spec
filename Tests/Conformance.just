@@ -88,7 +88,7 @@ check-payment-audit:
 
 # Agent identity, delegated purchase scope, exact merchant offer, and cumulative budget.
 check-agent-commerce:
-    lake build CedarPooSpec.Vertical.FinancialServices.AgentCommerce Tests.Enterprise.Agent.Payment.AgentCommerce
+    lake build CedarPooSpec.Vertical.FinancialServices.AgentCommercePayment Tests.Enterprise.Agent.Payment.AgentCommerce
 
 check-agent-trace-delta:
     lake build Examples.Enterprise.Agent.Session.HostSafety

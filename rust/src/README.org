@@ -1,4 +1,4 @@
-#+TITLE: Rust Bridge and Google Sensitive Data Protection Boundary
+#+TITLE: Rust Bridge and Optional Consumer APIs
 #+OPTIONS: toc:nil
 
 * Cargo features
@@ -8,10 +8,22 @@
 | =cedar-runtime= | Official Cedar validation and replay | =cedar-policy= |
 | =google-sdp= | Google table request and response contract | =base64= and =sha2= |
 | =google-sdp-host= | In-memory Cedar-to-Google admission example API | Both features above |
+| =agent-commerce-auth= | Public mandate, delegation, and offer signature verifier API | =p256= and =sha2= |
 
 The Google wire contract compiles without =cedar-policy=. A consumer that
 only renders and checks Google SDP table bodies enables =google-sdp=; the
 admission boundary needs =google-sdp-host=.
+
+The Agent Commerce verifier is compiled from [[file:agent_commerce_auth.rs][=rust/src/agent_commerce_auth.rs=]]
+and exported by the library only with =agent-commerce-auth=. Downstream Rust
+consumers can depend on =cedar-poo-bridge= with =default-features=false= and
+=features=["agent-commerce-auth"]=. The [[file:../tests/integration/agent_commerce_auth_consumer.rs][external consumer test]] calls its
+public signing-byte and verification API through the crate boundary. No
+Agent Commerce implementation is supplied from =rust/examples=; the Lean
+scenario under =Examples/= provides only synthetic inputs. The feature uses
+neither =cedar-runtime= nor =cedar-policy=. It authenticates payloads and
+checkout bytes but does not supply a durable budget allocator, provider
+dispatch, issuer-key lifecycle, or the checked Lean mapping.
 
 * Google table transformation contract
 

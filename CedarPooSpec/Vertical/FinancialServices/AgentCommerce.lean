@@ -17,6 +17,9 @@ structure AgentCommerceMandate where
   mandateId : String
   principal : EntityUID
   agentId : String
+  /-- The principal binds an agent verification key to this grant. The Host
+      validates its encoding and possession before marking the grant verified. -/
+  agentPublicKey : String
   allowedMerchants : List String
   allowedProducts : List String
   asset : String
@@ -33,6 +36,7 @@ structure AgentPurchaseTerms where
   merchantId : String
   productId : String
   offerId : String
+  checkoutCommitment : String
   amountMinor : Nat
   asset : String
   deriving DecidableEq, Repr
@@ -68,6 +72,7 @@ def AgentCommerceBudget.admits (state : AgentCommerceBudget)
     (purchase : AgentPurchase) : Bool :=
   mandate.verified && offer.verified && !state.revoked &&
   !mandate.mandateId.isEmpty && !mandate.agentId.isEmpty &&
+  !mandate.agentPublicKey.isEmpty &&
   !purchase.purchaseId.isEmpty &&
   decide (state.mandate = mandate) &&
   purchase.mandateId == mandate.mandateId &&
@@ -75,7 +80,8 @@ def AgentCommerceBudget.admits (state : AgentCommerceBudget)
   state.now < mandate.expiresAt && state.now < offer.expiresAt &&
   decide (purchase.terms = offer.terms) &&
   !offer.terms.merchantId.isEmpty && !offer.terms.productId.isEmpty &&
-  !offer.terms.offerId.isEmpty && !offer.terms.asset.isEmpty &&
+  !offer.terms.offerId.isEmpty && !offer.terms.checkoutCommitment.isEmpty &&
+  !offer.terms.asset.isEmpty &&
   mandate.allowedMerchants.contains offer.terms.merchantId &&
   mandate.allowedProducts.contains offer.terms.productId &&
   offer.terms.asset == mandate.asset &&
