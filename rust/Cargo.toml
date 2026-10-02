@@ -1,91 +1,17 @@
 [package]
 name = "cedar-poo-bridge"
-version = "0.1.0"
-edition = "2024"
-license = "Apache-2.0"
-description = "Lean-POO policy artifacts and optional Cedar language conformance runner"
-
-[features]
-default = []
-cedar-runtime = ["dep:cedar-policy", "dep:sha2", "cedar-policy/ipaddr", "cedar-policy/decimal", "cedar-policy/datetime"]
-agentic-ai-boundary = []
-agentic-ai-language-model-disclosure-host = ["cedar-runtime", "agentic-ai-boundary"]
-pseudonymization = []
-google-sdp = ["pseudonymization", "dep:base64", "dep:sha2"]
-google-sdp-host = ["cedar-runtime", "google-sdp"]
-agentic-ai-commerce-signatures = ["dep:p256", "dep:sha2"]
-agentic-ai-commerce-projection = ["agentic-ai-commerce-signatures"]
-agentic-ai-commerce-admission = ["agentic-ai-commerce-projection"]
-agentic-ai-commerce-consumption = ["agentic-ai-commerce-credential"]
-agentic-ai-commerce-credential = ["agentic-ai-commerce-budget-commit"]
-agentic-ai-commerce-budget-commit = ["agentic-ai-commerce-admission", "dep:mrr-data-content"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Cedar conformance command-line application"
 
 [dependencies]
-cedar-policy = { version = "=4.12.0", optional = true, default-features = false }
-base64 = { version = "0.23", optional = true }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = { version = "0.11", optional = true }
-p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa"], optional = true }
-mrr-data-content = { git = "https://github.com/tao3k/mrr-data", rev = "7ab0e62d9e437654111b867bde4eab47c4378ab1", default-features = false, optional = true }
-
-[[bin]]
-name = "cedar-poo-bridge"
-path = "src/main.rs"
-required-features = ["cedar-runtime"]
-
-[[example]]
-name = "export_latency"
-path = "examples/export_latency.rs"
-required-features = ["cedar-runtime"]
-
-[[example]]
-name = "pseudonymization_local"
-path = "examples/pseudonymization_local.rs"
-required-features = ["cedar-runtime"]
-
-[[example]]
-name = "pseudonymization_google_contract"
-path = "examples/pseudonymization_google_contract.rs"
-required-features = ["google-sdp"]
-
-[[example]]
-name = "pseudonymization_google_admission"
-path = "examples/pseudonymization_google_admission.rs"
-required-features = ["google-sdp-host"]
-
-[[example]]
-name = "agentic_ai_language_model_disclosure_host"
-path = "examples/agentic_ai_language_model_disclosure_host.rs"
-required-features = ["agentic-ai-language-model-disclosure-host"]
-
-[[test]]
-name = "pseudonymization_crypto"
-path = "tests/integration/pseudonymization_crypto.rs"
-required-features = ["cedar-runtime", "google-sdp"]
-
-[[test]]
-name = "agentic_ai_commerce_signatures_consumer"
-path = "tests/integration/agentic_ai_commerce_signatures_consumer.rs"
-required-features = ["agentic-ai-commerce-signatures"]
-
-[[test]]
-name = "agentic_ai_commerce_projection_consumer"
-path = "tests/integration/agentic_ai_commerce_projection_consumer.rs"
-required-features = ["agentic-ai-commerce-projection"]
-
-[[test]]
-name = "agentic_ai_commerce_admission_consumer"
-path = "tests/integration/agentic_ai_commerce_admission_consumer.rs"
-required-features = ["agentic-ai-commerce-admission"]
-
-[[test]]
-name = "agentic_ai_commerce_budget_projection_consumer"
-path = "tests/integration/agentic_ai_commerce_budget_projection_consumer.rs"
-required-features = ["agentic-ai-commerce-budget-commit"]
+serde.workspace = true
+cedar-poo-core.workspace = true
+cedar-poo-runtime.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
-asp-rust = { git = "https://github.com/tao3k/asp-rust", rev = "9b95fd6744a89f3f38e87f9bda33ea762f1f65e1", default-features = false }
-aes-siv = "0.7"
-aes-gcm = "0.10"
-hmac = "0.13"
+asp-rust.workspace = true
+

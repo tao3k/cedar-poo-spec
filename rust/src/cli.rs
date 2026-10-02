@@ -1,10 +1,10 @@
 //! Stream a Lean manifest through the Rust Cedar conformance checker.
 
-use crate::{
-    CompiledPolicyJson, Manifest, SchemaEvolutionBundle, TemplateSourceJson, ValidatedManifest,
-    check_direct_sources, check_manifest, check_template_source, render_artifacts,
-    render_policy_source, render_validated_policy_sources, replay_manifest,
-    replay_schema_only_revision, replay_validated_manifest,
+use cedar_poo_core::{CompiledPolicyJson, TemplateSourceJson};
+use cedar_poo_runtime::{
+    Manifest, SchemaEvolutionBundle, ValidatedManifest, check_direct_sources, check_manifest,
+    check_template_source, render_artifacts, render_policy_source, render_validated_policy_sources,
+    replay_manifest, replay_schema_only_revision, replay_validated_manifest,
 };
 use serde::Deserialize;
 use std::fs;

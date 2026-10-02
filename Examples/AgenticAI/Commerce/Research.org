@@ -45,7 +45,7 @@ mandate ID rebinding and global purchase/offer replay, propagates ancestor
 revocation, and rejects stale root revisions. The Lean model proves revision
 advance, stale-revision refusal, and root-cap preservation.
 
-The optional Rust [[file:../../../rust/src/agentic_ai/commerce/budget_commit.rs][budget bridge]] checks exact Lean before/after claims, fresh
+The Rust [[file:../../../rust/crates/commerce/src/budget_commit.rs][budget bridge]] checks exact Lean before/after claims, fresh
 signed authority, root and ancestor spend, and the current content CID. It
 uses MRR Data's conditional commit protocol to propose one head replacement
 with an exact revision and operation ID. The async commit entry point now uses
@@ -71,7 +71,7 @@ funds. The Host still verifies signatures, applies policy, ensures durable
 single use of the credential, and binds the same checkout to the provider's
 real request and response.
 
-The optional Rust [[file:../../../rust/src/agentic_ai/commerce/signatures.rs][mandate and offer verifier]] checks raw P-256 ECDSA signatures
+The Rust [[file:../../../rust/crates/commerce/src/signatures.rs][mandate and offer verifier]] checks raw P-256 ECDSA signatures
 over domain-separated, length-prefixed mandate, child delegation, and offer
 payloads. Its trust table maps the complete Cedar principal UID components or
 a merchant ID to a public key. The principal-signed mandate binds the Agent's
@@ -79,16 +79,16 @@ public key; that parent Agent key must sign each child grant. The offer verifier
 also recomputes SHA-256 over the exact checkout bytes. Positive and
 altered-agent, altered-principal, altered-price, altered-checkout,
 wrong-issuer, widening-child, and ancestor-identity-reuse cases are executable under the
-=agentic-ai-commerce-signatures= Cargo feature, which =just check-rust= covers. This is a
+=cedar-poo-commerce= crate and its independent Case consumer, which =just check-rust= covers. This is a
 local versioned encoding, not AP2 JWT or a live issuer integration. The Host
 must map *every* verified Rust field to the corresponding Lean object before
 setting =verified=, and must manage key enrollment, rotation, and revocation.
-The optional [[file:../../../rust/src/agentic_ai/commerce/projection.rs][projection API]] now checks all signed mandate and offer fields against
+The optional [[file:../../../rust/crates/commerce/src/projection.rs][projection API]] now checks all signed mandate and offer fields against
 the [[file:../../../CedarPooSpec/AgenticAI/Commerce/Projection.lean][public Lean claims]]. =just check-agentic-ai-commerce-projection= tests a Lean JSON
 fixture against live Rust verified values and individually changes each field.
 This establishes field correspondence for the synthetic fixture; the Host
 still owns the live admission decision and dynamic checks.
-The optional [[file:../../../rust/src/agentic_ai/commerce/admission.rs][process-local admission reference]] now re-verifies the signed root mandate,
+The optional [[file:../../../rust/crates/commerce/src/admission.rs][process-local admission reference]] now re-verifies the signed root mandate,
 each parent-agent-signed child, and the merchant offer on each call against
 current enrolled keys, time, policy epoch, ancestor and child revocations,
 exact Lean lineage claims, and a Host policy callback. The clock, policy
@@ -123,7 +123,7 @@ autonomous transfers.
 The common engineering inference is that *agent recognition*, *delegated
 purchase authority*, *merchant price integrity*, and *payment execution* are
 independent facts. None implies the next. This is why the optional Rust module
-is named =agentic_ai::commerce::signatures=: it authenticates only the signed mandate,
+is named =cedar_poo_commerce::signatures=: it authenticates only the signed mandate,
 delegation, and merchant offer payloads plus checkout bytes. The public Lean
 model then checks structural scope and purchase correspondence, subject to a
 Host mapping and durable state. No cross-protocol conformance is claimed.
@@ -174,7 +174,7 @@ claim. We use this distinction to ask whether an authenticated earlier commit
 still authorizes the exact current credential and checkout. We do not import its
 Tamarin results as proofs of this Lean/Rust implementation.
 
-The optional Rust [[file:../../../rust/src/agentic_ai/commerce/credential.rs][credential validator]] recovers an exact MRR operation receipt,
+The Rust [[file:../../../rust/crates/commerce/src/credential.rs][credential validator]] recovers an exact MRR operation receipt,
 verifies raw previous/committed block CIDs and the original one-reservation
 transition, and rechecks fresh signed root/delegations, policy, merchant offer,
 checkout bytes and independently enrolled issuer key. All projected verification
@@ -182,7 +182,7 @@ flags are omitted. Lean proves accepted credentials retain a current reservation
 and an authenticated commit, with explicit negative cases for ancestor revocation,
 future revision, wrong scope/operation, expiry and checkout substitution.
 
-The [[file:../../../rust/tests/integration/agentic_ai/commerce/credentials.rs][signed consumers]] test proposal-only and unreadable-ledger rejection, later-head
+The [[file:../../../rust/cases/commerce/tests/integration/agentic_ai/commerce/credentials.rs][signed consumers]] test proposal-only and unreadable-ledger rejection, later-head
 retention/removal, issuer rotation/revocation, signed claim tampering, changed
 checkout/price, current cap violations and policy/mandate revocation. The two
 opaque CIDs in the Lean credential template are filled from actual Rust content
@@ -198,17 +198,17 @@ that does not establish one economic effect for our custom credential. [[https:/
 payment-mandate checks and signed payment receipts to different verifier roles.
 We therefore specify a separate [[file:../../../CedarPooSpec/AgenticAI/Commerce/Consumption.lean][consumption ledger]] keyed by budget scope and
 purchase, independent of credential ID and provider. Its proved duplicate refusal
-applies regardless of the provider outcome. The [[file:../../../rust/src/agentic_ai/commerce/consumption.rs][Rust claim]] reuses the existing
+applies regardless of the provider outcome. The [[file:../../../rust/crates/commerce/src/consumption.rs][Rust claim]] reuses the existing
 MRR conditional port, authenticates the original reservation receipt, compares
 exact raw ledger CIDs and proposals, and refreshes budget/issuer/mandate authority
 inside validation. The backend must serialize those changes through release.
 
 A newly confirmed claim yields one move-only release permit. Exact replay,
-uncertain commit and recovery cannot reconstruct it. The [[file:../../../rust/src/agentic_ai/commerce/provider.rs][provider interface]] carries
+uncertain commit and recovery cannot reconstruct it. The [[file:../../../rust/crates/commerce/src/provider.rs][provider interface]] carries
 the complete exact request with a stable scope/purchase idempotency key, and
 verifies a signed receipt's full-request commitment against an independently
 enrolled provider key. Status recovery performs no payment and cannot grant a
-fresh credential or retry. The [[file:../../../rust/tests/integration/agentic_ai/commerce/consumption.rs][test-only consumers]] check two competing claims,
+fresh credential or retry. The [[file:../../../rust/cases/commerce/tests/integration/agentic_ai/commerce/consumption.rs][test-only consumers]] check two competing claims,
 reissued credentials/providers, uncertain claim/payment ACKs, fresh revocation,
 changed receipt/request, and key rotation. No production provider is connected.
 

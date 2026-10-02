@@ -1,8 +1,9 @@
 //! Measure steady-state Cedar artifact admission and rendering in one process.
 
-use cedar_poo_bridge::{
-    CompiledPolicyJson, Manifest, check_manifest, load_policy_set, render_artifacts,
-    render_loaded_policy_set, render_policy_source, replay_manifest,
+use cedar_poo_core::CompiledPolicyJson;
+use cedar_poo_runtime::{
+    Manifest, check_manifest, load_policy_set, render_artifacts, render_loaded_policy_set,
+    render_policy_source, replay_manifest,
 };
 use std::hint::black_box;
 use std::time::{Duration, Instant};

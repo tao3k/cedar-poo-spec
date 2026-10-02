@@ -17,7 +17,8 @@ impact at scale.
 of one changed policy invalidate descendants on both branches.
 [[file:Health/Pseudonymization.lean][Health/Pseudonymization.lean]] checks hospital Cedar decisions and
 local POO composition. Rust unit tests remain in the Rust crate's
-=rust/tests/unit/= directory.
+=rust/crates/<owner>/tests/unit/= directories. Case consumer tests live under
+=rust/cases/<case>/tests/integration/=.
 [[file:Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]] checks two-axis
 C4 method selection for the Data Flow policy builder, proves exact ordered
 policy equality with the owner-composed root, and ties both paths to Cedar's

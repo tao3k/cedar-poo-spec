@@ -34,8 +34,8 @@ controls effects, and records durable receipts. A content CID or physical
 query receipt is never an authorization receipt.
 
 RFC 0008 assigns runtime authority to POO Flow or the deploying Host. The
-existing Rust =cedar-poo-bridge= validates and renders policy artifacts. Its
-clinical and Google in-memory Hosts are reference consumers, not a new
+existing Rust =cedar-poo-bridge= validates and renders policy artifacts. The separate Rust
+clinical and Google in-memory Host crates are reference consumers, not a new
 universal authority protocol. The first integration must preserve that
 boundary. It must not add =cedar-policy= to =mrr-data= core or a second
 authorization runtime to the bridge.
@@ -47,11 +47,11 @@ borrows snapshot, query, and MRR result-admission identities. The separate
 to that snapshot while leaving the token profile generic. Neither feature
 depends on this repository, Cedar, Google, or a vertical industry. A later
 opt-in Cedar integration package may live in the =mrr-data= workspace and
-depend on a pinned =cedar-poo-bridge= revision. It must select only the
-bridge features it uses: =pseudonymization= for a common token profile,
-=google-sdp= for the provider wire contract, and =cedar-runtime= only for
-official Cedar validation or replay. Feature flags follow real Rust modules,
-not empty switches for Lean-only models.
+depend on pinned workspace packages from this repository. It selects
+=cedar-poo-pseudonymization= for a common token profile, that crate's
+=google-sdp= feature for the provider wire contract, and =cedar-poo-runtime=
+only for official Cedar validation or replay. Host adapters are separate
+packages. Features follow real Rust modules, not empty switches for Lean-only models.
 
 The physical projection does not issue permissions, mint tickets, perform
 cryptography, or intercept all calls to =mrr-data=. The application must

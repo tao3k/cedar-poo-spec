@@ -9,8 +9,8 @@ ordinary policy set using Cedar's public JSON policy-set format. The
 [[file:../../rust/Cargo.toml][Rust bridge]] parses the result with the official
 =cedar-policy= crate and calls its authorizer. Composition and proof reuse stay
 in Lean-POO; Cedar continues to own policy parsing and authorization.
-The Rust package defaults to a small JSON artifact type with no Cedar runtime
-dependency. Enabling =cedar-runtime= exposes =load_policy_set= for applications
+The =cedar-poo-core= crate owns the small JSON artifact types with no Cedar runtime
+dependency. The separate =cedar-poo-runtime= crate exposes =load_policy_set= for applications
 that want to load the exported JSON into the official
 =cedar_policy::PolicySet= type.
 The same bridge renders that policy set into human-readable =.cedar= files in
@@ -49,9 +49,9 @@ principal/resource scopes, =like= patterns, unary =is=, and nested =has=.
 Cedar Lean's abstract Action scope permits =is=, but Cedar's concrete Action
 grammar does not; export rejects that form explicitly.
 The adapter covers all four extension value variants and all 22 =ExtFun=
-constructors in the pinned Cedar Lean version. The =cedar-runtime= feature
+constructors in the pinned Cedar Lean version. The =cedar-poo-runtime= crate
 enables the corresponding official Rust Cedar =decimal=, =ipaddr=, and
-=datetime= features; the default artifact library still has no Cedar runtime
+=datetime= features; the =cedar-poo-core= artifact library still has no Cedar runtime
 dependency. The inventory is explicit:
 
 | Family | Lean extension value | Lean functions exported to Cedar JSON |
@@ -230,8 +230,8 @@ def main : IO Unit :=
   | .error _ => throw (IO.userError "publication failed")
 #+end_src
 
-The top-level Cargo workspace makes the =cedar-poo-bridge= package available
-as a Git dependency. Its default library exposes =CompiledPolicyJson= and
+The top-level Cargo workspace makes =cedar-poo-core= and =cedar-poo-runtime=
+available as separate Git dependencies. The core library exposes =CompiledPolicyJson= and
 =to_json_string= for passing or storing a compiled artifact. The
 =publish= API carries proofs that the chosen root compiled, the schema is well
 formed, Cedar validated the policy set against it, and serialization
@@ -241,23 +241,23 @@ checked during Lean compilation; Rust receives the JSON artifact, not a
 transferable proof certificate. Downstream Rust code
 that already uses =cedar-policy= may parse this JSON through its own Cedar
 dependency. It does not need to depend on this bridge merely to load the
-artifact. The optional =cedar-runtime= feature exposes =load_policy_set= and
+artifact. The =cedar-poo-runtime= crate exposes =load_policy_set= and
 =render_loaded_policy_set= for a policy set admitted once and reused in a Rust
 process. =render_policy_source= combines admission and rendering for a single
-artifact. The package also builds a CLI that reads one compiled policy set
+artifact. The =cedar-poo-bridge= application builds a CLI that reads one compiled policy set
 from standard input and writes Cedar source to standard output:
 
 #+begin_src toml
 [dependencies]
-cedar-poo-bridge = { git = "https://github.com/tao3k/cedar-poo-spec.git", branch = "feat/cedar-evaluation-adapter" }
+cedar-poo-core = { git = "https://github.com/tao3k/cedar-poo-spec.git", rev = "<accepted immutable revision>" }
+cedar-poo-runtime = { git = "https://github.com/tao3k/cedar-poo-spec.git", rev = "<same accepted immutable revision>" }
 #+end_src
 
 For the command-line form, install the binary from the same revision:
 
 #+begin_src sh
 cargo install --git https://github.com/tao3k/cedar-poo-spec.git \
-  --branch feat/cedar-evaluation-adapter --package cedar-poo-bridge \
-  --features cedar-runtime
+  --rev ACCEPTED_IMMUTABLE_REVISION --package cedar-poo-bridge
 #+end_src
 
 #+begin_src sh

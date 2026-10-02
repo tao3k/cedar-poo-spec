@@ -9,7 +9,7 @@ supports entity records and enumerated entities, action applicability and
 membership, required and optional attributes, sets, nested records, entity
 references, and the four pinned Cedar extension types. It rejects Boolean
 refinements and action type names that the public JSON form cannot represent
-faithfully. The Rust =cedar-runtime= feature parses the result with
+faithfully. The Rust =cedar-poo-runtime= crate parses the result with
 =cedar_policy::Schema::from_json_value=.
 The shared =SchemaAdmission.validateDefinitions= API checks entity and action
 definitions before the existing =Schema.validateWellFormed= check. Both

@@ -23,7 +23,7 @@ force every tool call through this API. A deploying harness must derive the
 real action, destination, before/after selection, recipients, and output bytes
 from its tool adapter and apply the external effect only after a durable
 decision. The [[file:../../Tests/AgenticAI/Boundary.lean][Lean tests]] and
-[[file:../../rust/src/agentic_ai/boundary.rs][Rust mirror]] check the finite
+[[file:../../rust/crates/agentic/src/boundary.rs][Rust mirror]] check the finite
 boundary behavior; the [[file:../../Examples/Health/AgenticAI/LanguageModel/Disclosure.org][hospital case]] composes it with Cedar, lineage, grants, and a shared
 cohort ledger.
 
@@ -31,7 +31,7 @@ cohort ledger.
 
 [[file:Commerce/README.org][Commerce]] owns principal mandates, signed agent delegation, exact merchant
 offers, and one shared root budget across delegated branches. Its Rust mirror
-is =agentic_ai::commerce=. The finance-specific payment conversion remains
+is =cedar_poo_commerce=. The finance-specific payment conversion remains
 in =Vertical/FinancialServices/AgenticCommercePayment=.
 
 * Evidence and judgment

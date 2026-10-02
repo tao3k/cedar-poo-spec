@@ -1,0 +1,26 @@
+[package]
+name = "cedar-poo-commerce"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Agentic commerce signatures and independently selected Host protocols"
+
+[features]
+default = []
+projection = []
+admission = ["projection"]
+budget-commit = ["admission", "dep:mrr-data-content"]
+credential = ["budget-commit"]
+consumption = ["credential"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+p256.workspace = true
+sha2.workspace = true
+mrr-data-content = { workspace = true, optional = true }
+
+[dev-dependencies]
+asp-rust.workspace = true
+

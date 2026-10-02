@@ -11,7 +11,7 @@ class BridgeError(RuntimeError):
 
 
 DEFAULT_COMMAND = (
-    "cargo", "run", "--locked", "--quiet", "--features", "cedar-runtime",
+    "cargo", "run", "--locked", "--quiet", "-p", "cedar-poo-bridge",
     "--manifest-path", "rust/Cargo.toml", "--",
 )
 

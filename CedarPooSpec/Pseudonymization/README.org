@@ -82,7 +82,7 @@ release objects through Lean-POO. It checks Cedar decisions with the official
 Rust engine, exercises a finite Host ticket-redemption model, and runs local
 synthetic-data cryptographic checks. Its [[file:../../Examples/Health/Pseudonymization/Tabular.lean][tabular input]] exports a selected
 patient ID and tenant-scope context to a fixture consumed by the local AES-SIV test.
-The [[file:../../rust/examples/pseudonymization_local.rs][local executable]] replays the corresponding official Cedar case, checks
+The [[file:../../rust/cases/pseudonymization/examples/pseudonymization_local.rs][local executable]] replays the corresponding official Cedar case, checks
 the selected input against that case's request and dataset entity, performs
 synthetic AES-SIV encryption, and emits content hashes for both the Cedar
 decision and local effect. Changed context or token-key version is rejected.

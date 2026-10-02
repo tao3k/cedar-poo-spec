@@ -1,73 +1,75 @@
 #+TITLE: Rust Bridge and Optional Consumer APIs
 #+OPTIONS: toc:nil
 
-* Cargo features
+* Workspace ownership
 
-| Feature | Provides | Heavy dependency |
-|---------+----------+------------------|
-| =cedar-runtime= | Official Cedar validation and replay | =cedar-policy= |
-| =agentic-ai-boundary= | Typed tool-action and sink checks, including observable selection mutations | None |
-| =agentic-ai-language-model-disclosure-host= | In-memory reference Host for tool-using language-model disclosure | =cedar-runtime= |
-| =pseudonymization= | Borrowed common token mode and lineage profile | None |
-| =google-sdp= | Google table request and response contract | =base64= and =sha2= |
-| =google-sdp-host= | In-memory Cedar-to-Google admission example API | Both features above |
-| =agentic-ai-commerce-signatures= | Public mandate, delegation, and offer signature verifier API | =p256= and =sha2= |
-| =agentic-ai-commerce-projection= | Exact mandate and offer claims comparison for Lean admission | =agentic-ai-commerce-signatures= |
-| =agentic-ai-commerce-admission= | Process-local admission checks for signed root, child chain, and offer claims | =agentic-ai-commerce-projection= |
-| =agentic-ai-commerce-budget-commit= | Exact shared budget proposal and MRR Data conditional commit checks | =agentic-ai-commerce-admission= and =mrr-data-content= |
+The [[file:../../Cargo.toml][root workspace]] owns the lockfile, shared dependency versions and immutable
+MRR/ASP pins. =rust/= is the CLI application; reusable code lives in
+=rust/crates/= and executable Case consumers in =rust/cases/=. Case crates
+own scenario inputs, examples and external consumer tests. Libraries never
+import Case crates or synthetic scenario inputs.
 
-The common =pseudonymization= profile compiles without =cedar-policy= or a
-cloud SDK. =google-sdp= adds the Google wire contract and includes that common
-profile; it also compiles without =cedar-policy=. The in-memory Google
-admission boundary needs =google-sdp-host=. The language-model disclosure Host is
-opt-in, so enabling generic Cedar replay does not compile its reference API.
-The =agentic-ai-boundary= feature is independent of Cedar runtime and mirrors
-the [[file:../../CedarPooSpec/AgenticAI/Boundary.lean][Lean multimethod
-contract]]. The Host feature includes it and supplies the official Cedar
-reauthorization and process-local ledger.
+| Package | Responsibility | Local features |
+|---------+----------------+----------------|
+| =cedar-poo-core= | Policy JSON artifacts, authority and operation ledgers | None |
+| =cedar-poo-runtime= | Official Cedar validation, schema checks and replay | None |
+| =cedar-poo-agentic= | Common tool-action, selection and sink boundary | None |
+| =cedar-poo-commerce= | Signed claims and Host commerce protocols | =projection=, =admission=, =budget-commit=, =credential=, =consumption= |
+| =cedar-poo-pseudonymization= | Common token modes and lineage | =google-sdp= adds provider wire contracts |
+| =cedar-poo-google-sdp-host= | In-memory Cedar and Google admission reference | None |
+| =cedar-poo-disclosure-host= | In-memory language-model disclosure reference | None |
+| =cedar-poo-bridge= | JSON conformance CLI and export benchmark | None |
+| =cedar-poo-commerce-case= | Independent Lean commerce fixture consumers | Same additive commerce ladder |
+| =cedar-poo-pseudonymization-case= | Local crypto and Google examples | =local=, =google-contract=, =google-admission= |
+| =cedar-poo-disclosure-case= | Language-model disclosure scenario | None |
 
-The mandate and offer verifier is compiled from [[file:agentic_ai/commerce/signatures.rs][=rust/src/agentic_ai/commerce/signatures.rs=]]
-and exported by the library only with =agentic-ai-commerce-signatures=. Downstream Rust
-consumers can depend on =cedar-poo-bridge= with =default-features=false= and
-=features=["agentic-ai-commerce-signatures"]=. The [[file:../tests/integration/agentic_ai_commerce_signatures_consumer.rs][external consumer test]] calls its
-public signing-byte and verification API through the crate boundary. No
-Agentic AI commerce implementation is supplied from =rust/examples=; the Lean
-scenario under =Examples/= provides only synthetic inputs. The feature uses
-neither =cedar-runtime= nor =cedar-policy=. Its name reflects the exact
-research slice: signatures on a principal mandate, each narrower agent
-delegation, and a merchant offer, plus a hash of checkout bytes. Verified
-delegation values retain ancestor identities and reject their reuse on later
-hops. It does not verify an agent's HTTP request identity, evaluate an AP2
-mandate chain, issue
-a credential, allocate a durable budget, dispatch to a provider, manage
-issuer keys, or provide the checked Lean mapping.
+Commerce signatures are always present in their dedicated crate. Projection,
+admission, budget commit, credential and consumption form an additive ladder;
+MRR is enabled only from =budget-commit= onward. No Commerce profile depends
+on Cedar runtime. Common pseudonymization and its Google contract also compile
+without Cedar. Hosts explicitly compose runtime and domain libraries.
 
-The separate [[file:agentic_ai/commerce/projection.rs][Lean projection API]] accepts live =VerifiedMandate= and =VerifiedOffer=
-values and compares every signed field to typed Lean claims. It excludes the
-Host-owned =verified= flags and rejects unknown JSON fields. The
-[[file:../tests/integration/agentic_ai_commerce_projection_consumer.rs][consumer test]] compares Rust's verified objects to JSON emitted by the public
-Lean types through =just check-agentic-ai-commerce-projection=. The Host must keep
-the verified values in its trusted process and set =verified= only after the
-comparison and its separate current-time, key-status, policy, and revocation
-checks. JSON claims alone do not carry cryptographic authority.
+The CLI keeps its command names, JSON formats and binary name. Library consumers
+migrate directly to their owning crate; the bridge has no domain re-export
+facade or old feature aliases.
 
-The separate [[file:agentic_ai/commerce/admission.rs][Agentic AI commerce admission reference]] re-verifies a principal-signed root mandate,
-each parent-agent-signed child mandate, and a merchant offer against current
-keys and exact checkout bytes on every call. It rejects inactive issuer keys,
-expired evidence, missing or stale policy epochs, revoked mandate or offer
-IDs, revoked Agent keys, changed Lean lineage or offer claims, and offers
-outside the final mandate scope. The Host passes a trusted clock reading and
-a policy evaluator over the exact claims. These inputs and registry changes
-must be authenticated by a deployment. The returned claims contain no reusable
-=verified= flag; a reservation or external effect needs a fresh state check.
-This process-local API does not authenticate Agent request possession, persist
-revocations or a shared budget, or run Cedar itself.
-The [[file:../tests/integration/agentic_ai_commerce_admission_consumer.rs][external consumer test]] exercises these dynamic refusals under
-=agentic-ai-commerce-admission=.
+* Choosing a Case and profile
+
+A new Production Case should own its executable wiring and receipts in a Case
+crate and select reusable profiles through normal dependencies. Shared profiles
+belong in domain crates; provider-specific admission belongs in a Host adapter.
+Two Cases may share a profile or choose different additive features. Features
+select compiled capability; current keys, policy epochs and authority remain
+trusted runtime inputs. A Cargo release/debug build profile is a separate
+workspace build setting.
+
+Do not put profile features on inherited workspace domain dependencies: each
+Case declares its own choices. Dependencies use =default-features=false=.
+Cargo may unify features on a shared dependency when building several Cases
+together, so security checks must remain explicit and isolated builds are part
+of =just check-rust=. See the [[https://doc.rust-lang.org/cargo/reference/features.html#feature-unification][Cargo feature unification reference]].
+The gate discovers workspace members through Cargo metadata and rejects libraries
+that import Case or CLI packages.
+
+#+begin_src sh
+cargo check --locked -p cedar-poo-commerce --no-default-features --features admission
+just check-agentic-ai-commerce-admission
+LEAN_PROJECTION_FIXTURE="$PWD/.lake/build/agentic-ai-commerce-projection.json" cargo test --locked -p cedar-poo-commerce-case --features consumption
+just example health pseudonymization-google-contract
+cargo run --locked -p cedar-poo-bridge -- replay-validated-receipts < manifest.json
+#+end_src
+
+The stable Just/Python entrypoints choose packages explicitly. =just check-rust=
+checks dependency isolation, each package's defaults, individual Commerce
+profiles, all workspace targets with all features, formatting and strict Clippy.
+Fixture-dependent Commerce tests run in the conformance gate after Lean export;
+the Rust-only gate runs all other workspace tests and the standalone admission consumer.
+The projection/admission Just checks still export actual Lean fixtures before
+running the external Case consumers.
 
 * Google table transformation contract
 
-[[file:google_sdp.rs][google_sdp.rs]] maps the selected Lean table input to the official Google
+[[file:../crates/pseudonymization/src/google_sdp.rs][google_sdp.rs]] maps the selected Lean table input to the official Google
 Sensitive Data Protection =projects.locations.content.deidentify= and
 =reidentify= REST body shapes. It selects one entire table column through
 =RecordTransformations.FieldTransformation=, takes the context from a second
@@ -89,12 +91,12 @@ surrogate name and encoded length. Their output binds hashes of the request
 and response JSON. An
 arbitrary JSON document can satisfy the shape check; it is not itself proof
 of Google execution, a persisted audit, or atomic Host admission.
-The [[file:../examples/pseudonymization_google_contract.rs][offline example runner]] consumes two explicitly synthetic provider-shape
+The [[file:../cases/pseudonymization/examples/pseudonymization_google_contract.rs][offline example runner]] consumes two explicitly synthetic provider-shape
 responses from the hospital scenario and emits request/response digests.
-The [[file:google_sdp_host.rs][in-memory admission API]] replays a schema-validated Cedar case,
+The [[file:../crates/google-sdp-host/src/host.rs][in-memory admission API]] replays a schema-validated Cedar case,
 binds the selected row, Google endpoint, and exact request body, and releases a caller-supplied
 response only after a digest audit entry is appended. The
-[[file:../examples/pseudonymization_google_admission.rs][hospital consumer]] owns synthetic responses in its scenario directory.
+[[file:../cases/pseudonymization/examples/pseudonymization_google_admission.rs][hospital consumer]] owns synthetic responses in its scenario directory.
 The in-memory Host records a digest of each admitted token with its dataset,
 tenant, context, token-key version, and transformation revision. Recovery requires
 that lineage; a token with no prior admitted issuance is rejected. This
@@ -110,15 +112,15 @@ execution.
 
 * Approval-instance consumption
 
-[[file:authority_consumption.rs][AuthorityLedger]] is a small Rust counterpart of the public
+[[file:../crates/core/src/authority_consumption.rs][AuthorityLedger]] is a small Rust counterpart of the public
 [[file:../../CedarPooSpec/Admission/AuthorityConsumption.lean][Lean admission model]]. It matches one stable ID to one exact effect and
 rejects missing, duplicate, mismatched, and exhausted grants. The
-[[file:agentic_ai/language_model/disclosure_host.rs][in-memory disclosure Host]] rechecks Cedar and consumes an approval
+[[file:../crates/disclosure-host/src/host.rs][in-memory disclosure Host]] rechecks Cedar and consumes an approval
 under the same lock as its budget, cohort, and audit update. The
-[[file:../examples/agentic_ai_language_model_disclosure_host.rs][offline consumer]] exercises fresh-ticket replay, concurrent tickets,
+[[file:../cases/disclosure/examples/agentic_ai_language_model_disclosure_host.rs][offline consumer]] exercises fresh-ticket replay, concurrent tickets,
 separate approvals, and failure before consumption.
 
-[[file:operation_identity.rs][OperationLedger]] binds a logical operation ID to its exact effect.
+[[file:../crates/core/src/operation_identity.rs][OperationLedger]] binds a logical operation ID to its exact effect.
 The Host checks it at preparation and commits it alongside approval use and
 budget debit. The offline consumer rejects a fresh approval for the same
 operation while allowing an independent operation with identical payload.
@@ -131,7 +133,7 @@ response after a crash.
 
 * Local cryptographic check
 
-[[file:../examples/pseudonymization_local.rs][pseudonymization_local.rs]] uses RustCrypto with a synthetic key to check
+[[file:../cases/pseudonymization/examples/pseudonymization_local.rs][pseudonymization_local.rs]] uses RustCrypto with a synthetic key to check
 deterministic encryption, context separation, and local reversal after
 governed Cedar decisions. Google internally expands its supplied key and
 specifies its own context handling. The local RustCrypto output is therefore
@@ -139,13 +141,13 @@ not asserted to be byte-for-byte interchangeable with a Google token. The
 Google request and response boundary above is kept separate from this local
 check.
 
-The [[file:agentic_ai/commerce/budget_commit.rs][shared budget bridge]] checks one new reservation against the exact
+The [[file:../crates/commerce/src/budget_commit.rs][shared budget bridge]] checks one new reservation against the exact
 current content CID and revision, fresh authority, immutable prior entries,
 root and ancestor caps, global purchase and offer identities, and mandate ID
 bindings. It then calls MRR Data's provider-neutral conditional commit
 protocol. A returned =Apply= is a proposed transition. The backend must compare
 and persist the head and operation receipt atomically; MRR Data supplies no DB.
-The [[file:../tests/integration/agentic_ai_commerce_budget_projection_consumer.rs][consumer test]] uses shared before/after JSON emitted by Lean.
+The [[file:../cases/commerce/tests/integration/agentic_ai_commerce_budget_projection_consumer.rs][consumer test]] uses shared before/after JSON emitted by Lean.
 
 The =commit_shared_reservation= API binds an explicit operation ID to the proposed
 purchase, then invokes MRR Data's async atomic commit port. The Host supplies

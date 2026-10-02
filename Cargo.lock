@@ -449,17 +449,126 @@ dependencies = [
 ]
 
 [[package]]
+name = "cedar-poo-agentic"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+]
+
+[[package]]
 name = "cedar-poo-bridge"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "cedar-poo-core",
+ "cedar-poo-runtime",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cedar-poo-commerce"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "mrr-data-content",
+ "p256",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+]
+
+[[package]]
+name = "cedar-poo-commerce-case"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "cedar-poo-commerce",
+ "mrr-data-content",
+ "p256",
+ "serde_json",
+]
+
+[[package]]
+name = "cedar-poo-core"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cedar-poo-disclosure-case"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "cedar-poo-agentic",
+ "cedar-poo-core",
+ "cedar-poo-disclosure-host",
+ "cedar-poo-runtime",
+ "serde_json",
+]
+
+[[package]]
+name = "cedar-poo-disclosure-host"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "cedar-policy",
+ "cedar-poo-agentic",
+ "cedar-poo-core",
+ "cedar-poo-runtime",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cedar-poo-google-sdp-host"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "cedar-poo-pseudonymization",
+ "cedar-poo-runtime",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+]
+
+[[package]]
+name = "cedar-poo-pseudonymization"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "base64",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+]
+
+[[package]]
+name = "cedar-poo-pseudonymization-case"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "aes-siv",
  "asp-rust",
- "base64",
- "cedar-policy",
+ "cedar-poo-google-sdp-host",
+ "cedar-poo-pseudonymization",
+ "cedar-poo-runtime",
  "hmac 0.13.0",
- "mrr-data-content",
- "p256",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+]
+
+[[package]]
+name = "cedar-poo-runtime"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "cedar-policy",
+ "cedar-poo-core",
  "serde",
  "serde_json",
  "sha2 0.11.0",
