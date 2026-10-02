@@ -92,4 +92,23 @@ def prepareLedgerWithCedar (ledger : PaymentLedger) (payment : PaymentOperation)
     (evidence : List AuditEvidence) : Option PaymentLedger :=
   ledger.prepare payment (cedarAuthorization payment) evidence
 
+/-- The bank-rail profile checks a reported fee against the approved cap.
+    Exact effect-term matching remains in `PaymentAttempt.observe`. -/
+def settlementFeeWithinCap (payment : PaymentOperation)
+    (details : SettlementDetails) : Bool :=
+  match canonicalCedarDecimal payment.feeCap,
+      canonicalCedarDecimal details.chargedFee with
+  | some cap, some charged => charged.toInt >= 0 && charged.toInt <= cap.toInt
+  | _, _ => false
+
+def reconcileLedgerWithFeeCap (ledger : PaymentLedger)
+    (evidence : ProcessorEvidence) : Option PaymentLedger :=
+  match evidence.outcome, evidence.settlement with
+  | .settled, some details =>
+      if settlementFeeWithinCap evidence.payment details then
+        ledger.reconcile evidence
+      else none
+  | .settled, none => none
+  | _, _ => ledger.reconcile evidence
+
 end CedarPooSpec.AgentPaymentAuditExample

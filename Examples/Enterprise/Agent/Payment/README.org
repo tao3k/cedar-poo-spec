@@ -100,8 +100,12 @@ the Host still owns atomic persistence and the processor's idempotency contract.
 This example's [[file:PaymentAudit.lean][Cedar adapter]] also requires one four-place decimal spelling for
 amount and fee cap. A synthetic Host profile fixes the beneficiary, asset,
 rail, mandate reference, and fee ceiling before ledger preparation. The Cedar
-policy sees account, origin, and amount; no code here verifies a mandate
-signature or a fee charged by a processor.
+policy sees account, origin, and amount; no code here authenticates a mandate
+signature or a real processor receipt.
+The lifecycle now stores processor-reported settlement terms only after they
+match the approved payment. This bank-rail adapter separately checks the
+reported fee against =feeCap= before the ledger records settlement. Provider
+authentication and actual financial finality remain Host responsibilities.
 
 The [[file:AuthorizationDelta.lean][authorization-delta example]] also checks
 the entire schema-defined authorization space for two changes. Adding the

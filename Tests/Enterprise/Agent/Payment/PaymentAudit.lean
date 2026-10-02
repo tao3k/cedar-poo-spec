@@ -167,9 +167,15 @@ def acceptedEvidence : ProcessorEvidence :=
   { payment, idempotencyKey := payment.nonce,
     providerReference := "provider-42", outcome := .accepted,
     verified := true }
+def settlementDetails : SettlementDetails :=
+  { payerAccount := payment.payerAccount, instrument := payment.instrument,
+    beneficiary := payment.beneficiary, amount := payment.amount,
+    asset := payment.asset, network := payment.network,
+    chargedFee := "0.5000" }
 def settledEvidence : ProcessorEvidence :=
   { payment, idempotencyKey := payment.nonce,
     providerReference := "provider-42", outcome := .settled,
+    settlement := some settlementDetails,
     verified := true }
 
 theorem prepareConsumesNonce :
@@ -194,9 +200,33 @@ theorem processorAcceptanceIsNotSettlement :
 theorem matchingSettlementFinalizes :
     (accepted.observe settledEvidence).map PaymentAttempt.phase =
       some .settled := by decide
+theorem directSettlementFinalizes :
+    (submitted.observe settledEvidence).map PaymentAttempt.phase =
+      some .settled := by decide
 theorem matchingRejectionFinalizes :
-    (accepted.observe { settledEvidence with outcome := .rejected }).map
+    (accepted.observe { settledEvidence with outcome := .rejected, settlement := none }).map
       PaymentAttempt.phase = some .rejected := by decide
+theorem missingSettlementDetailsDenied :
+    accepted.observe { settledEvidence with settlement := none } = none := by decide
+theorem acceptanceCannotClaimSettlementDetails :
+    submitted.observe { acceptedEvidence with settlement := some settlementDetails } =
+      none := by decide
+theorem rejectionCannotClaimSettlementDetails :
+    accepted.observe { settledEvidence with outcome := .rejected } = none := by decide
+theorem changedSettlementBeneficiaryDenied :
+    accepted.observe { settledEvidence with settlement := some ({ settlementDetails with beneficiary := "attacker" }) } = none := by decide
+theorem changedSettlementAmountDenied :
+    accepted.observe { settledEvidence with settlement := some ({ settlementDetails with amount := "51.0000" }) } = none := by decide
+theorem changedSettlementAssetDenied :
+    accepted.observe { settledEvidence with settlement := some ({ settlementDetails with asset := "BTC" }) } = none := by decide
+theorem changedSettlementRailDenied :
+    accepted.observe { settledEvidence with settlement := some ({ settlementDetails with network := "other-rail" }) } = none := by decide
+theorem changedSettlementPayerDenied :
+    accepted.observe { settledEvidence with settlement := some ({ settlementDetails with payerAccount := reserveAccount }) } = none := by decide
+theorem changedSettlementInstrumentDenied :
+    accepted.observe { settledEvidence with settlement := some ({ settlementDetails with instrument := "other-instrument" }) } = none := by decide
+theorem missingChargedFeeDenied :
+    accepted.observe { settledEvidence with settlement := some ({ settlementDetails with chargedFee := "" }) } = none := by decide
 theorem wrongProviderReferenceDenied :
     accepted.observe { settledEvidence with providerReference := "other" } =
       none := by decide
@@ -230,7 +260,7 @@ def acceptedLedger : PaymentLedger :=
   { reservedLedger with revision := 3, attempts := [accepted] }
 def settledLedger : PaymentLedger :=
   { reservedLedger with revision := 4, attempts :=
-      [{ accepted with phase := .settled }] }
+      [{ accepted with phase := .settled, settlement := some settlementDetails }] }
 
 def evidenceFor (target : PaymentOperation) : List AuditEvidence :=
   threeEvidence.map fun item => { item with payment := target }
@@ -285,9 +315,30 @@ theorem ledgerAcceptsAuthenticatedOutcome :
     submittedLedger.reconcile acceptedEvidence = some acceptedLedger := by decide
 theorem ledgerFinalizesMatchingOutcome :
     acceptedLedger.reconcile settledEvidence = some settledLedger := by decide
+theorem profileFinalizesFeeWithinCap :
+    reconcileLedgerWithFeeCap acceptedLedger settledEvidence =
+      some settledLedger := by native_decide
+theorem profileAcceptsFeeAtCap :
+    (reconcileLedgerWithFeeCap acceptedLedger
+      { settledEvidence with settlement := some ({ settlementDetails with chargedFee := payment.feeCap }) }).isSome =
+      true := by native_decide
+def excessiveFeeEvidence : ProcessorEvidence :=
+  { settledEvidence with settlement := some ({ settlementDetails with chargedFee := "1.0001" }) }
+theorem genericLedgerLeavesFeeToRail :
+    (acceptedLedger.reconcile excessiveFeeEvidence).isSome = true := by decide
+theorem profileRejectsExcessiveChargedFee :
+    reconcileLedgerWithFeeCap acceptedLedger excessiveFeeEvidence = none := by native_decide
+theorem profileRejectsMalformedChargedFee :
+    reconcileLedgerWithFeeCap acceptedLedger
+      { settledEvidence with settlement := some ({ settlementDetails with chargedFee := "fee-unknown" }) } =
+      none := by native_decide
+theorem profileRejectsNegativeChargedFee :
+    reconcileLedgerWithFeeCap acceptedLedger
+      { settledEvidence with settlement := some ({ settlementDetails with chargedFee := "-0.5000" }) } =
+      none := by native_decide
 theorem ledgerCachesFinalOutcome :
     settledLedger.cached payment.nonce =
-      some { accepted with phase := .settled } := by decide
+      some { accepted with phase := .settled, settlement := some settlementDetails } := by decide
 theorem ledgerCannotRedispatchFinalOutcome :
     settledLedger.dispatch payment.nonce = none := by decide
 theorem ledgerRejectsWrongKeyEvidence :

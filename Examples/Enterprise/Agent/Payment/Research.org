@@ -69,6 +69,14 @@ acceptance without settlement, matching finality, forged or mismatched
 observations, wrong idempotency keys, and terminal states.
 =just check-payment-audit= compiles them.
 
+Settlement evidence now also carries the processor-reported payer account,
+instrument, beneficiary, amount, asset, network, and charged fee. The generic
+state machine checks the first six against the approved operation and stores
+the details with the final record. It requires a nonempty charged fee but
+leaves its numeric interpretation to the rail adapter. Missing or mismatched
+effect terms cannot change an accepted attempt to settled; acceptance and
+rejection cannot carry settlement details.
+
 The pure model does not supply a durable transaction, a processor idempotency
 guarantee, an authenticated status query, or evidence of economic finality.
 The Host must enforce these at the adapter boundary and reconcile an uncertain
@@ -95,6 +103,17 @@ revision as an atomic compare-and-swap token when persisting the result and
 reject stale concurrent writers before it sends the command. A processor must
 also guarantee stable same-key resolution for status queries; otherwise the
 model cannot establish remote at-most-once effect or safe automated recovery.
+
+The bank-rail [[file:PaymentAudit.lean][fee-cap reconciliation helper]] additionally parses the reported
+fee in the same canonical decimal profile and checks that it is nonnegative
+and at most the authorized =feeCap=. The generic ledger intentionally leaves
+rail-specific fee comparisons to adapters. Neither the =verified= flag nor
+the =settled= phase proves bank clearing or legal finality: the Host must
+authenticate the provider receipt and apply the rail's actual finality rule.
+This models the receipt and effect correspondence questions identified in
+[[https://arxiv.org/html/2609.00060][the formal protocol study]]; the [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 specification]] likewise separates signed
+payment receipts from later dispute verification. These sources do not
+certify this synthetic bank-rail profile.
 
 The [[https://arxiv.org/html/2609.00060][formal protocol study]] describes MPP-14 as a source-aligned symbolic trace:
 spend is recorded, a response is lost, and retry accounts the same logical

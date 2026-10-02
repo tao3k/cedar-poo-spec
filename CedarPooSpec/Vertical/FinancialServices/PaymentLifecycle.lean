@@ -13,10 +13,31 @@ inductive PaymentPhase where
   | reserved | submitted | accepted | settled | rejected
   deriving DecidableEq, Repr
 
+/-- Processor-reported effect terms. `chargedFee` is checked by the selected
+    payment-rail adapter; this generic contract only requires it to be present. -/
+structure SettlementDetails where
+  payerAccount : Cedar.Spec.EntityUID
+  instrument : String
+  beneficiary : String
+  amount : String
+  asset : String
+  network : String
+  chargedFee : String
+  deriving DecidableEq, Repr
+
+def SettlementDetails.matches (details : SettlementDetails)
+    (payment : PaymentOperation) : Bool :=
+  details.payerAccount == payment.payerAccount &&
+  details.instrument == payment.instrument &&
+  details.beneficiary == payment.beneficiary &&
+  details.amount == payment.amount && details.asset == payment.asset &&
+  details.network == payment.network && !details.chargedFee.isEmpty
+
 structure PaymentAttempt where
   payment : PaymentOperation
   phase : PaymentPhase
   providerReference : Option String := none
+  settlement : Option SettlementDetails := none
   deriving DecidableEq, Repr
 
 /-- The only outbound effect request issued by the pure transition. The Host
@@ -45,8 +66,17 @@ structure ProcessorEvidence where
   idempotencyKey : String
   providerReference : String
   outcome : ProcessorOutcome
+  settlement : Option SettlementDetails := none
   verified : Bool
   deriving DecidableEq, Repr
+
+def ProcessorEvidence.settlementMatches (evidence : ProcessorEvidence)
+    (payment : PaymentOperation) : Bool :=
+  match evidence.outcome, evidence.settlement with
+  | .settled, some details => details.matches payment
+  | .settled, none => false
+  | _, none => true
+  | _, some _ => false
 
 /-- Reserve the nonce and create the pending attempt in one pure transition.
     The Host must persist both and the intended effect atomically. -/
@@ -78,14 +108,16 @@ def PaymentAttempt.statusQuery (attempt : PaymentAttempt) :
            providerReference := attempt.providerReference }
   else none
 
-/-- Processor acceptance is not final settlement. A later settlement or
-    rejection must carry the same provider reference; both are terminal. -/
+/-- Processor acceptance is not final settlement. Settlement requires exact
+    effect terms and a later outcome must retain the same provider reference;
+    rejection and settlement are terminal. -/
 def PaymentAttempt.observe (attempt : PaymentAttempt)
     (evidence : ProcessorEvidence) : Option PaymentAttempt :=
   if !evidence.verified || attempt.payment.nonce.isEmpty ||
       evidence.providerReference.isEmpty ||
       evidence.idempotencyKey != attempt.payment.nonce ||
-      !decide (evidence.payment = attempt.payment) then none
+      !decide (evidence.payment = attempt.payment) ||
+      !evidence.settlementMatches attempt.payment then none
   else
     match attempt.phase, evidence.outcome with
     | .submitted, .accepted =>
@@ -93,13 +125,14 @@ def PaymentAttempt.observe (attempt : PaymentAttempt)
                providerReference := some evidence.providerReference }
     | .submitted, .settled =>
         some { payment := attempt.payment, phase := .settled,
-               providerReference := some evidence.providerReference }
+               providerReference := some evidence.providerReference,
+               settlement := evidence.settlement }
     | .submitted, .rejected =>
         some { payment := attempt.payment, phase := .rejected,
                providerReference := some evidence.providerReference }
     | .accepted, .settled =>
         if attempt.providerReference == some evidence.providerReference then
-          some { attempt with phase := .settled }
+          some { attempt with phase := .settled, settlement := evidence.settlement }
         else none
     | .accepted, .rejected =>
         if attempt.providerReference == some evidence.providerReference then
