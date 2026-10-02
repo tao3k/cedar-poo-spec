@@ -2,7 +2,7 @@
 
 use cedar_poo_bridge::ValidatedManifest;
 use cedar_poo_bridge::disclosure_host::{
-    Effect, Evidence, Grant, InMemoryDisclosureHost, ValidatedDisclosurePolicy,
+    Effect, Evidence, Grant, InMemoryDisclosureHost, RecipientGrant, ValidatedDisclosurePolicy,
 };
 use serde_json::json;
 use std::{env, fs, process, sync::Arc, thread};
@@ -33,11 +33,19 @@ fn evidence() -> Evidence {
         policy_revision: 0,
         approval_revision: 0,
         delegation_revision: 0,
+        audience_revision: 0,
         now: 1,
         budget: 2,
         trusted_sources: vec![HOSPITAL.into(), RESEARCH.into()],
         trusted_owner: STEWARD.into(),
         allowed_destinations: vec![SINK.into()],
+        current_recipients: vec!["researcher-a".into()],
+        recipient_grants: [HOSPITAL, RESEARCH]
+            .map(|source| RecipientGrant {
+                source: source.into(),
+                recipient: "researcher-a".into(),
+            })
+            .to_vec(),
         observed_digest: "cohort-first".into(),
         observed_candidate_ids: ["p1", "p2", "p3", "p4"].map(str::to_owned).to_vec(),
         approvals: vec![grant(HOSPITAL), grant(RESEARCH)],
@@ -54,6 +62,7 @@ fn effect(digest: &str, channel: &str, candidates: &[&str]) -> Effect {
         destination: SINK.into(),
         purpose: "study-one".into(),
         channel: channel.into(),
+        recipients: vec!["researcher-a".into()],
         payload_digest: digest.into(),
         candidate_ids: candidates.iter().map(|id| (*id).into()).collect(),
     }
@@ -106,9 +115,12 @@ fn run() -> Result<(), String> {
             committed_parallel += 1;
         }
     }
-    let concurrent_single_commit = committed_parallel == 1 && concurrent.audit()?.len() == 1;
+    let concurrent_audit_count = concurrent.audit()?.len();
+    let concurrent_single_commit = committed_parallel == 1 && concurrent_audit_count == 1;
     if !concurrent_single_commit {
-        return Err("parallel commits were not serialized".into());
+        return Err(format!(
+            "parallel commits were not serialized: committed={committed_parallel} audit={concurrent_audit_count}"
+        ));
     }
     host.observe_output(
         "cohort-second".into(),
@@ -140,6 +152,27 @@ fn run() -> Result<(), String> {
     let revoke_denied = revoked.commit(before_revoke, &first)?.is_none();
     if !revoke_denied || !revoked.audit()?.is_empty() {
         return Err("revoked delegation committed".into());
+    }
+
+    let changed_audience = InMemoryDisclosureHost::new(&policy, evidence());
+    let audience_ticket = changed_audience
+        .prepare(first.clone())?
+        .ok_or("audience prepare was denied")?;
+    changed_audience.replace_audience(vec!["researcher-a".into(), "outsider".into()])?;
+    let audience_change_denied = changed_audience.commit(audience_ticket, &first)?.is_none()
+        && changed_audience.prepare(first.clone())?.is_none()
+        && changed_audience.audit()?.is_empty();
+    if !audience_change_denied {
+        return Err("expanded audience accepted an old or new ticket".into());
+    }
+    let mut missing_recipient_grant = evidence();
+    missing_recipient_grant.recipient_grants.pop();
+    let missing_recipient_grant_denied =
+        InMemoryDisclosureHost::new(&policy, missing_recipient_grant)
+            .prepare(first.clone())?
+            .is_none();
+    if !missing_recipient_grant_denied {
+        return Err("missing source recipient grant was accepted".into());
     }
 
     let failed_audit = InMemoryDisclosureHost::new(&policy, evidence());
@@ -179,6 +212,8 @@ fn run() -> Result<(), String> {
             "cumulativeSecondDenied": cumulative_denied,
             "concurrentSingleCommit": concurrent_single_commit,
             "revokedDenied": revoke_denied,
+            "audienceChangeDenied": audience_change_denied,
+            "missingRecipientGrantDenied": missing_recipient_grant_denied,
             "auditFailureDenied": audit_failure_denied,
             "wrongIssuerDenied": wrong_issuer_denied,
             "candidateSubstitutionDenied": candidate_substitution_denied,

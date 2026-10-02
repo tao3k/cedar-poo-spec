@@ -30,11 +30,11 @@ models do not authenticate source data or supply a durable transaction.
 * Host transaction contract
 
 1. Resolve the current source, token, transformation, purpose, delegation,
-   policy revision, and intended output from authenticated systems.
+   policy revision, intended output, and final sink audience from authenticated systems.
 2. Project those facts to the current POO-composed Cedar policy and require an
    error-free Allow for the exact proposed effect.
 3. Within one serializable transaction, compare the ticket epoch and all
-   revisions again; debit budget, update cumulative disclosure state, and
+   revisions again, including the sink audience revision; debit budget, update cumulative disclosure state, and
    write the audit event. Abort the entire transaction on any failure.
 4. Make the effect visible only after commit. A retry must obtain a new ticket
    against the new state; an old ticket cannot authorize a changed effect.

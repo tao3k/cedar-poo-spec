@@ -31,6 +31,7 @@ def publicationContext : RecordType := Map.make [
   ("delegationActive", .required (.bool .anyBool)),
   ("cohortSafe", .required (.bool .anyBool)),
   ("budgetAvailable", .required (.bool .anyBool)),
+  ("audienceAllowed", .required (.bool .anyBool)),
   ("payloadBound", .required (.bool .anyBool)),
   ("auditReady", .required (.bool .anyBool))]
 def publishEntry : ActionSchemaEntry :=
@@ -107,7 +108,8 @@ private def allFacts : Expr :=
     (.and (fact "approvalActive")
       (.and (fact "delegationActive")
         (.and (fact "budgetAvailable")
-          (.and (fact "payloadBound") (fact "auditReady")))))
+          (.and (fact "audienceAllowed")
+            (.and (fact "payloadBound") (fact "auditReady"))))))
 
 def broadPermit : Policy :=
   { id := "derived-publication", effect := .permit,
@@ -125,6 +127,7 @@ def approvalGate : Veto := gate "source-approvals" "approvalActive"
 def delegationGate : Veto := gate "scoped-delegation" "delegationActive"
 def cohortGate : Veto := gate "cumulative-cohort" "cohortSafe"
 def budgetGate : Veto := gate "shared-release-budget" "budgetAvailable"
+def audienceGate : Veto := gate "final-audience" "audienceAllowed"
 def incidentGate : Veto :=
   { policyId := "publication-incident",
     actionScope := .actionScope (.eq publish),
@@ -143,9 +146,11 @@ def publicationModelResult : Except LeanPoo.C4.Error Model := do
     [cohortGate.edit .introduce]
   let budget ← cohort.extend "SharedDisclosureBudget" "DerivedPublicationBase"
     [budgetGate.edit .introduce]
-  let governed ← budget.mix "DerivedPublicationGoverned"
+  let audience ← budget.extend "FinalAudience" "DerivedPublicationBase"
+    [audienceGate.edit .introduce]
+  let governed ← audience.mix "DerivedPublicationGoverned"
     ["SourceLineage", "SourceApprovals", "AgentDelegation",
-      "CumulativeCohort", "SharedDisclosureBudget"]
+      "CumulativeCohort", "SharedDisclosureBudget", "FinalAudience"]
     [.overlay boundedPermit]
   let incident ← governed.extend "DerivedPublicationIncident"
     "DerivedPublicationGoverned" [incidentGate.edit .introduce]
@@ -170,6 +175,7 @@ structure Effect where
   channel : String
   payloadDigest : String
   purpose : String
+  recipients : List String
   candidateIds : List String := []
   deriving DecidableEq
 
@@ -178,10 +184,13 @@ structure State where
   approvalRevision : Nat := 0
   delegationRevision : Nat := 0
   policyRevision : Nat := 0
+  audienceRevision : Nat := 0
   now : Nat := 1
   remaining : Nat := 1
   trustedSources : List SourceLabel := []
   observedDigest : String := ""
+  currentRecipients : List String := []
+  recipientGrants : List (EntityUID × String) := []
   cohort : CumulativeDisclosure.Ledger := {}
   approvals : List ScopedApproval := []
   delegations : List CedarPooSpec.Governance.Personnel.Delegation := []
@@ -200,11 +209,13 @@ def initial : State :=
   { approvals := [approval hospital, approval research],
     delegations := [delegation hospital, delegation research],
     trustedSources := [source hospital, source research],
+    currentRecipients := ["researcher-a"],
+    recipientGrants := [(hospital, "researcher-a"), (research, "researcher-a")],
     observedDigest := joinedResult.digest }
 def workspaceEffect : Effect :=
   { artifact := joinedResult, destination := studyDestination,
     channel := "workspace", payloadDigest := joinedResult.digest,
-    purpose := "study-one" }
+    purpose := "study-one", recipients := ["researcher-a"] }
 def messageEffect : Effect :=
   { workspaceEffect with channel := "message" }
 def externalEffect : Effect :=
@@ -226,6 +237,13 @@ def delegationsCover (state : State) (effect : Effect) : Bool :=
 def cohortSafe (state : State) (effect : Effect) : Bool :=
   state.cohort.admits effect.candidateIds
 
+def audienceAllowed (state : State) (effect : Effect) : Bool :=
+  !effect.recipients.isEmpty &&
+    effect.recipients == state.currentRecipients &&
+    effect.artifact.sources.all fun source =>
+      effect.recipients.all fun recipient =>
+        state.recipientGrants.contains (source.resource, recipient)
+
 def projectedRequest (state : State) (effect : Effect) : Request :=
   ⟨agent, publish, effect.destination.resource, Map.make [
     ("lineageAllowed", .prim (.bool
@@ -235,6 +253,7 @@ def projectedRequest (state : State) (effect : Effect) : Request :=
     ("delegationActive", .prim (.bool (delegationsCover state effect))),
     ("cohortSafe", .prim (.bool (cohortSafe state effect))),
     ("budgetAvailable", .prim (.bool (state.remaining > 0))),
+    ("audienceAllowed", .prim (.bool (audienceAllowed state effect))),
     ("payloadBound", .prim (.bool
       (effect.payloadDigest == effect.artifact.digest &&
         effect.payloadDigest == state.observedDigest))),
@@ -254,13 +273,14 @@ structure Ticket where
   approvalRevision : Nat
   delegationRevision : Nat
   policyRevision : Nat
+  audienceRevision : Nat
   effect : Effect
   deriving DecidableEq
 
 def prepare (root : DeployableRoot) (state : State) (effect : Effect) : Option Ticket :=
   if effect.channel.isEmpty || !authorized root.name state effect then none
   else some ⟨root, state.epoch, state.approvalRevision, state.delegationRevision,
-    state.policyRevision, effect⟩
+    state.policyRevision, state.audienceRevision, effect⟩
 
 /-- A finite atomic-state model. A real Host must persist the shared ledger
     and audit before making either channel's external effect visible. -/
@@ -269,6 +289,7 @@ def redeem (state : State) (ticket : Ticket) (effect : Effect) : Option State :=
       ticket.approvalRevision != state.approvalRevision ||
       ticket.delegationRevision != state.delegationRevision ||
       ticket.policyRevision != state.policyRevision ||
+      ticket.audienceRevision != state.audienceRevision ||
       ticket.effect != effect || !authorized ticket.root.name state effect then none
   else
     match state.cohort.record effect.candidateIds with
@@ -295,6 +316,20 @@ theorem crossChannelUsesOneBudget :
 
 theorem externalDestinationDenied :
     prepare .governed initial externalEffect = none := by
+  native_decide
+
+theorem changedOrUnapprovedAudienceDenied :
+    prepare .governed initial
+      { workspaceEffect with recipients := ["researcher-a", "outsider"] } = none ∧
+    prepare .governed
+      { initial with currentRecipients := ["researcher-a", "outsider"] }
+      { workspaceEffect with recipients := ["researcher-a", "outsider"] } = none ∧
+    prepare .governed
+      { initial with recipientGrants := [(hospital, "researcher-a")] }
+      workspaceEffect = none ∧
+    ((prepare .governed initial workspaceEffect).bind fun ticket =>
+      redeem { initial with audienceRevision := 1, currentRecipients := ["researcher-a", "outsider"] }
+        ticket workspaceEffect) = none := by
   native_decide
 
 theorem incompleteLineageOrApprovalDenied :
@@ -369,6 +404,12 @@ def cases : List (String × String × State × Effect × Decision) := [
     { initial with delegationRevision := 1 }, workspaceEffect, .deny),
   ("source-delegation-missing", "DerivedPublicationGoverned",
     { initial with delegations := [delegation hospital] }, workspaceEffect, .deny),
+  ("source-audience-expanded", "DerivedPublicationGoverned",
+    { initial with currentRecipients := ["researcher-a", "outsider"] },
+    { workspaceEffect with recipients := ["researcher-a", "outsider"] }, .deny),
+  ("source-audience-grant-missing", "DerivedPublicationGoverned",
+    { initial with recipientGrants := [(hospital, "researcher-a")] },
+    workspaceEffect, .deny),
   ("source-cohort-first", "DerivedPublicationGoverned", cohortInitial, firstCohort, .allow),
   ("source-cohort-second-alone", "DerivedPublicationGoverned",
     { cohortInitial with observedDigest := "cohort-second" }, secondCohort, .allow),

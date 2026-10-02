@@ -21,6 +21,7 @@ pub struct Effect {
     pub destination: String,
     pub purpose: String,
     pub channel: String,
+    pub recipients: Vec<String>,
     pub payload_digest: String,
     pub candidate_ids: Vec<String>,
 }
@@ -36,6 +37,13 @@ pub struct Grant {
     pub purpose: String,
     pub revision: u64,
     pub expires_at: u64,
+}
+
+/// Authenticated source-specific permission for one final recipient.
+#[derive(Clone, Debug)]
+pub struct RecipientGrant {
+    pub source: String,
+    pub recipient: String,
 }
 
 impl Grant {
@@ -60,18 +68,23 @@ impl Grant {
 }
 
 /// These values must come from authenticated catalogs, provider receipts,
-/// approval stores, and an audit-capable transaction in a real deployment.
+/// approval stores, the live sink ACL, and an audit-capable transaction in a
+/// real deployment. `audience_revision` must cover membership and recipient
+/// grant changes together.
 #[derive(Clone, Debug)]
 pub struct Evidence {
     pub epoch: u64,
     pub policy_revision: u64,
     pub approval_revision: u64,
     pub delegation_revision: u64,
+    pub audience_revision: u64,
     pub now: u64,
     pub budget: u64,
     pub trusted_sources: Vec<String>,
     pub trusted_owner: String,
     pub allowed_destinations: Vec<String>,
+    pub current_recipients: Vec<String>,
+    pub recipient_grants: Vec<RecipientGrant>,
     pub observed_digest: String,
     pub observed_candidate_ids: Vec<String>,
     pub approvals: Vec<Grant>,
@@ -174,6 +187,15 @@ impl PolicyBundle {
         let cohort = evidence.minimum_cohort == 0
             || (!effect.candidate_ids.is_empty()
                 && evidence.narrowed(effect).len() >= evidence.minimum_cohort);
+        let audience = !effect.recipients.is_empty()
+            && effect.recipients == evidence.current_recipients
+            && effect.sources.iter().all(|source| {
+                effect.recipients.iter().all(|recipient| {
+                    evidence.recipient_grants.iter().any(|grant| {
+                        grant.source == source.as_str() && grant.recipient == recipient.as_str()
+                    })
+                })
+            });
         let bound = !effect.payload_digest.is_empty()
             && effect.payload_digest == evidence.observed_digest
             && effect.candidate_ids == evidence.observed_candidate_ids
@@ -186,6 +208,7 @@ impl PolicyBundle {
                 "delegationActive": delegation,
                 "cohortSafe": cohort,
                 "budgetAvailable": evidence.budget > 0,
+                "audienceAllowed": audience,
                 "payloadBound": bound,
                 "auditReady": evidence.audit_ready,
             }),
@@ -214,6 +237,7 @@ pub struct Ticket {
     policy_revision: u64,
     approval_revision: u64,
     delegation_revision: u64,
+    audience_revision: u64,
 }
 
 /// Process-local audit record emitted after a successful state commit.
@@ -226,9 +250,11 @@ pub struct CommitReceipt {
     pub purpose: String,
     pub payload_digest: String,
     pub channel: String,
+    pub recipients: Vec<String>,
     pub policy_revision: u64,
     pub approval_revision: u64,
     pub delegation_revision: u64,
+    pub audience_revision: u64,
     pub remaining_budget: u64,
     pub remaining_candidates: usize,
 }
@@ -268,6 +294,7 @@ impl InMemoryDisclosureHost {
             policy_revision: state.policy_revision,
             approval_revision: state.approval_revision,
             delegation_revision: state.delegation_revision,
+            audience_revision: state.audience_revision,
         }))
     }
 
@@ -281,6 +308,7 @@ impl InMemoryDisclosureHost {
             || ticket.policy_revision != state.policy_revision
             || ticket.approval_revision != state.approval_revision
             || ticket.delegation_revision != state.delegation_revision
+            || ticket.audience_revision != state.audience_revision
             || !inner.policies.allows(state, actual)?
         {
             return Ok(None);
@@ -293,9 +321,11 @@ impl InMemoryDisclosureHost {
             purpose: actual.purpose.clone(),
             payload_digest: actual.payload_digest.clone(),
             channel: actual.channel.clone(),
+            recipients: actual.recipients.clone(),
             policy_revision: state.policy_revision,
             approval_revision: state.approval_revision,
             delegation_revision: state.delegation_revision,
+            audience_revision: state.audience_revision,
             remaining_budget: state.budget - 1,
             remaining_candidates: if state.minimum_cohort == 0 {
                 state.possible_ids.len()
@@ -323,6 +353,15 @@ impl InMemoryDisclosureHost {
     pub fn revoke_delegation(&self) -> Result<(), String> {
         let mut inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
         inner.evidence.delegation_revision += 1;
+        inner.evidence.epoch += 1;
+        Ok(())
+    }
+
+    /// The deploying Host must resolve this audience from the live sink ACL.
+    pub fn replace_audience(&self, recipients: Vec<String>) -> Result<(), String> {
+        let mut inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
+        inner.evidence.current_recipients = recipients;
+        inner.evidence.audience_revision += 1;
         inner.evidence.epoch += 1;
         Ok(())
     }
