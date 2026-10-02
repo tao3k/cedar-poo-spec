@@ -1,4 +1,4 @@
-import CedarPooSpec.Vertical.FinancialServices.AgentCommerce
+import CedarPooSpec.AgenticAI.Commerce.Budget
 
 /-!
 One-step scope attenuation and an exact chain of agent-to-agent delegations.
@@ -7,11 +7,11 @@ The chain grants authority only; shared-budget reservation for child agents
 requires a separately specified durable allocator.
 -/
 
-namespace CedarPooSpec.Vertical.FinancialServices
+namespace CedarPooSpec.AgenticAI.Commerce
 
 /-- A child can narrow the principal's merchant, product, amount, and time
     constraints, but cannot widen them or change the principal or asset. -/
-def AgentCommerceMandate.attenuates (parent child : AgentCommerceMandate) : Bool :=
+def Mandate.attenuates (parent child : Mandate) : Bool :=
   parent.verified && child.verified &&
   !child.mandateId.isEmpty && !child.agentId.isEmpty &&
   !child.agentPublicKey.isEmpty &&
@@ -27,23 +27,23 @@ def AgentCommerceMandate.attenuates (parent child : AgentCommerceMandate) : Bool
 
 /-- `verified` asserts that the Host authenticated the parent agent's grant
     of this exact child mandate. Structural scope checking remains local. -/
-structure AgentCommerceDelegation where
+structure Delegation where
   issuerAgentId : String
-  parent : AgentCommerceMandate
-  child : AgentCommerceMandate
+  parent : Mandate
+  child : Mandate
   verified : Bool
   deriving DecidableEq, Repr
 
-def AgentCommerceDelegation.applies (step : AgentCommerceDelegation)
-    (parent : AgentCommerceMandate) : Bool :=
+def Delegation.applies (step : Delegation)
+    (parent : Mandate) : Bool :=
   step.verified && step.issuerAgentId == parent.agentId &&
   decide (step.parent = parent) && parent.attenuates step.child
 
 /-- Every hop names the preceding mandate and uses identities and keys not
     already present in this exact chain. -/
-private def AgentCommerceDelegation.resolveWithSeen (current : AgentCommerceMandate)
+private def Delegation.resolveWithSeen (current : Mandate)
     (seenMandates seenAgents seenKeys : List String) :
-    List AgentCommerceDelegation → Option AgentCommerceMandate
+    List Delegation → Option Mandate
   | [] => some current
   | step :: rest =>
       if step.applies current &&
@@ -56,8 +56,8 @@ private def AgentCommerceDelegation.resolveWithSeen (current : AgentCommerceMand
           (step.child.agentPublicKey :: seenKeys) rest
       else none
 
-def AgentCommerceDelegation.resolveChain (root : AgentCommerceMandate)
-    (steps : List AgentCommerceDelegation) : Option AgentCommerceMandate :=
+def Delegation.resolveChain (root : Mandate)
+    (steps : List Delegation) : Option Mandate :=
   resolveWithSeen root [root.mandateId] [root.agentId] [root.agentPublicKey] steps
 
-end CedarPooSpec.Vertical.FinancialServices
+end CedarPooSpec.AgenticAI.Commerce

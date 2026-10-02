@@ -1,8 +1,8 @@
-use cedar_poo_bridge::lean_mandate_offer_projection::{
+use cedar_poo_bridge::agentic_ai::commerce::projection::{
     LeanMandateClaims, LeanOfferClaims, mandate_claims, mandate_matches, offer_claims,
     offer_matches,
 };
-use cedar_poo_bridge::mandate_offer_signatures::{
+use cedar_poo_bridge::agentic_ai::commerce::signatures::{
     MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
     sha256_hex,
 };
@@ -24,8 +24,8 @@ fn key_hex(key: &SigningKey) -> String {
 }
 
 fn verified_evidence() -> (
-    cedar_poo_bridge::mandate_offer_signatures::VerifiedMandate,
-    cedar_poo_bridge::mandate_offer_signatures::VerifiedOffer,
+    cedar_poo_bridge::agentic_ai::commerce::signatures::VerifiedMandate,
+    cedar_poo_bridge::agentic_ai::commerce::signatures::VerifiedOffer,
 ) {
     let principal_key = signer(1);
     let agent_key = signer(2);
@@ -82,7 +82,7 @@ fn changed_at(original: &Value, pointer: &str, replacement: Value) -> Value {
 #[test]
 fn lean_claims_match_live_verified_rust_evidence() {
     let fixture_path = std::env::var("LEAN_PROJECTION_FIXTURE")
-        .expect("run with a Lean-generated fixture from check-agent-commerce-projection");
+        .expect("run with a Lean-generated fixture from check-agentic-ai-commerce-projection");
     let fixture: Value = serde_json::from_slice(&fs::read(fixture_path).unwrap()).unwrap();
     let (mandate, offer) = verified_evidence();
     let mandate_claims: LeanMandateClaims =

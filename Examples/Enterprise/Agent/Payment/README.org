@@ -1,15 +1,15 @@
 #+TITLE: Agent Payment
 #+OPTIONS: toc:nil
 
-* Agent commerce direction
+* Agentic AI commerce direction
 
-The [[file:AgentCommerceResearch.org][agent commerce research map]] puts delegated
+The [[file:../../../AgenticAI/Commerce/Research.org][agentic AI commerce research map]] puts delegated
 intent, agent identity, merchant offer binding, and cumulative budget ahead
-of any payment instrument. Its public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerce.lean][pure admission kernel]],
-[[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerceDelegation.lean][delegation check]], and [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommercePayment.lean][purchase-to-payment adapter]] have
-[[file:../../../../Tests/Enterprise/Agent/Payment/AgentCommerce.lean][regressions]] checked by =just check-agent-commerce=. The sections below
+of any payment instrument. Its public [[file:../../../../CedarPooSpec/AgenticAI/Commerce/Budget.lean][pure admission kernel]],
+[[file:../../../../CedarPooSpec/AgenticAI/Commerce/Delegation.lean][delegation check]], and [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgenticCommercePayment.lean][purchase-to-payment adapter]] have
+[[file:../../../../Tests/AgenticAI/Commerce/Admission.lean][regressions]] checked by =just check-agentic-ai-commerce=. The sections below
 describe the narrower payment execution and audit boundary that follows an
-admitted purchase. An optional [[file:../../../../rust/src/mandate_offer_signatures.rs][Rust mandate and offer verifier]]
+admitted purchase. An optional [[file:../../../../rust/src/agentic_ai/commerce/signatures.rs][Rust mandate and offer verifier]]
 checks signatures and exact checkout bytes under =just check-rust=; its
 authenticated output still needs a checked mapping into the Lean objects.
 

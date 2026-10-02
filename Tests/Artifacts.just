@@ -6,35 +6,7 @@ export-cedar-language: prepare-all-manifests
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- render < .lake/build/expanded-policy.json > Examples/Governance/Policies/expanded.cedar
 
 check-rust:
-    mkdir -p .lake/build
-    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features -e normal -p cedar-poo-bridge > .lake/build/bridge-default-tree.txt
-    ! grep -q 'cedar-policy' .lake/build/bridge-default-tree.txt
-    ! grep -q 'p256' .lake/build/bridge-default-tree.txt
-    cargo fmt --manifest-path rust/Cargo.toml --check
-    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --no-default-features -- -D warnings
-    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features google-sdp -e normal -p cedar-poo-bridge > .lake/build/bridge-google-sdp-tree.txt
-    ! grep -q 'cedar-policy' .lake/build/bridge-google-sdp-tree.txt
-    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features mandate-offer-signatures -e normal -p cedar-poo-bridge > .lake/build/bridge-mandate-offer-signatures-tree.txt
-    ! grep -q 'cedar-policy' .lake/build/bridge-mandate-offer-signatures-tree.txt
-    grep -q 'p256' .lake/build/bridge-mandate-offer-signatures-tree.txt
-    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features lean-mandate-offer-projection -e normal -p cedar-poo-bridge > .lake/build/bridge-lean-mandate-offer-projection-tree.txt
-    ! grep -q 'cedar-policy' .lake/build/bridge-lean-mandate-offer-projection-tree.txt
-    grep -q 'p256' .lake/build/bridge-lean-mandate-offer-projection-tree.txt
-    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features agent-commerce-admission -e normal -p cedar-poo-bridge > .lake/build/bridge-agent-commerce-admission-tree.txt
-    ! grep -q 'cedar-policy' .lake/build/bridge-agent-commerce-admission-tree.txt
-    grep -q 'p256' .lake/build/bridge-agent-commerce-admission-tree.txt
-    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features google-sdp -- -D warnings
-    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features mandate-offer-signatures -- -D warnings
-    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features lean-mandate-offer-projection -- -D warnings
-    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features agent-commerce-admission -- -D warnings
-    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features cedar-runtime -- -D warnings
-    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features google-sdp-host -- -D warnings
-    cargo test --locked --manifest-path rust/Cargo.toml --no-default-features
-    cargo test --locked --manifest-path rust/Cargo.toml --features google-sdp
-    cargo test --locked --manifest-path rust/Cargo.toml --features mandate-offer-signatures
-    cargo test --locked --manifest-path rust/Cargo.toml --no-default-features --features agent-commerce-admission --test agent_commerce_admission_consumer
-    cargo test --locked --manifest-path rust/Cargo.toml --features cedar-runtime
-    cargo test --locked --manifest-path rust/Cargo.toml --features google-sdp-host
+    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check-rust
 
 check-cedar-language: check-rust check-cedar-artifacts
 

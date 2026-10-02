@@ -1,0 +1,35 @@
+#+TITLE: Agentic AI Commerce
+#+OPTIONS: toc:nil
+
+* Public ownership
+
+=CedarPooSpec.AgenticAI.Commerce= owns generic commerce authority:
+[[file:Budget.lean][Budget]] binds a principal mandate to exact merchant offer terms;
+[[file:Delegation.lean][Delegation]] attenuates authority on every signed handoff;
+[[file:SharedBudget.lean][SharedBudget]] charges the root and every ancestor across all branches;
+[[file:Credential.lean][Credential]] binds a scoped credential to a reserved purchase;
+[[file:Projection.lean][Projection]] exports claims without derived verification flags.
+The [[file:../../Vertical/FinancialServices/AgenticCommercePayment.lean][financial payment adapter]] maps an admitted purchase to =PaymentOperation=.
+
+* Checks and external obligations
+
+The shared model preserves the root cap and advances its revision for each
+accepted reservation. A stale shared revision cannot reserve. Reusing a
+mandate ID with changed authority, repeating a purchase or merchant offer, or
+revoking an ancestor prevents a descendant reservation.
+[[file:../../../Tests/AgenticAI/Commerce/Admission.lean][Lean regressions]] cover branching and nested delegation.
+
+Rust APIs live under =agentic_ai::commerce= with optional
+=agentic-ai-commerce-signatures=, =agentic-ai-commerce-projection=,
+=agentic-ai-commerce-admission=, and =agentic-ai-commerce-budget-commit=
+features. =just check-agentic-ai-commerce-admission= exports the Lean fixture
+and checks signatures, current Host authority, and the shared transition.
+
+The Host authenticates the clock, key and revocation state, current content
+head, and policy evaluator. MRR Data supplies a provider-neutral conditional
+commit protocol. A backend compares and persists the next head and exact
+operation receipt in one atomic transaction. These pure checks execute no
+storage transaction, payment, or external effect.
+
+The [[file:../../../Examples/AgenticAI/Commerce/Research.org][research scenario]] records synthetic protocol scope and remaining
+provider, fulfillment, and dispute-evidence work.

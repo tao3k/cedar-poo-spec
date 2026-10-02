@@ -1,4 +1,4 @@
-use cedar_poo_bridge::mandate_offer_signatures::{
+use cedar_poo_bridge::agentic_ai::commerce::signatures::{
     MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
     sha256_hex,
 };

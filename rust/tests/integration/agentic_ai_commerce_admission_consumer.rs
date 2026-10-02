@@ -1,11 +1,11 @@
-use cedar_poo_bridge::agent_commerce_admission::{
-    AdmissionError, AdmissionRequest, AgentCommerceAdmissionHost, DelegatedAdmissionRequest,
+use cedar_poo_bridge::agentic_ai::commerce::admission::{
+    AdmissionError, AdmissionRequest, CommerceAdmissionHost, DelegatedAdmissionRequest,
     SignedDelegation,
 };
-use cedar_poo_bridge::lean_mandate_offer_projection::{
+use cedar_poo_bridge::agentic_ai::commerce::projection::{
     LeanMandateClaims, LeanOfferClaims, mandate_claims, offer_claims,
 };
-use cedar_poo_bridge::mandate_offer_signatures::{
+use cedar_poo_bridge::agentic_ai::commerce::signatures::{
     MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
     sha256_hex,
 };
@@ -87,8 +87,8 @@ impl Fixture {
         trust
     }
 
-    fn host(&self) -> AgentCommerceAdmissionHost {
-        let mut host = AgentCommerceAdmissionHost::new();
+    fn host(&self) -> CommerceAdmissionHost {
+        let mut host = CommerceAdmissionHost::new();
         host.enroll_principal_key(
             self.mandate.principal.clone(),
             *self.principal_key.verifying_key(),
@@ -124,11 +124,12 @@ impl Fixture {
 
     fn admit(
         &self,
-        host: &AgentCommerceAdmissionHost,
+        host: &CommerceAdmissionHost,
         claims: (&LeanMandateClaims, &LeanOfferClaims),
         now: u64,
         policy_allows: bool,
-    ) -> Result<cedar_poo_bridge::agent_commerce_admission::AdmittedClaims, AdmissionError> {
+    ) -> Result<cedar_poo_bridge::agentic_ai::commerce::admission::AdmittedClaims, AdmissionError>
+    {
         let mandate_signature: Signature = self.principal_key.sign(&self.mandate.signing_bytes());
         let offer_signature: Signature = self.merchant_key.sign(&self.offer.signing_bytes());
         host.admit(
@@ -210,10 +211,10 @@ impl DelegatedFixture {
 
     fn admit(
         &self,
-        host: &AgentCommerceAdmissionHost,
+        host: &CommerceAdmissionHost,
         lineage: &[LeanMandateClaims],
         offer: &LeanOfferClaims,
-    ) -> Result<cedar_poo_bridge::agent_commerce_admission::AdmittedDelegation, AdmissionError>
+    ) -> Result<cedar_poo_bridge::agentic_ai::commerce::admission::AdmittedDelegation, AdmissionError>
     {
         self.admit_with_policy(host, lineage, offer, |claims, actual_offer| {
             claims == lineage && actual_offer == offer
@@ -222,11 +223,11 @@ impl DelegatedFixture {
 
     fn admit_with_policy<F>(
         &self,
-        host: &AgentCommerceAdmissionHost,
+        host: &CommerceAdmissionHost,
         lineage: &[LeanMandateClaims],
         offer: &LeanOfferClaims,
         policy_allows: F,
-    ) -> Result<cedar_poo_bridge::agent_commerce_admission::AdmittedDelegation, AdmissionError>
+    ) -> Result<cedar_poo_bridge::agentic_ai::commerce::admission::AdmittedDelegation, AdmissionError>
     where
         F: FnOnce(&[LeanMandateClaims], &LeanOfferClaims) -> bool,
     {
@@ -313,7 +314,7 @@ fn expiry_and_current_epoch_are_rechecked_at_admission() {
         host.set_policy_epoch(fixture.mandate.principal.clone(), 4),
         Err(AdmissionError::PolicyEpochRollback)
     );
-    let mut missing_epoch = AgentCommerceAdmissionHost::new();
+    let mut missing_epoch = CommerceAdmissionHost::new();
     missing_epoch.enroll_principal_key(
         fixture.mandate.principal.clone(),
         *fixture.principal_key.verifying_key(),
@@ -603,7 +604,7 @@ fn two_hop_admission_rechecks_intermediate_mandate() {
         .verify_delegation(&child, grandchild, grandchild_signature_bytes.as_slice())
         .unwrap();
     lineage.push(mandate_claims(&final_mandate));
-    let admit = |host: &AgentCommerceAdmissionHost| {
+    let admit = |host: &CommerceAdmissionHost| {
         host.admit_delegated(
             DelegatedAdmissionRequest {
                 root: fixture.root.mandate.clone(),

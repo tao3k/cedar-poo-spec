@@ -1,13 +1,15 @@
-import CedarPooSpec.Vertical.FinancialServices.AgentCommercePayment
+import CedarPooSpec.Vertical.FinancialServices.AgenticCommercePayment
+import CedarPooSpec.AgenticAI.Commerce.SharedBudget
 import Examples.Enterprise.Agent.Payment.AgentPayment
 
-namespace CedarPooSpec.AgentCommerceTest
+namespace CedarPooSpec.AgenticAI.CommerceTest
 
 open CedarPooSpec.Vertical.FinancialServices
+open CedarPooSpec.AgenticAI.Commerce
 open CedarPooSpec.AgentDelegationExample
 open CedarPooSpec.AgentPaymentExample
 
-def mandate : AgentCommerceMandate :=
+def mandate : Mandate :=
   { mandateId := "trip-2026", principal := approvedAccount,
     agentId := "travel-agent-7", agentPublicKey := "agent-key-7",
     allowedMerchants := ["ride-provider"],
@@ -15,23 +17,23 @@ def mandate : AgentCommerceMandate :=
     perPurchaseCap := 50000, totalCap := 80000,
     policyEpoch := 4, expiresAt := 30, verified := true }
 
-def terms : AgentPurchaseTerms :=
+def terms : PurchaseTerms :=
   { merchantId := "ride-provider", productId := "airport-ride",
     offerId := "quote-42", checkoutCommitment := "checkout-42",
     amountMinor := 30000, asset := "HKD" }
 
-def offer : AgentMerchantOffer :=
+def offer : MerchantOffer :=
   { terms, expiresAt := 20, verified := true }
 
-def purchase : AgentPurchase :=
+def purchase : Purchase :=
   { purchaseId := "buy-1", mandateId := mandate.mandateId,
     agentId := mandate.agentId, terms }
 
-def budget : AgentCommerceBudget :=
+def budget : Budget :=
   { mandate, now := 10, spentMinor := 0, reservations := [],
     revoked := false, revision := 0 }
 
-def reserved : AgentCommerceBudget :=
+def reserved : Budget :=
   { budget with spentMinor := 30000, reservations := [purchase], revision := 1 }
 
 theorem matchingOfferReserves :
@@ -85,11 +87,11 @@ theorem perPurchaseCapEnforced :
       { purchase with terms := { terms with amountMinor := 50001 } } = none := by decide
 theorem cumulativeCapEnforced :
     ({ budget with spentMinor := 60000 }).reserve mandate offer purchase = none := by decide
-def secondTerms : AgentPurchaseTerms :=
+def secondTerms : PurchaseTerms :=
   { terms with offerId := "quote-43", amountMinor := 50000 }
-def secondOffer : AgentMerchantOffer :=
+def secondOffer : MerchantOffer :=
   { offer with terms := secondTerms }
-def secondPurchase : AgentPurchase :=
+def secondPurchase : Purchase :=
   { purchase with purchaseId := "buy-2", terms := secondTerms }
 theorem twoPurchasesCanUseExactTotalCap :
     (reserved.reserve mandate secondOffer secondPurchase).isSome = true := by decide
@@ -107,61 +109,61 @@ theorem expiredMandateDenied :
     ({ budget with now := 30 }).reserve mandate
       { offer with expiresAt := 40 } purchase = none := by decide
 
-def child : AgentCommerceMandate :=
+def child : Mandate :=
   { mandate with mandateId := "trip-child", agentId := "booking-agent-8", agentPublicKey := "agent-key-8", perPurchaseCap := 40000, totalCap := 60000, expiresAt := 25 }
-def grant : AgentCommerceDelegation :=
+def grant : Delegation :=
   { issuerAgentId := mandate.agentId, parent := mandate,
     child, verified := true }
-def grandchild : AgentCommerceMandate :=
+def grandchild : Mandate :=
   { child with mandateId := "trip-grandchild", agentId := "quote-agent-9", agentPublicKey := "agent-key-9", perPurchaseCap := 35000, totalCap := 50000, expiresAt := 22 }
-def secondGrant : AgentCommerceDelegation :=
+def secondGrant : Delegation :=
   { issuerAgentId := child.agentId, parent := child,
     child := grandchild, verified := true }
 
 theorem narrowerChildAccepted :
-    AgentCommerceDelegation.resolveChain mandate [grant] = some child := by decide
+    Delegation.resolveChain mandate [grant] = some child := by decide
 theorem twoHopAttenuationAccepted :
-    AgentCommerceDelegation.resolveChain mandate [grant, secondGrant] =
+    Delegation.resolveChain mandate [grant, secondGrant] =
       some grandchild := by decide
 theorem reusedAncestorMandateIdDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [grant, { secondGrant with child :=
         { grandchild with mandateId := mandate.mandateId } }] = none := by decide
 theorem reusedAncestorAgentIdDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [grant, { secondGrant with child :=
         { grandchild with agentId := mandate.agentId } }] = none := by decide
 theorem reusedAncestorAgentKeyDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [grant, { secondGrant with child :=
         { grandchild with agentPublicKey := mandate.agentPublicKey } }] = none := by decide
 theorem widenedMerchantDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [{ grant with child := { child with allowedMerchants := ["ride-provider", "other"] } }] =
       none := by decide
 theorem increasedChildBudgetDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [{ grant with child := { child with totalCap := 80001 } }] = none := by decide
 theorem changedChildPrincipalDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [{ grant with child := { child with principal := reserveAccount } }] = none := by decide
 theorem wrongIssuerDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [{ grant with issuerAgentId := "other-agent" }] = none := by decide
 theorem reusedParentAgentKeyDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [{ grant with child := { child with agentPublicKey := mandate.agentPublicKey } }] =
       none := by decide
 theorem parentSubstitutionDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [{ grant with parent := { mandate with perPurchaseCap := 60000 } }] = none := by decide
 theorem missingHopDenied :
-    AgentCommerceDelegation.resolveChain mandate [secondGrant] = none := by decide
+    Delegation.resolveChain mandate [secondGrant] = none := by decide
 theorem unverifiedGrantDenied :
-    AgentCommerceDelegation.resolveChain mandate
+    Delegation.resolveChain mandate
       [{ grant with verified := false }] = none := by decide
 
-def credential : AgentCommerceCredential :=
+def credential : Credential :=
   { credentialId := "agent-token-1", issuerId := "credential-provider",
     mandate, purchaseId := purchase.purchaseId, terms,
     expiresAt := 18, verified := true }
@@ -185,7 +187,7 @@ theorem unverifiedCredentialDenied :
     reserved.acceptsCredential offer purchase
       { credential with verified := false } = false := by decide
 
-def cardProfile : AgentCommercePaymentProfile :=
+def cardProfile : AgenticCommercePaymentProfile :=
   { origin := admin, instrument := "agent-card-token", network := "card",
     feeCap := "1.0000", verified := true }
 def payment : PaymentOperation :=
@@ -196,7 +198,7 @@ def payment : PaymentOperation :=
     checkoutCommitment := terms.checkoutCommitment,
     nonce := purchase.purchaseId, proposer := mandate.agentId,
     policyEpoch := mandate.policyEpoch, expiresAt := 18 }
-def envelope : AgentCommercePaymentEnvelope :=
+def envelope : AgenticCommercePaymentEnvelope :=
   { offer, purchase, credential, payment }
 
 theorem exactPurchaseBindsPayment :
@@ -223,4 +225,119 @@ theorem expiredPaymentDenied :
     cardProfile.binds reserved
       { envelope with payment := { payment with expiresAt := 21 } } = false := by native_decide
 
-end CedarPooSpec.AgentCommerceTest
+def sharedBudget : SharedBudget :=
+  { root := mandate, now := 10, reservations := [], revokedMandateIds := [], revision := 0 }
+
+def childPurchase : Purchase :=
+  { purchase with mandateId := child.mandateId, agentId := child.agentId }
+
+def sharedAfterChild : SharedBudget :=
+  { sharedBudget with
+    reservations := [{ lineage := [mandate, child], purchase := childPurchase }]
+    revision := 1 }
+
+def sibling : Mandate :=
+  { child with
+    mandateId := "trip-sibling", agentId := "booking-agent-10"
+    agentPublicKey := "agent-key-10" }
+
+def siblingGrant : Delegation :=
+  { grant with child := sibling }
+
+def siblingTerms : PurchaseTerms :=
+  { terms with offerId := "sibling-quote", checkoutCommitment := "sibling-checkout" }
+
+def siblingPurchase : Purchase :=
+  { purchase with
+    purchaseId := "sibling-buy", mandateId := sibling.mandateId
+    agentId := sibling.agentId, terms := siblingTerms }
+
+def sharedAfterSiblings : SharedBudget :=
+  { sharedAfterChild with
+    reservations := { lineage := [mandate, sibling], purchase := siblingPurchase } ::
+      sharedAfterChild.reservations
+    revision := 2 }
+
+theorem sharedChildReserves :
+    sharedBudget.reserve 0 [grant] offer childPurchase = some sharedAfterChild := by decide
+
+theorem siblingsChargeOneRoot :
+    sharedAfterChild.reserve 1 [siblingGrant] { offer with terms := siblingTerms }
+      siblingPurchase = some sharedAfterSiblings := by decide
+
+theorem siblingsShareRootTotal : sharedAfterSiblings.spentMinor = 60000 := by decide
+theorem childrenKeepSeparateCaps : sharedAfterSiblings.spentUnder child.mandateId = 30000 := by decide
+
+theorem competingSiblingCannotUsePreparedRevision :
+    sharedAfterChild.reserve 0 [siblingGrant] { offer with terms := siblingTerms }
+      siblingPurchase = none := by decide
+
+theorem siblingsCannotExceedRootCap :
+    sharedAfterSiblings.reserve 2 [grant]
+      { offer with terms := { terms with offerId := "third-quote" } }
+      { childPurchase with
+        purchaseId := "third-buy"
+        terms := { terms with offerId := "third-quote" } } = none := by decide
+
+theorem duplicateOfferCannotMoveToSibling :
+    sharedAfterChild.reserve 1 [siblingGrant] offer
+      { siblingPurchase with terms := terms } = none := by decide
+
+theorem rootRevocationDeniesFreshChild :
+    (sharedBudget.revoke mandate.mandateId).reserve 1 [grant] offer childPurchase = none := by decide
+
+theorem parentRevocationDeniesFreshGrandchild :
+    (sharedBudget.revoke child.mandateId).reserve 1 [grant, secondGrant] offer
+      { purchase with mandateId := grandchild.mandateId, agentId := grandchild.agentId } =
+      none := by decide
+
+theorem branchRevocationDoesNotRevokeSibling :
+    ((sharedBudget.revoke child.mandateId).reserve 1 [siblingGrant]
+      { offer with terms := siblingTerms } siblingPurchase).isSome = true := by decide
+
+theorem reusedChildIdCannotResetBudgetContents :
+    sharedAfterChild.reserve 1 [{ grant with child := { child with totalCap := 70000 } }]
+      { offer with terms := { terms with offerId := "renewed-quote" } }
+      { childPurchase with
+        purchaseId := "renewed-buy"
+        terms := { terms with offerId := "renewed-quote" } } = none := by decide
+
+def cousin : Mandate :=
+  { grandchild with
+    mandateId := "trip-cousin", agentId := "quote-agent-11"
+    agentPublicKey := "agent-key-11" }
+
+def cousinGrant : Delegation :=
+  { secondGrant with child := cousin }
+
+def grandchildTerms : PurchaseTerms :=
+  { terms with amountMinor := 35000 }
+
+def grandchildPurchase : Purchase :=
+  { purchase with
+    mandateId := grandchild.mandateId, agentId := grandchild.agentId
+    terms := grandchildTerms }
+
+def sharedAfterGrandchild : SharedBudget :=
+  { sharedBudget with
+    reservations := [{ lineage := [mandate, child, grandchild], purchase := grandchildPurchase }]
+    revision := 1 }
+
+theorem grandchildChargesAllAncestors :
+    sharedBudget.reserve 0 [grant, secondGrant] { offer with terms := grandchildTerms }
+      grandchildPurchase = some sharedAfterGrandchild := by decide
+
+theorem cousinsCannotExceedTheirParentCap :
+    sharedAfterGrandchild.reserve 1 [grant, cousinGrant]
+      { offer with terms := siblingTerms }
+      { siblingPurchase with mandateId := cousin.mandateId, agentId := cousin.agentId } =
+      none := by decide
+
+theorem grandchildCannotExceedOwnCumulativeCap :
+    sharedAfterGrandchild.reserve 1 [grant, secondGrant]
+      { offer with terms := { siblingTerms with amountMinor := 20000 } }
+      { siblingPurchase with
+        mandateId := grandchild.mandateId, agentId := grandchild.agentId
+        terms := { siblingTerms with amountMinor := 20000 } } = none := by decide
+
+end CedarPooSpec.AgenticAI.CommerceTest

@@ -4,7 +4,7 @@
 //! these claims before setting Lean's `verified` flags. Serialized claims alone
 //! carry no cryptographic authority, time validity, revocation state, or budget.
 
-use crate::mandate_offer_signatures::{
+use crate::agentic_ai::commerce::signatures::{
     AgentId, AgentPublicKey, MandateId, MandatePayload, MerchantId, OfferId, OfferPayload,
     PrincipalId, ProductId, VerifiedMandate, VerifiedOffer,
 };
@@ -50,7 +50,7 @@ pub struct LeanEntityUidClaims {
     pub eid: EntityId,
 }
 
-/// Every Lean `AgentCommerceMandate` field except the Host-owned `verified`.
+/// Every Lean `Mandate` field except the Host-owned `verified`.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct LeanMandateClaims {
@@ -67,7 +67,7 @@ pub struct LeanMandateClaims {
     pub expires_at: u64,
 }
 
-/// Every Lean `AgentPurchaseTerms` field under `AgentMerchantOffer`.
+/// Every Lean `PurchaseTerms` field under `MerchantOffer`.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct LeanPurchaseTermsClaims {
@@ -79,7 +79,7 @@ pub struct LeanPurchaseTermsClaims {
     pub asset: String,
 }
 
-/// Every Lean `AgentMerchantOffer` field except the Host-owned `verified`.
+/// Every Lean `MerchantOffer` field except the Host-owned `verified`.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct LeanOfferClaims {

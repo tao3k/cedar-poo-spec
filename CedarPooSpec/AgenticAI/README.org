@@ -27,6 +27,13 @@ decision. The [[file:../../Tests/AgenticAI/Boundary.lean][Lean tests]] and
 boundary behavior; the [[file:../../Examples/Health/AgenticAI/LanguageModel/Disclosure.org][hospital case]] composes it with Cedar, lineage, grants, and a shared
 cohort ledger.
 
+* Commerce
+
+[[file:Commerce/README.org][Commerce]] owns principal mandates, signed agent delegation, exact merchant
+offers, and one shared root budget across delegated branches. Its Rust mirror
+is =agentic_ai::commerce=. The finance-specific payment conversion remains
+in =Vertical/FinancialServices/AgenticCommercePayment=.
+
 * Evidence and judgment
 
 FLOWSEAL's [[https://arxiv.org/html/2609.14003v1][semantic-obfuscation attack]]

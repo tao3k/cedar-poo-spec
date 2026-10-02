@@ -1,4 +1,4 @@
-import CedarPooSpec.Vertical.FinancialServices.AgentCommerceDelegation
+import CedarPooSpec.AgenticAI.Commerce.Delegation
 
 /-!
 An exact, agent-specific credential admission boundary. `verified` remains a
@@ -7,23 +7,23 @@ verification performed by Lean. The issuer must enforce the credential's use
 rules before any external payment effect.
 -/
 
-namespace CedarPooSpec.Vertical.FinancialServices
+namespace CedarPooSpec.AgenticAI.Commerce
 
 /-- The issuer attests a credential for one reserved purchase and checkout.
     Storing complete terms here makes substitution visible to the pure model. -/
-structure AgentCommerceCredential where
+structure Credential where
   credentialId : String
   issuerId : String
-  mandate : AgentCommerceMandate
+  mandate : Mandate
   purchaseId : String
-  terms : AgentPurchaseTerms
+  terms : PurchaseTerms
   expiresAt : Nat
   verified : Bool
   deriving DecidableEq, Repr
 
-def AgentCommerceBudget.acceptsCredential (state : AgentCommerceBudget)
-    (offer : AgentMerchantOffer) (purchase : AgentPurchase)
-    (credential : AgentCommerceCredential) : Bool :=
+def Budget.acceptsCredential (state : Budget)
+    (offer : MerchantOffer) (purchase : Purchase)
+    (credential : Credential) : Bool :=
   !state.revoked && state.mandate.verified && offer.verified &&
   credential.verified && !credential.credentialId.isEmpty &&
   !credential.issuerId.isEmpty &&
@@ -43,4 +43,4 @@ def AgentCommerceBudget.acceptsCredential (state : AgentCommerceBudget)
   state.now < state.mandate.expiresAt && state.now < offer.expiresAt &&
   state.now < credential.expiresAt
 
-end CedarPooSpec.Vertical.FinancialServices
+end CedarPooSpec.AgenticAI.Commerce

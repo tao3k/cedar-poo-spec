@@ -399,5 +399,5 @@ impl MandateOfferTrust {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/mandate_offer_signatures.rs"]
+#[path = "../../../tests/unit/agentic_ai/commerce/signatures.rs"]
 mod tests;

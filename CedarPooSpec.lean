@@ -54,11 +54,12 @@ import CedarPooSpec.Data.Lakehouse.LocationProfile
 import CedarPooSpec.Pseudonymization
 import CedarPooSpec.CompoundAuthorization
 import CedarPooSpec.Vertical.FinancialServices.PaymentOperation
-import CedarPooSpec.Vertical.FinancialServices.AgentCommerce
-import CedarPooSpec.Vertical.FinancialServices.AgentCommerceProjection
-import CedarPooSpec.Vertical.FinancialServices.AgentCommerceDelegation
-import CedarPooSpec.Vertical.FinancialServices.AgentCommerceCredential
-import CedarPooSpec.Vertical.FinancialServices.AgentCommercePayment
+import CedarPooSpec.AgenticAI.Commerce.Budget
+import CedarPooSpec.AgenticAI.Commerce.Projection
+import CedarPooSpec.AgenticAI.Commerce.Delegation
+import CedarPooSpec.AgenticAI.Commerce.SharedBudget
+import CedarPooSpec.AgenticAI.Commerce.Credential
+import CedarPooSpec.Vertical.FinancialServices.AgenticCommercePayment
 import CedarPooSpec.Vertical.FinancialServices.PaymentLifecycle
 import CedarPooSpec.Vertical.FinancialServices.PaymentLedger
 import CedarPooSpec.Revision

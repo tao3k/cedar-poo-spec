@@ -37,7 +37,7 @@ just check-tests
 
 * Cross-language conformance
 
-[[file:Conformance/][Conformance/]] owns executable assertions over generated Lean manifests
+[[file:Conformance][Conformance/]] owns executable assertions over generated Lean manifests
 and Cedar Rust replay receipts. Each =.jq= file checks one named contract;
 the root Justfile only generates the inputs and invokes these tests. This
 keeps schema shapes, replay counts, digests, and authorization-delta

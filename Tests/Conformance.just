@@ -1,13 +1,13 @@
 # Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.
-check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance check-agent-commerce-admission
+check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance check-agentic-ai-commerce-admission
 
-check-agent-commerce-admission: check-agent-commerce-projection
-    cargo test --locked --manifest-path rust/Cargo.toml --no-default-features --features agent-commerce-admission --test agent_commerce_admission_consumer
+check-agentic-ai-commerce-admission: check-agentic-ai-commerce-projection
+    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agentic-ai-commerce-admission
 
-check-agent-commerce-projection:
+check-agentic-ai-commerce-projection:
     mkdir -p .lake/build
-    lake build Tests.Enterprise.Agent.Payment.AgentCommerceProjection
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agent-commerce-projection
+    lake build Tests.AgenticAI.Commerce.Projection
+    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agentic-ai-commerce-projection
 
 check-personnel-governance:
     lake build Productions.Manifests Tests.Enterprise.Personnel.SourceCustody
@@ -96,8 +96,8 @@ check-payment-audit:
     lake build CedarPooSpec.Vertical.FinancialServices.PaymentLedger Tests.Enterprise.Agent.Payment.PaymentAudit
 
 # Agent identity, delegated purchase scope, exact merchant offer, and cumulative budget.
-check-agent-commerce:
-    lake build CedarPooSpec.Vertical.FinancialServices.AgentCommercePayment Tests.Enterprise.Agent.Payment.AgentCommerce
+check-agentic-ai-commerce:
+    lake build CedarPooSpec.Vertical.FinancialServices.AgenticCommercePayment Tests.AgenticAI.Commerce.Admission
 
 check-agent-trace-delta:
     lake build Examples.Enterprise.Agent.Session.HostSafety

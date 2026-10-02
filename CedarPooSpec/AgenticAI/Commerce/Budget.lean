@@ -1,19 +1,19 @@
-import CedarPooSpec.Vertical.FinancialServices.PaymentOperation
+import Cedar.Spec.Entities
 
 /-!
-An agent-commerce admission boundary before any payment instrument is chosen.
+An agentic AI commerce admission boundary before any payment instrument is chosen.
 The Host authenticates the mandate and merchant offer, supplies their `verified`
 flags, and atomically persists the returned budget revision and exact purchase.
 This module neither issues a payment credential nor contacts a payment rail.
 -/
 
-namespace CedarPooSpec.Vertical.FinancialServices
+namespace CedarPooSpec.AgenticAI.Commerce
 
 open Cedar.Spec
 
 /-- A principal delegates bounded purchasing authority to one agent identity.
     The lists are explicit allowlists; an empty list grants no scope. -/
-structure AgentCommerceMandate where
+structure Mandate where
   mandateId : String
   principal : EntityUID
   agentId : String
@@ -32,7 +32,7 @@ structure AgentCommerceMandate where
 
 /-- Exact seller terms selected by the agent. Amounts are integer minor units;
     an asset adapter must define the unit and supported asset before use. -/
-structure AgentPurchaseTerms where
+structure PurchaseTerms where
   merchantId : String
   productId : String
   offerId : String
@@ -42,34 +42,34 @@ structure AgentPurchaseTerms where
   deriving DecidableEq, Repr
 
 /-- The Host asserts that these terms came from the named merchant. -/
-structure AgentMerchantOffer where
-  terms : AgentPurchaseTerms
+structure MerchantOffer where
+  terms : PurchaseTerms
   expiresAt : Nat
   verified : Bool
   deriving DecidableEq, Repr
 
 /-- An agent's proposed purchase, bound to an exact merchant offer. -/
-structure AgentPurchase where
+structure Purchase where
   purchaseId : String
   mandateId : String
   agentId : String
-  terms : AgentPurchaseTerms
+  terms : PurchaseTerms
   deriving DecidableEq, Repr
 
 /-- Durable Host state for one mandate. The Host must compare `revision`
     atomically before making any later external payment effect. -/
-structure AgentCommerceBudget where
-  mandate : AgentCommerceMandate
+structure Budget where
+  mandate : Mandate
   now : Nat
   spentMinor : Nat
-  reservations : List AgentPurchase
+  reservations : List Purchase
   revoked : Bool
   revision : Nat
   deriving DecidableEq, Repr
 
-def AgentCommerceBudget.admits (state : AgentCommerceBudget)
-    (mandate : AgentCommerceMandate) (offer : AgentMerchantOffer)
-    (purchase : AgentPurchase) : Bool :=
+def Budget.admits (state : Budget)
+    (mandate : Mandate) (offer : MerchantOffer)
+    (purchase : Purchase) : Bool :=
   mandate.verified && offer.verified && !state.revoked &&
   !mandate.mandateId.isEmpty && !mandate.agentId.isEmpty &&
   !mandate.agentPublicKey.isEmpty &&
@@ -95,9 +95,9 @@ def AgentCommerceBudget.admits (state : AgentCommerceBudget)
 
 /-- Reserve exact purchase terms and cumulative spend in one pure transition.
     It is effective only if the Host persists the revision with a compare-and-swap. -/
-def AgentCommerceBudget.reserve (state : AgentCommerceBudget)
-    (mandate : AgentCommerceMandate) (offer : AgentMerchantOffer)
-    (purchase : AgentPurchase) : Option AgentCommerceBudget :=
+def Budget.reserve (state : Budget)
+    (mandate : Mandate) (offer : MerchantOffer)
+    (purchase : Purchase) : Option Budget :=
   if state.admits mandate offer purchase then
     some { state with
       spentMinor := state.spentMinor + offer.terms.amountMinor,
@@ -105,10 +105,10 @@ def AgentCommerceBudget.reserve (state : AgentCommerceBudget)
       revision := state.revision + 1 }
   else none
 
-theorem deniedMandateCannotReserve (state : AgentCommerceBudget)
-    (mandate : AgentCommerceMandate) (offer : AgentMerchantOffer)
-    (purchase : AgentPurchase) (h : mandate.verified = false) :
+theorem deniedMandateCannotReserve (state : Budget)
+    (mandate : Mandate) (offer : MerchantOffer)
+    (purchase : Purchase) (h : mandate.verified = false) :
     state.reserve mandate offer purchase = none := by
-  simp [AgentCommerceBudget.reserve, AgentCommerceBudget.admits, h]
+  simp [Budget.reserve, Budget.admits, h]
 
-end CedarPooSpec.Vertical.FinancialServices
+end CedarPooSpec.AgenticAI.Commerce

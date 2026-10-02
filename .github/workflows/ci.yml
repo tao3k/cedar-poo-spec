@@ -57,6 +57,7 @@ jobs:
           shared-key: cedar-poo-bridge
           add-job-id-key: "false"
           workspaces: ". -> rust/target"
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
       - run: just check-rust
 
   cedar-conformance:
@@ -119,7 +120,7 @@ jobs:
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
       - run: just check-personnel-governance
-      - run: just check-agent-commerce-admission
+      - run: just check-agentic-ai-commerce-admission
 
   authorization-delta:
     needs: [lean, rust]

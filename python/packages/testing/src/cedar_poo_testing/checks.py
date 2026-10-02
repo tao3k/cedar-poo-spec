@@ -48,12 +48,14 @@ CHECKS = {
         "health-authorization-impact", "health-authorization-impact",
         ("suspended_manifest", "restored_manifest", "approval_manifest", "lineage_changes"),
     ),
-    "agent-commerce-projection": (
-        "Tests/Enterprise/Agent/Payment/AgentCommerceProjection.lean",
-        "agent-commerce-projection", None, (),
+    "agentic-ai-commerce-projection": (
+        "Tests/AgenticAI/Commerce/Projection.lean",
+        "agentic-ai-commerce-projection", None, (),
     ),
 }
 
+
+NAMES = {*CHECKS, "agentic-ai-commerce-admission"}
 
 def _run(
     command: list[str], repository: Path, *,
@@ -64,18 +66,31 @@ def _run(
 
 def _projection(data: object) -> None:
     if not isinstance(data, dict):
-        raise ValueError("agent-commerce projection must be an object")
+        raise ValueError("agentic AI commerce projection must be an object")
     mandate, offer, lineage = data.get("mandate"), data.get("offer"), data.get("lineage")
     if not (
         isinstance(mandate, dict) and isinstance(offer, dict) and isinstance(lineage, list)
         and len(lineage) == 2 and lineage[0] == mandate
         and all(isinstance(item, dict) and "verified" not in item for item in (mandate, offer, *lineage))
     ):
-        raise ValueError("agent-commerce projection has invalid lineage or includes derived verification")
+        raise ValueError("agentic AI commerce projection has invalid lineage or includes derived verification")
 
 
 def run(name: str, repository: Path) -> None:
     repository = repository.resolve()
+    if name == "agentic-ai-commerce-admission":
+        fixture = repository / BUILD / "agentic-ai-commerce-projection.json"
+        if not fixture.is_file():
+            run("agentic-ai-commerce-projection", repository)
+        env = {**os.environ, "LEAN_PROJECTION_FIXTURE": str(fixture)}
+        for feature, consumer in (
+            ("agentic-ai-commerce-admission", "agentic_ai_commerce_admission_consumer"),
+            ("agentic-ai-commerce-budget-commit", "agentic_ai_commerce_budget_projection_consumer"),
+        ):
+            _run(["cargo", "test", "--locked", "--manifest-path", "rust/Cargo.toml",
+                  "--no-default-features", "--features", feature, "--test", consumer],
+                 repository, env=env)
+        return
     source, stem, assertion, fields = CHECKS[name]
     output = repository / BUILD / f"{stem}.json"
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -87,13 +102,13 @@ def run(name: str, repository: Path) -> None:
             cwd=repository, stdout=subprocess.DEVNULL, check=True,
         )
     data = json.loads(output.read_text())
-    if name == "agent-commerce-projection":
+    if name == "agentic-ai-commerce-projection":
         _projection(data)
         env = {**os.environ, "LEAN_PROJECTION_FIXTURE": str(output)}
         _run(
             ["cargo", "test", "--locked", "--manifest-path", "rust/Cargo.toml",
-             "--no-default-features", "--features", "lean-mandate-offer-projection",
-             "--test", "lean_mandate_offer_projection_consumer"],
+             "--no-default-features", "--features", "agentic-ai-commerce-projection",
+             "--test", "agentic_ai_commerce_projection_consumer"],
             repository, env=env,
         )
         return

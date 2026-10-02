@@ -33,28 +33,13 @@ Cognito group projection, then composes the insurance rule with independent
 Lakehouse location controls. The public object neither assumes Cognito nor
 imports an AWS module.
 
-* Agent commerce and payment
+* Agentic AI commerce payment adapter
 
-[[file:AgentCommerce.lean][AgentCommerce]] owns bounded mandate admission and cumulative purchase
-reservation. [[file:AgentCommerceDelegation.lean][AgentCommerceDelegation]] checks each child grant against its exact
-parent. [[file:AgentCommerceCredential.lean][AgentCommerceCredential]] binds a credential to one reserved purchase,
-and [[file:AgentCommercePayment.lean][AgentCommercePayment]] maps that purchase to a public =PaymentOperation=
-using a canonical HKD cents profile. These modules are part of the public
-Lean library. The [[file:../../../Examples/Enterprise/Agent/Payment/AgentCommerceResearch.org][research scenario]] and [[file:../../../Tests/Enterprise/Agent/Payment/AgentCommerce.lean][regressions]] consume them.
-The optional Rust signature verifier is a public crate module behind the
-=mandate-offer-signatures= Cargo feature; see [[file:../../../rust/src/README.org][Rust feature boundaries]]. The Host must
-authenticate and map the verified Rust fields into these Lean structures.
-[[file:AgentCommerceProjection.lean][AgentCommerceProjection]] emits public Lean claims without =verified=; the optional
-=lean-mandate-offer-projection= Rust feature compares those claims with live
-verified mandate and offer values. =just check-agent-commerce-projection=
-exercises the cross-language mapping with signed synthetic inputs. The Host
-must also check time, key status, policy, and revocation before setting
-=verified=. The optional Rust =agent-commerce-admission= reference performs those dynamic
-checks for signed root mandates, narrower signed child chains, and merchant
-offers with a Host-supplied clock and policy evaluator. It compares each
-verified mandate to the complete Lean lineage. Its registry and revocation
-state are process-local; durable shared-budget reservation and effect receipts
-remain separate work.
+[[file:AgenticCommercePayment.lean][AgenticCommercePayment]] maps one admitted purchase to the public
+=PaymentOperation= using a canonical HKD cents profile. Mandates, delegation,
+signature evidence, and shared budget semantics belong to
+[[file:../../AgenticAI/Commerce/README.org][AgenticAI.Commerce]]. The finance layer owns the payment mapping.
+The [[file:../../../Examples/AgenticAI/Commerce/Research.org][research scenario]] and [[file:../../../Tests/AgenticAI/Commerce/Admission.lean][regressions]] compose those public layers.
 
 * Boundary
 

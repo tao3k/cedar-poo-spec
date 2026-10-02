@@ -1,4 +1,4 @@
-//! Process-local admission reference for signed agent-commerce claims.
+//! Process-local admission reference for signed agentic AI commerce claims.
 //!
 //! Every call re-verifies signatures and checkout bytes against the Host's
 //! current keys before checking time, epoch, revocation, scope, and policy.
@@ -6,11 +6,11 @@
 //! real policy evaluator, and recheck these facts when reserving or effecting
 //! a purchase. This process-local reference is not a durable authority store.
 
-use crate::lean_mandate_offer_projection::{
+use crate::agentic_ai::commerce::projection::{
     LeanMandateClaims, LeanOfferClaims, mandate_claims, mandate_matches, offer_claims,
     offer_matches,
 };
-use crate::mandate_offer_signatures::{
+use crate::agentic_ai::commerce::signatures::{
     AgentPublicKey, MandateId, MandateOfferTrust, MandatePayload, MerchantId, OfferId,
     OfferPayload, PrincipalId, VerifiedMandate, VerifiedOffer,
 };
@@ -113,7 +113,7 @@ impl AdmittedDelegation {
 /// Host-controlled, process-local admission state. The key sets track current
 /// active status; re-enrollment rotates a key and old signatures fail on use.
 #[derive(Default)]
-pub struct AgentCommerceAdmissionHost {
+pub struct CommerceAdmissionHost {
     trust: MandateOfferTrust,
     active_principals: HashSet<PrincipalId>,
     active_merchants: HashSet<MerchantId>,
@@ -123,7 +123,7 @@ pub struct AgentCommerceAdmissionHost {
     revoked_offers: HashSet<(MerchantId, OfferId)>,
 }
 
-impl AgentCommerceAdmissionHost {
+impl CommerceAdmissionHost {
     pub fn new() -> Self {
         Self::default()
     }

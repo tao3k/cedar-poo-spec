@@ -1,4 +1,5 @@
-import CedarPooSpec.Vertical.FinancialServices.AgentCommerceCredential
+import CedarPooSpec.AgenticAI.Commerce.Credential
+import CedarPooSpec.Vertical.FinancialServices.PaymentOperation
 
 /-!
 A public payment-operation adapter for an admitted agent purchase. This
@@ -9,6 +10,8 @@ complete envelope to the provider. No card token is issued here.
 
 namespace CedarPooSpec.Vertical.FinancialServices
 
+open CedarPooSpec.AgenticAI.Commerce
+
 /-- This profile uses HKD cents while Cedar decimals use four fractional
     places. A canonical amount must therefore be an integer number of cents. -/
 def canonicalHkdCents (text : String) : Option Nat := do
@@ -18,7 +21,7 @@ def canonicalHkdCents (text : String) : Option Nat := do
     some (value.toInt.toNat / 100)
   else none
 
-structure AgentCommercePaymentProfile where
+structure AgenticCommercePaymentProfile where
   origin : Cedar.Spec.EntityUID
   instrument : String
   network : String
@@ -29,18 +32,18 @@ structure AgentCommercePaymentProfile where
 /-- The full envelope is needed at the Host's credential and payment boundary;
     `checkoutCommitment` on `PaymentOperation` carries the offer binding into
     downstream payment evidence. -/
-structure AgentCommercePaymentEnvelope where
-  offer : AgentMerchantOffer
-  purchase : AgentPurchase
-  credential : AgentCommerceCredential
+structure AgenticCommercePaymentEnvelope where
+  offer : MerchantOffer
+  purchase : Purchase
+  credential : Credential
   payment : PaymentOperation
   deriving DecidableEq, Repr
 
 /-- Check correspondence only. Cedar authorization and Host effect release are
     separate decisions after this predicate succeeds. -/
-def AgentCommercePaymentProfile.binds (profile : AgentCommercePaymentProfile)
-    (budget : AgentCommerceBudget)
-    (envelope : AgentCommercePaymentEnvelope) : Bool :=
+def AgenticCommercePaymentProfile.binds (profile : AgenticCommercePaymentProfile)
+    (budget : Budget)
+    (envelope : AgenticCommercePaymentEnvelope) : Bool :=
   profile.verified && !profile.instrument.isEmpty &&
   !profile.network.isEmpty &&
   budget.acceptsCredential envelope.offer envelope.purchase envelope.credential &&
