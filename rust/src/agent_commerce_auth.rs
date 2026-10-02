@@ -96,15 +96,15 @@ fn decode_lower_hex(value: &str) -> Option<Vec<u8>> {
             _ => None,
         }
     }
-    let mut bytes = Vec::with_capacity(value.len() / 2);
-    for pair in value.as_bytes().chunks_exact(2) {
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity(pairs.len());
+    for pair in pairs {
         bytes.push((nibble(pair[0])? << 4) | nibble(pair[1])?);
     }
-    if value.len() == bytes.len() * 2 {
-        Some(bytes)
-    } else {
-        None
-    }
+    Some(bytes)
 }
 
 fn agent_key(hex: &str) -> Option<VerifyingKey> {
