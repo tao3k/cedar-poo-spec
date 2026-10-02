@@ -6,7 +6,7 @@
 | Feature | Provides | Heavy dependency |
 |---------+----------+------------------|
 | =cedar-runtime= | Official Cedar validation and replay | =cedar-policy= |
-| =clinical-disclosure-host= | In-memory clinical disclosure reference Host | =cedar-runtime= |
+| =agentic-ai-language-model-disclosure-host= | In-memory reference Host for tool-using language-model disclosure | =cedar-runtime= |
 | =pseudonymization= | Borrowed common token mode and lineage profile | None |
 | =google-sdp= | Google table request and response contract | =base64= and =sha2= |
 | =google-sdp-host= | In-memory Cedar-to-Google admission example API | Both features above |
@@ -14,7 +14,7 @@
 The common =pseudonymization= profile compiles without =cedar-policy= or a
 cloud SDK. =google-sdp= adds the Google wire contract and includes that common
 profile; it also compiles without =cedar-policy=. The in-memory Google
-admission boundary needs =google-sdp-host=. The clinical disclosure Host is
+admission boundary needs =google-sdp-host=. The language-model disclosure Host is
 opt-in, so enabling generic Cedar replay does not compile its reference API.
 
 * Google table transformation contract

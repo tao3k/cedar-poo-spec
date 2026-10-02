@@ -8,7 +8,7 @@ description = "Lean-POO policy artifacts and optional Cedar language conformance
 [features]
 default = []
 cedar-runtime = ["dep:cedar-policy", "dep:sha2", "cedar-policy/ipaddr", "cedar-policy/decimal", "cedar-policy/datetime"]
-clinical-disclosure-host = ["cedar-runtime"]
+agentic-ai-language-model-disclosure-host = ["cedar-runtime"]
 pseudonymization = []
 google-sdp = ["pseudonymization", "dep:base64", "dep:sha2"]
 google-sdp-host = ["cedar-runtime", "google-sdp"]
@@ -46,9 +46,9 @@ path = "examples/pseudonymization_google_admission.rs"
 required-features = ["google-sdp-host"]
 
 [[example]]
-name = "agent_disclosure_host"
-path = "examples/agent_disclosure_host.rs"
-required-features = ["clinical-disclosure-host"]
+name = "agentic_ai_language_model_disclosure_host"
+path = "examples/agentic_ai_language_model_disclosure_host.rs"
+required-features = ["agentic-ai-language-model-disclosure-host"]
 
 [[test]]
 name = "pseudonymization_crypto"

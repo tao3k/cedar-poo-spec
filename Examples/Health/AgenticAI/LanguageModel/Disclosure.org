@@ -1,5 +1,14 @@
-#+TITLE: Agent Disclosure Across Derived Data and Channels
+#+TITLE: Language-Model Agentic Disclosure Across Derived Data and Channels
 #+OPTIONS: toc:nil
+
+* Scope
+
+This case belongs to =CedarPooSpec.AgenticAI.LanguageModel=: the system uses a
+language model to plan actions and invoke tools. The Cedar =Actor= named
+"analytics-agent" is the delegated execution principal in this synthetic
+case; it is not the model or a general definition of every software agent.
+Generic approval, delegation, lineage, and storage contracts remain in their
+own namespaces. See the [[file:../../../../CedarPooSpec/AgenticAI/LanguageModel/Security.org][namespace boundary]].
 
 * Published motivation
 
@@ -16,7 +25,7 @@ measurements or a vendor's production controls.
 | [[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][Google Cloud Sensitive Data Protection, Pseudonymization]] | Deterministic tokenization permits scoped correlation but does not itself govern later result disclosure. | The earlier hospital tokenization example remains a separate stage. |
 
 The cross-industry gateway and Host-admission rationale, including the Traefik
-AEGIS article, is referenced in [[file:../../../CedarPooSpec/Admission/AgenticSecurity.org][AgenticSecurity.org]]. This hospital case keeps
+AEGIS article, is referenced in [[file:../../../../CedarPooSpec/AgenticAI/LanguageModel/Security.org][Security.org]]. This hospital case keeps
 references whose results directly determine its data and disclosure controls.
 
 These sources motivate the threat and control boundaries. The hospital,
@@ -25,7 +34,7 @@ they are not reported deployments or reproduced paper benchmarks.
 
 * Composition and execution boundary
 
-[[file:AgentDisclosure.lean][AgentDisclosure.lean]] uses =LeanPoo.Object.defineStrict= to give the
+[[file:Disclosure.lean][Disclosure.lean]] uses =LeanPoo.Object.defineStrict= to give the
 hospital source a typed object, then =defineStrictFrom= to combine an independent
 research-source amendment with it. The inherited artifact method observes the
 final source list, and =joinedResultRetainsBothSources= checks its result.
@@ -67,15 +76,23 @@ change between ticket preparation and redemption. The patient IDs are
 synthetic; the Host must derive candidate evidence from the actual query and
 bind it to the exact output bytes. This finite k threshold is a singling-out
 proxy, not a semantic leakage certificate or statistical disclosure control.
+Revoking a single research-source recipient grant now increments the audience
+revision and epoch; an already prepared ticket and a fresh request both fail
+while the workspace member list remains unchanged.
+
+The namespace migration changes the owner of this example, not the policy
+graph. LeanPoo still composes =FinalAudience= with the other independent veto
+owners. Grant revocation is a current Host fact; object inheritance cannot
+authenticate it or replace the execution-time revision check.
 
 * Cross-step solution and current closure
 
 | Step | Current executable evidence | Remaining implementation boundary |
 |------+-----------------------------+-----------------------------------|
 | Raw input to token | =Lifecycle.ingestEffect= and [[file:CrossStep.lean][CrossStep.TokenReceipt]] bind dataset, input digest, key, and revisions; Google SDP has an offline contract and local crypto example | Authenticate the real input and provider response; persist token provenance. |
-| Token to Agent read and join | =CrossStep.join= consumes the token receipt and =Lifecycle.joinEffect= checks a scoped grant and policy revision | Bind the real query and every selected source receipt to the Agent's delegated task. |
-| Join to derived result | =CrossStep.derive= carries purpose and query digest; =JoinedLineage= composes hospital and research labels | Authenticate the transformation graph and output bytes rather than accepting Agent-declared labels. |
-| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, final recipients, cohort state, revisions, budget, and exact effect; the [[file:../../../rust/src/disclosure_host.rs][in-memory Rust Host]] reauthorizes with official Cedar and commits cohort, budget, and audit under one lock | Persist these changes durably in one transaction before sending; authenticate output, candidate-set evidence, and the final sink audience. |
+| Token to language-model workflow read and join | =CrossStep.join= consumes the token receipt and =Lifecycle.joinEffect= checks a scoped grant and policy revision | Bind the real query and every selected source receipt to the delegated language-model workflow task. |
+| Join to derived result | =CrossStep.derive= carries purpose and query digest; =JoinedLineage= composes hospital and research labels | Authenticate the transformation graph and output bytes rather than accepting model-declared labels. |
+| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, final recipients, cohort state, revisions, budget, and exact effect; the [[file:../../../../rust/src/agentic_ai/language_model/disclosure_host.rs][in-memory Rust Host]] reauthorizes with official Cedar and commits cohort, budget, and audit under one lock | Persist these changes durably in one transaction before sending; authenticate output, candidate-set evidence, and the final sink audience. |
 | Token to re-identification | =CrossStep.reidentify= reuses token provenance but requires =Lifecycle.revealEffect='s distinct clinical approval | Bind the actual recovery request, provider receipt, clinical purpose, and plaintext effect to one durable Host transaction. |
 
 The executable Lean transitions now pass typed synthetic receipts across all
@@ -92,10 +109,10 @@ effect visible. On conflict, changed approval, changed policy, or failed audit,
 it must recompute the request and refuse the old ticket. A normal process-local
 Lean state transition does not make this transaction durable.
 
-[[file:AgentDisclosureExport.lean][AgentDisclosureExport.lean]] sends the same sixteen synthetic policy decisions to
+[[file:DisclosureExport.lean][DisclosureExport.lean]] sends the same sixteen synthetic policy decisions to
 the official Cedar Rust validator and authorizer. =just example health
-agent-disclosure= checks exact allow/deny outcomes, empty policy errors, and
-schema fingerprints. The same recipe runs the [[file:../../../rust/examples/agent_disclosure_host.rs][Rust Host example]]:
+agentic-ai-language-model-disclosure= checks exact allow/deny outcomes, empty policy errors, and
+schema fingerprints. The same recipe runs the [[file:../../../../rust/examples/agentic_ai_language_model_disclosure_host.rs][Rust Host example]]:
 one release commits, only one of two concurrent commits succeeds, a stale
 ticket, altered channel, expanded workspace audience, and missing source-specific
 recipient grant fail, a later

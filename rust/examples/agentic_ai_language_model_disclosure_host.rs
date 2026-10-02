@@ -1,7 +1,7 @@
-//! Offline, process-local Host execution of the Lean-composed disclosure policy.
+//! Offline, process-local Host execution for a tool-using language-model system.
 
 use cedar_poo_bridge::ValidatedManifest;
-use cedar_poo_bridge::disclosure_host::{
+use cedar_poo_bridge::agentic_ai::language_model::disclosure_host::{
     Effect, Evidence, Grant, InMemoryDisclosureHost, RecipientGrant, ValidatedDisclosurePolicy,
 };
 use serde_json::json;
@@ -165,6 +165,21 @@ fn run() -> Result<(), String> {
     if !audience_change_denied {
         return Err("expanded audience accepted an old or new ticket".into());
     }
+    let revoked_recipient = InMemoryDisclosureHost::new(&policy, evidence());
+    let recipient_ticket = revoked_recipient
+        .prepare(first.clone())?
+        .ok_or("recipient revocation prepare was denied")?;
+    if !revoked_recipient.revoke_recipient_grant(RESEARCH, "researcher-a")? {
+        return Err("research recipient grant was missing before revocation".into());
+    }
+    let recipient_revocation_denied = revoked_recipient
+        .commit(recipient_ticket, &first)?
+        .is_none()
+        && revoked_recipient.prepare(first.clone())?.is_none()
+        && revoked_recipient.audit()?.is_empty();
+    if !recipient_revocation_denied {
+        return Err("revoked source recipient grant accepted an old or new ticket".into());
+    }
     let mut missing_recipient_grant = evidence();
     missing_recipient_grant.recipient_grants.pop();
     let missing_recipient_grant_denied =
@@ -213,6 +228,7 @@ fn run() -> Result<(), String> {
             "concurrentSingleCommit": concurrent_single_commit,
             "revokedDenied": revoke_denied,
             "audienceChangeDenied": audience_change_denied,
+            "recipientRevocationDenied": recipient_revocation_denied,
             "missingRecipientGrantDenied": missing_recipient_grant_denied,
             "auditFailureDenied": audit_failure_denied,
             "wrongIssuerDenied": wrong_issuer_denied,

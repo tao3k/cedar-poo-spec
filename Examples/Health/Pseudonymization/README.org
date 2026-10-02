@@ -1,7 +1,7 @@
 #+TITLE: Pseudonymization and Re-identification Governance
 #+OPTIONS: toc:nil
 
-The [[file:AgentDisclosure.org][agent disclosure case]] composes a derived hospital/research result,
+The [[file:../AgenticAI/LanguageModel/Disclosure.org][language-model agentic disclosure case]] composes a derived hospital/research result,
 scoped approvals, and a budget shared across workspace and message channels.
 
 * Problem and published basis

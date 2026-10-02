@@ -6,15 +6,17 @@ import CedarPooSpec.Governance.Personnel.Delegation
 import LeanPoo.Object.Definition
 
 /-!
-An analytics agent derives a result from two hospital datasets, then proposes
-publication through independent workspace and message channels. Source labels,
+A tool-using language-model system proposes publication of a result derived
+from two hospital datasets through independent workspace and message channels.
+The Cedar `agent` principal is its delegated execution identity; source labels,
 approvals, and the shared release counter are Host-owned state.
 -/
 
-namespace CedarPooSpec.PseudonymizationExample.AgentDisclosure
+namespace CedarPooSpec.AgenticAI.LanguageModel.Disclosure
 
 open Cedar.Spec Cedar.Data Cedar.Validation
 open CedarPooSpec.PolicyModules CedarPooSpec.Governance CedarPooSpec.Data
+open CedarPooSpec.PseudonymizationExample
 
 def sinkType : EntityType := ⟨"DisclosureSink", []⟩
 def publish : EntityUID := ⟨actionType, "publish-derived-result"⟩
@@ -244,6 +246,16 @@ def audienceAllowed (state : State) (effect : Effect) : Bool :=
       effect.recipients.all fun recipient =>
         state.recipientGrants.contains (source.resource, recipient)
 
+/-- The Host's grant-store change invalidates prepared authority even when
+    the workspace member list stays the same. -/
+def revokeRecipientGrant (state : State) (resource : EntityUID)
+    (recipient : String) : State :=
+  { state with
+    recipientGrants := state.recipientGrants.filter
+      (fun grant => grant != (resource, recipient)),
+    audienceRevision := state.audienceRevision + 1,
+    epoch := state.epoch + 1 }
+
 def projectedRequest (state : State) (effect : Effect) : Request :=
   ⟨agent, publish, effect.destination.resource, Map.make [
     ("lineageAllowed", .prim (.bool
@@ -330,6 +342,14 @@ theorem changedOrUnapprovedAudienceDenied :
     ((prepare .governed initial workspaceEffect).bind fun ticket =>
       redeem { initial with audienceRevision := 1, currentRecipients := ["researcher-a", "outsider"] }
         ticket workspaceEffect) = none := by
+  native_decide
+
+theorem revokedRecipientGrantDeniesPreparedAndFreshTicket :
+    ((prepare .governed initial workspaceEffect).bind fun ticket =>
+      redeem (revokeRecipientGrant initial research "researcher-a")
+        ticket workspaceEffect) = none ∧
+    prepare .governed
+      (revokeRecipientGrant initial research "researcher-a") workspaceEffect = none := by
   native_decide
 
 theorem incompleteLineageOrApprovalDenied :
@@ -434,4 +454,4 @@ def casesConform : Bool := cases.all fun (_, root, state, effect, expected) =>
 
 theorem casesConformFully : casesConform = true := by native_decide
 
-end CedarPooSpec.PseudonymizationExample.AgentDisclosure
+end CedarPooSpec.AgenticAI.LanguageModel.Disclosure

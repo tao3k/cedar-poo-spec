@@ -1,4 +1,4 @@
-//! In-memory Host reference for a derived clinical disclosure effect.
+//! In-memory Host reference for a tool-using language-model disclosure effect.
 //! Authenticated inputs and durable storage remain the deploying Host's duty.
 
 use crate::{
@@ -364,6 +364,23 @@ impl InMemoryDisclosureHost {
         inner.evidence.audience_revision += 1;
         inner.evidence.epoch += 1;
         Ok(())
+    }
+
+    /// Removes a source-specific permission and invalidates prepared tickets.
+    /// The deploying Host must authenticate the grant-store change.
+    pub fn revoke_recipient_grant(&self, source: &str, recipient: &str) -> Result<bool, String> {
+        let mut inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
+        let before = inner.evidence.recipient_grants.len();
+        inner
+            .evidence
+            .recipient_grants
+            .retain(|grant| grant.source != source || grant.recipient != recipient);
+        let removed = inner.evidence.recipient_grants.len() != before;
+        if removed {
+            inner.evidence.audience_revision += 1;
+            inner.evidence.epoch += 1;
+        }
+        Ok(removed)
     }
 
     pub fn set_audit_ready(&self, ready: bool) -> Result<(), String> {

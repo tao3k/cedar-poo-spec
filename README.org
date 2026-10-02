@@ -70,7 +70,8 @@ construction-time boundary for Lean-POO multiple dispatch across independently
 extensible policy profiles.
 [[file:docs/rfc/0008-composable-control-objects.org][RFC 0008]] defines an
 open, scenario-driven control-object library above Cedar's upstream semantics.
-Pseudonymization, Admission, Governance, Data, and
+Pseudonymization, Admission, Governance, Data,
+[[file:CedarPooSpec/AgenticAI/LanguageModel/Security.org][AgenticAI.LanguageModel]], and
 [[file:CedarPooSpec/Cloud/README.org][Cloud]] are cross-industry
 capability families;
 =Vertical/Health= and =Vertical/FinancialServices= hold industry controls,
@@ -93,6 +94,9 @@ healthcare disclosure and emergency-access controls.
 The [[file:Examples/Health/Pseudonymization/README.org][hospital pseudonymization case]] composes scoped approvals, separate
 join and result-release roots, typed deployment selection, and a finite
 ticket-redemption lifecycle with synthetic-data cryptographic checks.
+The [[file:Examples/Health/AgenticAI/LanguageModel/Disclosure.org][language-model tool disclosure case]]
+uses a separate namespace for model-driven tool actions while reusing generic
+admission, lineage, and delegation contracts.
 The executable
 [[file:Examples/Scenarios/README.org][tenant document scenario]] shows why
 overlay, extend, and remove are all needed during an authorization migration.

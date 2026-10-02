@@ -1,5 +1,5 @@
 import Examples.Health.Pseudonymization.Lifecycle
-import Examples.Health.Pseudonymization.AgentDisclosure
+import Examples.Health.AgenticAI.LanguageModel.Disclosure
 
 /-!
 One synthetic hospital trajectory. The receipts are typed handoffs between
@@ -7,7 +7,7 @@ separately authorized steps. A real Host must authenticate their fields against
 provider, query, and output evidence before admitting the next step.
 -/
 
-namespace CedarPooSpec.PseudonymizationExample.CrossStep
+namespace CedarPooSpec.AgenticAI.LanguageModel.CrossStep
 
 open Cedar.Spec
 open CedarPooSpec.PseudonymizationExample
@@ -63,17 +63,17 @@ def derive (hospitalJoin researchJoin : JoinReceipt)
       hospitalJoin.token.keyVersion != researchJoin.token.keyVersion ||
       hospitalJoin.token.policyRevision != researchJoin.token.policyRevision ||
       hospitalJoin.token.approvalRevision != researchJoin.token.approvalRevision ||
-      observedDigest != AgentDisclosure.joinedResult.digest then none
-  else some { hospitalJoin, researchJoin, outputDigest := observedDigest, sources := AgentDisclosure.joinedResult.sources }
+      observedDigest != Disclosure.joinedResult.digest then none
+  else some { hospitalJoin, researchJoin, outputDigest := observedDigest, sources := Disclosure.joinedResult.sources }
 
-def publish (state : AgentDisclosure.State) (derived : DerivedReceipt)
-    (effect : AgentDisclosure.Effect) : Option AgentDisclosure.State := do
+def publish (state : Disclosure.State) (derived : DerivedReceipt)
+    (effect : Disclosure.Effect) : Option Disclosure.State := do
   if effect.purpose != derived.hospitalJoin.purpose ||
       effect.artifact.sources != derived.sources ||
       effect.payloadDigest != derived.outputDigest ||
       state.policyRevision != derived.hospitalJoin.token.policyRevision ||
       state.approvalRevision != derived.hospitalJoin.token.approvalRevision then none
-  else AgentDisclosure.release .governed state effect
+  else Disclosure.release .governed state effect
 
 /-- Re-identification is a separate approved clinical branch. It can reuse
     token provenance but cannot inherit the research publication grant. -/
@@ -85,7 +85,7 @@ def reidentify (state : Lifecycle.State) (token : TokenReceipt)
       state.approvalRevision != token.approvalRevision then none
   else Lifecycle.step state effect
 
-def trajectory : Option (AgentDisclosure.State × Lifecycle.State) := do
+def trajectory : Option (Disclosure.State × Lifecycle.State) := do
   let researchGrant := Lifecycle.grant agent CedarPooSpec.PseudonymizationExample.join
     "study-one" research research
   let state : Lifecycle.State :=
@@ -98,8 +98,8 @@ def trajectory : Option (AgentDisclosure.State × Lifecycle.State) := do
   let researchRead : Lifecycle.Effect :=
     { Lifecycle.joinEffect with source := research, target := research, payloadDigest := "research-query" }
   let (secondJoin, researchEvidence) ← join firstJoin researchToken researchRead
-  let derived ← derive hospitalRead researchEvidence AgentDisclosure.joinedResult.digest
-  let released ← publish AgentDisclosure.initial derived AgentDisclosure.workspaceEffect
+  let derived ← derive hospitalRead researchEvidence Disclosure.joinedResult.digest
+  let released ← publish Disclosure.initial derived Disclosure.workspaceEffect
   let recovered ← reidentify secondJoin hospitalToken Lifecycle.revealEffect
   some (released, recovered)
 
@@ -117,7 +117,7 @@ theorem staleTokenAndChangedPurposeFail :
     (derive
       { token := hospitalTokenFixture, purpose := "study-one", queryDigest := "query-1" }
       { token := researchTokenFixture, purpose := "other-study", queryDigest := "research-query" }
-      AgentDisclosure.joinedResult.digest) = none := by
+      Disclosure.joinedResult.digest) = none := by
   native_decide
 
 theorem researchGrantCannotReidentify :
@@ -129,7 +129,7 @@ theorem missingResearchReceiptCannotDerive :
     derive
       { token := hospitalTokenFixture, purpose := "study-one", queryDigest := "query-1" }
       { token := hospitalTokenFixture, purpose := "study-one", queryDigest := "query-2" }
-      AgentDisclosure.joinedResult.digest = none := by
+      Disclosure.joinedResult.digest = none := by
   native_decide
 
-end CedarPooSpec.PseudonymizationExample.CrossStep
+end CedarPooSpec.AgenticAI.LanguageModel.CrossStep
