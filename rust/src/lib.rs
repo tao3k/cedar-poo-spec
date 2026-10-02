@@ -14,6 +14,8 @@ pub mod disclosure_host;
 pub mod google_sdp;
 #[cfg(feature = "google-sdp-host")]
 pub mod google_sdp_host;
+#[cfg(feature = "lean-mandate-offer-projection")]
+pub mod lean_mandate_offer_projection;
 #[cfg(feature = "mandate-offer-signatures")]
 pub mod mandate_offer_signatures;
 pub mod operation_identity;

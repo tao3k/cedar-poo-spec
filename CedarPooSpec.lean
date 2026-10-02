@@ -48,6 +48,7 @@ import CedarPooSpec.Pseudonymization
 import CedarPooSpec.CompoundAuthorization
 import CedarPooSpec.Vertical.FinancialServices.PaymentOperation
 import CedarPooSpec.Vertical.FinancialServices.AgentCommerce
+import CedarPooSpec.Vertical.FinancialServices.AgentCommerceProjection
 import CedarPooSpec.Vertical.FinancialServices.AgentCommerceDelegation
 import CedarPooSpec.Vertical.FinancialServices.AgentCommerceCredential
 import CedarPooSpec.Vertical.FinancialServices.AgentCommercePayment

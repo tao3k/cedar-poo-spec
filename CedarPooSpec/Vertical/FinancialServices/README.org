@@ -43,7 +43,12 @@ using a canonical HKD cents profile. These modules are part of the public
 Lean library. The [[file:../../../Examples/Enterprise/Agent/Payment/AgentCommerceResearch.org][research scenario]] and [[file:../../../Tests/Enterprise/Agent/Payment/AgentCommerce.lean][regressions]] consume them.
 The optional Rust signature verifier is a public crate module behind the
 =mandate-offer-signatures= Cargo feature; see [[file:../../../rust/src/README.org][Rust feature boundaries]]. The Host must
-authenticate and map the verified Rust fields into these Lean structures,
+authenticate and map the verified Rust fields into these Lean structures.
+[[file:AgentCommerceProjection.lean][AgentCommerceProjection]] emits public Lean claims without =verified=; the optional
+=lean-mandate-offer-projection= Rust feature compares those claims with live
+verified mandate and offer values. =just check-agent-commerce-projection=
+exercises the cross-language mapping with signed synthetic inputs. The Host
+must separately check time, key status, policy, and revocation, and
 then persist reservations and effect receipts durably.
 
 * Boundary

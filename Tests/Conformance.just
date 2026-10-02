@@ -1,5 +1,12 @@
 # Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.
-check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance
+check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance check-agent-commerce-projection
+
+check-agent-commerce-projection:
+    mkdir -p .lake/build
+    lake build Tests.Enterprise.Agent.Payment.AgentCommerceProjection
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Tests/Enterprise/Agent/Payment/AgentCommerceProjection.lean > .lake/build/agent-commerce-projection.json
+    jq -e '(.mandate | has("verified") | not) and (.offer | has("verified") | not)' .lake/build/agent-commerce-projection.json > /dev/null
+    LEAN_PROJECTION_FIXTURE="$PWD/.lake/build/agent-commerce-projection.json" cargo test --locked --manifest-path rust/Cargo.toml --no-default-features --features lean-mandate-offer-projection --test lean_mandate_offer_projection_consumer
 
 check-personnel-governance:
     lake build Examples.Manifests Tests.Enterprise.Personnel.SourceCustody

@@ -11,6 +11,7 @@ cedar-runtime = ["dep:cedar-policy", "dep:sha2", "cedar-policy/ipaddr", "cedar-p
 google-sdp = ["dep:base64", "dep:sha2"]
 google-sdp-host = ["cedar-runtime", "google-sdp"]
 mandate-offer-signatures = ["dep:p256", "dep:sha2"]
+lean-mandate-offer-projection = ["mandate-offer-signatures"]
 
 [dependencies]
 cedar-policy = { version = "=4.12.0", optional = true, default-features = false }
@@ -59,6 +60,11 @@ required-features = ["cedar-runtime", "google-sdp"]
 name = "mandate_offer_signatures_consumer"
 path = "tests/integration/mandate_offer_signatures_consumer.rs"
 required-features = ["mandate-offer-signatures"]
+
+[[test]]
+name = "lean_mandate_offer_projection_consumer"
+path = "tests/integration/lean_mandate_offer_projection_consumer.rs"
+required-features = ["lean-mandate-offer-projection"]
 
 [dev-dependencies]
 asp-rust = { git = "https://github.com/tao3k/asp-rust", rev = "9b95fd6744a89f3f38e87f9bda33ea762f1f65e1", default-features = false }

@@ -17,8 +17,12 @@ check-rust:
     cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features mandate-offer-signatures -e normal -p cedar-poo-bridge > .lake/build/bridge-mandate-offer-signatures-tree.txt
     ! grep -q 'cedar-policy' .lake/build/bridge-mandate-offer-signatures-tree.txt
     grep -q 'p256' .lake/build/bridge-mandate-offer-signatures-tree.txt
+    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features lean-mandate-offer-projection -e normal -p cedar-poo-bridge > .lake/build/bridge-lean-mandate-offer-projection-tree.txt
+    ! grep -q 'cedar-policy' .lake/build/bridge-lean-mandate-offer-projection-tree.txt
+    grep -q 'p256' .lake/build/bridge-lean-mandate-offer-projection-tree.txt
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features google-sdp -- -D warnings
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features mandate-offer-signatures -- -D warnings
+    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features lean-mandate-offer-projection -- -D warnings
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features cedar-runtime -- -D warnings
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features google-sdp-host -- -D warnings
     cargo test --locked --manifest-path rust/Cargo.toml --no-default-features

@@ -64,6 +64,11 @@ wrong-issuer, widening-child, and ancestor-identity-reuse cases are executable u
 local versioned encoding, not AP2 JWT or a live issuer integration. The Host
 must map *every* verified Rust field to the corresponding Lean object before
 setting =verified=, and must manage key enrollment, rotation, and revocation.
+The optional [[file:../../../../rust/src/lean_mandate_offer_projection.rs][projection API]] now checks all signed mandate and offer fields against
+the [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerceProjection.lean][public Lean claims]]. =just check-agent-commerce-projection= tests a Lean JSON
+fixture against live Rust verified values and individually changes each field.
+This establishes field correspondence for the synthetic fixture; the Host
+still owns the live admission decision and dynamic checks.
 
 * Evidence from Hong Kong and the wider market
 
@@ -128,12 +133,10 @@ specific production exploit or validation of this implementation.
 
 * Next code and evaluation slices
 
-1. Define a checked Host projection from each Rust =VerifiedMandate= and
-   =VerifiedOffer= into every corresponding Lean field. The acceptance test
-   must change each principal UID component, Agent key, merchant, product,
-   price, checkout digest, and epoch separately; no changed field may retain
-   a =verified= assertion. Add current-time, key-status, and revocation inputs
-   before using the projection for live admission.
+1. Add current-time, key-status, policy, and revocation inputs to the checked
+   mandate and offer projection before using it for live admission. Keep the
+   opaque verified Rust values in the trusted Host process and require an
+   exact claims comparison before asserting Lean =verified=.
 2. Specify a separate presentation ledger for protocols that require a
    single outstanding open mandate. Test a second presentation without a
    matching signed rejection receipt, a forged receipt, and a receipt for a

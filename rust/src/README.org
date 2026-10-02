@@ -9,6 +9,7 @@
 | =google-sdp= | Google table request and response contract | =base64= and =sha2= |
 | =google-sdp-host= | In-memory Cedar-to-Google admission example API | Both features above |
 | =mandate-offer-signatures= | Public mandate, delegation, and offer signature verifier API | =p256= and =sha2= |
+| =lean-mandate-offer-projection= | Exact mandate and offer claims comparison for Lean admission | =mandate-offer-signatures= |
 
 The Google wire contract compiles without =cedar-policy=. A consumer that
 only renders and checks Google SDP table bodies enables =google-sdp=; the
@@ -29,6 +30,15 @@ hops. It does not verify an agent's HTTP request identity, evaluate an AP2
 mandate chain, issue
 a credential, allocate a durable budget, dispatch to a provider, manage
 issuer keys, or provide the checked Lean mapping.
+
+The separate [[file:lean_mandate_offer_projection.rs][Lean projection API]] accepts live =VerifiedMandate= and =VerifiedOffer=
+values and compares every signed field to typed Lean claims. It excludes the
+Host-owned =verified= flags and rejects unknown JSON fields. The
+[[file:../tests/integration/lean_mandate_offer_projection_consumer.rs][consumer test]] compares Rust's verified objects to JSON emitted by the public
+Lean types through =just check-agent-commerce-projection=. The Host must keep
+the verified values in its trusted process and set =verified= only after the
+comparison and its separate current-time, key-status, policy, and revocation
+checks. JSON claims alone do not carry cryptographic authority.
 
 * Google table transformation contract
 
