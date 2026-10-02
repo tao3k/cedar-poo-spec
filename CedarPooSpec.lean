@@ -59,6 +59,7 @@ import CedarPooSpec.AgenticAI.Commerce.Projection
 import CedarPooSpec.AgenticAI.Commerce.Delegation
 import CedarPooSpec.AgenticAI.Commerce.SharedBudget
 import CedarPooSpec.AgenticAI.Commerce.Credential
+import CedarPooSpec.AgenticAI.Commerce.Consumption
 import CedarPooSpec.Vertical.FinancialServices.AgenticCommercePayment
 import CedarPooSpec.Vertical.FinancialServices.PaymentLifecycle
 import CedarPooSpec.Vertical.FinancialServices.PaymentLedger

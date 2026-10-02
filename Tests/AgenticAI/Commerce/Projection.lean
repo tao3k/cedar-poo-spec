@@ -69,13 +69,26 @@ theorem committedCredentialProjectionAccepted :
     sharedAfter.acceptsCredential "buyer-trip-root" { offer with verified := true }
       sharedPurchase committedCredential = true := by decide
 
+def dispatch : PaymentDispatch :=
+  { providerId := "processor", idempotencyKey := "host-derived-idempotency-key",
+    credential := committedCredential }
+def consumptionBefore : ConsumptionLedger :=
+  { budgetScope := "buyer-trip-root", revision := 1, requests := [] }
+def consumptionAfter : ConsumptionLedger :=
+  { consumptionBefore with revision := 2, requests := [dispatch] }
+theorem consumptionProjectionIsExactClaim :
+    consumptionBefore.claim 1 sharedAfter { offer with verified := true }
+      sharedPurchase dispatch = some consumptionAfter := by decide
+
 def fixture : Lean.Json := Lean.Json.mkObj [
   ("mandate", mandate.claimsJson),
   ("offer", offer.claimsJson),
   ("lineage", Lean.toJson ([mandate.claimsJson, child.claimsJson] : List Lean.Json)),
   ("sharedBefore", sharedBefore.claimsJson),
   ("sharedAfter", sharedAfter.claimsJson),
-  ("credentialTemplate", committedCredential.claimsJson)]
+  ("credentialTemplate", committedCredential.claimsJson),
+  ("consumptionBefore", consumptionBefore.claimsJson),
+  ("consumptionAfterTemplate", consumptionAfter.claimsJson)]
 
 end CedarPooSpec.AgenticAI.CommerceProjectionTest
 

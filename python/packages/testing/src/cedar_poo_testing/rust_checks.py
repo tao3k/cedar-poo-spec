@@ -7,7 +7,7 @@ import subprocess
 COMMERCE = (
     "agentic-ai-commerce-signatures", "agentic-ai-commerce-projection",
     "agentic-ai-commerce-admission", "agentic-ai-commerce-budget-commit",
-    "agentic-ai-commerce-credential",
+    "agentic-ai-commerce-credential", "agentic-ai-commerce-consumption",
 )
 
 

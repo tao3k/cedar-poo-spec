@@ -14,7 +14,7 @@ use p256::ecdsa::{Signature, signature::Signer};
 
 type Result = std::result::Result<VerifiedCredential, CredentialRecoveryError<&'static str>>;
 
-fn claims(fixture: &Fixture) -> CredentialClaims {
+pub(super) fn claims(fixture: &Fixture) -> CredentialClaims {
     let path = std::env::var("LEAN_PROJECTION_FIXTURE").unwrap();
     let exported: serde_json::Value =
         serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
@@ -42,7 +42,7 @@ fn claims(fixture: &Fixture) -> CredentialClaims {
     credential
 }
 
-fn trust() -> CredentialIssuerTrust {
+pub(super) fn trust() -> CredentialIssuerTrust {
     let mut issuers = CredentialIssuerTrust::default();
     issuers.enroll("wallet".into(), *signer(6).verifying_key());
     issuers

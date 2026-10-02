@@ -49,8 +49,11 @@ struct State {
 pub(super) struct TestPort(Mutex<State>);
 impl TestPort {
     pub(super) fn new(before: &SharedBudgetClaims) -> Self {
+        Self::new_head(head(before))
+    }
+    pub(super) fn new_head(current: ContentRevision) -> Self {
         Self(Mutex::new(State {
-            head: Some(head(before)),
+            head: Some(current),
             rows: vec![],
             lose_ack: false,
             unavailable: false,
@@ -61,6 +64,12 @@ impl TestPort {
     #[cfg(feature = "agentic-ai-commerce-credential")]
     pub(super) fn set_unavailable(&self) {
         self.0.lock().unwrap().unavailable = true;
+    }
+}
+#[cfg(feature = "agentic-ai-commerce-consumption")]
+impl TestPort {
+    pub(super) fn lose_ack(&self) {
+        self.0.lock().unwrap().lose_ack = true;
     }
 }
 impl Port for TestPort {

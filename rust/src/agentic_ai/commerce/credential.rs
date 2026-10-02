@@ -108,7 +108,7 @@ impl CredentialIssuerTrust {
         self.keys.remove(issuer_id);
     }
 
-    fn verify(
+    pub(super) fn verify(
         &self,
         expected_issuer: &CredentialIssuerId,
         claims: &CredentialClaims,
@@ -289,7 +289,7 @@ fn sum<'a>(
     })
 }
 
-fn validate_authority<F>(
+pub(super) fn validate_authority<F>(
     host: &CurrentCommerceAuthority,
     mut request: CredentialAdmissionRequest<'_>,
     policy: F,
@@ -355,8 +355,26 @@ where
     F: FnOnce() -> Result<CurrentCommerceAuthority, CredentialError>,
     G: FnOnce(&[super::projection::LeanMandateClaims], &super::projection::LeanOfferClaims) -> bool,
 {
+    recover_committed_credential(port, &request).await?;
     let validate = CredentialRecoveryError::Validation;
-    let write = exact_write(&request).map_err(validate)?;
+    let authority = refresh_authority().map_err(validate)?;
+    request
+        .issuer_trust
+        .verify(
+            request.expected_issuer,
+            request.credential,
+            request.signature,
+        )
+        .map_err(validate)?;
+    validate_authority(&authority, request, policy).map_err(validate)
+}
+
+pub(super) async fn recover_committed_credential<'a, P: ConditionalContentCommitPort>(
+    port: &'a P,
+    request: &CredentialAdmissionRequest<'a>,
+) -> Result<(), CredentialRecoveryError<P::Error>> {
+    let validate = CredentialRecoveryError::Validation;
+    let write = exact_write(request).map_err(validate)?;
     let recovered = port
         .recover(write)
         .await
@@ -368,14 +386,5 @@ where
     if receipt.committed.revision != request.credential.receipt.committed_revision {
         return Err(validate(CredentialError::ReceiptMismatch));
     }
-    let authority = refresh_authority().map_err(validate)?;
-    request
-        .issuer_trust
-        .verify(
-            request.expected_issuer,
-            request.credential,
-            request.signature,
-        )
-        .map_err(validate)?;
-    validate_authority(&authority, request, policy).map_err(validate)
+    Ok(())
 }

@@ -191,6 +191,34 @@ The serialized provider remains test-only. These checks establish local admissio
 correspondence, not AP2/ACP conformance, durable credential consumption, payment
 execution, fulfillment, or dispute verification.
 
+* Single consumption and provider binding slice (2026-10-02)
+
+[[https://www.agenticcommerce.dev/docs/reference/payments][ACP Delegate Payment]] provides scoped allowances and token-creation idempotency;
+that does not establish one economic effect for our custom credential. [[https://ap2-protocol.org/ap2/implementation_considerations/][AP2]] assigns
+payment-mandate checks and signed payment receipts to different verifier roles.
+We therefore specify a separate [[file:../../../CedarPooSpec/AgenticAI/Commerce/Consumption.lean][consumption ledger]] keyed by budget scope and
+purchase, independent of credential ID and provider. Its proved duplicate refusal
+applies regardless of the provider outcome. The [[file:../../../rust/src/agentic_ai/commerce/consumption.rs][Rust claim]] reuses the existing
+MRR conditional port, authenticates the original reservation receipt, compares
+exact raw ledger CIDs and proposals, and refreshes budget/issuer/mandate authority
+inside validation. The backend must serialize those changes through release.
+
+A newly confirmed claim yields one move-only release permit. Exact replay,
+uncertain commit and recovery cannot reconstruct it. The [[file:../../../rust/src/agentic_ai/commerce/provider.rs][provider interface]] carries
+the complete exact request with a stable scope/purchase idempotency key, and
+verifies a signed receipt's full-request commitment against an independently
+enrolled provider key. Status recovery performs no payment and cannot grant a
+fresh credential or retry. The [[file:../../../rust/tests/integration/agentic_ai/commerce/consumption.rs][test-only consumers]] check two competing claims,
+reissued credentials/providers, uncertain claim/payment ACKs, fresh revocation,
+changed receipt/request, and key rotation. No production provider is connected.
+
+This gives bounded local single-release safety, not eventual or exactly-once
+economic execution. A crash after claim but before dispatch may block the purchase;
+a known non-release or absent provider status also does not reopen it. A deploying
+adapter needs a fenced retry/recovery protocol with provider-enforced idempotency,
+authenticated status and live-authority synchronization. Fulfillment and dispute
+receipts require their own issuers and correspondences.
+
 * Next code and evaluation slices
 
 1. Bind the process-local delegated admission reference to authenticated
@@ -208,12 +236,11 @@ execution, fulfillment, or dispute verification.
    MRR Data is an interface for content and conditional publication. A backend
    must persist one head and exact operation receipt atomically, then test two
    child writers racing under the same root and recovery after an uncertain ACK.
-4. The committed-reservation to signed-credential admission gate is implemented.
-   Bind its exact credential to a provider request,
-   processor receipt, fulfillment evidence, and dispute bundle to their
-   independently authenticated issuers. Test price or shipping changes after
-   a checkout-session update, retry after an uncertain provider response,
-   and a receipt referring to another checkout.
+4. Credential admission, single consumption, provider request and signed receipt
+   contracts are implemented with test-only providers. Connect a production
+   sandbox and durable ledger; validate crash-after-claim recovery, fenced retry,
+   provider-enforced idempotency and authority changes during suspended release.
+   Then bind fulfillment and dispute evidence to independently trusted issuers.
 5. Evaluate prompt injection, seller substitution, collusion, and model drift
    with measured detection quality and reviewer load. A passing fixture does
    not establish operational risk performance.

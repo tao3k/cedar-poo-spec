@@ -16,6 +16,7 @@ google-sdp-host = ["cedar-runtime", "google-sdp"]
 agentic-ai-commerce-signatures = ["dep:p256", "dep:sha2"]
 agentic-ai-commerce-projection = ["agentic-ai-commerce-signatures"]
 agentic-ai-commerce-admission = ["agentic-ai-commerce-projection"]
+agentic-ai-commerce-consumption = ["agentic-ai-commerce-credential"]
 agentic-ai-commerce-credential = ["agentic-ai-commerce-budget-commit"]
 agentic-ai-commerce-budget-commit = ["agentic-ai-commerce-admission", "dep:mrr-data-content"]
 

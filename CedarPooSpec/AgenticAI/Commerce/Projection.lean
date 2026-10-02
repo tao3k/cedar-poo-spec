@@ -1,5 +1,5 @@
 import CedarPooSpec.AgenticAI.Commerce.Budget
-import CedarPooSpec.AgenticAI.Commerce.Credential
+import CedarPooSpec.AgenticAI.Commerce.Consumption
 import Lean
 
 /-!
@@ -85,5 +85,15 @@ def Credential.claimsJson (credential : Credential) : Lean.Json :=
       ("reservation", object [
         ("lineage", Lean.toJson (receipt.reservation.lineage.map (·.claimsJson))),
         ("purchase", receipt.reservation.purchase.claimsJson)])])]
+
+def PaymentDispatch.claimsJson (request : PaymentDispatch) : Lean.Json :=
+  object [("providerId", Lean.toJson request.providerId),
+    ("idempotencyKey", Lean.toJson request.idempotencyKey),
+    ("credential", request.credential.claimsJson)]
+
+def ConsumptionLedger.claimsJson (state : ConsumptionLedger) : Lean.Json :=
+  object [("budgetScope", Lean.toJson state.budgetScope),
+    ("revision", Lean.toJson state.revision),
+    ("requests", Lean.toJson (state.requests.map (·.claimsJson)))]
 
 end CedarPooSpec.AgenticAI.Commerce

@@ -338,3 +338,7 @@ mod transactions;
 #[cfg(feature = "agentic-ai-commerce-credential")]
 #[path = "agentic_ai/commerce/credentials.rs"]
 mod credentials;
+
+#[cfg(feature = "agentic-ai-commerce-consumption")]
+#[path = "agentic_ai/commerce/consumption.rs"]
+mod consumption;

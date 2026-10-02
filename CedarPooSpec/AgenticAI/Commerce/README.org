@@ -8,6 +8,7 @@
 [[file:Delegation.lean][Delegation]] attenuates authority on every signed handoff;
 [[file:SharedBudget.lean][SharedBudget]] charges the root and every ancestor across all branches;
 [[file:Credential.lean][Credential]] binds a scoped credential to an authenticated committed reservation;
+[[file:Consumption.lean][Consumption]] claims one release per scoped purchase;
 [[file:Projection.lean][Projection]] exports claims without derived verification flags.
 The [[file:../../Vertical/FinancialServices/AgenticCommercePayment.lean][financial payment adapter]] maps an admitted purchase to =PaymentOperation=.
 
@@ -22,7 +23,7 @@ revoking an ancestor prevents a descendant reservation.
 Rust APIs live under =agentic_ai::commerce= with optional
 =agentic-ai-commerce-signatures=, =agentic-ai-commerce-projection=,
 =agentic-ai-commerce-admission=, =agentic-ai-commerce-budget-commit=, and
-=agentic-ai-commerce-credential=
+=agentic-ai-commerce-credential= and =agentic-ai-commerce-consumption=
 features. =just check-agentic-ai-commerce-admission= exports the Lean fixture
 and checks signatures, current Host authority, and the shared transition.
 
@@ -72,6 +73,46 @@ The cross-language fixture exports every semantic credential field and proves
 its Lean acceptance. Only its two opaque content-ID template fields are resolved
 from actual Rust before/after bytes. Credential signing uses a versioned domain
 and fixed typed JSON serialization; this is a local format, not an AP2 JWT format.
-No payment token, provider dispatch, single-use consumption, or settlement receipt
-is implemented. A real effect gate must synchronize the head, live authority,
-issuer status, and consumption ledger through provider release.
+No payment token or production payment network is implemented.
+The consumption and provider contracts below require a deploying adapter to
+synchronize the head, live authority, issuer status and consumption ledger through
+provider release.
+
+* Purchase consumption and provider receipt
+
+The consumption ledger is independent from reservation accounting. Its uniqueness
+key is the trusted budget scope and purchase ID, across credential reissue and
+provider changes. Lean proves an already consumed purchase cannot claim again,
+and a successful claim advances the ledger revision. Rust checks the exact
+one-row proposal and immutable previous rows, then uses MRR Data's existing
+conditional port to atomically persist the claim. The backend must authenticate
+one canonical ledger namespace per budget scope and synchronize the current
+budget, issuer, key, clock and policy versions through release.
+
+Only a newly confirmed commit whose fresh callback ran yields a move-only,
+non-serializable =DispatchPermit=. Exact replay is status only. An unknown commit
+has no permit; lookup cannot reconstruct one. =PaymentProviderPort= consumes that
+permit for one dispatch and supplies an effect-free recovery query. The provider
+request contains the complete signed credential, reservation lineage and checkout.
+Its stable idempotency key derives from a length-prefixed budget-scope/purchase
+pair; credential reissue and provider changes do not create another release.
+
+=ProviderReceiptTrust= verifies a versioned P-256 signature using independently
+enrolled current provider keys. The receipt commits to the entire exact request,
+not only a merchant, amount or opaque payment reference. A successful response
+and signed rejection remain distinct from unavailable or unknown status. A payment
+receipt attests processor status, not fulfillment. Production adapters must
+recheck/synchronize live authority through the actual release; a permit snapshot
+alone is not a lease maintaining authority across suspension or restart.
+
+Seven test-only consumers cover the exact Lean proposal, simultaneous claimers,
+credential/provider substitution, lost consumption ACK, unknown payment response
+with exact recovery, provider key/receipt substitution, and fresh budget/issuer
+revocation. They demonstrate local protocol behavior. They provide no live payment,
+backend crash/durability or AP2/ACP wire-conformance acceptance.
+
+The protocol deliberately retains the consumed purchase after unknown or rejected
+outcomes. A crash between claim and dispatch, or known non-release after consuming
+the permit, can leave the purchase blocked. Recovery never mints another permit.
+A production adapter needs a separately verified fenced, idempotent retry protocol
+before claiming eventual delivery or exactly-once economic execution.
