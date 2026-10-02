@@ -6,6 +6,7 @@
 | Feature | Provides | Heavy dependency |
 |---------+----------+------------------|
 | =cedar-runtime= | Official Cedar validation and replay | =cedar-policy= |
+| =agentic-ai-boundary= | Typed tool-action and sink checks, including observable selection mutations | None |
 | =agentic-ai-language-model-disclosure-host= | In-memory reference Host for tool-using language-model disclosure | =cedar-runtime= |
 | =pseudonymization= | Borrowed common token mode and lineage profile | None |
 | =google-sdp= | Google table request and response contract | =base64= and =sha2= |
@@ -16,6 +17,10 @@ cloud SDK. =google-sdp= adds the Google wire contract and includes that common
 profile; it also compiles without =cedar-policy=. The in-memory Google
 admission boundary needs =google-sdp-host=. The language-model disclosure Host is
 opt-in, so enabling generic Cedar replay does not compile its reference API.
+The =agentic-ai-boundary= feature is independent of Cedar runtime and mirrors
+the [[file:../../CedarPooSpec/AgenticAI/Boundary.lean][Lean multimethod
+contract]]. The Host feature includes it and supplies the official Cedar
+reauthorization and process-local ledger.
 
 * Google table transformation contract
 

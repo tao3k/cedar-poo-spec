@@ -48,6 +48,7 @@ import CedarPooSpec.Pseudonymization.TableBatch
 import CedarPooSpec.Pseudonymization.TableBatchWire
 import CedarPooSpec.Data.ProtectionProfile
 import CedarPooSpec.Data.CumulativeDisclosure
+import CedarPooSpec.AgenticAI.Boundary
 import CedarPooSpec.Data.Lakehouse.LocationBoundary
 import CedarPooSpec.Data.Lakehouse.LocationProfile
 import CedarPooSpec.Pseudonymization

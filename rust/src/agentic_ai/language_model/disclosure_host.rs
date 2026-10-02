@@ -1,6 +1,7 @@
 //! In-memory Host reference for a tool-using language-model disclosure effect.
 //! Authenticated inputs and durable storage remain the deploying Host's duty.
 
+use crate::agentic_ai::boundary::{self, BoundaryFacts, SelectionDelta, SinkClass, ToolAction};
 use crate::{
     ValidatedManifest, load_policy_set, render_validated_policy_sources, replay_validated_manifest,
 };
@@ -24,6 +25,7 @@ pub struct Effect {
     pub recipients: Vec<String>,
     pub payload_digest: String,
     pub candidate_ids: Vec<String>,
+    pub selection_delta: Option<SelectionDelta>,
 }
 
 /// A scoped approval or delegation asserted by an authenticated authority.
@@ -87,6 +89,7 @@ pub struct Evidence {
     pub recipient_grants: Vec<RecipientGrant>,
     pub observed_digest: String,
     pub observed_candidate_ids: Vec<String>,
+    pub observed_selection_delta: Option<SelectionDelta>,
     pub approvals: Vec<Grant>,
     pub delegations: Vec<Grant>,
     pub possible_ids: Vec<String>,
@@ -196,10 +199,30 @@ impl PolicyBundle {
                     })
                 })
             });
-        let bound = !effect.payload_digest.is_empty()
+        let output_bound = !effect.payload_digest.is_empty()
             && effect.payload_digest == evidence.observed_digest
-            && effect.candidate_ids == evidence.observed_candidate_ids
-            && !effect.channel.is_empty();
+            && effect.candidate_ids == evidence.observed_candidate_ids;
+        let sink = match effect.channel.as_str() {
+            "workspace" => Some(SinkClass::SharedWorkspace),
+            "message" => Some(SinkClass::DirectMessage),
+            _ => None,
+        };
+        let bound = sink.is_some_and(|sink| {
+            boundary::admitted(&BoundaryFacts {
+                action: if effect.selection_delta.is_some() {
+                    ToolAction::SelectionMutation
+                } else {
+                    ToolAction::ContentWrite
+                },
+                sink,
+                intended_selection: effect.selection_delta.as_ref(),
+                observed_selection: evidence.observed_selection_delta.as_ref(),
+                candidate_ids: &effect.candidate_ids,
+                output_bound,
+                audience_allowed: audience,
+                remote_model_approved: false,
+            })
+        });
         let action = EntityUid::from_str(&self.action).map_err(|error| error.to_string())?;
         let context = Context::from_json_value(
             json!({
@@ -257,6 +280,7 @@ pub struct CommitReceipt {
     pub audience_revision: u64,
     pub remaining_budget: u64,
     pub remaining_candidates: usize,
+    pub selection_mutation: bool,
 }
 
 struct Inner {
@@ -332,6 +356,7 @@ impl InMemoryDisclosureHost {
             } else {
                 narrowed.len()
             },
+            selection_mutation: actual.selection_delta.is_some(),
         };
         if state.minimum_cohort != 0 {
             inner.evidence.possible_ids = narrowed;
@@ -346,6 +371,19 @@ impl InMemoryDisclosureHost {
         let mut inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
         inner.evidence.observed_digest = digest;
         inner.evidence.observed_candidate_ids = candidate_ids;
+        inner.evidence.observed_selection_delta = None;
+        inner.evidence.epoch += 1;
+        Ok(())
+    }
+
+    /// Records the Host-observed before/after selection for a pending mutation.
+    /// The deploying Host must derive these lists from the real tool request and
+    /// current shared artifact, and apply the mutation only after commit.
+    pub fn observe_selection(&self, digest: String, delta: SelectionDelta) -> Result<(), String> {
+        let mut inner = self.inner.lock().map_err(|_| "Host lock poisoned")?;
+        inner.evidence.observed_digest = digest;
+        inner.evidence.observed_candidate_ids = delta.after.clone();
+        inner.evidence.observed_selection_delta = Some(delta);
         inner.evidence.epoch += 1;
         Ok(())
     }

@@ -1,6 +1,7 @@
 import Examples.Health.Pseudonymization
 import CedarPooSpec.Data.DerivedArtifact
 import CedarPooSpec.Data.CumulativeDisclosure
+import CedarPooSpec.AgenticAI.Boundary
 import CedarPooSpec.Governance.ScopedApproval
 import CedarPooSpec.Governance.Personnel.Delegation
 import LeanPoo.Object.Definition
@@ -16,6 +17,7 @@ namespace CedarPooSpec.AgenticAI.LanguageModel.Disclosure
 
 open Cedar.Spec Cedar.Data Cedar.Validation
 open CedarPooSpec.PolicyModules CedarPooSpec.Governance CedarPooSpec.Data
+open CedarPooSpec.AgenticAI
 open CedarPooSpec.PseudonymizationExample
 
 def sinkType : EntityType := ⟨"DisclosureSink", []⟩
@@ -179,6 +181,7 @@ structure Effect where
   purpose : String
   recipients : List String
   candidateIds : List String := []
+  selectionDelta : Option SelectionDelta := none
   deriving DecidableEq
 
 structure State where
@@ -191,6 +194,7 @@ structure State where
   remaining : Nat := 1
   trustedSources : List SourceLabel := []
   observedDigest : String := ""
+  observedSelection : Option SelectionDelta := none
   currentRecipients : List String := []
   recipientGrants : List (EntityUID × String) := []
   cohort : CumulativeDisclosure.Ledger := {}
@@ -246,6 +250,22 @@ def audienceAllowed (state : State) (effect : Effect) : Bool :=
       effect.recipients.all fun recipient =>
         state.recipientGrants.contains (source.resource, recipient)
 
+def selectionBound (state : State) (effect : Effect) : Bool :=
+  let sink := if effect.channel == "workspace" then some SinkClass.sharedWorkspace
+    else if effect.channel == "message" then some SinkClass.directMessage
+    else none
+  match sink with
+  | none => false
+  | some sink =>
+      CedarPooSpec.AgenticAI.admitted
+        { action := if effect.selectionDelta.isSome then .selectionMutation else .contentWrite
+          sink, intendedSelection := effect.selectionDelta
+          observedSelection := state.observedSelection
+          candidateIds := effect.candidateIds
+          outputBound := effect.payloadDigest == effect.artifact.digest &&
+            effect.payloadDigest == state.observedDigest
+          audienceAllowed := audienceAllowed state effect }
+
 /-- The Host's grant-store change invalidates prepared authority even when
     the workspace member list stays the same. -/
 def revokeRecipientGrant (state : State) (resource : EntityUID)
@@ -267,8 +287,7 @@ def projectedRequest (state : State) (effect : Effect) : Request :=
     ("budgetAvailable", .prim (.bool (state.remaining > 0))),
     ("audienceAllowed", .prim (.bool (audienceAllowed state effect))),
     ("payloadBound", .prim (.bool
-      (effect.payloadDigest == effect.artifact.digest &&
-        effect.payloadDigest == state.observedDigest))),
+      (selectionBound state effect))),
     ("auditReady", .prim (.bool state.auditReady))]⟩
 
 def authorized (root : String) (state : State) (effect : Effect) : Bool :=
@@ -409,6 +428,40 @@ theorem multiTurnCohortCollapseDenied :
     (cohortAfterFirst.bind fun state => release .governed state secondCohort) = none := by
   native_decide
 
+def firstSelection : SelectionDelta :=
+  { before := ["p1", "p2", "p3", "p4", "p5", "p6"],
+    after := ["p1", "p2", "p3", "p4"] }
+def secondSelection : SelectionDelta :=
+  { before := ["p1", "p2", "p3", "p4", "p5", "p6"],
+    after := ["p3", "p4", "p5", "p6"] }
+def selectionInitial : State :=
+  { { cohortInitial with observedDigest := "selection-first" } with
+    observedSelection := some firstSelection }
+def selectionFirst : Effect :=
+  { firstCohort with
+    artifact := { joinedResult with digest := "selection-first" },
+    payloadDigest := "selection-first", selectionDelta := some firstSelection }
+def selectionSecond : Effect :=
+  { secondCohort with
+    artifact := { joinedResult with digest := "selection-second" },
+    payloadDigest := "selection-second", selectionDelta := some secondSelection }
+def selectionAfterFirst : Option State := do
+  let next ← release .governed selectionInitial selectionFirst
+  some { { next with observedDigest := "selection-second" } with
+    observedSelection := some secondSelection }
+
+/-- A selective deletion exposes the survivor set even when it writes no
+    sensitive text. It consumes the same shared cohort ledger as a write. -/
+theorem selectiveDeletionIsMediated :
+    (release .governed selectionInitial selectionFirst).isSome = true ∧
+    prepare .governed { selectionInitial with observedSelection := none }
+      selectionFirst = none ∧
+    prepare .governed selectionInitial
+      { selectionFirst with candidateIds := ["p1", "p2", "p3"] } = none ∧
+    (selectionAfterFirst.bind fun state =>
+      release .governed state selectionSecond) = none := by
+  native_decide
+
 theorem incidentAndRecovery :
     prepare .incident initial workspaceEffect = none ∧
     (release .recovered initial workspaceEffect).isSome = true := by
@@ -435,6 +488,15 @@ def cases : List (String × String × State × Effect × Decision) := [
     { cohortInitial with observedDigest := "cohort-second" }, secondCohort, .allow),
   ("source-cohort-second-after-first", "DerivedPublicationGoverned",
     (cohortAfterFirst.get (by native_decide)), secondCohort, .deny),
+  ("source-selection-survivors", "DerivedPublicationGoverned",
+    selectionInitial, selectionFirst, .allow),
+  ("source-selection-unobserved", "DerivedPublicationGoverned",
+    { selectionInitial with observedSelection := none }, selectionFirst, .deny),
+  ("source-selection-candidates-changed", "DerivedPublicationGoverned",
+    selectionInitial,
+    { selectionFirst with candidateIds := ["p1", "p2", "p3"] }, .deny),
+  ("source-selection-second-after-first", "DerivedPublicationGoverned",
+    (selectionAfterFirst.get (by native_decide)), selectionSecond, .deny),
   ("source-dropped-label", "DerivedPublicationGoverned", initial,
     { workspaceEffect with artifact := { joinedResult with sources := [source hospital] } }, .deny),
   ("source-substituted-output", "DerivedPublicationGoverned", initial,

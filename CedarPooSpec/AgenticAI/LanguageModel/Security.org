@@ -3,13 +3,17 @@
 
 * Namespace and architectural boundary
 
-=AgenticAI.LanguageModel= names the tool-using system described in the cited
+=AgenticAI= is the [[file:../README.org][top-level reusable library]] for
+tool-effect checks; =AgenticAI.LanguageModel= names the tool-using system described in the cited
 LLM-agent papers: a language model proposes multi-step actions using tool
 observations. It does not name a Cedar principal, a human delegate, or a model
 that only returns text. Generic source, approval, delegation, and admission
 rules remain in =Data=, =Governance=, and =Admission=. This namespace owns the
 language-model workflow and its external-effect acceptance cases. The model's
 proposal is untrusted input; Cedar and the Host enforce the effect boundary.
+The [[file:../Boundary.lean][typed AgenticAI boundary]] composes action and
+sink checks through LeanPoo multiple dispatch. A selection or deletion whose
+survivor set is externally observable enters the same release path as a write.
 
 An action proposed by a tool-using language-model system can cross data, model,
 tool, and storage boundaries after each individual gateway has accepted its

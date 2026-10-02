@@ -1,6 +1,7 @@
 //! Offline, process-local Host execution for a tool-using language-model system.
 
 use cedar_poo_bridge::ValidatedManifest;
+use cedar_poo_bridge::agentic_ai::boundary::SelectionDelta;
 use cedar_poo_bridge::agentic_ai::language_model::disclosure_host::{
     Effect, Evidence, Grant, InMemoryDisclosureHost, RecipientGrant, ValidatedDisclosurePolicy,
 };
@@ -48,6 +49,7 @@ fn evidence() -> Evidence {
             .to_vec(),
         observed_digest: "cohort-first".into(),
         observed_candidate_ids: ["p1", "p2", "p3", "p4"].map(str::to_owned).to_vec(),
+        observed_selection_delta: None,
         approvals: vec![grant(HOSPITAL), grant(RESEARCH)],
         delegations: vec![grant(HOSPITAL), grant(RESEARCH)],
         possible_ids: (1..=6).map(|n| format!("p{n}")).collect(),
@@ -65,6 +67,7 @@ fn effect(digest: &str, channel: &str, candidates: &[&str]) -> Effect {
         recipients: vec!["researcher-a".into()],
         payload_digest: digest.into(),
         candidate_ids: candidates.iter().map(|id| (*id).into()).collect(),
+        selection_delta: None,
     }
 }
 
@@ -142,6 +145,41 @@ fn run() -> Result<(), String> {
     let second_alone_allowed = alone.prepare(second)?.is_some();
     if !second_alone_allowed {
         return Err("independent second release was denied".into());
+    }
+
+    let first_delta = SelectionDelta {
+        before: (1..=6).map(|n| format!("p{n}")).collect(),
+        after: ["p1", "p2", "p3", "p4"].map(str::to_owned).to_vec(),
+    };
+    let second_delta = SelectionDelta {
+        before: (1..=6).map(|n| format!("p{n}")).collect(),
+        after: ["p3", "p4", "p5", "p6"].map(str::to_owned).to_vec(),
+    };
+    let first_selection = Effect {
+        selection_delta: Some(first_delta.clone()),
+        ..effect("selection-first", "workspace", &["p1", "p2", "p3", "p4"])
+    };
+    let second_selection = Effect {
+        selection_delta: Some(second_delta.clone()),
+        ..effect("selection-second", "message", &["p3", "p4", "p5", "p6"])
+    };
+    let selection_host = InMemoryDisclosureHost::new(&policy, evidence());
+    let unobserved_selection_denied = selection_host.prepare(first_selection.clone())?.is_none();
+    selection_host.observe_selection("selection-first".into(), first_delta)?;
+    let selection_ticket = selection_host
+        .prepare(first_selection.clone())?
+        .ok_or("observed selection was denied")?;
+    let selection_receipt = selection_host
+        .commit(selection_ticket, &first_selection)?
+        .ok_or("observed selection commit was denied")?;
+    selection_host.observe_selection("selection-second".into(), second_delta)?;
+    let cumulative_selection_denied = selection_host.prepare(second_selection)?.is_none();
+    if !unobserved_selection_denied
+        || !selection_receipt.selection_mutation
+        || !cumulative_selection_denied
+        || selection_host.audit()?.len() != 1
+    {
+        return Err("selection mutation bypassed observation or cumulative state".into());
     }
 
     let revoked = InMemoryDisclosureHost::new(&policy, evidence());
@@ -233,6 +271,8 @@ fn run() -> Result<(), String> {
             "auditFailureDenied": audit_failure_denied,
             "wrongIssuerDenied": wrong_issuer_denied,
             "candidateSubstitutionDenied": candidate_substitution_denied,
+            "unobservedSelectionDenied": unobserved_selection_denied,
+            "cumulativeSelectionDenied": cumulative_selection_denied,
             "auditEntries": host.audit()?.len(),
         })
     );

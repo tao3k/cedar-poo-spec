@@ -1,0 +1,49 @@
+#+TITLE: Agentic AI Effect Boundary Library
+#+OPTIONS: toc:nil
+
+=AgenticAI= is a top-level, cross-industry library for systems that plan and
+act through tools. It is separate from the Cedar =Actor= principal and from
+generic =Data=, =Governance=, and =Admission= contracts. The
+[[file:Boundary.lean][Boundary]] is reusable without a language-model-specific
+workflow; [[file:LanguageModel/Security.org][LanguageModel]] owns the narrower
+tool-using LLM security case.
+
+The boundary currently recognizes content writes and externally visible
+selection mutations, plus shared-workspace, direct-message, and remote-model
+sinks. Typed action and sink classes determine the LeanPoo multimethod's two
+C4 precedence orders. All applicable methods contribute checks, which are
+conjoined with a default output-binding check. A =contribute= edit can add a
+stricter check for one action/sink pair without withdrawing another applicable
+check in the provided generic.
+Unknown channels in the hospital consumer fail closed.
+
+The library takes =outputBound=, =audienceAllowed=, and
+=remoteModelApproved= as Host-observed facts. It cannot authenticate them or
+force every tool call through this API. A deploying harness must derive the
+real action, destination, before/after selection, recipients, and output bytes
+from its tool adapter and apply the external effect only after a durable
+decision. The [[file:../../Tests/AgenticAI/Boundary.lean][Lean tests]] and
+[[file:../../rust/src/agentic_ai/boundary.rs][Rust mirror]] check the finite
+boundary behavior; the [[file:../../Examples/Health/AgenticAI/LanguageModel/Disclosure.org][hospital case]] composes it with Cedar, lineage, grants, and a shared
+cohort ledger.
+
+* Evidence and judgment
+
+FLOWSEAL's [[https://arxiv.org/html/2609.14003v1][semantic-obfuscation attack]]
+demonstrates that deleting false entries from a shared list can reveal the
+remaining true entries without writing sensitive text. This motivates treating
+the survivor set as a proposed release. OCELOT's [[https://arxiv.org/html/2606.12341v1][trajectory model]]
+motivates checking that release against shared cumulative state rather than
+one channel's history. Neither paper proves this finite candidate-set proxy is
+a semantic leakage bound. The library checks exact finite facts; it does not
+implement FLOWSEAL's semantic declassifier or OCELOT's witness and cost model.
+
+* LeanPoo Reflection
+
+=LeanPoo.Object.Multimethod= is used here because action class and sink class
+are independent axes of policy specialization. Its candidate combination
+makes the shared-sink gate and selection-mutation gate both apply to a
+selection on a shared page. Typed enums, rather than model-supplied strings,
+select the method shape. The hospital example still uses LeanPoo prototype
+composition for source lineage and policy owners; current tool observations,
+grant revisions, and durable effect execution stay outside object inheritance.

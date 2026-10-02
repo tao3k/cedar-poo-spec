@@ -3,7 +3,7 @@
 mod artifact;
 pub use artifact::{CompiledPolicyJson, TemplateSourceJson};
 
-#[cfg(feature = "agentic-ai-language-model-disclosure-host")]
+#[cfg(feature = "agentic-ai-boundary")]
 pub mod agentic_ai;
 #[cfg(feature = "cedar-runtime")]
 mod bridge;

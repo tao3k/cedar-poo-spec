@@ -9,6 +9,9 @@ language model to plan actions and invoke tools. The Cedar =Actor= named
 case; it is not the model or a general definition of every software agent.
 Generic approval, delegation, lineage, and storage contracts remain in their
 own namespaces. See the [[file:../../../../CedarPooSpec/AgenticAI/LanguageModel/Security.org][namespace boundary]].
+The [[file:../../../../CedarPooSpec/AgenticAI/README.org][top-level AgenticAI library]]
+owns reusable tool-action and sink checks; this hospital workflow supplies
+the Cedar policy, grants, and synthetic Host facts.
 
 * Published motivation
 
@@ -80,6 +83,18 @@ Revoking a single research-source recipient grant now increments the audience
 revision and epoch; an already prepared ticket and a fresh request both fail
 while the workspace member list remains unchanged.
 
+A selective deletion is also an externally visible disclosure: the surviving
+entries can reveal which candidate records were genuine even if the tool writes
+no sensitive prose. =SelectionDelta= binds the before and after candidate lists;
+the Host's observed delta must equal the proposed one, be a proper deletion
+without duplicate IDs, and match the cohort candidates. A content-write label
+cannot hide an observed deletion. The top-level =AgenticAI.Boundary= uses
+LeanPoo multiple dispatch over typed action and sink classes, combining the
+selection rule with the shared audience and output-binding checks. The first
+synthetic selection passes; another independently acceptable selection is
+denied after their survivor sets intersect below the cohort threshold. This
+models one finite omission pattern, not a general semantic privacy guarantee.
+
 The namespace migration changes the owner of this example, not the policy
 graph. LeanPoo still composes =FinalAudience= with the other independent veto
 owners. Grant revocation is a current Host fact; object inheritance cannot
@@ -109,7 +124,7 @@ effect visible. On conflict, changed approval, changed policy, or failed audit,
 it must recompute the request and refuse the old ticket. A normal process-local
 Lean state transition does not make this transaction durable.
 
-[[file:DisclosureExport.lean][DisclosureExport.lean]] sends the same sixteen synthetic policy decisions to
+[[file:DisclosureExport.lean][DisclosureExport.lean]] sends twenty synthetic policy decisions to
 the official Cedar Rust validator and authorizer. =just example health
 agentic-ai-language-model-disclosure= checks exact allow/deny outcomes, empty policy errors, and
 schema fingerprints. The same recipe runs the [[file:../../../../rust/examples/agentic_ai_language_model_disclosure_host.rs][Rust Host example]]:
@@ -118,6 +133,9 @@ ticket, altered channel, expanded workspace audience, and missing source-specifi
 recipient grant fail, a later
 message is denied by the shared cohort state, and revocation, audit failure,
 wrong grant issuer, and a substituted candidate set fail before release.
+The Rust reference also requires an observed selection delta, records a
+mutation flag without patient identifiers, and denies a second selection
+after the shared cohort narrows.
 The commit receipt records source, destination, purpose, and revisions without
 logging patient identifiers. This is a process-local Host
 reference with synthetic facts. It does not authenticate a real query or

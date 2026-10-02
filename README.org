@@ -71,7 +71,7 @@ extensible policy profiles.
 [[file:docs/rfc/0008-composable-control-objects.org][RFC 0008]] defines an
 open, scenario-driven control-object library above Cedar's upstream semantics.
 Pseudonymization, Admission, Governance, Data,
-[[file:CedarPooSpec/AgenticAI/LanguageModel/Security.org][AgenticAI.LanguageModel]], and
+[[file:CedarPooSpec/AgenticAI/README.org][AgenticAI]], and
 [[file:CedarPooSpec/Cloud/README.org][Cloud]] are cross-industry
 capability families;
 =Vertical/Health= and =Vertical/FinancialServices= hold industry controls,
