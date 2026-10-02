@@ -24,9 +24,17 @@ def offer : AgentMerchantOffer :=
         amountMinor := 30000, asset := "HKD" },
     expiresAt := 20, verified := false }
 
+def child : AgentCommerceMandate :=
+  { mandate with
+    mandateId := "trip-child",
+    agentId := "booking-agent",
+    agentPublicKey := "0273103ec30b3ccf57daae08e93534aef144a35940cf6bbba12a0cf7cbd5d65a64",
+    perPurchaseCap := 40000, totalCap := 60000, expiresAt := 25 }
+
 def fixture : Lean.Json := Lean.Json.mkObj [
   ("mandate", mandate.claimsJson),
-  ("offer", offer.claimsJson)]
+  ("offer", offer.claimsJson),
+  ("lineage", Lean.toJson ([mandate.claimsJson, child.claimsJson] : List Lean.Json))]
 
 end CedarPooSpec.AgentCommerceProjectionTest
 

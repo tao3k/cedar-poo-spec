@@ -1,11 +1,13 @@
 use cedar_poo_bridge::agent_commerce_admission::{
-    AdmissionError, AdmissionRequest, AgentCommerceAdmissionHost,
+    AdmissionError, AdmissionRequest, AgentCommerceAdmissionHost, DelegatedAdmissionRequest,
+    SignedDelegation,
 };
 use cedar_poo_bridge::lean_mandate_offer_projection::{
     LeanMandateClaims, LeanOfferClaims, mandate_claims, offer_claims,
 };
 use cedar_poo_bridge::mandate_offer_signatures::{
-    MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, sha256_hex,
+    MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
+    sha256_hex,
 };
 use p256::ecdsa::{Signature, SigningKey, signature::Signer};
 
@@ -24,6 +26,7 @@ fn key_hex(key: &SigningKey) -> String {
 
 struct Fixture {
     principal_key: SigningKey,
+    agent_key: SigningKey,
     merchant_key: SigningKey,
     mandate: MandatePayload,
     offer: OfferPayload,
@@ -34,10 +37,12 @@ impl Fixture {
     fn new() -> Self {
         let principal_key = signer(1);
         let agent_key = signer(2);
+        let agent_public_key = key_hex(&agent_key);
         let merchant_key = signer(3);
         let checkout = br#"{"ride":"airport","total_minor":30000}"#.to_vec();
         Self {
             principal_key,
+            agent_key,
             merchant_key,
             mandate: MandatePayload {
                 mandate_id: "trip-root".into(),
@@ -47,7 +52,7 @@ impl Fixture {
                     entity_id: "buyer".into(),
                 },
                 agent_id: "travel-agent".into(),
-                agent_public_key: key_hex(&agent_key).into(),
+                agent_public_key: agent_public_key.into(),
                 allowed_merchants: vec!["ride-seller".into()],
                 allowed_products: vec!["airport-ride".into()],
                 asset: "HKD".into(),
@@ -138,6 +143,123 @@ impl Fixture {
                 now,
             },
             |_, _| policy_allows,
+        )
+    }
+}
+
+struct DelegatedFixture {
+    root: Fixture,
+    child: MandatePayload,
+}
+
+impl DelegatedFixture {
+    fn new() -> Self {
+        let root = Fixture::new();
+        let child_key = signer(4);
+        let child = MandatePayload {
+            mandate_id: "trip-child".into(),
+            agent_id: "booking-agent".into(),
+            agent_public_key: key_hex(&child_key).into(),
+            per_purchase_cap: 40_000,
+            total_cap: 60_000,
+            expires_at: 25,
+            ..root.mandate.clone()
+        };
+        Self { root, child }
+    }
+
+    fn claims(&self) -> (Vec<LeanMandateClaims>, LeanOfferClaims) {
+        let trust = self.root.trust();
+        let root_signature: Signature = self
+            .root
+            .principal_key
+            .sign(&self.root.mandate.signing_bytes());
+        let root = trust
+            .verify_mandate(
+                self.root.mandate.clone(),
+                root_signature.to_bytes().as_slice(),
+            )
+            .unwrap();
+        let child_signature: Signature = self
+            .root
+            .agent_key
+            .sign(&delegation_signing_bytes(&self.root.mandate, &self.child));
+        let child = trust
+            .verify_delegation(
+                &root,
+                self.child.clone(),
+                child_signature.to_bytes().as_slice(),
+            )
+            .unwrap();
+        let offer_signature: Signature = self
+            .root
+            .merchant_key
+            .sign(&self.root.offer.signing_bytes());
+        let offer = trust
+            .verify_offer(
+                self.root.offer.clone(),
+                &self.root.checkout,
+                offer_signature.to_bytes().as_slice(),
+            )
+            .unwrap();
+        (
+            vec![mandate_claims(&root), mandate_claims(&child)],
+            offer_claims(&offer),
+        )
+    }
+
+    fn admit(
+        &self,
+        host: &AgentCommerceAdmissionHost,
+        lineage: &[LeanMandateClaims],
+        offer: &LeanOfferClaims,
+    ) -> Result<cedar_poo_bridge::agent_commerce_admission::AdmittedDelegation, AdmissionError>
+    {
+        self.admit_with_policy(host, lineage, offer, |claims, actual_offer| {
+            claims == lineage && actual_offer == offer
+        })
+    }
+
+    fn admit_with_policy<F>(
+        &self,
+        host: &AgentCommerceAdmissionHost,
+        lineage: &[LeanMandateClaims],
+        offer: &LeanOfferClaims,
+        policy_allows: F,
+    ) -> Result<cedar_poo_bridge::agent_commerce_admission::AdmittedDelegation, AdmissionError>
+    where
+        F: FnOnce(&[LeanMandateClaims], &LeanOfferClaims) -> bool,
+    {
+        let root_signature: Signature = self
+            .root
+            .principal_key
+            .sign(&self.root.mandate.signing_bytes());
+        let child_signature: Signature = self
+            .root
+            .agent_key
+            .sign(&delegation_signing_bytes(&self.root.mandate, &self.child));
+        let offer_signature: Signature = self
+            .root
+            .merchant_key
+            .sign(&self.root.offer.signing_bytes());
+        let child_signature_bytes = child_signature.to_bytes();
+        let delegations = [SignedDelegation {
+            child: self.child.clone(),
+            signature: child_signature_bytes.as_slice(),
+        }];
+        host.admit_delegated(
+            DelegatedAdmissionRequest {
+                root: self.root.mandate.clone(),
+                root_signature: root_signature.to_bytes().as_slice(),
+                delegations: &delegations,
+                offer: self.root.offer.clone(),
+                checkout_bytes: &self.root.checkout,
+                offer_signature: offer_signature.to_bytes().as_slice(),
+                lean_lineage: lineage,
+                lean_offer: offer,
+                now: 10,
+            },
+            policy_allows,
         )
     }
 }
@@ -303,4 +425,205 @@ fn changed_checkout_fails_before_policy_evaluation() {
     );
     assert!(matches!(result, Err(AdmissionError::OfferVerification(_))));
     assert!(!policy_called);
+}
+
+#[test]
+fn delegated_admission_rechecks_root_child_and_exact_lineage() {
+    let fixture = DelegatedFixture::new();
+    let (lineage, offer) = fixture.claims();
+    let host = fixture.root.host();
+    let admitted = fixture.admit(&host, &lineage, &offer).unwrap();
+    assert_eq!(admitted.lineage(), lineage);
+    assert_eq!(admitted.offer(), &offer);
+
+    let mut changed = lineage.clone();
+    changed[0].principal.eid = "other".into();
+    assert_eq!(
+        fixture.admit(&host, &changed, &offer),
+        Err(AdmissionError::LineageClaimsMismatch)
+    );
+    let mut changed = lineage.clone();
+    changed[1].per_purchase_cap += 1;
+    assert_eq!(
+        fixture.admit(&host, &changed, &offer),
+        Err(AdmissionError::LineageClaimsMismatch)
+    );
+    assert_eq!(
+        fixture.admit(&host, &lineage[..1], &offer),
+        Err(AdmissionError::LineageClaimsMismatch)
+    );
+    let mut changed_offer = offer.clone();
+    changed_offer.terms.amount_minor += 1;
+    assert_eq!(
+        fixture.admit(&host, &lineage, &changed_offer),
+        Err(AdmissionError::LineageClaimsMismatch)
+    );
+}
+
+#[test]
+fn ancestor_and_agent_revocation_reject_old_delegation_chain() {
+    let fixture = DelegatedFixture::new();
+    let (lineage, offer) = fixture.claims();
+    let mut host = fixture.root.host();
+    host.revoke_mandate(
+        fixture.root.mandate.principal.clone(),
+        fixture.root.mandate.mandate_id.clone(),
+    );
+    assert_eq!(
+        fixture.admit(&host, &lineage, &offer),
+        Err(AdmissionError::RevokedMandate)
+    );
+
+    let mut host = fixture.root.host();
+    host.revoke_agent_key(fixture.root.mandate.agent_public_key.clone());
+    assert_eq!(
+        fixture.admit(&host, &lineage, &offer),
+        Err(AdmissionError::RevokedAgentKey)
+    );
+
+    let mut host = fixture.root.host();
+    host.revoke_mandate(
+        fixture.child.principal.clone(),
+        fixture.child.mandate_id.clone(),
+    );
+    assert_eq!(
+        fixture.admit(&host, &lineage, &offer),
+        Err(AdmissionError::RevokedMandate)
+    );
+
+    let mut host = fixture.root.host();
+    host.revoke_agent_key(fixture.child.agent_public_key.clone());
+    assert_eq!(
+        fixture.admit(&host, &lineage, &offer),
+        Err(AdmissionError::RevokedAgentKey)
+    );
+
+    let mut host = fixture.root.host();
+    host.enroll_principal_key(
+        fixture.root.mandate.principal.clone(),
+        *signer(9).verifying_key(),
+    );
+    assert!(matches!(
+        fixture.admit(&host, &lineage, &offer),
+        Err(AdmissionError::MandateVerification(_))
+    ));
+}
+
+#[test]
+fn delegated_policy_runs_only_after_current_chain_and_claims() {
+    let fixture = DelegatedFixture::new();
+    let (lineage, offer) = fixture.claims();
+    let mut host = fixture.root.host();
+    host.revoke_agent_key(fixture.root.mandate.agent_public_key.clone());
+    let mut called = false;
+    let result = fixture.admit_with_policy(&host, &lineage, &offer, |_, _| {
+        called = true;
+        true
+    });
+    assert_eq!(result, Err(AdmissionError::RevokedAgentKey));
+    assert!(!called);
+
+    let host = fixture.root.host();
+    let mut changed = lineage.clone();
+    changed[1].agent_id = "other".into();
+    let result = fixture.admit_with_policy(&host, &changed, &offer, |_, _| {
+        called = true;
+        true
+    });
+    assert_eq!(result, Err(AdmissionError::LineageClaimsMismatch));
+    assert!(!called);
+
+    let result = fixture.admit_with_policy(&host, &lineage, &offer, |_, _| {
+        called = true;
+        false
+    });
+    assert_eq!(result, Err(AdmissionError::PolicyDenied));
+    assert!(called);
+}
+
+#[test]
+fn two_hop_admission_rechecks_intermediate_mandate() {
+    let fixture = DelegatedFixture::new();
+    let (mut lineage, offer_claims) = fixture.claims();
+    let grandchild = MandatePayload {
+        mandate_id: "trip-grandchild".into(),
+        agent_id: "checkout-agent".into(),
+        agent_public_key: key_hex(&signer(5)).into(),
+        per_purchase_cap: 30_000,
+        total_cap: 50_000,
+        expires_at: 20,
+        ..fixture.child.clone()
+    };
+    let root_signature: Signature = fixture
+        .root
+        .principal_key
+        .sign(&fixture.root.mandate.signing_bytes());
+    let child_signature: Signature = fixture.root.agent_key.sign(&delegation_signing_bytes(
+        &fixture.root.mandate,
+        &fixture.child,
+    ));
+    let grandchild_signature: Signature =
+        signer(4).sign(&delegation_signing_bytes(&fixture.child, &grandchild));
+    let offer_signature: Signature = fixture
+        .root
+        .merchant_key
+        .sign(&fixture.root.offer.signing_bytes());
+    let child_signature_bytes = child_signature.to_bytes();
+    let grandchild_signature_bytes = grandchild_signature.to_bytes();
+    let delegations = [
+        SignedDelegation {
+            child: fixture.child.clone(),
+            signature: child_signature_bytes.as_slice(),
+        },
+        SignedDelegation {
+            child: grandchild.clone(),
+            signature: grandchild_signature_bytes.as_slice(),
+        },
+    ];
+    let root = fixture
+        .root
+        .trust()
+        .verify_mandate(
+            fixture.root.mandate.clone(),
+            root_signature.to_bytes().as_slice(),
+        )
+        .unwrap();
+    let child = fixture
+        .root
+        .trust()
+        .verify_delegation(
+            &root,
+            fixture.child.clone(),
+            child_signature_bytes.as_slice(),
+        )
+        .unwrap();
+    let final_mandate = fixture
+        .root
+        .trust()
+        .verify_delegation(&child, grandchild, grandchild_signature_bytes.as_slice())
+        .unwrap();
+    lineage.push(mandate_claims(&final_mandate));
+    let admit = |host: &AgentCommerceAdmissionHost| {
+        host.admit_delegated(
+            DelegatedAdmissionRequest {
+                root: fixture.root.mandate.clone(),
+                root_signature: root_signature.to_bytes().as_slice(),
+                delegations: &delegations,
+                offer: fixture.root.offer.clone(),
+                checkout_bytes: &fixture.root.checkout,
+                offer_signature: offer_signature.to_bytes().as_slice(),
+                lean_lineage: &lineage,
+                lean_offer: &offer_claims,
+                now: 10,
+            },
+            |claims, _| claims.len() == 3,
+        )
+    };
+    let mut host = fixture.root.host();
+    assert_eq!(admit(&host).unwrap().lineage(), lineage);
+    host.revoke_mandate(
+        fixture.child.principal.clone(),
+        fixture.child.mandate_id.clone(),
+    );
+    assert_eq!(admit(&host), Err(AdmissionError::RevokedMandate));
 }

@@ -3,7 +3,8 @@ use cedar_poo_bridge::lean_mandate_offer_projection::{
     offer_matches,
 };
 use cedar_poo_bridge::mandate_offer_signatures::{
-    MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, sha256_hex,
+    MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
+    sha256_hex,
 };
 use p256::ecdsa::{Signature, SigningKey, signature::Signer};
 use serde_json::{Value, json};
@@ -97,6 +98,27 @@ fn lean_claims_match_live_verified_rust_evidence() {
         serde_json::to_value(offer_claims).unwrap(),
         fixture["offer"]
     );
+
+    let child_agent_key = signer(4);
+    let child = MandatePayload {
+        mandate_id: "trip-child".into(),
+        agent_id: "booking-agent".into(),
+        agent_public_key: key_hex(&child_agent_key).into(),
+        per_purchase_cap: 40_000,
+        total_cap: 60_000,
+        expires_at: 25,
+        ..mandate.payload().clone()
+    };
+    let parent_agent_key = signer(2);
+    let child_signature: Signature =
+        parent_agent_key.sign(&delegation_signing_bytes(mandate.payload(), &child));
+    let verified_child = MandateOfferTrust::new()
+        .verify_delegation(&mandate, child, child_signature.to_bytes().as_slice())
+        .unwrap();
+    let child_claims: LeanMandateClaims =
+        serde_json::from_value(fixture["lineage"][1].clone()).unwrap();
+    assert_eq!(fixture["lineage"][0], fixture["mandate"]);
+    assert!(mandate_matches(&verified_child, &child_claims));
 }
 
 #[test]

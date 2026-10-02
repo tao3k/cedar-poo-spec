@@ -50,10 +50,11 @@ verified mandate and offer values. =just check-agent-commerce-projection=
 exercises the cross-language mapping with signed synthetic inputs. The Host
 must also check time, key status, policy, and revocation before setting
 =verified=. The optional Rust =agent-commerce-admission= reference performs those dynamic
-checks for signed root mandates and merchant offers with a Host-supplied clock
-and policy evaluator. Its registry and revocation state are process-local;
-delegated child mandates and durable reservation and effect receipts remain
-separate work.
+checks for signed root mandates, narrower signed child chains, and merchant
+offers with a Host-supplied clock and policy evaluator. It compares each
+verified mandate to the complete Lean lineage. Its registry and revocation
+state are process-local; durable shared-budget reservation and effect receipts
+remain separate work.
 
 * Boundary
 

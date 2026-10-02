@@ -4,6 +4,7 @@
 
 - `cedar-poo-bridge` wraps the current Rust bridge CLI as a byte-preserving process client. It accepts a repository path and permits a different executable in tests or future integrations. A native Python bridge can add an implementation behind this boundary without changing conformance recipe names.
 - `cedar-poo-testing` owns conformance plans, artifact generation and checks, schema-bound receipt checks, and the optional pinned CPC research check. Its `cedar-poo-test` CLI is called by imported Justfiles; the Justfiles remain the stable public task interface.
+- Named `cedar-poo-test check <recipe>` plans run Lean conformance fixtures, jq assertions, and Cedar Rust consumers behind the corresponding `just check-*` entrypoints.
 
 From the repository root:
 

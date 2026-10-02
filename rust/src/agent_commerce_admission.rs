@@ -11,8 +11,8 @@ use crate::lean_mandate_offer_projection::{
     offer_matches,
 };
 use crate::mandate_offer_signatures::{
-    MandateId, MandateOfferTrust, MandatePayload, MerchantId, OfferId, OfferPayload, PrincipalId,
-    VerifiedMandate, VerifiedOffer,
+    AgentPublicKey, MandateId, MandateOfferTrust, MandatePayload, MerchantId, OfferId,
+    OfferPayload, PrincipalId, VerifiedMandate, VerifiedOffer,
 };
 use p256::ecdsa::VerifyingKey;
 use std::collections::{HashMap, HashSet};
@@ -22,8 +22,12 @@ use std::collections::{HashMap, HashSet};
 pub enum AdmissionError {
     InactivePrincipalKey,
     InactiveMerchantKey,
+    RevokedAgentKey,
     MandateVerification(String),
+    DelegationVerification(String),
     OfferVerification(String),
+    MissingDelegation,
+    LineageClaimsMismatch,
     MissingPolicyEpoch,
     StalePolicyEpoch,
     PolicyEpochRollback,
@@ -68,6 +72,44 @@ pub struct AdmissionRequest<'a> {
     pub now: u64,
 }
 
+/// One child mandate signed by the preceding mandate's Agent key.
+pub struct SignedDelegation<'a> {
+    pub child: MandatePayload,
+    pub signature: &'a [u8],
+}
+
+/// Complete signed chain and all Lean projections for a delegated admission.
+/// The first Lean claim is the root; each following claim matches one child.
+pub struct DelegatedAdmissionRequest<'a> {
+    pub root: MandatePayload,
+    pub root_signature: &'a [u8],
+    pub delegations: &'a [SignedDelegation<'a>],
+    pub offer: OfferPayload,
+    pub checkout_bytes: &'a [u8],
+    pub offer_signature: &'a [u8],
+    pub lean_lineage: &'a [LeanMandateClaims],
+    pub lean_offer: &'a LeanOfferClaims,
+    pub now: u64,
+}
+
+/// A freshly checked lineage, from principal-signed root to final child.
+/// Every node needs fresh Host state checks again at reservation or effect.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdmittedDelegation {
+    lineage: Vec<LeanMandateClaims>,
+    offer: LeanOfferClaims,
+}
+
+impl AdmittedDelegation {
+    pub fn lineage(&self) -> &[LeanMandateClaims] {
+        &self.lineage
+    }
+
+    pub fn offer(&self) -> &LeanOfferClaims {
+        &self.offer
+    }
+}
+
 /// Host-controlled, process-local admission state. The key sets track current
 /// active status; re-enrollment rotates a key and old signatures fail on use.
 #[derive(Default)]
@@ -75,6 +117,7 @@ pub struct AgentCommerceAdmissionHost {
     trust: MandateOfferTrust,
     active_principals: HashSet<PrincipalId>,
     active_merchants: HashSet<MerchantId>,
+    revoked_agent_keys: HashSet<AgentPublicKey>,
     policy_epochs: HashMap<PrincipalId, u64>,
     revoked_mandates: HashSet<(PrincipalId, MandateId)>,
     revoked_offers: HashSet<(MerchantId, OfferId)>,
@@ -101,6 +144,11 @@ impl AgentCommerceAdmissionHost {
 
     pub fn deactivate_merchant_key(&mut self, merchant: &MerchantId) {
         self.active_merchants.remove(merchant);
+    }
+
+    /// Reject this Agent key as a current delegate or holder of authority.
+    pub fn revoke_agent_key(&mut self, key: AgentPublicKey) {
+        self.revoked_agent_keys.insert(key);
     }
 
     /// The current epoch is exact. Lower values cannot reopen old authority.
@@ -150,6 +198,79 @@ impl AgentCommerceAdmissionHost {
         })
     }
 
+    /// Rebuild the complete chain from signed bytes against current Host state.
+    /// Policy sees every exact verified mandate, including the root.
+    pub fn admit_delegated<F>(
+        &self,
+        request: DelegatedAdmissionRequest<'_>,
+        policy_allows: F,
+    ) -> Result<AdmittedDelegation, AdmissionError>
+    where
+        F: FnOnce(&[LeanMandateClaims], &LeanOfferClaims) -> bool,
+    {
+        let (verified, lineage) = self.verify_lineage(&request)?;
+        let offer = self.verify_delegated_offer(&request)?;
+        let offer_claims = offer_claims(&offer);
+        if lineage != request.lean_lineage || offer_claims != *request.lean_offer {
+            return Err(AdmissionError::LineageClaimsMismatch);
+        }
+        Self::check_scope(verified.payload(), offer.payload())?;
+        if !policy_allows(&lineage, &offer_claims) {
+            return Err(AdmissionError::PolicyDenied);
+        }
+        Ok(AdmittedDelegation {
+            lineage,
+            offer: offer_claims,
+        })
+    }
+
+    fn verify_lineage(
+        &self,
+        request: &DelegatedAdmissionRequest<'_>,
+    ) -> Result<(VerifiedMandate, Vec<LeanMandateClaims>), AdmissionError> {
+        if request.delegations.is_empty() {
+            return Err(AdmissionError::MissingDelegation);
+        }
+        if !self.active_principals.contains(&request.root.principal) {
+            return Err(AdmissionError::InactivePrincipalKey);
+        }
+        let mut verified = self
+            .trust
+            .verify_mandate(request.root.clone(), request.root_signature)
+            .map_err(AdmissionError::MandateVerification)?;
+        self.check_mandate_state(verified.payload(), request.now)?;
+        let mut lineage = vec![mandate_claims(&verified)];
+        for delegation in request.delegations {
+            let child = self
+                .trust
+                .verify_delegation(&verified, delegation.child.clone(), delegation.signature)
+                .map_err(AdmissionError::DelegationVerification)?;
+            self.check_mandate_state(child.payload(), request.now)?;
+            lineage.push(mandate_claims(&child));
+            verified = child;
+        }
+        Ok((verified, lineage))
+    }
+
+    fn verify_delegated_offer(
+        &self,
+        request: &DelegatedAdmissionRequest<'_>,
+    ) -> Result<VerifiedOffer, AdmissionError> {
+        if !self.active_merchants.contains(&request.offer.merchant_id) {
+            return Err(AdmissionError::InactiveMerchantKey);
+        }
+        let offer = self
+            .trust
+            .verify_offer(
+                request.offer.clone(),
+                request.checkout_bytes,
+                request.offer_signature,
+            )
+            .map_err(AdmissionError::OfferVerification)?;
+        self.check_offer_state(offer.payload(), request.now)?;
+        Ok(offer)
+    }
+
     fn verify_signatures(
         &self,
         request: &AdmissionRequest<'_>,
@@ -181,8 +302,15 @@ impl AgentCommerceAdmissionHost {
         verified_offer: &VerifiedOffer,
         now: u64,
     ) -> Result<(), AdmissionError> {
-        let mandate = verified_mandate.payload();
-        let offer = verified_offer.payload();
+        self.check_mandate_state(verified_mandate.payload(), now)?;
+        self.check_offer_state(verified_offer.payload(), now)
+    }
+
+    fn check_mandate_state(
+        &self,
+        mandate: &MandatePayload,
+        now: u64,
+    ) -> Result<(), AdmissionError> {
         match self.policy_epochs.get(&mandate.principal) {
             None => return Err(AdmissionError::MissingPolicyEpoch),
             Some(epoch) if *epoch != mandate.policy_epoch => {
@@ -196,14 +324,21 @@ impl AgentCommerceAdmissionHost {
         {
             return Err(AdmissionError::RevokedMandate);
         }
+        if self.revoked_agent_keys.contains(&mandate.agent_public_key) {
+            return Err(AdmissionError::RevokedAgentKey);
+        }
+        if now >= mandate.expires_at {
+            return Err(AdmissionError::ExpiredMandate);
+        }
+        Ok(())
+    }
+
+    fn check_offer_state(&self, offer: &OfferPayload, now: u64) -> Result<(), AdmissionError> {
         if self
             .revoked_offers
             .contains(&(offer.merchant_id.clone(), offer.offer_id.clone()))
         {
             return Err(AdmissionError::RevokedOffer);
-        }
-        if now >= mandate.expires_at {
-            return Err(AdmissionError::ExpiredMandate);
         }
         if now >= offer.expires_at {
             return Err(AdmissionError::ExpiredOffer);
@@ -224,6 +359,10 @@ impl AgentCommerceAdmissionHost {
         if !offer_matches(verified_offer, request.lean_offer) {
             return Err(AdmissionError::OfferClaimsMismatch);
         }
+        Self::check_scope(mandate, offer)
+    }
+
+    fn check_scope(mandate: &MandatePayload, offer: &OfferPayload) -> Result<(), AdmissionError> {
         if !mandate.allowed_merchants.contains(&offer.merchant_id)
             || !mandate.allowed_products.contains(&offer.product_id)
             || mandate.asset != offer.asset

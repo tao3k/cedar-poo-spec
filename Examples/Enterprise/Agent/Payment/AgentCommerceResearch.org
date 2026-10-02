@@ -69,11 +69,13 @@ the [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerceProj
 fixture against live Rust verified values and individually changes each field.
 This establishes field correspondence for the synthetic fixture; the Host
 still owns the live admission decision and dynamic checks.
-The optional [[file:../../../../rust/src/agent_commerce_admission.rs][process-local admission reference]] now re-verifies the signed root mandate
-and merchant offer on each call against current enrolled keys, time, policy
-epoch, revocation IDs, exact Lean claims, and a Host policy callback. The
-clock, policy evaluator, and registry updates are trusted Host inputs. This
-does not admit a delegated child mandate or make the registry and budget durable.
+The optional [[file:../../../../rust/src/agent_commerce_admission.rs][process-local admission reference]] now re-verifies the signed root mandate,
+each parent-agent-signed child, and the merchant offer on each call against
+current enrolled keys, time, policy epoch, ancestor and child revocations,
+exact Lean lineage claims, and a Host policy callback. The clock, policy
+evaluator, and registry updates are trusted Host inputs. This establishes
+process-local delegated admission for the synthetic fixture; it neither
+authenticates a live Agent request nor makes the registry and budget durable.
 
 * Evidence from Hong Kong and the wider market
 
@@ -138,10 +140,10 @@ specific production exploit or validation of this implementation.
 
 * Next code and evaluation slices
 
-1. Bind the process-local admission reference to authenticated clock, key,
-   policy, and revocation sources, and recheck them in one durable reservation
-   transaction. Extend signed admission to delegated child chains without
-   accepting a stale root or parent Agent key.
+1. Bind the process-local delegated admission reference to authenticated
+   clock, key, policy, and revocation sources. Recheck the complete signed
+   lineage within a durable shared-budget reservation transaction; a stale
+   root, parent Agent key, or child grant must fail before reservation.
 2. Specify a separate presentation ledger for protocols that require a
    single outstanding open mandate. Test a second presentation without a
    matching signed rejection receipt, a forged receipt, and a receipt for a
