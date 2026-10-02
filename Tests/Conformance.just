@@ -86,6 +86,10 @@ check-payment-interaction:
 check-payment-audit:
     lake build CedarPooSpec.Vertical.FinancialServices.PaymentLedger Tests.Enterprise.Agent.Payment.PaymentAudit
 
+# Agent identity, delegated purchase scope, exact merchant offer, and cumulative budget.
+check-agent-commerce:
+    lake build CedarPooSpec.Vertical.FinancialServices.AgentCommerce Tests.Enterprise.Agent.Payment.AgentCommerce
+
 check-agent-trace-delta:
     lake build Examples.Enterprise.Agent.Session.HostSafety
     just example enterprise agent session-trace-delta

@@ -1,0 +1,82 @@
+#+TITLE: Agent Commerce: Delegated Intent Before Payment
+#+OPTIONS: toc:nil
+
+* Thesis and boundary
+
+As of 2026-10-02, the strategic object here is a principal's bounded task
+delegated to an identified agent. The agent may discover a seller, select an
+offer, and request a purchase while the principal is absent. A payment rail
+executes a later, narrower instruction. The trust question is whether the
+agent's exact choice is inside its current authority and corresponds to the
+merchant's actual offer. This repository models that question separately from
+processor acceptance, settlement, and bank clearing.
+
+The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerce.lean][AgentCommerce]] kernel represents a verified mandate, a verified
+merchant offer, exact selected purchase terms, and one mandate's cumulative
+budget. It admits a purchase only when agent identity, mandate ID, merchant,
+product, offer, amount, asset, policy epoch, expiry, revocation state, and
+remaining budget agree. The budget also retains the *whole active mandate* so
+the same ID cannot silently acquire another principal or a wider scope. A
+successful reservation stores the complete purchase
+and increments a revision. The Host must authenticate both input assertions
+and persist that revision with compare-and-swap before issuing any credential
+or payment request. The [[file:../../../../Tests/Enterprise/Agent/Payment/AgentCommerce.lean][regressions]] exercise substitution, replay, stale
+authority, revocation, and budget boundaries. Run =just check-agent-commerce=.
+
+Amounts are natural-number minor units in this abstract kernel. An asset
+adapter must define the unit, supported assets, and conversion to an actual
+payment instrument. The model does not sign mandates, authenticate merchant
+quotes, issue agent-specific tokens, perform identity proofing, detect fraud,
+publish policy, or execute a purchase. Its =verified= flags are Host assertions.
+Its multi-purchase budget is a synthetic local contract, not AP2 conformance.
+
+* Evidence from Hong Kong and the wider market
+
+| Dated primary source | Observed direction | Engineering consequence |
+|----------------------+--------------------+-------------------------|
+| [[https://www.hkma.gov.hk/media/eng/doc/key-information/press-release/2026/20260203e3a1.pdf][HKMA Fintech Promotion Blueprint, 2026-02-03]] | Names agentic AI as an autonomous decision and execution frontier while calling for capabilities, shared infrastructure, and sandboxes before broader customer-facing deployment. | Keep the pure authority kernel separate from provider integrations and measure a real Host in a controlled environment. |
+| [[https://newsroom.mastercard.com/news/ap/en-hk/newsroom/press-releases/en-hk/2026/mastercard-completes-its-first-live-agentic-transaction-in-hong-kong/][Mastercard Hong Kong announcement, 2026-03-27]] | Reports a live agent-booked airport ride with HSBC and DBS Hong Kong. It describes an agent-specific token, explicit consumer consent, and passkey confirmation. | Model the agent, consent scope, and exact merchant offer as first-class inputs; a token is not proof that a purchase matched the principal's task. |
+| [[https://www.mastercard.com/global/en/news-and-trends/Insights/2026/mastercard-agentic-commerce-trust-white-paper.html][Mastercard trust framework, 2026-09-30]] | Organizes agent commerce around identity, intent, controls, trusted execution, and intelligence. | Test cross-stage correspondence and leave risk intelligence as evidence rather than unconditional authority. |
+| [[https://stripe.com/blog/machine-payments-protocol][Stripe/Tempo MPP announcement, 2026-03-18]] | Introduces programmatic machine payments for APIs and services, including fiat and stablecoin paths. | Treat a machine payment challenge as an offer requiring delegated scope and budget checks before credential use. |
+| [[https://usa.visa.com/about-visa/newsroom/press-releases.releaseId.22276.html][Visa Intelligent Commerce Connect, 2026-04-08]] | Announces a pilot on-ramp spanning agent protocols, token vaults, and networks. | Keep admission independent of any one checkout protocol or rail. |
+
+These announcements establish industry direction and reported deployments,
+not an audited security guarantee for this code or for every named partner.
+The HKMA blueprint is a policy and ecosystem signal, not a rule authorizing
+autonomous transfers.
+
+* Protocol and research implications
+
+[[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2's specification]] distinguishes human-present approval of a closed
+checkout from autonomous operation under open mandates. In the latter, an
+agent key signs a closed mandate and verifiers check the user-authorized
+constraints; checkout and payment mandates bind to a merchant-signed checkout.
+AP2 describes agent-to-agent mandate delegation as outside its current scope.
+This motivates exact offer binding and a separate future study of multi-agent
+attenuation; this synthetic kernel does not implement AP2 JWTs or its
+single-open-mandate presentation rule.
+
+[[https://arxiv.org/abs/2609.00060][A Formal Analysis of Agent Payment Protocols]] (2026 preprint) studies x402,
+MPP, ACP, and AP2 and finds cross-actor, cross-stage binding questions between
+intent, authority, payment, and service effects. [[https://arxiv.org/abs/2604.15367][SoK: Security of Autonomous
+LLM Agents in Agentic Commerce]] (2026 preprint) adds agent integrity,
+inter-agent trust, market manipulation, and regulatory exposure to the threat
+map. These are research results and proposed taxonomies, not proof of a
+specific production exploit or validation of this implementation.
+
+* Next code and evaluation slices
+
+1. Define canonical mandate and offer serialization with signatures, issuer
+   trust roots, revocation source, and exact key binding; replace asserted
+   =verified= flags only at a concrete Host boundary.
+2. Prove attenuation for agent-to-agent handoff: a child may narrow merchant,
+   product, time, and budget scope but cannot expand any parent grant.
+3. Bind the reserved purchase to a merchant checkout, scoped payment
+   credential, and fulfillment evidence; preserve distinct receipt issuers and
+   dispute artifacts. Reuse the downstream payment model only at this edge.
+4. Test a durable multi-agent budget allocator under concurrent reservations,
+   failures, and retries. The current revision is a pure compare-and-swap
+   obligation, not a database transaction.
+5. Evaluate prompt injection, seller substitution, collusion, and model drift
+   with measured detection quality and reviewer load. A passing fixture does
+   not establish operational risk performance.
