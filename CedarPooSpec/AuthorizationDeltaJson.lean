@@ -1,4 +1,4 @@
-import CedarPooSpec.AuthorizationDelta
+import CedarPooSpec.AuthorizationDeltaEvidence
 import CedarPooSpec.PolicyJson
 
 /-! JSON projection for authorization-delta reports and Cedar replay cases. -/
@@ -33,10 +33,64 @@ def report (item : Report) : Except String Lean.Json := do
     ("environments_checked", Lean.toJson item.environmentsChecked),
     ("counterexamples", Lean.toJson expansions)]
 
+private def ownerJson : Option PolicyOwner → Lean.Json
+  | none => .null
+  | some owner => Lean.Json.mkObj [
+      ("introduced_by", Lean.toJson owner.introducedBy),
+      ("last_edited_by", Lean.toJson owner.lastEditedBy)]
+
+private def editKindName : EditKind → String
+  | .extend => "extend"
+  | .overlay => "overlay"
+  | .remove => "remove"
+
+private def editJson (source : EditSource) : Lean.Json :=
+  Lean.Json.mkObj [
+    ("module", Lean.toJson source.moduleName),
+    ("operation", Lean.toJson (editKindName source.operation))]
+
+private def changeJson (change : PolicyChange) : Lean.Json :=
+  Lean.Json.mkObj [
+    ("policy_id", Lean.toJson change.id),
+    ("before_owner", ownerJson change.beforeOwner),
+    ("after_owner", ownerJson change.afterOwner),
+    ("before_edits", Lean.toJson (change.beforeEdits.map editJson)),
+    ("after_edits", Lean.toJson (change.afterEdits.map editJson))]
+
+private def dependencyName : CedarPooSpec.Soundness.AuthorizationKey → String
+  | .policies => "policies"
+  | .schema => "schema"
+  | .request => "request"
+  | .entities => "entities"
+
+/-- Source and proof-reuse evidence for a Cedar symbolic result. The policy
+    edits are candidate origins, not a counterfactual attribution theorem. -/
+private def explanation (beforeRoot afterRoot : String) (changes : List PolicyChange)
+    (proof : ProofFootprint) (invalidatedRoots : List String) : Lean.Json :=
+  Lean.Json.mkObj [
+    ("before_root", Lean.toJson beforeRoot),
+    ("after_root", Lean.toJson afterRoot),
+    ("changes", Lean.toJson (changes.map changeJson)),
+    ("proof", Lean.Json.mkObj [
+      ("fresh_policy_ids", Lean.toJson proof.freshPolicyIds),
+      ("reused_policy_ids", Lean.toJson proof.reusedPolicyIds),
+      ("authorization_dependencies", Lean.toJson
+        (proof.authorizationDependencies.map dependencyName))]),
+    ("potentially_invalidated_roots", Lean.toJson invalidatedRoots)]
+
+def explainedReport (item : ExplainedReport) : Lean.Json :=
+  explanation item.beforeRoot item.afterRoot item.changes item.proof
+    item.potentiallyInvalidatedRoots
+
+def explainedImpactReport (item : ExplainedImpactReport) : Lean.Json :=
+  explanation item.beforeRoot item.afterRoot item.changes item.proof
+    item.potentiallyInvalidatedRoots
+
 def impactReport (item : ImpactReport) : Except String Lean.Json := do
   let gains ← item.gains.mapM expansion
   let losses ← item.losses.mapM contraction
   return Lean.Json.mkObj [
+    ("classification", Lean.toJson item.classification),
     ("changed_policy_ids", Lean.toJson item.changedPolicyIds),
     ("environments_checked", Lean.toJson item.environmentsChecked),
     ("gains", Lean.toJson gains),

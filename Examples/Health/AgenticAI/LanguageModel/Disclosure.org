@@ -118,8 +118,9 @@ from synthetic values and are not authenticated provider or query evidence.
 The solution contract for a deployment is: the Host resolves source and
 delegation evidence; Cedar decides using the currently deployed POO-composed
 policy; the Host compares the proposed effect with the authenticated output;
-then it atomically checks epoch, revisions, the authenticated final audience, cumulative candidate set, budget,
-and audit persistence. Only after commit may the Host make the external
+then it atomically checks epoch, revisions, the authenticated final audience,
+source-specific recipient grants, stable approval ID, cumulative candidate
+set, budget, and audit persistence. Only after commit may the Host make the external
 effect visible. On conflict, changed approval, changed policy, or failed audit,
 it must recompute the request and refuse the old ticket. A normal process-local
 Lean state transition does not make this transaction durable.
@@ -128,16 +129,25 @@ Lean state transition does not make this transaction durable.
 the official Cedar Rust validator and authorizer. =just example health
 agentic-ai-language-model-disclosure= checks exact allow/deny outcomes, empty policy errors, and
 schema fingerprints. The same recipe runs the [[file:../../../../rust/examples/agentic_ai_language_model_disclosure_host.rs][Rust Host example]]:
-one release commits, only one of two concurrent commits succeeds, a stale
-ticket, altered channel, expanded workspace audience, and missing source-specific
-recipient grant fail, a later
-message is denied by the shared cohort state, and revocation, audit failure,
-wrong grant issuer, and a substituted candidate set fail before release.
-The Rust reference also requires an observed selection delta, records a
-mutation flag without patient identifiers, and denies a second selection
-after the shared cohort narrows.
-The commit receipt records source, destination, purpose, and revisions without
+one release commits, only one of two concurrent commits succeeds, a fresh
+ticket cannot reuse the consumed approval, a fresh approval cannot replay the
+same logical operation, a separate operation with the same payload may consume
+remaining budget, duplicate approval IDs fail closed, a stale ticket and
+altered channel fail, a later message is denied by the shared cohort state,
+and an expanded audience or revoked source grant is denied. The Host also
+requires an observed selection delta and denies a second selection after the
+shared cohort narrows. Revocation, audit failure, wrong grant issuer, and a
+substituted candidate set fail before release. The commit receipt records
+operation ID, approval ID and use count, source, destination, purpose,
+recipients, and revisions without
 logging patient identifiers. This is a process-local Host
 reference with synthetic facts. It does not authenticate a real query or
 provider receipt, durably persist the transaction, send an external effect,
 or establish a measured privacy guarantee.
+
+=crossApprovalReplayDenied= and =distinctApprovalAccepted= distinguish a
+retry with fresh approval from an independent disclosure with the same
+payload. The operation ledger is process-local and the commit receipt
+precedes any sink response. The cross-industry [[file:../../../../CedarPooSpec/AgenticAI/LanguageModel/Security.org][effect-gap analysis]] specifies the
+remaining durable journal, dispatch-attempt state, and reconciliation
+requirements. No current example claims that a timeout is safe to reissue.

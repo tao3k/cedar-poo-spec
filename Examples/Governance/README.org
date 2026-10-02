@@ -190,6 +190,8 @@ The [[file:../../Productions/Governance/AuthorizationDelta.lean][authorization-d
 revisions of this same C4 graph with upstream Cedar SymCC. The posture overlay
 has no new Allow within the schema; the later ticket grant yields a concrete
 new-Allow/old-Deny witness. The witness is replayed by official Rust Cedar.
+The bidirectional report also finds a posture loss and records the POO owner,
+edit trail, possible C4 invalidation roots, and validation reuse footprint.
 See [[file:../../docs/rfc/0004-authorization-delta.org][RFC 0004]] for the
 analysis scope and solver trust boundary.
 
@@ -228,7 +230,7 @@ authorization certificate and requires fresh per-policy certificates only
 for the two changed linked bodies. =revokedCertificate= then closes the
 removal revision without a new policy-body certificate.
 
-[[file:TemplateSourceExport.lean][TemplateSourceExport.lean]] retains the
+[[file:../../Productions/Governance/TemplateSourceExport.lean][TemplateSourceExport.lean]] retains the
 editable revised templates and three slot bindings in
 [[file:TemplateSources/posture.json][posture.json]]. Rust Cedar parses that
 source and compares the linked policy IDs and canonical bodies with Lean's

@@ -5,6 +5,8 @@ use cedar_poo_bridge::agentic_ai::boundary::SelectionDelta;
 use cedar_poo_bridge::agentic_ai::language_model::disclosure_host::{
     Effect, Evidence, Grant, InMemoryDisclosureHost, RecipientGrant, ValidatedDisclosurePolicy,
 };
+use cedar_poo_bridge::authority_consumption::{AuthorityGrant, AuthorityId, AuthorityLedger};
+use cedar_poo_bridge::operation_identity::OperationId;
 use serde_json::json;
 use std::{env, fs, process, sync::Arc, thread};
 
@@ -58,8 +60,9 @@ fn evidence() -> Evidence {
     }
 }
 
-fn effect(digest: &str, channel: &str, candidates: &[&str]) -> Effect {
+fn effect(operation_id: &str, digest: &str, channel: &str, candidates: &[&str]) -> Effect {
     Effect {
+        operation_id: OperationId::from(operation_id),
         sources: vec![HOSPITAL.into(), RESEARCH.into()],
         destination: SINK.into(),
         purpose: "study-one".into(),
@@ -71,20 +74,59 @@ fn effect(digest: &str, channel: &str, candidates: &[&str]) -> Effect {
     }
 }
 
+fn authority(first: &Effect, independent: &Effect, second: &Effect) -> AuthorityLedger<Effect> {
+    AuthorityLedger {
+        grants: [
+            ("approval-first", first),
+            ("approval-retry", first),
+            ("approval-independent", independent),
+            ("approval-second", second),
+        ]
+        .into_iter()
+        .map(|(id, effect)| AuthorityGrant {
+            id: AuthorityId::from(id),
+            effect: effect.clone(),
+            max_uses: 1,
+            used: 0,
+        })
+        .collect(),
+    }
+}
+
 fn run() -> Result<(), String> {
     let path = env::args().nth(1).ok_or("expected Lean manifest path")?;
     let manifest: ValidatedManifest =
         serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
     let policy = ValidatedDisclosurePolicy::from_manifest(&manifest)?;
-    let first = effect("cohort-first", "workspace", &["p1", "p2", "p3", "p4"]);
-    let second = effect("cohort-second", "message", &["p3", "p4", "p5", "p6"]);
-    let host = InMemoryDisclosureHost::new(&policy, evidence());
+    let first = effect(
+        "release-one",
+        "cohort-first",
+        "workspace",
+        &["p1", "p2", "p3", "p4"],
+    );
+    let independent = effect(
+        "release-independent",
+        "cohort-first",
+        "workspace",
+        &["p1", "p2", "p3", "p4"],
+    );
+    let second = effect(
+        "release-two",
+        "cohort-second",
+        "message",
+        &["p3", "p4", "p5", "p6"],
+    );
+    let host = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
     let ticket = host
-        .prepare(first.clone())?
+        .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("first release was denied")?;
     let stale = host
-        .prepare(first.clone())?
+        .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("racing prepare was denied")?;
     let mut changed_channel = first.clone();
     changed_channel.channel = "message".into();
@@ -97,13 +139,58 @@ fn run() -> Result<(), String> {
     if host.commit(stale, &first)?.is_some() {
         return Err("stale racing ticket committed".into());
     }
-    let concurrent = Arc::new(InMemoryDisclosureHost::new(&policy, evidence()));
+    let fresh_reissue_denied = host
+        .prepare(AuthorityId::from("approval-first"), first.clone())?
+        .is_none();
+    if !fresh_reissue_denied
+        || host.authority_used(&AuthorityId::from("approval-first"))? != Some(1)
+    {
+        return Err("a fresh ticket reused the consumed approval".into());
+    }
+
+    let cross_approval_replay_denied = host
+        .prepare(AuthorityId::from("approval-retry"), first.clone())?
+        .is_none()
+        && host.authority_used(&AuthorityId::from("approval-retry"))? == Some(0)
+        && host.operation_admitted(&OperationId::from("release-one"))?;
+    if !cross_approval_replay_denied {
+        return Err("a new approval replayed the same workflow operation".into());
+    }
+
+    let separate = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
+    let first_independent = separate
+        .prepare(AuthorityId::from("approval-first"), first.clone())?
+        .ok_or("first independent preparation denied")?;
+    separate
+        .commit(first_independent, &first)?
+        .ok_or("first independent commit denied")?;
+    let other_ticket = separate
+        .prepare(
+            AuthorityId::from("approval-independent"),
+            independent.clone(),
+        )?
+        .ok_or("distinct approval preparation denied")?;
+    let distinct_approval_accepted = separate.commit(other_ticket, &independent)?.is_some()
+        && separate.authority_used(&AuthorityId::from("approval-independent"))? == Some(1);
+    if !distinct_approval_accepted {
+        return Err("distinct approval could not use remaining budget".into());
+    }
+
+    let concurrent = Arc::new(InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    ));
     let attempts = (0..2)
         .map(|_| {
             let host = Arc::clone(&concurrent);
             let effect = first.clone();
             let ticket = host
-                .prepare(effect.clone())?
+                .prepare(AuthorityId::from("approval-first"), effect.clone())?
                 .ok_or("parallel prepare denied")?;
             Ok(thread::spawn(move || host.commit(ticket, &effect)))
         })
@@ -129,7 +216,9 @@ fn run() -> Result<(), String> {
         "cohort-second".into(),
         ["p3", "p4", "p5", "p6"].map(str::to_owned).to_vec(),
     )?;
-    let cumulative_denied = host.prepare(second.clone())?.is_none();
+    let cumulative_denied = host
+        .prepare(AuthorityId::from("approval-second"), second.clone())?
+        .is_none();
     if !cumulative_denied || host.audit()?.len() != 1 {
         return Err("cross-channel cumulative release was not denied".into());
     }
@@ -141,8 +230,11 @@ fn run() -> Result<(), String> {
             observed_candidate_ids: ["p3", "p4", "p5", "p6"].map(str::to_owned).to_vec(),
             ..evidence()
         },
+        authority(&first, &independent, &second),
     );
-    let second_alone_allowed = alone.prepare(second)?.is_some();
+    let second_alone_allowed = alone
+        .prepare(AuthorityId::from("approval-second"), second.clone())?
+        .is_some();
     if !second_alone_allowed {
         return Err("independent second release was denied".into());
     }
@@ -157,23 +249,60 @@ fn run() -> Result<(), String> {
     };
     let first_selection = Effect {
         selection_delta: Some(first_delta.clone()),
-        ..effect("selection-first", "workspace", &["p1", "p2", "p3", "p4"])
+        ..effect(
+            "selection-first",
+            "selection-first",
+            "workspace",
+            &["p1", "p2", "p3", "p4"],
+        )
     };
     let second_selection = Effect {
         selection_delta: Some(second_delta.clone()),
-        ..effect("selection-second", "message", &["p3", "p4", "p5", "p6"])
+        ..effect(
+            "selection-second",
+            "selection-second",
+            "message",
+            &["p3", "p4", "p5", "p6"],
+        )
     };
-    let selection_host = InMemoryDisclosureHost::new(&policy, evidence());
-    let unobserved_selection_denied = selection_host.prepare(first_selection.clone())?.is_none();
+    let selection_authority = AuthorityLedger {
+        grants: [
+            (&first_selection, "approval-selection-first"),
+            (&second_selection, "approval-selection-second"),
+        ]
+        .into_iter()
+        .map(|(effect, id)| AuthorityGrant {
+            id: AuthorityId::from(id),
+            effect: effect.clone(),
+            max_uses: 1,
+            used: 0,
+        })
+        .collect(),
+    };
+    let selection_host = InMemoryDisclosureHost::new(&policy, evidence(), selection_authority);
+    let unobserved_selection_denied = selection_host
+        .prepare(
+            AuthorityId::from("approval-selection-first"),
+            first_selection.clone(),
+        )?
+        .is_none();
     selection_host.observe_selection("selection-first".into(), first_delta)?;
     let selection_ticket = selection_host
-        .prepare(first_selection.clone())?
+        .prepare(
+            AuthorityId::from("approval-selection-first"),
+            first_selection.clone(),
+        )?
         .ok_or("observed selection was denied")?;
     let selection_receipt = selection_host
         .commit(selection_ticket, &first_selection)?
         .ok_or("observed selection commit was denied")?;
     selection_host.observe_selection("selection-second".into(), second_delta)?;
-    let cumulative_selection_denied = selection_host.prepare(second_selection)?.is_none();
+    let cumulative_selection_denied = selection_host
+        .prepare(
+            AuthorityId::from("approval-selection-second"),
+            second_selection,
+        )?
+        .is_none();
     if !unobserved_selection_denied
         || !selection_receipt.selection_mutation
         || !cumulative_selection_denied
@@ -182,9 +311,13 @@ fn run() -> Result<(), String> {
         return Err("selection mutation bypassed observation or cumulative state".into());
     }
 
-    let revoked = InMemoryDisclosureHost::new(&policy, evidence());
+    let revoked = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
     let before_revoke = revoked
-        .prepare(first.clone())?
+        .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("revoke prepare was denied")?;
     revoked.revoke_delegation()?;
     let revoke_denied = revoked.commit(before_revoke, &first)?.is_none();
@@ -192,20 +325,30 @@ fn run() -> Result<(), String> {
         return Err("revoked delegation committed".into());
     }
 
-    let changed_audience = InMemoryDisclosureHost::new(&policy, evidence());
+    let changed_audience = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
     let audience_ticket = changed_audience
-        .prepare(first.clone())?
+        .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("audience prepare was denied")?;
     changed_audience.replace_audience(vec!["researcher-a".into(), "outsider".into()])?;
     let audience_change_denied = changed_audience.commit(audience_ticket, &first)?.is_none()
-        && changed_audience.prepare(first.clone())?.is_none()
+        && changed_audience
+            .prepare(AuthorityId::from("approval-first"), first.clone())?
+            .is_none()
         && changed_audience.audit()?.is_empty();
     if !audience_change_denied {
         return Err("expanded audience accepted an old or new ticket".into());
     }
-    let revoked_recipient = InMemoryDisclosureHost::new(&policy, evidence());
+    let revoked_recipient = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
     let recipient_ticket = revoked_recipient
-        .prepare(first.clone())?
+        .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("recipient revocation prepare was denied")?;
     if !revoked_recipient.revoke_recipient_grant(RESEARCH, "researcher-a")? {
         return Err("research recipient grant was missing before revocation".into());
@@ -213,48 +356,79 @@ fn run() -> Result<(), String> {
     let recipient_revocation_denied = revoked_recipient
         .commit(recipient_ticket, &first)?
         .is_none()
-        && revoked_recipient.prepare(first.clone())?.is_none()
+        && revoked_recipient
+            .prepare(AuthorityId::from("approval-first"), first.clone())?
+            .is_none()
         && revoked_recipient.audit()?.is_empty();
     if !recipient_revocation_denied {
         return Err("revoked source recipient grant accepted an old or new ticket".into());
     }
     let mut missing_recipient_grant = evidence();
     missing_recipient_grant.recipient_grants.pop();
-    let missing_recipient_grant_denied =
-        InMemoryDisclosureHost::new(&policy, missing_recipient_grant)
-            .prepare(first.clone())?
-            .is_none();
+    let missing_recipient_grant_denied = InMemoryDisclosureHost::new(
+        &policy,
+        missing_recipient_grant,
+        authority(&first, &independent, &second),
+    )
+    .prepare(AuthorityId::from("approval-first"), first.clone())?
+    .is_none();
     if !missing_recipient_grant_denied {
         return Err("missing source recipient grant was accepted".into());
     }
 
-    let failed_audit = InMemoryDisclosureHost::new(&policy, evidence());
+    let failed_audit = InMemoryDisclosureHost::new(
+        &policy,
+        evidence(),
+        authority(&first, &independent, &second),
+    );
     let before_failure = failed_audit
-        .prepare(first.clone())?
+        .prepare(AuthorityId::from("approval-first"), first.clone())?
         .ok_or("audit prepare was denied")?;
     failed_audit.set_audit_ready(false)?;
     let audit_failure_denied = failed_audit.commit(before_failure, &first)?.is_none();
-    if !audit_failure_denied || !failed_audit.audit()?.is_empty() {
+    if !audit_failure_denied
+        || !failed_audit.audit()?.is_empty()
+        || failed_audit.authority_used(&AuthorityId::from("approval-first"))? != Some(0)
+    {
         return Err("audit failure committed".into());
     }
 
     let mut wrong_issuer = evidence();
     wrong_issuer.approvals[0].issuer = "Actor::\"other-steward\"".into();
-    let wrong_issuer_denied = InMemoryDisclosureHost::new(&policy, wrong_issuer)
-        .prepare(first.clone())?
-        .is_none();
+    let wrong_issuer_denied = InMemoryDisclosureHost::new(
+        &policy,
+        wrong_issuer,
+        authority(&first, &independent, &second),
+    )
+    .prepare(AuthorityId::from("approval-first"), first.clone())?
+    .is_none();
     if !wrong_issuer_denied {
         return Err("wrong grant issuer was accepted".into());
     }
 
     let mut substituted_candidates = evidence();
     substituted_candidates.observed_candidate_ids = ["p1", "p2"].map(str::to_owned).to_vec();
-    let candidate_substitution_denied =
-        InMemoryDisclosureHost::new(&policy, substituted_candidates)
-            .prepare(first)?
-            .is_none();
+    let candidate_substitution_denied = InMemoryDisclosureHost::new(
+        &policy,
+        substituted_candidates,
+        authority(&first, &independent, &second),
+    )
+    .prepare(AuthorityId::from("approval-first"), first.clone())?
+    .is_none();
     if !candidate_substitution_denied {
         return Err("proposed candidate set overrode observed output".into());
+    }
+
+    let mut duplicate_authority = authority(&first, &independent, &second);
+    duplicate_authority
+        .grants
+        .push(duplicate_authority.grants[0].clone());
+    let duplicate_approval_denied =
+        InMemoryDisclosureHost::new(&policy, evidence(), duplicate_authority)
+            .prepare(AuthorityId::from("approval-first"), first.clone())?
+            .is_none();
+    if !duplicate_approval_denied {
+        return Err("duplicate approval ID was accepted".into());
     }
 
     println!(
@@ -264,6 +438,10 @@ fn run() -> Result<(), String> {
             "secondAloneAllowed": second_alone_allowed,
             "cumulativeSecondDenied": cumulative_denied,
             "concurrentSingleCommit": concurrent_single_commit,
+            "freshReissueDenied": fresh_reissue_denied,
+            "crossApprovalReplayDenied": cross_approval_replay_denied,
+            "distinctApprovalAccepted": distinct_approval_accepted,
+            "duplicateApprovalDenied": duplicate_approval_denied,
             "revokedDenied": revoke_denied,
             "audienceChangeDenied": audience_change_denied,
             "recipientRevocationDenied": recipient_revocation_denied,

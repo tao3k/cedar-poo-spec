@@ -100,6 +100,94 @@ The state transitions correspond to =replay= and =advance= in the Lean
 file. =Incident= and =Recovered= are policy revisions selected by the host,
 not hidden session states.
 
+* Authorization delta over a finite session trace
+
+[[file:AuthorizationTraceDelta.lean][AuthorizationTraceDelta.lean]] uses the
+public [[file:../../../../CedarPooSpec/AuthorizationDeltaTrace.lean][trace-delta API]] to replay the *same proposed actions* under =Base=
+and =Integrated=. Each side carries its own state forward only after an
+error-free Cedar Allow. A sensitive read followed by external send changes
+=[Allow, Allow]= to =[Allow, Deny]=. In a separate four-proposal trace, the
+integrated budget denies the second and third external sends; the old root
+continues to spend its ledger. The final proposals are the same operation,
+but their Cedar contexts differ because prior decisions changed the states.
+The trace marks the second external send as a direct policy difference:
+both roots receive exactly the same Cedar request and entities. At the third
+send, the inputs differ, so its changed decision cannot be assigned solely
+to the policy revision. The equality check includes the full entity store,
+not only the request context. The sensitive-read veto is also a direct
+difference at an identical Cedar input.
+The trace additionally evaluates both policies on *both* observed inputs.
+At the final budget proposal, =Base= allows and =Integrated= denies at
+either input: the changed ledger does not change either policy's decision
+there. A second two-step trace first proposes an off-task external send.
+=Base= accepts it and spends one export; =Integrated= denies it and spends
+none. Both allow the following on-task send, masking a policy difference
+that appears when both policies are evaluated on the old ledger's input.
+Under =Integrated=, moving to its own unspent-ledger input changes Deny to
+Allow. These cross-evaluations compare concrete Cedar snapshots; they do
+not simulate the alternative Host trajectory. A Lean theorem expresses the
+actual decision difference as the Boolean exclusive-or of the policy change
+at the old input and the input change under the new policy. In this masked
+case both terms are true, so the observed decisions agree.
+The API rejects a Host projection that silently substitutes a different
+operation at that point. The report retains the C4 History owner and proof
+footprint.
+
+The bounded extension enumerates all nonempty lists of length at most three
+over the explicit choices =readSecret=, on-task =sendExternal=, and off-task
+=sendExternal=. It checks 39 proposal lists from a fresh session, including
+denied proposals that leave the ledger unchanged. None has an Allow gain
+from =Base= to =Integrated=. Thirty-three lists contain a direct loss at an
+identical Cedar input, and sixteen contain a loss after the two inputs
+diverge; those sets overlap. Five lists contain an input-driven decision
+change under =Integrated=; none do under =Base=. The 102 bounded steps and
+eight named-trace steps each produce four Cedar decisions: both policy roots
+at both observed inputs. All 440 decisions are replayed by official Cedar
+Rust.
+The API rejects a case cap below 39 before constructing the lists. This is
+exhaustive only for those three choices, that initial state, and that
+three-step horizon; it says nothing about other actions or longer runs.
+The generic generator has a Lean proof that a length-=n= enumeration contains
+exactly =alphabet.length ^ n= entries. The example also checks the three
+level counts =3, 9, 27=.
+
+[[file:HostSafety.lean][HostSafety]] goes beyond that three-step enumeration
+for a fixed five-operation alphabet (public read, sensitive read, external
+send, internal send, and off-task external send). Its =Receipt= contract binds
+each operation to the prior committed =Session=, exact Cedar request and
+error-free decision, and Host ledger effect. Lean induction proves that every
+finite serialized receipt chain from the default ledger stays in four concrete
+states. A second theorem proves that an allowed external send in any such
+reachable state has not seen a sensitive document and has not spent its one
+export. The transition cases use the actual =Integrated= Cedar decision.
+The executable =run= constructs a valid receipt chain for every operation
+list, and =runEqReplayFinal= proves its final ledger equals the existing
+=replay= implementation for the same operations.
+The =verifyClaims= function also accepts claimed Host receipts. It checks
+their serialized before ledger, Cedar request and decision, and committed
+after ledger. A successful result carries a =Reachable= proof, so the same
+external-send theorem applies to the checked chain. =verifyClaimsFor= proves
+that receipts emitted by =run= are accepted with the same final ledger; a
+regression rejects alterations to each checked field.
+The Host must authenticate the ledger and effect receipts and enforce the
+listed operation mapping; Lean cannot infer those properties from a prompt or
+tool output.
+
+This addresses a finite observation raised by [[https://arxiv.org/abs/2608.15888][Bounded Agents]]: independent
+request checks miss effects of earlier actions. The September 2026
+[[https://arxiv.org/abs/2609.15803][study of sequential agent authorization]] goes further and analyzes safety
+over possible future state transitions. This is an arbitrary-length invariant
+for its declared alphabet and initial ledger, not a universal claim for every
+Host action or state. The proposal sequence, request projection, and state
+transition are supplied by the Host model; real execution still requires
+authenticated facts, complete tool coverage, serialized admission, and
+effect receipts.
+
+#+begin_src sh
+just example enterprise agent session-trace-delta
+just check-agent-trace-delta
+#+end_src
+
 * Composition and proof receipts
 
 | Root | Owner-local edit | Materialized policy bodies | Fresh body work against stated baseline |

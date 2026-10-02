@@ -1,4 +1,4 @@
-#+TITLE: Rust Bridge and Google Sensitive Data Protection Boundary
+#+TITLE: Rust Bridge and Optional Consumer APIs
 #+OPTIONS: toc:nil
 
 * Cargo features
@@ -11,6 +11,9 @@
 | =pseudonymization= | Borrowed common token mode and lineage profile | None |
 | =google-sdp= | Google table request and response contract | =base64= and =sha2= |
 | =google-sdp-host= | In-memory Cedar-to-Google admission example API | Both features above |
+| =mandate-offer-signatures= | Public mandate, delegation, and offer signature verifier API | =p256= and =sha2= |
+| =lean-mandate-offer-projection= | Exact mandate and offer claims comparison for Lean admission | =mandate-offer-signatures= |
+| =agent-commerce-admission= | Process-local admission checks for signed root mandate and offer claims | =lean-mandate-offer-projection= |
 
 The common =pseudonymization= profile compiles without =cedar-policy= or a
 cloud SDK. =google-sdp= adds the Google wire contract and includes that common
@@ -21,6 +24,44 @@ The =agentic-ai-boundary= feature is independent of Cedar runtime and mirrors
 the [[file:../../CedarPooSpec/AgenticAI/Boundary.lean][Lean multimethod
 contract]]. The Host feature includes it and supplies the official Cedar
 reauthorization and process-local ledger.
+
+The mandate and offer verifier is compiled from [[file:mandate_offer_signatures.rs][=rust/src/mandate_offer_signatures.rs=]]
+and exported by the library only with =mandate-offer-signatures=. Downstream Rust
+consumers can depend on =cedar-poo-bridge= with =default-features=false= and
+=features=["mandate-offer-signatures"]=. The [[file:../tests/integration/mandate_offer_signatures_consumer.rs][external consumer test]] calls its
+public signing-byte and verification API through the crate boundary. No
+Agent Commerce implementation is supplied from =rust/examples=; the Lean
+scenario under =Examples/= provides only synthetic inputs. The feature uses
+neither =cedar-runtime= nor =cedar-policy=. Its name reflects the exact
+research slice: signatures on a principal mandate, each narrower agent
+delegation, and a merchant offer, plus a hash of checkout bytes. Verified
+delegation values retain ancestor identities and reject their reuse on later
+hops. It does not verify an agent's HTTP request identity, evaluate an AP2
+mandate chain, issue
+a credential, allocate a durable budget, dispatch to a provider, manage
+issuer keys, or provide the checked Lean mapping.
+
+The separate [[file:lean_mandate_offer_projection.rs][Lean projection API]] accepts live =VerifiedMandate= and =VerifiedOffer=
+values and compares every signed field to typed Lean claims. It excludes the
+Host-owned =verified= flags and rejects unknown JSON fields. The
+[[file:../tests/integration/lean_mandate_offer_projection_consumer.rs][consumer test]] compares Rust's verified objects to JSON emitted by the public
+Lean types through =just check-agent-commerce-projection=. The Host must keep
+the verified values in its trusted process and set =verified= only after the
+comparison and its separate current-time, key-status, policy, and revocation
+checks. JSON claims alone do not carry cryptographic authority.
+
+The separate [[file:agent_commerce_admission.rs][Agent Commerce admission reference]] re-verifies a root mandate and
+merchant offer against currently enrolled keys and exact checkout bytes on
+every call. It rejects inactive keys, expired evidence, missing or stale policy
+epochs, revoked mandate or offer IDs, changed Lean claims, and offers outside
+the mandate scope. The Host passes a trusted clock reading and a policy
+evaluator over the exact claims. These inputs and registry changes must be
+authenticated by a deployment. The returned claims contain no reusable
+=verified= flag; a reservation or external effect needs a fresh state check.
+This process-local API does not admit delegated child mandates, authenticate
+Agent request possession, persist revocations or budget, or run Cedar itself.
+The [[file:../tests/integration/agent_commerce_admission_consumer.rs][external consumer test]] exercises these dynamic refusals under
+=agent-commerce-admission=.
 
 * Google table transformation contract
 
@@ -64,6 +105,27 @@ execution.
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/deidentify][Google de-identify REST method]],
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.locations.content/reidentify][Google re-identify REST method]], and
 [[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.deidentifyTemplates#CryptoDeterministicConfig][CryptoDeterministicConfig reference]] define the wire format.
+
+* Approval-instance consumption
+
+[[file:authority_consumption.rs][AuthorityLedger]] is a small Rust counterpart of the public
+[[file:../../CedarPooSpec/Admission/AuthorityConsumption.lean][Lean admission model]]. It matches one stable ID to one exact effect and
+rejects missing, duplicate, mismatched, and exhausted grants. The
+[[file:agentic_ai/language_model/disclosure_host.rs][in-memory disclosure Host]] rechecks Cedar and consumes an approval
+under the same lock as its budget, cohort, and audit update. The
+[[file:../examples/agentic_ai_language_model_disclosure_host.rs][offline consumer]] exercises fresh-ticket replay, concurrent tickets,
+separate approvals, and failure before consumption.
+
+[[file:operation_identity.rs][OperationLedger]] binds a logical operation ID to its exact effect.
+The Host checks it at preparation and commits it alongside approval use and
+budget debit. The offline consumer rejects a fresh approval for the same
+operation while allowing an independent operation with identical payload.
+
+This lock gives process-local serialization only. A downstream Host must
+authenticate the approval store and implement the same mutation in durable
+transactional storage. It also needs an idempotent external-effect protocol:
+the in-memory receipt does not prove delivery or resolve an uncertain sink
+response after a crash.
 
 * Local cryptographic check
 

@@ -30,6 +30,23 @@ entities, and context values represented by the schema environments. It is
 not a claim about inputs that violate the schema or host-supplied facts that
 are false.
 
+The upstream [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/README.md][Cedar Lean README]] identifies the definitional symbolic compiler,
+its implication and equivalence queries, and the soundness and completeness
+theorems. SPEC calls those public Cedar APIs instead of implementing another
+authorization semantics.
+
+* Why POO
+
+The revision is a change to a C4-composed policy root. POO keeps each policy
+owner, inheritance relation, edit trail, and proof dependency attached to
+that root, so a reviewer can connect a Cedar decision delta to the exact
+composition that would be published. Cedar decides the request; POO identifies
+which composed revision is being compared and which proof obligations may
+need another check. Host observations, authenticated context, session
+ledgers, and effect commits are external inputs and transitions. Encoding
+them as POO policy inheritance would not make those facts authentic or the
+Host transaction atomic.
+
 * Evidence and trust boundary
 
 Cedar's [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/Thm/Verification.lean][verification theorems]] establish the meaning of symbolic implication
@@ -60,6 +77,320 @@ The [[file:../../Productions/Enterprise/Agent/Payment/AuthorizationDelta.lean][f
 removal over four schema request types. The freeze has no new Allow; removing
 it produces a payment authorization witness that is also replayed in Rust.
 
+* Decision delta versus executable delta
+
+Cedar's [[https://docs.cedarpolicy.com/auth/authorization.html][authorization algorithm]] skips a policy that errors and reports its ID in
+diagnostics. A Host in this repository executes only an error-free Allow.
+Consequently, equal Cedar Allow/Deny decisions need not mean equal Host
+execution decisions. The [[https://github.com/cedar-policy/cedar/issues/2428][Cedar issue on an erroring AI-agent governance forbid]] shows a
+concrete version of this hazard in a schemaless deployment; this library
+requires a schema and validation, which rejects that issue's type mismatch.
+Schema validation still permits runtime arithmetic, extension, or missing
+entity errors, as the [[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/README.md][Cedar Lean documentation]] states.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaOperational.lean][AuthorizationDeltaOperational]] is a separate, conservative qualification for
+Hosts with the error-free rule. It invokes Cedar's public =neverErrors?= query
+for every baseline policy and every changed or newly introduced policy, in
+every schema environment. An error witness is replayed against the original
+policy, with request and entities validated; solver errors fail the query.
+Only after all these checks pass does it run the existing two-direction
+authorization delta. Identical policy bodies on the two sides reuse the same
+error check within each environment. The reported check count exposes this
+cost; the external solver's unsatisfiable answers remain analysis evidence,
+not Lean kernel proofs.
+
+The [[file:../../Tests/Governance/AuthorizationDeltaOperational.lean][governance regression]] adds a POO forbid that can overflow at the minimum
+integer value. Its condition is false on non-erroring inputs, so Cedar's
+decision delta is =equivalent-in-schema=. On the error witness, both Cedar
+responses are =Allow=, while the revised response has an erroring policy;
+the Host's executable decision therefore changes. The operational query
+returns that policy and witness instead of issuing an equivalence report.
+The same witness is replayed against both POO revisions by the official
+Rust Cedar authorizer, including expected error-policy IDs. This regression
+is maintained under =just check-authorization-delta-operational=.
+
+This qualification is intentionally stricter than the exact proposition
+=error-free-Allow(after) -> error-free-Allow(before)=: it refuses any policy
+that might error anywhere in a covered schema environment, including requests
+both revisions deny.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaOperationalExact.lean][AuthorizationDeltaOperationalExact]]
+adds that exact operational query. It forms the execution predicate from
+Cedar's symbolic =isAuthorized= result and =isSome= of the symbolic evaluation
+of every policy body, then asks Cedar's solver for an after-only execution
+witness. It repeats the query in the reverse direction. Every satisfiable
+model is validated and replayed against the original =Cedar.Spec.isAuthorized=
+responses, including =erroringPolicies=. Unknown solver results, compilation
+errors, and invalid models fail the analysis.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaOperationalExactProof.lean][AuthorizationDeltaOperationalExactProof]]
+proves the composition against Cedar's concrete response using upstream
+=compile_bisimulation= and =isAuthorized_bisimulation=. Under Cedar's strong
+well-formedness assumptions, mathematical unsatisfiability of the query
+implies no after-only error-free Allow in the covered environment; a concrete
+after-only witness conversely makes the query satisfiable. The module also
+uses Cedar's verified typecheck transformation to show that the original and
+typed policy sets produce the same executable predicate on instances of the
+type environment. These are Lean kernel theorems about the query formula.
+An external solver's UNSAT answer remains solver evidence, not a kernel proof
+of that particular run. Coverage of schema environments and truth of Host
+facts remain separate obligations.
+
+The =validatedInputCoveredBySchema= theorem now connects Cedar's request
+and entity validators to at least one queried type environment for each
+strongly well-formed concrete input. =noErrorFreeAllowExpansionForValidatedSchema=
+then lifts mathematical UNSAT in every schema environment through typecheck
+preservation to the original policy sets. Its premises explicitly require
+validated inputs, strong well-formedness of the concrete policies, successful
+typechecking, and a proof of UNSAT for each generated query. The executable
+analyzer obtains solver answers, not those Lean proofs; deployment must also
+ensure that actual Host inputs pass the validators.
+
+** Reproducible solver-proof probe
+
+=CedarPooSpec/AuthorizationDeltaBooleanCore.lean= proves that a six-atom
+Boolean formula has no satisfying interpretation when each atom is a well
+formed Boolean Cedar term and the query has the stated two-assertion shape.
+This reusable implication uses Cedar's interpretation theorems and has only
+Lean's standard =propext=, =Classical.choice=, and =Quot.sound= axioms.
+=Tests/Governance/AuthorizationDeltaFormula.lean= computes the exact
+=Published= to =Posture= ticket-sharing query, checks its structural shape,
+and supplies the six well-formedness facts. Its =exactUnsat= theorem then
+establishes =εnv ⊭ asserts= for this one query and type environment.
+The query now uses the directly linked =policiesV1= and =policiesV2= lists.
+=noGainForValidatedPolicyBodies= applies schema-level soundness to those
+exact Cedar bodies without depending on C4 model construction.
+=noGainForValidatedTicketSharing= separately uses =policyRevisionBodies= to
+connect the compiled =Published= to =Posture= C4 revision to those lists.
+Both no-gain theorems retain request/entity validation and concrete strong
+well-formedness premises, including valid policy references.
+
+The six atomic well-formedness proofs now use Cedar's well-formedness and
+type theorems with kernel reduction, including an explicit request type
+environment. The attribute-function lookup also uses kernel =decide=.
+The typechecked policy sets, generated query, and exact query-shape identity
+still use =native_decide=; =exactUnsat= depends on these four fixture-level
+certificates and is not a kernel-only theorem. The C4 bridge additionally
+depends on native certificates for model construction and compilation. This
+separation makes the trusted boundary of the policy-body claim smaller without
+implying that the end-to-end C4 claim is kernel-only. The general analyzer
+still relies on external solver answers for arbitrary generated queries.
+
+The [[file:../../Tests/Governance/AuthorizationDeltaAxiomAudit.lean][axiom audit]] runs under =just check-authorization-delta-proof= and compares
+the transitive dependencies of the Boolean core, exact fixture UNSAT,
+policy-body theorem, C4 bridge, and direct execution proof against pinned
+allowlists. It also exposes native certificates inherited from Cedar's general
+Int64 and date theorems in
+the schema-level no-gain result; the ticket-sharing formula itself has no date
+operation. A passing audit means the declared dependency set did not grow. It
+does not turn any listed native certificate into a kernel proof.
+
+The [[file:../../Tests/Governance/AuthorizationDeltaDirect.lean][direct Cedar evaluation proof]] gives a stronger result for the exact linked
+=policiesV1= and =policiesV2=: for every Cedar request and entity store, an
+error-free Allow under =policiesV2= implies an error-free Allow under
+=policiesV1=. It checks all three concrete permit policies. The two revised
+contributor policies add a conjunct, and the viewer policy is shared; the proof
+also shows that the stricter condition cannot hide a policy error present in
+the earlier body. This linked-policy theorem uses only Lean's standard axioms
+and needs no solver, typechecking, or schema-validation premise. Its C4
+=policyRevision= wrapper inherits five native certificates from fixture model
+construction and the =policyRevisionBodies= identity. The general symbolic
+analyzer and its broader schema-level theorem remain separate.
+
+=just probe-authorization-delta-proof= emits the exact =Published= to =Posture=
+no-gain query through Cedar's own symbolic encoder and asks cvc5 for CPC proof
+output. The recipe checks that cvc5 reports =unsat= and leaves the SMT-LIB
+input and CPC output in =.lake/build/authorization-delta-exact.*= for inspection.
+It enables cvc5's internal lazy proof check.
+It covers the one type environment in that ticket-sharing fixture. With local
+cvc5 1.3.4, the emitted input was 1,576 bytes and the CPC output 12,280 bytes.
+This is a reproducible solver transcript with an internal check. The fixture's
+Lean UNSAT theorem above does not depend on that transcript.
+
+[[https://cvc5.github.io/docs/latest/proofs/output_cpc.html][cvc5 documents CPC and external proof checkers]]. The current
+[[https://github.com/cvc5/logos][Lean-based Logos checker]] does not yet support
+some SMT-LIB features emitted by Cedar's encoder, notably parametric
+datatypes and =define-fun=. This probe uses both. To turn external solver
+answers into Lean UNSAT proofs for other generated queries, a checker would
+need to accept the full query, verify its proof, and bind the checked
+assumptions to the generated assertions. A CPC file or a second =unsat= string
+alone does not supply that binding.
+
+An Ethos 0.2.4 experiment narrows this gap. After renaming the four
+datatype constructors =E0=, =E1=, =R2=, and =R3= to distinct names, cvc5
+1.3.4 generated a CPC proof for the resulting query. Ethos returned
+=correct= with =--require-proof-of-false= and reference checking enabled.
+The optional =just probe-authorization-delta-proof-ethos= recipe repeats this
+experiment when =CVC5=, =ETHOS=, and =CPC_SIGNATURE_ROOT= point to cvc5
+1.3.4, Ethos 0.2.4, and cvc5 1.3.4's =proofs/eo/cpc= directory. Its checker
+pins the source-query hash and expected constructor occurrences, checks the
+proof against the renamed reference, and confirms that changing the final
+reference assertion makes Ethos reject the proof.
+For this check, the reference file omitted the leading =(reset)= (which
+clears Ethos's loaded CPC signature), and Ethos used
+=--reference-define-fun=; the proof file omitted its duplicate datatype,
+constant, and function declarations so they were read from the reference
+file. The original generated input has SHA-256
+=93ee56de8354e4b38044b225290b4a58f4b476fc6377dfbbc4c41e96ff627de5=.
+Ethos rejects that input directly because its datatype and constructor
+share each of those four names. The constructor rename preserves the
+intended SMT datatype meaning, but this experiment has no independently
+checked equivalence proof between the original bytes and the renamed
+reference. This Ethos experiment alone does not establish UNSAT for the
+original query; the fixture has a separate direct Lean proof above. A checker
+integration for general queries needs a verified translation or
+direct support for these generated declarations, followed by a checked
+connection from the proof conclusion to the Lean theorem's premise.
+That connection also needs an encoding-soundness argument: Cedar's pinned
+[[https://github.com/cedar-policy/cedar-spec/blob/017c35c3d1f856a0f8b62a66660ee6628870bbcf/cedar-lean/Cedar/SymCC/Encoder.lean][=Cedar.SymCC.Encoder=]] explicitly treats translation from symbolic =Term=
+values to SMT assertions as trusted. An external checker can establish UNSAT
+for an SMT script without, by itself, proving that the script preserves the
+meaning of the Lean =Asserts= consumed by the theorem. For general solver
+runs, the remaining chain is
+therefore source =Asserts=, encoder semantics, exact SMT input, checked UNSAT,
+and a Lean proof that these imply =εnv ⊭ asserts=.
+
+The operational regression checks an error-only loss and a deny-only error.
+The former is =loss-only= for the exact query while ordinary Allow/Deny is
+=equivalent-in-schema=. The latter is =equivalent-in-schema= for the exact
+query while the conservative qualification refuses it. The original error
+witness and the additional exact witness are replayed by Cedar Rust after
+Cedar Lean checks both concrete responses in the same gate.
+
+* Revision explanation and proof reuse
+
+[[file:../../CedarPooSpec/AuthorizationDeltaEvidence.lean][AuthorizationDeltaEvidence]]
+attaches the POO compilation to the symbolic result. For each changed policy
+body it records the before and after owner, the ordered =extend=, =overlay=,
+and =remove= history, and the roots that may need recompilation through C4's
+reverse dependency graph. It also reports the exact policy bodies needing new
+validation, the unchanged bodies eligible for certificate reuse under the
+same schema, and the authorization proof object's changed dependency key.
+
+These are distinct forms of evidence. A symbolic witness establishes a
+before/after behavior difference for the covered schema. The edit history
+shows which POO objects produced the two policy sets; when several policies
+change, it does not prove that any one edit alone caused the witness.
+=potentially_invalidated_roots= is a compilation footprint, not a list of
+requests whose decisions changed. Reuse of an old validation certificate
+requires the validated baseline and unchanged schema as stated in
+[[file:../../CedarPooSpec/Revision.lean][Revision]]; the JSON report alone is
+not a certificate.
+
+The ticket-sharing gate now queries both directions. Its device-posture
+overlay has no authorization gain but has a loss witness; its later =extend=
+has a gain witness and no loss. The official Cedar Rust authorizer replays
+both witness pairs. This demonstrates why text or policy-ID diff alone does
+not answer which requests changed.
+
+* Determining-policy delta
+
+Cedar returns the IDs of the policies determining its decision. An =Allow=
+may remain =Allow= after a POO removal while a different owner now supplies
+the remaining grant. That changes audit explanation and responsibility even
+when the decision sets are equivalent. [[file:../../CedarPooSpec/AuthorizationDeltaReasons.lean][AuthorizationDeltaReasons]] uses the upstream
+[[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/SymCC.lean][=matchesEquivalent?= and =neverMatches?= queries]] to inspect each changed policy
+ID over every schema environment. It first qualifies both policy sets with
+the error-free operational check. A matching difference becomes a reason
+witness only when original Cedar responses actually have different
+=determiningPolicies=. The report carries C4 edit owners, proof footprint,
+and potentially invalidated roots as candidate provenance; it does not
+assign sole causality when multiple edits are present.
+For sibling revision roots, invalidation starts at the last relevant editor
+on each side and includes descendants of both branches. The
+[[file:../../Tests/Governance/AuthorizationDeltaInvalidation.lean][sibling-editor regression]] checks this closure without treating it as
+a Cedar behavior change. Lean additionally proves that every before or after
+last editor of any supplied =PolicyChange= enters the invalidation origins,
+that each bounded C4 descendant enters =affectedRoots=, and that every listed
+root has such an origin and path. The same regression exercises a =remove=
+with no after policy owner and a same-body provenance transfer. These are
+compilation dependencies, not claims that an edit individually caused a Cedar
+decision or that a provenance-only change alters policy behavior.
+
+The outcome has three useful cases. A concrete changed reason is replayed by
+the official Rust Cedar authorizer. If the decision is equivalent in the
+covered schema and every changed ID retains its effect and matching behavior,
+=reasonStable= is true, subject to external solver evidence. A masked match
+can also be discharged when every version of a changed permit is covered by
+one identical forbid in both revisions. The adapter checks this with Cedar's
+verified =matchesImplies?= query in every schema environment. The
+[[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasonsProof.lean][dominated-permit theorem]] proves the concrete rule: a permit covered by a
+matching forbid cannot occur in the final determining set. The report lists
+these discharged IDs and counts the added implication queries. A mask without
+such a certificate, or an effect change, remains unresolved; one masked
+witness alone cannot establish universal reason stability. The
+[[file:../../Tests/Governance/AuthorizationDeltaReasons.lean][governance regression]] exercises an actual reason change and a dominated
+permit removal whose final reasons remain stable.
+
+There is a fourth, separate change surface: ownership can move while the
+Cedar policy body, ID, decision, and determining-policy IDs remain identical.
+An overlay of the same body under another C4 module changes who is responsible
+for that policy, without requiring a new Cedar validation certificate or
+authorization proof dependency. =Revision.provenanceChanges= compares compiled
+owners and applied edit trails independently of =changedPolicyIds=;
+=provenanceStable= is therefore reported separately from =reasonStable=.
+The governance regression transfers an unchanged ticket grant to a new owner
+and requires an empty policy-body delta together with a nonempty provenance
+delta. This keeps accountability review from mistaking Cedar behavioral
+equivalence for unchanged stewardship. Cedar's
+[[https://docs.cedarpolicy.com/policies/syntax-policy.html][policy syntax documentation]] says annotations are stored for applications
+but are not processed by Cedar; this POO owner trail is likewise application
+governance metadata, not a new Cedar authorization rule.
+
+** Effective reason equivalence
+
+The upstream-query route above resolves a common forbid-dominated permit,
+but can still leave other masks unresolved. The
+[[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasons.lean][effective-reason analyzer]] asks a more precise question for every policy ID
+in the union of the two revisions. Cedar's
+[[https://github.com/cedar-policy/cedar-spec/blob/main/cedar-lean/Cedar/Thm/Authorization.lean][=determiningPolicies_of= theorem]] says that final reasons are the satisfied
+permits on =Allow= or the satisfied forbids on =Deny=. For each ID, the
+analyzer constructs an analysis-only policy set whose =Allow= decision is
+equivalent to that ID's membership in the original final reasons:
+
+#+begin_example
+absent ID  -> empty policy set
+permit ID  -> all original forbids + that permit
+forbid ID  -> that forbid's condition as a permit
+#+end_example
+
+It then calls Cedar's upstream =equivalent?= query on the two analysis policy
+sets. The [[file:../../CedarPooSpec/AuthorizationDeltaEffectiveReasonsProof.lean][Lean reduction theorem]] proves for every concrete request and entity
+set that the analysis =Allow= decision equals final reason membership, under
+unique policy IDs. The query applies the same entity-hierarchy constraints
+as upstream equivalence checks and replays every counterexample
+against the original Cedar policy sets. The analyzer first applies the
+error-free operational qualification. Both public reason analyzers reject
+duplicate policy IDs before selecting an ID for symbolic evaluation; the
+POO compiler produces unique IDs, but callers can also construct a =Revision=
+directly. A solver failure or a model that fails
+the original Cedar replay is an error, never a stable result. Identical Cedar
+policy lists skip the reason queries while still reporting POO provenance.
+
+The proof module also proves that a unique policy ID is in Cedar's final
+determining set exactly when that policy matches and its effect agrees with
+the final decision. The same module proves that every final determining ID came from
+the compiled policy list, which justifies querying the union of the two
+revisions' IDs. The focused regression also rejects a manually constructed revision
+with duplicate IDs before any solver query.
+
+The [[file:../../Tests/Governance/AuthorizationDeltaEffectiveReasons.lean][focused regression]] distinguishes four cases: removal of one of two
+independent grants changes final reasons but not the decision; an always
+matching incident veto masks that removal for every input in the schema;
+moving the unchanged policy to another POO owner changes provenance only;
+and flipping a permit to a forbid removes the other permit from the final
+reason set. Concrete reason witnesses are replayed in Rust Cedar.
+
+The reduction is proved in Lean and uses Cedar's existing verified
+authorization-equivalence analysis rather than a new SMT encoding. As with
+the upstream query, the external solver and schema-environment coverage are
+trust boundaries: =solverReasonStable= means no difference was found by those
+queries in the checked environments. Concrete witnesses are additionally
+replayed against the original Cedar policy sets. The conservative analyzer
+remains useful when callers want sufficient conditions based on
+=matchesEquivalent?= and =neverMatches?= without constructing per-ID policy
+sets.
+
 * API and check
 
 =analyze revision schema= returns a report or a typed error. =analyzeModel=
@@ -72,9 +403,13 @@ the change without making that governance decision.
 contains requests denied before and allowed after; =losses= contains requests
 allowed before and denied after. Both directions validate the policies, check
 every schema environment, and replay each witness against the original Cedar
-policy sets. A provider-independent healthcare [[file:../../Productions/Health/Pseudonymization/AuthorizationImpact.lean][impact example]] checks that a POO
+policy sets. A completed report classifies the covered behavior as
+=equivalent-in-schema=, =gain-only=, =loss-only=, or =mixed=. A
+provider-independent healthcare [[file:../../Productions/Health/Pseudonymization/AuthorizationImpact.lean][impact example]] checks that a POO
 incident overlay only removes access and that withdrawing the overlay only
 restores access.
+=analyzeModelExplained= and =analyzeModelImpactExplained= keep those Cedar
+queries and add the C4 revision and proof footprint to the returned result.
 
 =compareOperationSnapshots= addresses a different kind of change: one
 principal/action/resource under two concrete Host-supplied request and entity
@@ -84,6 +419,94 @@ the selected operation, not a universal symbolic result. The healthcare
 example uses it to observe an approval withdrawal while the policy root stays
 the same, and to compare scope, token-key, and transformation revisions of a
 target dataset. Neither analysis authenticates a Host fact or commits an effect.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaCompound.lean][AuthorizationDeltaCompound]]
+extends the finite comparison to an ordered set of required Cedar checks.
+The two sides must contain the same requests in the same order, although
+their POO roots and authenticated entity snapshots may differ. It reports
+each layer and the conjunction that governs the complete operation. The
+[[file:../../Examples/Enterprise/Agent/Chain/README.org][agent-chain case]] demonstrates a local gain masked by an incident veto.
+This does not replace symbolic analysis of individual policies, and does
+not establish delegated authority or temporal budget safety for arbitrary
+agent histories.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaTrace.lean][AuthorizationDeltaTrace]] compares one fixed proposal sequence under two C4
+roots. A Host-supplied projection constructs each request and entity store
+from the state reached on that side; a shared transition advances only after
+an error-free Cedar Allow. Requests and entities are schema checked at every
+step, and a substituted principal/action/resource is rejected. The report
+retains before/after decisions, final states, changed POO policy owners, and
+the proof footprint. The [[file:../../Examples/Enterprise/Agent/Session/README.org][bounded-agent session]] shows that the same later
+proposal can have a different context after earlier decisions diverge;
+the step decisions are replayed by official Cedar Rust. The trace marks
+decision differences at identical full Cedar inputs separately from those
+at divergent inputs. An identical-input difference isolates a policy effect;
+a divergent-input difference may reflect policy, prior Host history, or both.
+For each step the API also evaluates both policy roots on both observed
+inputs. This 2-by-2 table identifies decision changes when one concrete
+input or one concrete policy root is held fixed. It does not identify a
+counterfactual Host trajectory or prove that either state would be reached
+under an alternate admission history. An error in any of the four Cedar
+responses rejects the table. Lean proves that the observed Boolean decision
+difference is the exclusive-or of the policy and input differences along
+either path through the table. In the budget trace the policy
+difference persists at both inputs; in the off-task-then-on-task trace, the
+later decision is equal because Integrated's earlier denial left its export
+ledger unspent.
+This is a finite trace over the supplied proposals and transition function.
+It does not quantify over all Agent choices, authenticate the state transitions, or
+establish the sequential safety condition studied in
+[[https://arxiv.org/abs/2609.15803][the 2026 delegated-authorization paper]].
+
+=compareBoundedTraces= enumerates every nonempty proposal list over an
+explicit alphabet through a finite horizon, rejecting a scope whose case
+count exceeds its supplied cap. The session example checks 39 lists over
+three choices through three steps, with 204 bounded step decisions replayed
+under the two actual roots and another 204 cross-input decisions replayed
+by Cedar Rust. Including the three named traces, the replay covers 440
+decisions. Lean proves the generator's exact-length count is
+=alphabet.length ^ length=, and the example checks the level counts. The
+bounded result applies only to the declared alphabet, initial state,
+projection, transition, and horizon. It does not
+establish the paper's every-state sequential safety condition.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaInteraction.lean][AuthorizationDeltaInteraction]] compares a base, two independent POO
+branches, and their combined root under one Cedar schema. If neither branch
+adds an Allow but the combined root does, it reports a joint-only gain and
+replays the same witness on both branches. It rejects a proposed interaction
+unless both branches inherit the base and the combined root directly mixes
+those branches. Its first use is the
+[[file:../../Examples/Enterprise/Agent/Payment/README.org][AI-agent payment joint-release case]]. Branch reports retain C4 edit owners
+and proof footprints. When either branch already gains access, the analyzer
+returns =branchExpanded= rather than claiming to have exhaustively classified
+joint effects. It checks Cedar decisions; Host execution still needs the
+error-free and transaction gates.
+
+[[file:../../CedarPooSpec/AuthorizationDeltaRelease.lean][AuthorizationDeltaRelease]] captures a four-root analysis with the exact
+compiled policies, schema representation, C4 ancestor modules, and a
+Host-supplied epoch. Its freshness check rejects changes to any reviewed
+dimension while allowing unrelated owner additions. The no-gain candidate
+API refuses joint gains until a separate approval has occurred. It does not
+authenticate that approval, read a provider's active policy version, publish
+policies, or make the comparison and effect atomic; those remain Host duties.
+Its pure =advanceNoGain= transition compares the active root, exact active
+policy set, and epoch with the reviewed base. It also requires the Host's
+execution mode to be enforcing. It returns the composed policies with the next
+version and rejects a second use of the same review after a successful
+transition. The Host must obtain the actual active policy set and execution
+mode from the deployment boundary rather than trusting a caller's copy.
+This is a material distinction: [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-enforcement-modes.html][AgentCore's enforcement-mode documentation]] says
+=LOG_ONLY= evaluates policies without blocking tool calls, and disabling the
+gateway policy engine bypasses those checks. This generic SPEC state models
+the distinction without importing an AWS-specific API.
+
+Even an enforcing policy version is a snapshot property. The 2026
+[[https://arxiv.org/abs/2609.15803][delegated-authorization study on sequential control]] analyzes safety over
+state transitions, where one agent action changes later feasible actions.
+Its results do not certify this release API: the current delta quantifies
+over Cedar requests in one schema environment and the pure release transition
+does not model future agent histories. An application requiring trajectory
+safety must add an explicit state-transition model and Host effect receipts.
 
 The repository devenv provides cvc5 and sets =CVC5= to its absolute executable
 path. After activating the repository through =direnv=, run the gate through
@@ -97,6 +520,21 @@ The recipe limits Lean time and memory, checks both expected outcomes, and
 replays the witness through Rust Cedar. =just check= includes this gate. CI
 downloads CVC5 1.4.0, checks its SHA-256 digest, and runs the same checks.
 No solver binary is committed.
+The operational gate also runs under =just check-delta= and CI. It uses a
+separate Lean test module so the ordinary Cedar decision contract stays
+unchanged. Cedar [[https://github.com/cedar-policy/cedar-spec/issues/634][issue #634]] documents the cost of querying every environment in a
+large schema; this qualification adds error queries, so production use should
+measure environment counts and cache exact policy/schema results before
+claiming interactive latency.
+The reason gate is =just check-authorization-delta-reasons= and runs under
+=just check-delta= and CI with the same solver and official Rust replay.
+The effective-reason analysis has a separate
+=just check-authorization-delta-effective-reasons= gate, also included in
+=just check-delta= and CI.
+The four-root payment interaction uses =just check-payment-interaction= and
+replays all four responses through the official Rust authorizer.
+The finite session trace uses =just example enterprise agent session-trace-delta=
+and the =check-agent-trace-delta= conformance gate.
 The payment case has its own =just check-payment-delta= gate.
 The healthcare impact case has =just check-health-authorization-impact=; it
 replays the incident, recovery, approval-withdrawal, and dataset-lineage decisions through the
@@ -104,8 +542,42 @@ official Rust Cedar authorizer. =just check-delta= and CI include it.
 
 * Scope
 
+Authorization Delta is a family of claims with different quantifiers and
+evidence. They must remain separate in release decisions:
+
+| Change surface | Current evidence | Exact limit |
+|----------------+------------------+-------------|
+| Policy bodies under one schema | Symbolic gains/losses and concrete Cedar replay | The same schema and its represented request/entity environments. |
+| Error-free Host admission | =neverErrors?= qualification before symbolic gains/losses | Conservatively rejects any possible policy error, including on denied requests. |
+| Determining-policy change with unchanged decision | Conservative upstream matching queries and concrete Cedar reason witnesses | The sufficient-condition analyzer may leave non-dominated masks unresolved; use effective-reason equivalence for the broader query. |
+| Effective final-reason membership | Lean-proved reduction to Cedar's authorization equivalence, with concrete Cedar replay | External solver answers and schema-environment coverage remain trust boundaries. |
+| Two-branch POO composition | Three Cedar gain queries, C4 provenance, and a four-root replayed witness | Joint-only classification requires both branches to have no gain; other interactions remain unclassified. |
+| Release-review freshness | Four compiled policy sets, relevant C4 modules, exact schema representation, and Host epoch | Pure compare only; Host authenticates approval and makes publication atomic. |
+| Enforcement configuration | Pure release transition rejects observing or disabled Host mode | Host must read actual deployed mode and bind it atomically to publication; Cedar implication alone cannot certify this. |
+| POO owner or edit-trail transfer with unchanged Cedar behavior | Compiled owner and edit-trail comparison | Governance provenance only; it does not assert a changed authorization decision or reason ID. |
+| Approval, classification, or other entity/context facts | Two validated concrete snapshots | One operation and two Host-supplied snapshots; no future-state quantifier. |
+| Required multi-hop checks | Ordered compound snapshot comparison | A fixed chain topology; delegation and future history remain external. |
+| Sequential Agent proposals | Two C4 roots replay fixed traces or all lists over an explicit finite alphabet and horizon, with separate evolving states and a concrete 2-by-2 policy/input table | No quantifier over actions outside the alphabet, longer runs, counterfactual Host trajectories, unauthenticated state transitions, or concurrent effects. |
+| C4 edit ownership and proof reuse | Compiled owner/edit trail and dependency footprint | Potential invalidation, not proof that one edit caused a witness. |
+| Schema evolution and unbounded operation history | No unified delta query | Revalidate and reproject across schemas; finite trace replay does not establish unbounded history safety. |
+
+For release review, policy-body changes still require explicit Cedar queries.
+=changed_policy_ids= alone cannot establish a behavior change: edits can be
+masked by another permit or veto, and two policy sets may authorize the same
+requests for different reasons. A four-root composition requires comparison
+with the final mixed root even when each branch was separately reviewed.
+
+The recently proposed [[https://arxiv.org/abs/2609.31039][MetaPermit]] moves some tool-call meaning into LLM-inferred
+meta-attributes. That is a useful contrast: even if Cedar policy bodies stay
+fixed, a changed inference result changes the Host-supplied snapshot and may
+change admission. The model inference is evidence that the Host must bind and
+audit, not a POO policy revision. This paper's evaluation does not validate
+this SPEC's Delta implementation or its Host transaction.
+
 This feature does not authenticate identity, entity facts, or context values;
 those are supplied by the host. It does not make authorization and effect
-commit atomic. It analyzes Cedar's Allow/Deny decision rather than the
-application's extra rule to reject a response containing policy errors.
+commit atomic. The ordinary delta analyzes Cedar's Allow/Deny decision; the
+optional operational qualification checks a sufficient condition for the
+application's error-free execution rule. Neither covers policy changes under
+a different schema, unvalidated host facts, or future operation histories.
 Those boundaries remain explicit at the deployment interface.
