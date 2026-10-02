@@ -1,5 +1,5 @@
 use super::{
-    AgentCommerceTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
+    MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
     hex_lower, sha256_hex,
 };
 use p256::ecdsa::{Signature, SigningKey, signature::Signer};
@@ -45,7 +45,7 @@ fn offer(checkout: &[u8]) -> OfferPayload {
 fn exact_mandate_and_offer_are_authenticated() {
     let principal = signer(1);
     let merchant = signer(2);
-    let mut trust = AgentCommerceTrust::new();
+    let mut trust = MandateOfferTrust::new();
     trust.trust_principal(mandate().principal, *principal.verifying_key());
     trust.trust_merchant("ride-provider".into(), *merchant.verifying_key());
     let mandate = mandate();
@@ -123,7 +123,7 @@ fn exact_mandate_and_offer_are_authenticated() {
 fn issuer_role_and_domain_are_bound() {
     let principal = signer(3);
     let merchant = signer(4);
-    let mut trust = AgentCommerceTrust::new();
+    let mut trust = MandateOfferTrust::new();
     trust.trust_principal(mandate().principal, *principal.verifying_key());
     trust.trust_merchant("ride-provider".into(), *merchant.verifying_key());
     let mandate = mandate();
@@ -148,7 +148,7 @@ fn child_delegation_is_signed_and_attenuated() {
     let principal = signer(1);
     let parent_agent = signer(5);
     let child_agent = signer(6);
-    let mut trust = AgentCommerceTrust::new();
+    let mut trust = MandateOfferTrust::new();
     trust.trust_principal(mandate().principal, *principal.verifying_key());
     let parent = mandate();
     let parent_signature: Signature = principal.sign(&parent.signing_bytes());
@@ -171,17 +171,68 @@ fn child_delegation_is_signed_and_attenuated() {
         ..parent.clone()
     };
     let signature: Signature = parent_agent.sign(&delegation_signing_bytes(&parent, &child));
-    assert_eq!(
+    let verified_child = trust
+        .verify_delegation(
+            &verified_parent,
+            child.clone(),
+            signature.to_bytes().as_slice(),
+        )
+        .unwrap();
+    assert_eq!(verified_child.payload(), &child);
+
+    let grandchild_agent = signer(7);
+    let grandchild = MandatePayload {
+        mandate_id: "trip-grandchild".into(),
+        agent_id: "quote-agent-9".into(),
+        agent_public_key: hex_lower(
+            grandchild_agent
+                .verifying_key()
+                .to_encoded_point(true)
+                .as_bytes(),
+        )
+        .into(),
+        per_purchase_cap: 35_000,
+        total_cap: 50_000,
+        expires_at: 22,
+        ..child.clone()
+    };
+    let grandchild_signature: Signature =
+        child_agent.sign(&delegation_signing_bytes(&child, &grandchild));
+    assert!(
         trust
             .verify_delegation(
-                &verified_parent,
-                child.clone(),
-                signature.to_bytes().as_slice()
+                &verified_child,
+                grandchild.clone(),
+                grandchild_signature.to_bytes().as_slice()
             )
-            .unwrap()
-            .payload(),
-        &child
+            .is_ok()
     );
+    for reused in [
+        MandatePayload {
+            mandate_id: parent.mandate_id.clone(),
+            ..grandchild.clone()
+        },
+        MandatePayload {
+            agent_id: parent.agent_id.clone(),
+            ..grandchild.clone()
+        },
+        MandatePayload {
+            agent_public_key: parent.agent_public_key.clone(),
+            ..grandchild.clone()
+        },
+    ] {
+        let reused_signature: Signature =
+            child_agent.sign(&delegation_signing_bytes(&child, &reused));
+        assert!(
+            trust
+                .verify_delegation(
+                    &verified_child,
+                    reused,
+                    reused_signature.to_bytes().as_slice()
+                )
+                .is_err()
+        );
+    }
     let widened = MandatePayload {
         allowed_merchants: vec!["ride-provider".into(), "other".into()],
         ..child.clone()

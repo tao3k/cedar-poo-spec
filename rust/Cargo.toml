@@ -10,7 +10,7 @@ default = []
 cedar-runtime = ["dep:cedar-policy", "dep:sha2", "cedar-policy/ipaddr", "cedar-policy/decimal", "cedar-policy/datetime"]
 google-sdp = ["dep:base64", "dep:sha2"]
 google-sdp-host = ["cedar-runtime", "google-sdp"]
-agent-commerce-auth = ["dep:p256", "dep:sha2"]
+mandate-offer-signatures = ["dep:p256", "dep:sha2"]
 
 [dependencies]
 cedar-policy = { version = "=4.12.0", optional = true, default-features = false }
@@ -56,9 +56,9 @@ path = "tests/integration/pseudonymization_crypto.rs"
 required-features = ["cedar-runtime", "google-sdp"]
 
 [[test]]
-name = "agent_commerce_auth_consumer"
-path = "tests/integration/agent_commerce_auth_consumer.rs"
-required-features = ["agent-commerce-auth"]
+name = "mandate_offer_signatures_consumer"
+path = "tests/integration/mandate_offer_signatures_consumer.rs"
+required-features = ["mandate-offer-signatures"]
 
 [dev-dependencies]
 asp-rust = { git = "https://github.com/tao3k/asp-rust", rev = "9b95fd6744a89f3f38e87f9bda33ea762f1f65e1", default-features = false }

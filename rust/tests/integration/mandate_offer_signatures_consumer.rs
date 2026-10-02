@@ -1,5 +1,5 @@
-use cedar_poo_bridge::agent_commerce_auth::{
-    AgentCommerceTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
+use cedar_poo_bridge::mandate_offer_signatures::{
+    MandateOfferTrust, MandatePayload, OfferPayload, PrincipalId, delegation_signing_bytes,
     sha256_hex,
 };
 use p256::ecdsa::{Signature, SigningKey, signature::Signer};
@@ -42,7 +42,7 @@ fn downstream_consumer_uses_feature_gated_public_api() {
         expires_at: 30,
     };
     let root_signature: Signature = principal_key.sign(&root.signing_bytes());
-    let mut trust = AgentCommerceTrust::new();
+    let mut trust = MandateOfferTrust::new();
     trust.trust_principal(principal, *principal_key.verifying_key());
     trust.trust_merchant("ride-seller".into(), *merchant_key.verifying_key());
     let verified_root = trust

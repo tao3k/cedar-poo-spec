@@ -36,7 +36,8 @@ it against a canonical merchant checkout.
 The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgentCommerceDelegation.lean][delegation kernel]] additionally checks that each child Agent can only
 narrow the preceding mandate's merchant, product, per-purchase, cumulative,
 asset, principal, policy epoch, and expiry constraints. It resolves an exact
-chain of parent snapshots and issuer Agent identities. Its =verified= flag
+chain of parent snapshots and issuer Agent identities, and refuses reuse of
+an ancestor mandate ID, Agent ID, or Agent key. Its =verified= flag
 still asserts Host authentication. The current budget belongs to one mandate;
 the chain does *not* authorize a child to spend from a parent's budget yet.
 
@@ -51,15 +52,15 @@ funds. The Host still verifies signatures, applies policy, ensures durable
 single use of the credential, and binds the same checkout to the provider's
 real request and response.
 
-The optional Rust [[file:../../../../rust/src/agent_commerce_auth.rs][Host verifier prototype]] checks raw P-256 ECDSA signatures
+The optional Rust [[file:../../../../rust/src/mandate_offer_signatures.rs][mandate and offer verifier]] checks raw P-256 ECDSA signatures
 over domain-separated, length-prefixed mandate, child delegation, and offer
 payloads. Its trust table maps the complete Cedar principal UID components or
 a merchant ID to a public key. The principal-signed mandate binds the Agent's
 public key; that parent Agent key must sign each child grant. The offer verifier
 also recomputes SHA-256 over the exact checkout bytes. Positive and
 altered-agent, altered-principal, altered-price, altered-checkout,
-wrong-issuer, and widening-child cases are executable under the
-=agent-commerce-auth= Cargo feature, which =just check-rust= covers. This is a
+wrong-issuer, widening-child, and ancestor-identity-reuse cases are executable under the
+=mandate-offer-signatures= Cargo feature, which =just check-rust= covers. This is a
 local versioned encoding, not AP2 JWT or a live issuer integration. The Host
 must map *every* verified Rust field to the corresponding Lean object before
 setting =verified=, and must manage key enrollment, rotation, and revocation.
@@ -79,9 +80,26 @@ not an audited security guarantee for this code or for every named partner.
 The HKMA blueprint is a policy and ecosystem signal, not a rule authorizing
 autonomous transfers.
 
+* Research map: four distinct protocol surfaces
+
+| Surface and primary specification | What the source actually specifies | Boundary in this repository |
+|-----------------------------------+------------------------------------+-----------------------------|
+| [[https://developer.visa.com/capabilities/trusted-agent-protocol/trusted-agent-protocol-specifications/][Visa Trusted Agent Protocol]] | Signed HTTP requests let a merchant identify a participating Agent and distinguish browsing from payment interaction. The signatures cover request components, timestamps, and a nonce. | Agent recognition is upstream evidence; a recognized Agent still needs a specific user mandate and an authenticated merchant offer. The Rust signature module does not verify HTTP Message Signatures. |
+| [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 v0.2]] and [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/agent_authorization.md][Agent Authorization]] | A user-signed open mandate binds an Agent key; the Agent later binds a closed mandate to the transaction. Merchant, credential provider, network, and processor have different verification and receipt duties. Unknown constraints fail evaluation. | The Lean predicates model selected authority and correspondence properties. They do not parse AP2 SD-JWTs, evaluate its constraint vocabulary, issue signed receipts, or implement its verifier roles. |
+| [[https://www.agenticcommerce.dev/docs/concepts/architecture][ACP architecture]] and [[https://www.agenticcommerce.dev/docs/reference/checkout][checkout reference]] | The seller owns a stateful checkout session and final price, inventory, payment processing, and fulfillment. Delegate Payment gives a PSP scoped payment-token responsibilities. | A checkout session update is a new merchant state: the Host must rebind the final seller-supplied terms before issuing a scoped credential. A stored offer ID alone is insufficient. |
+| [[https://github.com/tempoxyz/mpp-specs][MPP specification repository]] | An HTTP 402 challenge is answered with a payment credential on retry; the core separates HTTP mechanics from payment methods. | A challenge is a proposed price for an HTTP resource, not proof of the principal's permission to pay it. The challenge, resource, credential, and returned service effect need one exact binding. |
+
+The common engineering inference is that *agent recognition*, *delegated
+purchase authority*, *merchant price integrity*, and *payment execution* are
+independent facts. None implies the next. This is why the optional Rust module
+is named =mandate_offer_signatures=: it authenticates only the signed mandate,
+delegation, and merchant offer payloads plus checkout bytes. The public Lean
+model then checks structural scope and purchase correspondence, subject to a
+Host mapping and durable state. No cross-protocol conformance is claimed.
+
 * Protocol and research implications
 
-[[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2's specification]] distinguishes human-present approval of a closed
+[[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 v0.2]] distinguishes human-present approval of a closed
 checkout from autonomous operation under open mandates. In the latter, an
 agent key signs a closed mandate and verifiers check the user-authorized
 constraints; checkout and payment mandates bind to a merchant-signed checkout.
@@ -89,6 +107,16 @@ AP2 describes agent-to-agent mandate delegation as outside its current scope.
 This motivates exact offer binding and a separate future study of multi-agent
 attenuation; this synthetic kernel does not implement AP2 JWTs or its
 single-open-mandate presentation rule.
+
+AP2 further requires exact mandate schema version matching, deterministic
+verification by each role, and signed acceptance or rejection receipts. An
+autonomous Shopping Agent must wait for a rejection receipt before presenting
+a subsequent open Checkout or Payment Mandate. The present multi-purchase budget
+is deliberately a different contract; it cannot be presented as AP2's
+one-outstanding-presentation lifecycle. At dispute time, AP2 links both mandate
+receipts back to the exact signed checkout and payment mandates. The current
+=checkoutCommitment= and =PaymentOperation= fields only preserve local
+correspondence; they do not supply those independently signed artifacts.
 
 [[https://arxiv.org/abs/2609.00060][A Formal Analysis of Agent Payment Protocols]] (2026 preprint) studies x402,
 MPP, ACP, and AP2 and finds cross-actor, cross-stage binding questions between
@@ -100,17 +128,26 @@ specific production exploit or validation of this implementation.
 
 * Next code and evaluation slices
 
-1. Connect the Rust verifier's complete typed output to Lean admission through
-   a checked Host mapping; add authenticated issuer-key lifecycle and a live
-   revocation source before replacing asserted =verified= flags.
-2. Prove attenuation for agent-to-agent handoff: a child may narrow merchant,
-   product, time, and budget scope but cannot expand any parent grant.
-3. Connect the structurally bound checkout and credential to provider request,
-   payment receipt, fulfillment evidence, and dispute artifacts, preserving
-   the independent issuers and signatures of each record.
-4. Test a durable multi-agent budget allocator under concurrent reservations,
-   failures, and retries. The current revision is a pure compare-and-swap
-   obligation, not a database transaction.
+1. Define a checked Host projection from each Rust =VerifiedMandate= and
+   =VerifiedOffer= into every corresponding Lean field. The acceptance test
+   must change each principal UID component, Agent key, merchant, product,
+   price, checkout digest, and epoch separately; no changed field may retain
+   a =verified= assertion. Add current-time, key-status, and revocation inputs
+   before using the projection for live admission.
+2. Specify a separate presentation ledger for protocols that require a
+   single outstanding open mandate. Test a second presentation without a
+   matching signed rejection receipt, a forged receipt, and a receipt for a
+   different checkout. Keep this separate from the synthetic multi-purchase
+   budget rather than quietly changing its semantics.
+3. Prove attenuation for agent-to-agent handoff and test a durable shared
+   allocator: two children racing under one root must never spend more than
+   the root's total cap. The current one-mandate revision is a pure
+   compare-and-swap obligation, not a database transaction.
+4. Bind the final merchant checkout, scoped credential, provider request,
+   processor receipt, fulfillment evidence, and dispute bundle to their
+   independently authenticated issuers. Test price or shipping changes after
+   a checkout-session update, retry after an uncertain provider response,
+   and a receipt referring to another checkout.
 5. Evaluate prompt injection, seller substitution, collusion, and model drift
    with measured detection quality and reviewer load. A passing fixture does
    not establish operational risk performance.

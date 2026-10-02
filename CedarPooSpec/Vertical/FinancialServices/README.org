@@ -42,7 +42,7 @@ and [[file:AgentCommercePayment.lean][AgentCommercePayment]] maps that purchase 
 using a canonical HKD cents profile. These modules are part of the public
 Lean library. The [[file:../../../Examples/Enterprise/Agent/Payment/AgentCommerceResearch.org][research scenario]] and [[file:../../../Tests/Enterprise/Agent/Payment/AgentCommerce.lean][regressions]] consume them.
 The optional Rust signature verifier is a public crate module behind the
-=agent-commerce-auth= Cargo feature; see [[file:../../../rust/src/README.org][Rust feature boundaries]]. The Host must
+=mandate-offer-signatures= Cargo feature; see [[file:../../../rust/src/README.org][Rust feature boundaries]]. The Host must
 authenticate and map the verified Rust fields into these Lean structures,
 then persist reservations and effect receipts durably.
 

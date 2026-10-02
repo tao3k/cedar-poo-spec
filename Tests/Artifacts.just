@@ -14,16 +14,16 @@ check-rust:
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --no-default-features -- -D warnings
     cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features google-sdp -e normal -p cedar-poo-bridge > .lake/build/bridge-google-sdp-tree.txt
     ! grep -q 'cedar-policy' .lake/build/bridge-google-sdp-tree.txt
-    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features agent-commerce-auth -e normal -p cedar-poo-bridge > .lake/build/bridge-agent-commerce-auth-tree.txt
-    ! grep -q 'cedar-policy' .lake/build/bridge-agent-commerce-auth-tree.txt
-    grep -q 'p256' .lake/build/bridge-agent-commerce-auth-tree.txt
+    cargo tree --locked --manifest-path rust/Cargo.toml --no-default-features --features mandate-offer-signatures -e normal -p cedar-poo-bridge > .lake/build/bridge-mandate-offer-signatures-tree.txt
+    ! grep -q 'cedar-policy' .lake/build/bridge-mandate-offer-signatures-tree.txt
+    grep -q 'p256' .lake/build/bridge-mandate-offer-signatures-tree.txt
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features google-sdp -- -D warnings
-    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features agent-commerce-auth -- -D warnings
+    cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features mandate-offer-signatures -- -D warnings
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features cedar-runtime -- -D warnings
     cargo clippy --locked --manifest-path rust/Cargo.toml --all-targets --features google-sdp-host -- -D warnings
     cargo test --locked --manifest-path rust/Cargo.toml --no-default-features
     cargo test --locked --manifest-path rust/Cargo.toml --features google-sdp
-    cargo test --locked --manifest-path rust/Cargo.toml --features agent-commerce-auth
+    cargo test --locked --manifest-path rust/Cargo.toml --features mandate-offer-signatures
     cargo test --locked --manifest-path rust/Cargo.toml --features cedar-runtime
     cargo test --locked --manifest-path rust/Cargo.toml --features google-sdp-host
 

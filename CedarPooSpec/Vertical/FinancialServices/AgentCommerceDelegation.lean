@@ -39,11 +39,25 @@ def AgentCommerceDelegation.applies (step : AgentCommerceDelegation)
   step.verified && step.issuerAgentId == parent.agentId &&
   decide (step.parent = parent) && parent.attenuates step.child
 
-/-- Every hop must name the exact preceding mandate and its agent issuer. -/
-def AgentCommerceDelegation.resolveChain (root : AgentCommerceMandate) :
+/-- Every hop names the preceding mandate and uses identities and keys not
+    already present in this exact chain. -/
+private def AgentCommerceDelegation.resolveWithSeen (current : AgentCommerceMandate)
+    (seenMandates seenAgents seenKeys : List String) :
     List AgentCommerceDelegation → Option AgentCommerceMandate
-  | [] => some root
+  | [] => some current
   | step :: rest =>
-      if step.applies root then resolveChain step.child rest else none
+      if step.applies current &&
+          !seenMandates.contains step.child.mandateId &&
+          !seenAgents.contains step.child.agentId &&
+          !seenKeys.contains step.child.agentPublicKey then
+        resolveWithSeen step.child
+          (step.child.mandateId :: seenMandates)
+          (step.child.agentId :: seenAgents)
+          (step.child.agentPublicKey :: seenKeys) rest
+      else none
+
+def AgentCommerceDelegation.resolveChain (root : AgentCommerceMandate)
+    (steps : List AgentCommerceDelegation) : Option AgentCommerceMandate :=
+  resolveWithSeen root [root.mandateId] [root.agentId] [root.agentPublicKey] steps
 
 end CedarPooSpec.Vertical.FinancialServices

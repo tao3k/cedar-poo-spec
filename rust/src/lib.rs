@@ -1,10 +1,8 @@
-//! Cedar policy language conformance boundary for Lean-POO exports.
+//! Cedar policy export plus independently gated Host evidence primitives.
 
 mod artifact;
 pub use artifact::{CompiledPolicyJson, TemplateSourceJson};
 
-#[cfg(feature = "agent-commerce-auth")]
-pub mod agent_commerce_auth;
 pub mod authority_consumption;
 #[cfg(feature = "cedar-runtime")]
 mod bridge;
@@ -16,6 +14,8 @@ pub mod disclosure_host;
 pub mod google_sdp;
 #[cfg(feature = "google-sdp-host")]
 pub mod google_sdp_host;
+#[cfg(feature = "mandate-offer-signatures")]
+pub mod mandate_offer_signatures;
 pub mod operation_identity;
 #[cfg(feature = "cedar-runtime")]
 mod schema;

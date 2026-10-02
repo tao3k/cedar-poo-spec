@@ -1,4 +1,4 @@
-//! Host-side signature checks for a synthetic agent-commerce profile.
+//! Host-side signature checks for local mandate, delegation, and offer evidence.
 //!
 //! The caller configures trusted principal and merchant public keys. A
 //! successful result authenticates the exact versioned payload and checkout
@@ -255,17 +255,37 @@ impl OfferPayload {
     }
 }
 
-/// Only `AgentCommerceTrust::verify_mandate` can construct this value.
 #[derive(Clone, Debug)]
-pub struct VerifiedMandate(MandatePayload);
+struct MandateIdentity {
+    id: MandateId,
+    agent_id: AgentId,
+    agent_key: AgentPublicKey,
+}
 
-impl VerifiedMandate {
-    pub fn payload(&self) -> &MandatePayload {
-        &self.0
+impl From<&MandatePayload> for MandateIdentity {
+    fn from(payload: &MandatePayload) -> Self {
+        Self {
+            id: payload.mandate_id.clone(),
+            agent_id: payload.agent_id.clone(),
+            agent_key: payload.agent_public_key.clone(),
+        }
     }
 }
 
-/// Only `AgentCommerceTrust::verify_offer` can construct this value.
+/// Only a successful signature verification can construct this chain value.
+#[derive(Clone, Debug)]
+pub struct VerifiedMandate {
+    payload: MandatePayload,
+    lineage: Vec<MandateIdentity>,
+}
+
+impl VerifiedMandate {
+    pub fn payload(&self) -> &MandatePayload {
+        &self.payload
+    }
+}
+
+/// Only `MandateOfferTrust::verify_offer` can construct this value.
 #[derive(Clone, Debug)]
 pub struct VerifiedOffer(OfferPayload);
 
@@ -277,12 +297,12 @@ impl VerifiedOffer {
 
 /// The Host owns this trust registry and its key rotation/revocation policy.
 #[derive(Default)]
-pub struct AgentCommerceTrust {
+pub struct MandateOfferTrust {
     principal_keys: HashMap<PrincipalId, VerifyingKey>,
     merchant_keys: HashMap<MerchantId, VerifyingKey>,
 }
 
-impl AgentCommerceTrust {
+impl MandateOfferTrust {
     pub fn new() -> Self {
         Self::default()
     }
@@ -311,7 +331,10 @@ impl AgentCommerceTrust {
             .map_err(|_| "invalid mandate signature encoding")?;
         key.verify(&payload.signing_bytes(), &signature)
             .map_err(|_| "mandate signature mismatch")?;
-        Ok(VerifiedMandate(payload))
+        Ok(VerifiedMandate {
+            lineage: vec![MandateIdentity::from(&payload)],
+            payload,
+        })
     }
 
     pub fn verify_offer(
@@ -350,6 +373,13 @@ impl AgentCommerceTrust {
         if !child.valid_shape() || !child_attenuates(parent.payload(), &child) {
             return Err("child mandate widens or changes parent authority".into());
         }
+        if parent.lineage.iter().any(|ancestor| {
+            ancestor.id == child.mandate_id
+                || ancestor.agent_id == child.agent_id
+                || ancestor.agent_key == child.agent_public_key
+        }) {
+            return Err("child reuses an ancestor mandate, agent, or key".into());
+        }
         let key = agent_key(parent.payload().agent_public_key.as_str())
             .ok_or("invalid parent agent public key")?;
         let signature = Signature::from_slice(signature_bytes)
@@ -359,10 +389,15 @@ impl AgentCommerceTrust {
             &signature,
         )
         .map_err(|_| "delegation signature mismatch")?;
-        Ok(VerifiedMandate(child))
+        let mut lineage = parent.lineage.clone();
+        lineage.push(MandateIdentity::from(&child));
+        Ok(VerifiedMandate {
+            payload: child,
+            lineage,
+        })
     }
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/agent_commerce_auth.rs"]
+#[path = "../tests/unit/mandate_offer_signatures.rs"]
 mod tests;

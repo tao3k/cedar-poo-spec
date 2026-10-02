@@ -123,6 +123,18 @@ theorem narrowerChildAccepted :
 theorem twoHopAttenuationAccepted :
     AgentCommerceDelegation.resolveChain mandate [grant, secondGrant] =
       some grandchild := by decide
+theorem reusedAncestorMandateIdDenied :
+    AgentCommerceDelegation.resolveChain mandate
+      [grant, { secondGrant with child :=
+        { grandchild with mandateId := mandate.mandateId } }] = none := by decide
+theorem reusedAncestorAgentIdDenied :
+    AgentCommerceDelegation.resolveChain mandate
+      [grant, { secondGrant with child :=
+        { grandchild with agentId := mandate.agentId } }] = none := by decide
+theorem reusedAncestorAgentKeyDenied :
+    AgentCommerceDelegation.resolveChain mandate
+      [grant, { secondGrant with child :=
+        { grandchild with agentPublicKey := mandate.agentPublicKey } }] = none := by decide
 theorem widenedMerchantDenied :
     AgentCommerceDelegation.resolveChain mandate
       [{ grant with child := { child with allowedMerchants := ["ride-provider", "other"] } }] =
