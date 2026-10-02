@@ -16,16 +16,16 @@ open Cedar.Spec
 /-- The inner snapshot CID remains the source identity. The profile, key
     reference and residency are Host-selected public identifiers, never key
     material. -/
-structure ProtectionIntentV1 where
-  storage : StorageEffectV1
+structure ProtectionIntent where
+  storage : StorageEffect
   profile : String
   keyRef : String
   keyVersion : String
   residency : String
   deriving DecidableEq
 
-structure ProtectionClaimV1 where
-  intent : ProtectionIntentV1
+structure ProtectionClaim where
+  intent : ProtectionIntent
   epoch : Nat
   expiresAt : Nat
   allowed : Bool
@@ -33,8 +33,8 @@ structure ProtectionClaimV1 where
 
 /-- This records the proposed outer identity after encryption. The Host checks
     the actual envelope and complete manifest against these fields. -/
-structure ProtectedPublicationV1 where
-  intent : ProtectionIntentV1
+structure ProtectedPublication where
+  intent : ProtectionIntent
   outerRootCid : String
   envelopeVersion : Nat
   keyVersion : String
@@ -43,7 +43,7 @@ structure ProtectedPublicationV1 where
 private def uidNonempty (uid : EntityUID) : Bool :=
   !(toString uid.ty).isEmpty && !uid.eid.isEmpty
 
-private def intentWellFormed (intent : ProtectionIntentV1) : Bool :=
+private def intentWellFormed (intent : ProtectionIntent) : Bool :=
   let effect := intent.storage
   !effect.operationId.isEmpty && uidNonempty effect.subject &&
   !effect.purpose.isEmpty && !effect.snapshotCid.isEmpty &&
@@ -60,8 +60,8 @@ private def intentWellFormed (intent : ProtectionIntentV1) : Bool :=
 
 /-- Restricted labels may enter only a destination that explicitly accepts
     them. Protection does not declassify a source. -/
-def ProtectionIntentV1.admitted (intent : ProtectionIntentV1)
-    (claim : ProtectionClaimV1) (current : CurrentStorageStateV1) : Bool :=
+def ProtectionIntent.admitted (intent : ProtectionIntent)
+    (claim : ProtectionClaim) (current : CurrentStorageState) : Bool :=
   intentWellFormed intent && decide (intent = claim.intent) && claim.allowed &&
   current.policyRoot == intent.storage.policyRoot &&
   current.lineageRevision == intent.storage.lineageRevision &&
@@ -71,8 +71,8 @@ def ProtectionIntentV1.admitted (intent : ProtectionIntentV1)
 
 /-- Recheck current authority immediately before publishing the protected
     manifest root. This is not the later Host ledger commit. -/
-def ProtectedPublicationV1.preRootAdmitted (publication : ProtectedPublicationV1)
-    (claim : ProtectionClaimV1) (current : CurrentStorageStateV1) : Bool :=
+def ProtectedPublication.preRootAdmitted (publication : ProtectedPublication)
+    (claim : ProtectionClaim) (current : CurrentStorageState) : Bool :=
   publication.intent.admitted claim current &&
   !publication.outerRootCid.isEmpty &&
   publication.outerRootCid != publication.intent.storage.snapshotCid &&
@@ -82,7 +82,7 @@ def ProtectedPublicationV1.preRootAdmitted (publication : ProtectedPublicationV1
 /-- Projected acknowledgement of a successful physical root write. Only the
     publishing library can issue a trustworthy acknowledgement; the pure SPEC
     does not prove provider I/O. -/
-structure ProtectedPhysicalAckV1 where
+structure ProtectedPhysicalAck where
   innerRootCid : String
   outerRootCid : String
   childCount : Nat
@@ -91,20 +91,20 @@ structure ProtectedPhysicalAckV1 where
 
 /-- Host-owned ledger entry, stored atomically with approval redemption,
     discoverability and audit. An existing entry is authenticated input. -/
-structure ProtectedCommitReceiptV1 where
-  publication : ProtectedPublicationV1
+structure ProtectedCommitReceipt where
+  publication : ProtectedPublication
   childCount : Nat
   totalOuterBytes : Nat
   deriving DecidableEq
 
-inductive ProtectedCommitDispositionV1 where
+inductive ProtectedCommitDisposition where
   | apply
   | replay
   | reject
   deriving DecidableEq, Repr
 
 /-- Static identity checks shared by commit and later protected reads. -/
-def ProtectedPublicationV1.wellFormed (publication : ProtectedPublicationV1) : Bool :=
+def ProtectedPublication.wellFormed (publication : ProtectedPublication) : Bool :=
   intentWellFormed publication.intent &&
   !publication.outerRootCid.isEmpty &&
   publication.outerRootCid != publication.intent.storage.snapshotCid &&
@@ -115,10 +115,10 @@ def ProtectedPublicationV1.wellFormed (publication : ProtectedPublicationV1) : B
     exact committed operation, or reject it. A replay creates no new effect and
     grants no read authorization. An uncommitted request needs a physical root
     acknowledgement and fresh authority. The Host owns the atomic ledger CAS. -/
-def ProtectedPublicationV1.commitDisposition (publication : ProtectedPublicationV1)
-    (claim : ProtectionClaimV1) (current : CurrentStorageStateV1)
-    (physical : Option ProtectedPhysicalAckV1)
-    (existing : Option ProtectedCommitReceiptV1) : ProtectedCommitDispositionV1 :=
+def ProtectedPublication.commitDisposition (publication : ProtectedPublication)
+    (claim : ProtectionClaim) (current : CurrentStorageState)
+    (physical : Option ProtectedPhysicalAck)
+    (existing : Option ProtectedCommitReceipt) : ProtectedCommitDisposition :=
   match existing with
   | some receipt =>
     if publication.wellFormed &&

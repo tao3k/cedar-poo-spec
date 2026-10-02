@@ -8,38 +8,37 @@ open CedarPooSpec.Data CedarPooSpec.Data.StorageEffectFixture Lean
 
 private def obj (fields : List (String × Json)) : Json := Json.mkObj fields
 
-private def intentJson (intent : ProtectionIntentV1) : Json :=
-  obj [("version", toJson (1 : Nat)),
-    ("storage", effectJson intent.storage),
+private def intentJson (intent : ProtectionIntent) : Json :=
+  obj [("storage", effectJson intent.storage),
     ("profile", toJson intent.profile),
     ("key_ref", toJson intent.keyRef),
     ("key_version", toJson intent.keyVersion),
     ("residency", toJson intent.residency)]
 
-private def claimJson (claim : ProtectionClaimV1) : Json :=
+private def claimJson (claim : ProtectionClaim) : Json :=
   obj [("intent", intentJson claim.intent),
     ("epoch", toJson claim.epoch),
     ("expires_at", toJson claim.expiresAt),
     ("allowed", toJson claim.allowed)]
 
-private def publicationJson (publication : ProtectedPublicationV1) : Json :=
+private def publicationJson (publication : ProtectedPublication) : Json :=
   obj [("intent", intentJson publication.intent),
     ("outer_root_cid", toJson publication.outerRootCid),
     ("envelope_version", toJson publication.envelopeVersion),
     ("key_version", toJson publication.keyVersion)]
 
-private def ackJson (ack : ProtectedPhysicalAckV1) : Json :=
+private def ackJson (ack : ProtectedPhysicalAck) : Json :=
   obj [("inner_root_cid", toJson ack.innerRootCid),
     ("outer_root_cid", toJson ack.outerRootCid),
     ("child_count", toJson ack.childCount),
     ("total_outer_bytes", toJson ack.totalOuterBytes)]
 
-private def receiptJson (receipt : ProtectedCommitReceiptV1) : Json :=
+private def receiptJson (receipt : ProtectedCommitReceipt) : Json :=
   obj [("publication", publicationJson receipt.publication),
     ("child_count", toJson receipt.childCount),
     ("total_outer_bytes", toJson receipt.totalOuterBytes)]
 
-private def dispositionJson : ProtectedCommitDispositionV1 → Json
+private def dispositionJson : ProtectedCommitDisposition → Json
   | .apply => toJson "apply"
   | .replay => toJson "replay"
   | .reject => toJson "reject"
@@ -51,9 +50,8 @@ private def readerJson (reader : Destination) : Json :=
       (reader.acceptedOwners.map CedarPooSpec.PolicyJson.entity)),
     ("accepts_restricted", toJson reader.acceptsRestricted)]
 
-private def readJson (read : ProtectedReadIntentV1) : Json :=
-  obj [("version", toJson (1 : Nat)),
-    ("operation_id", toJson read.operationId),
+private def readJson (read : ProtectedReadIntent) : Json :=
+  obj [("operation_id", toJson read.operationId),
     ("subject", CedarPooSpec.PolicyJson.entity read.subject),
     ("purpose", toJson read.purpose),
     ("receipt", receiptJson read.receipt),
@@ -61,47 +59,47 @@ private def readJson (read : ProtectedReadIntentV1) : Json :=
     ("policy_root", toJson read.policyRoot),
     ("lineage_revision", toJson read.lineageRevision)]
 
-private def readClaimJson (claim : ProtectedReadClaimV1) : Json :=
+private def readClaimJson (claim : ProtectedReadClaim) : Json :=
   obj [("intent", readJson claim.intent),
     ("epoch", toJson claim.epoch),
     ("expires_at", toJson claim.expiresAt),
     ("allowed", toJson claim.allowed)]
 
-def baseIntent : ProtectionIntentV1 :=
+def baseIntent : ProtectionIntent :=
   { storage := { baseEffect with
       sources := [{ baseSource with restricted := true }],
       destination := { baseDestination with acceptsRestricted := true } },
     profile := "aes-256-gcm-v1", keyRef := "key-tenant-a",
     keyVersion := "key-version-7", residency := "us-east-1" }
 
-def baseClaim : ProtectionClaimV1 :=
+def baseClaim : ProtectionClaim :=
   { intent := baseIntent, epoch := 4, expiresAt := 100, allowed := true }
 
-def basePublication : ProtectedPublicationV1 :=
+def basePublication : ProtectedPublication :=
   { intent := baseIntent,
     outerRootCid := "bafkreie7vj2rmiytc6plrz7n4bejnug2rzeypl2u3cnibf2aa4dhqdp6u4",
     envelopeVersion := 1, keyVersion := "key-version-7" }
 
-def baseAck : ProtectedPhysicalAckV1 :=
+def baseAck : ProtectedPhysicalAck :=
   { innerRootCid := baseIntent.storage.snapshotCid,
     outerRootCid := basePublication.outerRootCid,
     childCount := 2, totalOuterBytes := 256 }
 
-def baseReceipt : ProtectedCommitReceiptV1 :=
+def baseReceipt : ProtectedCommitReceipt :=
   { publication := basePublication, childCount := 2, totalOuterBytes := 256 }
 
 private def readerSubject : Cedar.Spec.EntityUID :=
   ⟨⟨"Service", []⟩, "reader"⟩
 
-def baseRead : ProtectedReadIntentV1 :=
+def baseRead : ProtectedReadIntent :=
   { operationId := "read-001", subject := readerSubject, purpose := "analysis",
     receipt := baseReceipt, reader := baseIntent.storage.destination,
     policyRoot := "policy-root-1", lineageRevision := "lineage-1" }
 
-def baseReadClaim : ProtectedReadClaimV1 :=
+def baseReadClaim : ProtectedReadClaim :=
   { intent := baseRead, epoch := 4, expiresAt := 100, allowed := true }
 
-def intentCases : List (String × ProtectionIntentV1 × ProtectionClaimV1 × CurrentStorageStateV1) :=
+def intentCases : List (String × ProtectionIntent × ProtectionClaim × CurrentStorageState) :=
   [("restricted-accepted", baseIntent, baseClaim, baseCurrent),
    ("unrestricted-accepted", { baseIntent with storage := baseEffect },
       { baseClaim with intent := { baseIntent with storage := baseEffect } }, baseCurrent),
@@ -132,7 +130,7 @@ def intentCases : List (String × ProtectionIntentV1 × ProtectionClaimV1 × Cur
       { baseClaim with intent := { baseIntent with profile := "" } }, baseCurrent)]
 
 def publicationCases : List
-    (String × ProtectedPublicationV1 × ProtectionClaimV1 × CurrentStorageStateV1) :=
+    (String × ProtectedPublication × ProtectionClaim × CurrentStorageState) :=
   [("commit", basePublication, baseClaim, baseCurrent),
    ("inner-as-outer", { basePublication with
       outerRootCid := baseIntent.storage.snapshotCid }, baseClaim, baseCurrent),
@@ -150,8 +148,8 @@ def publicationCases : List
         storage := { baseIntent.storage with operationId := "op-002" } } }, baseCurrent)]
 
 def commitCases : List
-    (String × ProtectedPublicationV1 × ProtectionClaimV1 × CurrentStorageStateV1 ×
-     Option ProtectedPhysicalAckV1 × Option ProtectedCommitReceiptV1) :=
+    (String × ProtectedPublication × ProtectionClaim × CurrentStorageState ×
+     Option ProtectedPhysicalAck × Option ProtectedCommitReceipt) :=
   [("fresh-ack", basePublication, baseClaim, baseCurrent, some baseAck, none),
    ("missing-ack", basePublication, baseClaim, baseCurrent, none, none),
    ("wrong-inner", basePublication, baseClaim, baseCurrent,
@@ -183,8 +181,8 @@ def commitCases : List
       some { baseReceipt with publication := { basePublication with envelopeVersion := 2 } })]
 
 def readCases : List
-    (String × ProtectedReadIntentV1 × ProtectedReadClaimV1 × CurrentStorageStateV1 ×
-     Option ProtectedCommitReceiptV1) :=
+    (String × ProtectedReadIntent × ProtectedReadClaim × CurrentStorageState ×
+     Option ProtectedCommitReceipt) :=
   [("read-allowed", baseRead, baseReadClaim, baseCurrent, some baseReceipt),
    ("fresh-read-after-write-expiry", baseRead,
       { baseReadClaim with epoch := 5, expiresAt := 200 },
@@ -236,9 +234,9 @@ def readCases : List
       baseCurrent, some baseReceipt)]
 
 def readReleaseCases : List
-    (String × ProtectedReadIntentV1 × ProtectedReadClaimV1 ×
-     CurrentStorageStateV1 × Option ProtectedCommitReceiptV1 ×
-     CurrentStorageStateV1 × Option ProtectedCommitReceiptV1) :=
+    (String × ProtectedReadIntent × ProtectedReadClaim ×
+     CurrentStorageState × Option ProtectedCommitReceipt ×
+     CurrentStorageState × Option ProtectedCommitReceipt) :=
   [("release-allowed", baseRead, baseReadClaim, baseCurrent, some baseReceipt,
       { baseCurrent with now := 99 }, some baseReceipt),
    ("release-after-write-expiry", baseRead,

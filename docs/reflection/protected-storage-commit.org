@@ -39,3 +39,14 @@ different ordered construction rules. Reconsider proof revision or caching
 only when a concrete profile update requires selective recomputation and a
 test can observe reuse or invalidation. Keep the physical acknowledgement and
 ledger transaction at the Host boundary.
+
+* Reflection: names and schema identity
+
+The storage, protection, read, and Table batch types now use semantic names
+without release suffixes. The checked JSON artifacts retain their explicit
+=schema= identifiers; nested storage and read objects no longer repeat a
+=version= field. This changes the projection bytes, so the Lean exporters and
+Rust consumers replay the same regenerated fixtures. The existing LeanPoo
+profile still composes destination and key choices through typed slots and
+inheritance. Renaming those types creates no new independent owner, method
+selection, or proof dependency, so no additional LeanPoo mechanism is used.

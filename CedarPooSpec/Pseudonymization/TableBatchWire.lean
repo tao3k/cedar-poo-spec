@@ -9,14 +9,14 @@ the provider or establish atomic execution of an external request.
 
 namespace CedarPooSpec.Pseudonymization
 
-structure TableBatchWireRowV1 where
+structure TableBatchWireRow where
   value : String
   context : String
   marker : String
   deriving DecidableEq, Inhabited
 
-structure TableBatchWireResponseV1 where
-  rows : List TableBatchWireRowV1
+structure TableBatchWireResponse where
+  rows : List TableBatchWireRow
   successCount : Nat
   errorCount : Nat
   deriving DecidableEq
@@ -25,7 +25,7 @@ structure TableBatchWireResponseV1 where
     row count, unchanged contexts, a changed nonempty value in every row, and
     an exact successful transformation count with no reported errors. The
     Rust provider bridge additionally checks AES-SIV token syntax. -/
-private def rowsMatch : Nat → List AesSivTableBatchInput → List TableBatchWireRowV1 → Bool
+private def rowsMatch : Nat → List AesSivTableBatchInput → List TableBatchWireRow → Bool
   | _, [], [] => true
   | index, input :: inputs, output :: outputs =>
     !output.value.isEmpty && output.value != input.input.value &&
@@ -33,7 +33,7 @@ private def rowsMatch : Nat → List AesSivTableBatchInput → List TableBatchWi
     output.marker == s!"r{index}" && rowsMatch (index + 1) inputs outputs
   | _, _, _ => false
 
-def TableBatchWireResponseV1.admitted (response : TableBatchWireResponseV1)
+def TableBatchWireResponse.admitted (response : TableBatchWireResponse)
     (selected : List AesSivTableBatchInput) : Bool :=
   !selected.isEmpty && selected.length ≤ 256 &&
   response.rows.length == selected.length &&

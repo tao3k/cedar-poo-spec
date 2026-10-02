@@ -45,14 +45,14 @@ def cases : List (String × AesSivTableRecipe × List AesSivTableBatchRow × Nat
 def wireSelected : List AesSivTableBatchInput :=
   [⟨0, ⟨"patient-1", "study-a"⟩⟩, ⟨1, ⟨"patient-2", "study-a"⟩⟩]
 
-def wireRows : List TableBatchWireRowV1 :=
+def wireRows : List TableBatchWireRow :=
   [⟨"c3ludGhldGljLWNpcGhlcnRleHQtMQ==", "study-a", "r0"⟩,
    ⟨"c3ludGhldGljLWNpcGhlcnRleHQtMg==", "study-a", "r1"⟩]
 
-def wireResponse : TableBatchWireResponseV1 :=
+def wireResponse : TableBatchWireResponse :=
   ⟨wireRows, 2, 0⟩
 
-def wireCases : List (String × List AesSivTableBatchInput × TableBatchWireResponseV1) :=
+def wireCases : List (String × List AesSivTableBatchInput × TableBatchWireResponse) :=
   [("two-rows", wireSelected, wireResponse),
    ("two-contexts",
      [⟨0, ⟨"patient-1", "study-a"⟩⟩, ⟨1, ⟨"patient-2", "study-b"⟩⟩],
@@ -111,7 +111,7 @@ private def caseJson
           ("error", toJson (errorName reason))])]
 
 private def wireCaseJson
-    (entry : String × List AesSivTableBatchInput × TableBatchWireResponseV1) : Json :=
+    (entry : String × List AesSivTableBatchInput × TableBatchWireResponse) : Json :=
   let (name, selected, response) := entry
   Json.mkObj [("name", toJson name),
     ("selected", toJson (selected.map fun row => Json.mkObj
@@ -125,7 +125,7 @@ private def wireCaseJson
     ("allow", toJson (response.admitted selected))]
 
 def fixture : Json :=
-  Json.mkObj [("version", toJson "google-table-batch-v1"),
+  Json.mkObj [("schema", toJson "google-table-batch-v1"),
     ("cases", toJson (cases.map caseJson)),
     ("wire_cases", toJson (wireCases.map wireCaseJson))]
 

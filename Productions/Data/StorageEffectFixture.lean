@@ -20,8 +20,8 @@ private def destinationJson (destination : Destination) (tier : StorageTier) : J
     ("accepts_restricted", toJson destination.acceptsRestricted),
     ("tier", toJson (if tier == .remote then "remote" else "durable-local"))]
 
-def effectJson (effect : StorageEffectV1) : Json :=
-  obj [("version", toJson (1 : Nat)), ("operation_id", toJson effect.operationId),
+def effectJson (effect : StorageEffect) : Json :=
+  obj [("operation_id", toJson effect.operationId),
     ("subject", CedarPooSpec.PolicyJson.entity effect.subject),
     ("purpose", toJson effect.purpose), ("snapshot_cid", toJson effect.snapshotCid),
     ("sources", toJson (effect.sources.map sourceJson)),
@@ -29,11 +29,11 @@ def effectJson (effect : StorageEffectV1) : Json :=
     ("policy_root", toJson effect.policyRoot),
     ("lineage_revision", toJson effect.lineageRevision)]
 
-private def claimJson (claim : StorageClaimV1) : Json :=
+private def claimJson (claim : StorageClaim) : Json :=
   obj [("effect", effectJson claim.effect), ("epoch", toJson claim.epoch),
     ("expires_at", toJson claim.expiresAt), ("allowed", toJson claim.allowed)]
 
-def currentJson (current : CurrentStorageStateV1) : Json :=
+def currentJson (current : CurrentStorageState) : Json :=
   obj [("policy_root", toJson current.policyRoot),
     ("lineage_revision", toJson current.lineageRevision),
     ("epoch", toJson current.epoch), ("now", toJson current.now)]
@@ -51,19 +51,19 @@ def baseDestination : Destination :=
   { resource := destinationId, tenant := "tenant-a",
     acceptedOwners := [owner], acceptsRestricted := false }
 
-def baseEffect : StorageEffectV1 :=
+def baseEffect : StorageEffect :=
   { operationId := "op-001", subject := service, purpose := "archive",
     snapshotCid := "bafyreibsgh7hsmqsgp42ls3jdd26u4coplmgk5vl4l5fbff3vjziaoidai",
     sources := [baseSource], destination := baseDestination, tier := .remote,
     policyRoot := "policy-root-1", lineageRevision := "lineage-1" }
 
-private def baseClaim : StorageClaimV1 :=
+private def baseClaim : StorageClaim :=
   { effect := baseEffect, epoch := 4, expiresAt := 100, allowed := true }
 
-def baseCurrent : CurrentStorageStateV1 :=
+def baseCurrent : CurrentStorageState :=
   { policyRoot := "policy-root-1", lineageRevision := "lineage-1", epoch := 4, now := 99 }
 
-def cases : List (String × StorageEffectV1 × StorageClaimV1 × CurrentStorageStateV1) :=
+def cases : List (String × StorageEffect × StorageClaim × CurrentStorageState) :=
   [("allow", baseEffect, baseClaim, baseCurrent),
    ("local-allow", { baseEffect with tier := .durableLocal },
       { baseClaim with effect := { baseEffect with tier := .durableLocal } }, baseCurrent),

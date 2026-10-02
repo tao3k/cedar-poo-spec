@@ -11,18 +11,18 @@ namespace CedarPooSpec.Data
 
 open Cedar.Spec
 
-structure ProtectedReadIntentV1 where
+structure ProtectedReadIntent where
   operationId : String
   subject : EntityUID
   purpose : String
-  receipt : ProtectedCommitReceiptV1
+  receipt : ProtectedCommitReceipt
   reader : Destination
   policyRoot : String
   lineageRevision : String
   deriving DecidableEq
 
-structure ProtectedReadClaimV1 where
-  intent : ProtectedReadIntentV1
+structure ProtectedReadClaim where
+  intent : ProtectedReadIntent
   epoch : Nat
   expiresAt : Nat
   allowed : Bool
@@ -39,9 +39,9 @@ private def readerWellFormed (reader : Destination) : Bool :=
 /-- A new read needs an authenticated, exact committed row and current
     authorization for its own actor, purpose and reader. This check precedes
     both cache and provider GET; it does not authenticate its Host inputs. -/
-def ProtectedReadIntentV1.admitted (read : ProtectedReadIntentV1)
-    (claim : ProtectedReadClaimV1) (current : CurrentStorageStateV1)
-    (committed : Option ProtectedCommitReceiptV1) : Bool :=
+def ProtectedReadIntent.admitted (read : ProtectedReadIntent)
+    (claim : ProtectedReadClaim) (current : CurrentStorageState)
+    (committed : Option ProtectedCommitReceipt) : Bool :=
   !read.operationId.isEmpty && uidNonempty read.subject &&
   !read.purpose.isEmpty && !read.policyRoot.isEmpty &&
   !read.lineageRevision.isEmpty && readerWellFormed read.reader &&
@@ -60,10 +60,10 @@ def ProtectedReadIntentV1.admitted (read : ProtectedReadIntentV1)
 /-- A read may release plaintext only when the same claim and exact committed
     receipt remain current after all cache/provider I/O and verification.
     The Host supplies two independently refreshed, authenticated observations. -/
-def ProtectedReadIntentV1.releaseAdmitted (read : ProtectedReadIntentV1)
-    (claim : ProtectedReadClaimV1)
-    (before after : CurrentStorageStateV1)
-    (committedBefore committedAfter : Option ProtectedCommitReceiptV1) : Bool :=
+def ProtectedReadIntent.releaseAdmitted (read : ProtectedReadIntent)
+    (claim : ProtectedReadClaim)
+    (before after : CurrentStorageState)
+    (committedBefore committedAfter : Option ProtectedCommitReceipt) : Bool :=
   read.admitted claim before committedBefore &&
   before.now ≤ after.now &&
   read.admitted claim after committedAfter

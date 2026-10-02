@@ -6,12 +6,12 @@ namespace CedarPooSpec.Data.ProtectionProfileTests
 open CedarPooSpec.Data CedarPooSpec.Data.ProtectionProfile
 open CedarPooSpec.Data.ProtectedStorageFixture
 
-private def revisedIntent? : Option ProtectionIntentV1 := do
+private def revisedIntent? : Option ProtectionIntent := do
   let parent ← (ProtectionProfile.define "base" baseIntent).toOption
   let child ← (ProtectionProfile.withKeyVersion parent "rotated" "key-version-8").toOption
   ProtectionProfile.intent? child
 
-private def originalIntent? : Option ProtectionIntentV1 := do
+private def originalIntent? : Option ProtectionIntent := do
   let parent ← (ProtectionProfile.define "base" baseIntent).toOption
   ProtectionProfile.intent? parent
 

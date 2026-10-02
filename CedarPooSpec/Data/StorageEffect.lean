@@ -17,7 +17,7 @@ inductive StorageTier where
   | remote
   deriving BEq, DecidableEq, Repr
 
-structure StorageEffectV1 where
+structure StorageEffect where
   operationId : String
   subject : EntityUID
   purpose : String
@@ -29,14 +29,14 @@ structure StorageEffectV1 where
   lineageRevision : String
   deriving DecidableEq
 
-structure StorageClaimV1 where
-  effect : StorageEffectV1
+structure StorageClaim where
+  effect : StorageEffect
   epoch : Nat
   expiresAt : Nat
   allowed : Bool
   deriving DecidableEq
 
-structure CurrentStorageStateV1 where
+structure CurrentStorageState where
   policyRoot : String
   lineageRevision : String
   epoch : Nat
@@ -48,8 +48,8 @@ private def uidNonempty (uid : EntityUID) : Bool :=
 
 /-- Raw storage is restricted to unrestricted sources even when a destination
     could accept restricted material through a separately protected path. -/
-def StorageEffectV1.rawAdmitted (effect : StorageEffectV1)
-    (claim : StorageClaimV1) (current : CurrentStorageStateV1) : Bool :=
+def StorageEffect.rawAdmitted (effect : StorageEffect)
+    (claim : StorageClaim) (current : CurrentStorageState) : Bool :=
   !effect.operationId.isEmpty && uidNonempty effect.subject &&
   !effect.purpose.isEmpty &&
   !effect.snapshotCid.isEmpty && !effect.policyRoot.isEmpty &&

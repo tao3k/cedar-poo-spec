@@ -1,15 +1,15 @@
-#+TITLE: Protected Storage V1
+#+TITLE: Protected Storage
 #+OPTIONS: toc:nil
 
-[[file:ProtectedStorage.lean][ProtectedStorage V1]] separates intent admission
-from publication commit. =ProtectionIntentV1= binds the inner snapshot CID,
+[[file:ProtectedStorage.lean][ProtectedStorage]] separates intent admission
+from publication commit. =ProtectionIntent= binds the inner snapshot CID,
 complete source labels, destination, subject, purpose, policy root, lineage,
 storage tier, protection profile, key reference, key version and residency.
 The key reference is an identity, never secret material. The Host authenticates the
 source catalog, destination configuration and current policy before any
 encryption or provider I/O.
 
-After encryption, =ProtectedPublicationV1= binds the intent to a distinct outer
+After encryption, =ProtectedPublication= binds the intent to a distinct outer
 root CID and envelope version, and requires the actual key version to equal
 the authorized intent. =preRootAdmitted= rechecks the claim and current
 policy, lineage, epoch and expiry immediately before the outer-root PUT. A
@@ -44,7 +44,7 @@ the parent version and source custody. The
 [[file:../../docs/reflection/protected-storage-commit.org][iteration Reflection]]
 records the LeanPoo capability choice and its executable evidence.
 
-[[file:ProtectedRead.lean][Protected Read V1]] binds the entire authenticated
+[[file:ProtectedRead.lean][Protected Read]] binds the entire authenticated
 commit receipt, including the outer root, child count and total ciphertext
 bytes, to a fresh, action-specific read claim for the reader,
 purpose, destination, policy root, lineage, epoch and expiry. It checks all

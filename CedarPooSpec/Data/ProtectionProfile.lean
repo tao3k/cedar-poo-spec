@@ -3,7 +3,7 @@ import LeanPoo.Object.Definition
 
 /-!
 LeanPoo-owned composition for protected storage profiles. The public wire
-contract remains `ProtectionIntentV1`; this object family owns configuration
+contract remains `ProtectionIntent`; this object family owns configuration
 inheritance and recomputes the final intent when a child overrides a slot.
 -/
 
@@ -21,13 +21,13 @@ inductive Key where
   deriving DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 abbrev Value : Key → Type
-  | .storage => StorageEffectV1
+  | .storage => StorageEffect
   | .profile | .keyRef | .keyVersion | .residency => String
-  | .intent => ProtectionIntentV1
+  | .intent => ProtectionIntent
 
 abbrev Object := LeanPoo.Object.Memoized Key Value
 
-def define (name : String) (intent : ProtectionIntentV1) :
+def define (name : String) (intent : ProtectionIntent) :
     Except C4.Error Object :=
   LeanPoo.Object.define name do
     LeanPoo.Object.Declaration.Builder.value .storage intent.storage
@@ -44,7 +44,7 @@ def define (name : String) (intent : ProtectionIntentV1) :
         let residency ← self .residency
         pure { storage, profile, keyRef, keyVersion, residency })
 
-def withStorage (parent : Object) (name : String) (storage : StorageEffectV1) :
+def withStorage (parent : Object) (name : String) (storage : StorageEffect) :
     Except C4.Error Object :=
   parent.extendWith name do
     LeanPoo.Object.Declaration.Builder.value .storage storage
@@ -54,7 +54,7 @@ def withKeyVersion (parent : Object) (name keyVersion : String) :
   parent.extendWith name do
     LeanPoo.Object.Declaration.Builder.value .keyVersion keyVersion
 
-def intent? (profile : Object) : Option ProtectionIntentV1 :=
+def intent? (profile : Object) : Option ProtectionIntent :=
   profile.read .intent
 
 end CedarPooSpec.Data.ProtectionProfile

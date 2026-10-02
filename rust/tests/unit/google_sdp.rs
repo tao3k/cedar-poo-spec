@@ -165,7 +165,7 @@ fn table_batch_wire_replays_lean_response_matrix() {
         "../../../Tests/Conformance/google-table-batch-v1.json"
     ))
     .unwrap();
-    assert_eq!(fixture["version"], "google-table-batch-v1");
+    assert_eq!(fixture["schema"], "google-table-batch-v1");
     let cases = fixture["wire_cases"].as_array().unwrap();
     assert_eq!(cases.len(), 12);
     for case in cases {

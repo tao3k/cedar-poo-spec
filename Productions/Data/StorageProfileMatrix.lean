@@ -16,7 +16,7 @@ open CedarPooSpec.Data Lean
 
 private def obj (fields : List (String × Json)) : Json := Json.mkObj fields
 
-def cases : List (String × StorageEffectV1 × CurrentStorageStateV1) := Id.run do
+def cases : List (String × StorageEffect × CurrentStorageState) := Id.run do
   let mut result := []
   for restricted in [false, true] do
     for acceptsRestricted in [false, true] do
@@ -32,18 +32,18 @@ def cases : List (String × StorageEffectV1 × CurrentStorageStateV1) := Id.run 
           result := result ++ [(name, effect, StorageEffectFixture.baseCurrent)]
   return result
 
-def rawAllowed (effect : StorageEffectV1) (current : CurrentStorageStateV1) : Bool :=
+def rawAllowed (effect : StorageEffect) (current : CurrentStorageState) : Bool :=
   effect.rawAdmitted { effect, epoch := 4, expiresAt := 100, allowed := true } current
 
-def protectedDecision? (effect : StorageEffectV1)
-    (current : CurrentStorageStateV1) : Option Bool := do
+def protectedDecision? (effect : StorageEffect)
+    (current : CurrentStorageState) : Option Bool := do
   let base ← (ProtectionProfile.define "matrix-base"
     ProtectedStorageFixture.baseIntent).toOption
   let variant ← (ProtectionProfile.withStorage base "matrix-case" effect).toOption
   let intent ← ProtectionProfile.intent? variant
   return intent.admitted { intent, epoch := 4, expiresAt := 100, allowed := true } current
 
-def protectedAllowed (effect : StorageEffectV1) (current : CurrentStorageStateV1) : Bool :=
+def protectedAllowed (effect : StorageEffect) (current : CurrentStorageState) : Bool :=
   (protectedDecision? effect current).getD false
 
 def fixture : Json :=

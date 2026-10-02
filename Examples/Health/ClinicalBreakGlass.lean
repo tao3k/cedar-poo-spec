@@ -89,8 +89,8 @@ def privacyForbid : Policy :=
 def deviceForbid : Policy :=
   readPolicy "untrusted-device-or-identity" .forbid
     (.or (.unaryApp .not trusted) (.unaryApp .not stronglyAuthenticated))
-def emergencyPermitV1 : Policy := emergencyControl.provisional
-def emergencyPermitV2 : Policy := emergencyControl.bounded
+def provisionalEmergencyPermit : Policy := emergencyControl.provisional
+def boundedEmergencyPermit : Policy := emergencyControl.bounded
 
 def modelResult : Except LeanPoo.C4.Error Model := do
   let base : Model := { modules := [
@@ -239,7 +239,7 @@ def privacyRevision : Revision :=
   (model.compileRevision "Privacy" "Integrated").toOption.get (by native_decide)
 
 theorem privacyRevisionBodies :
-    privacyRevision.freshPolicies = [emergencyPermitV2, deviceForbid] ∧
+    privacyRevision.freshPolicies = [boundedEmergencyPermit, deviceForbid] ∧
     privacyRevision.afterPolicies.length - privacyRevision.freshPolicies.length = 2 := by
   native_decide
 
