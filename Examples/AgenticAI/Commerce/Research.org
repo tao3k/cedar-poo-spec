@@ -48,7 +48,12 @@ advance, stale-revision refusal, and root-cap preservation.
 The optional Rust [[file:../../../rust/src/agentic_ai/commerce/budget_commit.rs][budget bridge]] checks exact Lean before/after claims, fresh
 signed authority, root and ancestor spend, and the current content CID. It
 uses MRR Data's conditional commit protocol to propose one head replacement
-with an exact revision and operation ID. These checks execute no DB transaction:
+with an exact revision and operation ID. The async commit entry point now uses
+a Host-supplied transaction port, refreshes authority inside its validation
+callback, and separates confirmed commit, exact replay, and unknown outcome.
+The signed consumer races two children, refuses over-cap retry, and recovers a
+lost acknowledgement under the original operation without a second reservation.
+These checks execute no DB transaction:
 the backend must authenticate its inputs and atomically persist the head and
 operation receipt. =just check-agentic-ai-commerce-admission= checks this bridge
 with JSON emitted by Lean.

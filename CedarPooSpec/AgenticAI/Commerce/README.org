@@ -33,3 +33,20 @@ storage transaction, payment, or external effect.
 
 The [[file:../../../Examples/AgenticAI/Commerce/Research.org][research scenario]] records synthetic protocol scope and remaining
 provider, fulfillment, and dispute-evidence work.
+
+* Commit port and recovery
+
+The Rust =commit_shared_reservation= entry point accepts an explicit operation
+ID matching the embedded purchase and uses MRR Data's async
+=ConditionalContentCommitPort=. It refreshes Host keys, revocation, policy epoch,
+and clock through a callback inside the backend's protected transaction. The
+adapter must serialize authority changes or include their versions in the atomic
+comparison. A changed clock makes an old proposal stale and requires a new one.
+
+A confirmed write yields =Committed= with the exact head/operation receipt.
+An exact retry yields =Replayed= and skips new reservation validation. An uncertain
+result yields =Unknown=; recovery queries the same exact operation. An unavailable
+ledger cannot be treated as absence, and a new operation ID cannot repeat the
+same merchant offer. The signed consumer tests exercise these rules with a
+test-only serialized provider, including competing child Agents under one root.
+These checks provide no DB, crash-recovery, or deployed durability acceptance.

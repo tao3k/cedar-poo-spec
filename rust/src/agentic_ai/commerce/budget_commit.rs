@@ -12,8 +12,9 @@ use crate::agentic_ai::commerce::projection::{
 };
 use crate::agentic_ai::commerce::signatures::{AgentId, MandateId};
 use mrr_data_content::{
-    ConditionalCommitDisposition, ConditionalCommitError, ConditionalContentWrite, ContentBlock,
-    ContentCodec, ContentRevision, PublishReceipt,
+    ConditionalCommitDisposition, ConditionalCommitError, ConditionalCommitPortError,
+    ConditionalContentCommitOutcome, ConditionalContentCommitPort, ConditionalContentWrite,
+    ContentBlock, ContentCodec, ContentRevision, PublishReceipt,
 };
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +54,8 @@ pub enum BudgetCommitError {
     InvalidClaims,
     CurrentContentMismatch,
     InvalidTransition,
+    OperationMismatch,
+    AuthorityUnavailable,
     LineageMismatch,
     RevokedMandate,
     ReboundMandate,
@@ -120,6 +123,7 @@ where
 pub struct SharedBudgetCommitRequest<'a> {
     pub signed: DelegatedAdmissionRequest<'a>,
     pub scope: &'a str,
+    pub operation_id: &'a str,
     pub current: ContentRevision,
     pub current_bytes: &'a [u8],
     pub proposed_bytes: &'a [u8],
@@ -139,6 +143,7 @@ where
     let SharedBudgetCommitRequest {
         signed,
         scope,
+        operation_id,
         current,
         current_bytes,
         proposed_bytes,
@@ -147,10 +152,13 @@ where
     let (before, after) = read_transition(current, current_bytes, proposed_bytes, signed.now)?;
     let (lineage, offer) = admit(host, signed, policy)?;
     let entry = &after.reservations[0];
+    if entry.purchase.purchase_id != operation_id {
+        return Err(BudgetCommitError::OperationMismatch);
+    }
     validate_reservation(&before, entry, &lineage, &offer)?;
     ConditionalContentWrite {
         scope,
-        operation_id: &entry.purchase.purchase_id,
+        operation_id,
         expected: Some(current),
         replacement: ContentBlock::new(ContentCodec::Raw, proposed_bytes).cid(),
     }
@@ -257,4 +265,52 @@ fn validate_reservation(
         }
     }
     Ok(())
+}
+
+/// Host-authenticated current registry and clock, refreshed inside commit validation.
+/// A deploying adapter must synchronize this authority through the head transaction.
+pub struct CurrentCommerceAuthority {
+    pub host: CommerceAdmissionHost,
+    pub now: u64,
+}
+
+/// Commit one exact reservation through a backend's atomic head/receipt port.
+/// The fresh authority callback is invoked only for a new write, inside the
+/// backend transaction. Replay is a status result and grants no new reservation.
+/// A clock change that makes the proposed timestamp stale requires a fresh proposal.
+/// # Errors
+/// Returns protocol or semantic refusal, known backend refusal, or an Unknown
+/// outcome that must be recovered under the original exact operation identity.
+pub async fn commit_shared_reservation<'a, P, F, G>(
+    port: &'a P,
+    mut request: SharedBudgetCommitRequest<'a>,
+    refresh_authority: F,
+    policy: G,
+) -> Result<
+    ConditionalContentCommitOutcome<'a>,
+    ConditionalCommitPortError<P::Error, BudgetCommitError>,
+>
+where
+    P: ConditionalContentCommitPort,
+    F: FnOnce() -> Result<CurrentCommerceAuthority, BudgetCommitError> + Send + 'a,
+    G: FnOnce(&[LeanMandateClaims], &LeanOfferClaims) -> bool + Send + 'a,
+{
+    let write = ConditionalContentWrite {
+        scope: request.scope,
+        operation_id: request.operation_id,
+        expected: Some(request.current),
+        replacement: ContentBlock::new(ContentCodec::Raw, request.proposed_bytes).cid(),
+    };
+    let physical = request.physical;
+    port.commit(write, Some(physical), move |observed| {
+        if observed != Some(request.current) {
+            return Err(BudgetCommitError::Commit(
+                ConditionalCommitError::RevisionConflict,
+            ));
+        }
+        let authority = refresh_authority()?;
+        request.signed.now = authority.now;
+        decide_shared_reservation_commit(&authority.host, request, policy).map(|_| ())
+    })
+    .await
 }

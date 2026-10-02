@@ -25,7 +25,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = { version = "0.11", optional = true }
 p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa"], optional = true }
-mrr-data-content = { git = "https://github.com/tao3k/mrr-data", rev = "781947ac09cac2cb29a34d68fb962e7f19fa72d2", default-features = false, optional = true }
+mrr-data-content = { git = "https://github.com/tao3k/mrr-data", rev = "7ab0e62d9e437654111b867bde4eab47c4378ab1", default-features = false, optional = true }
 
 [[bin]]
 name = "cedar-poo-bridge"

@@ -146,3 +146,12 @@ bindings. It then calls MRR Data's provider-neutral conditional commit
 protocol. A returned =Apply= is a proposed transition. The backend must compare
 and persist the head and operation receipt atomically; MRR Data supplies no DB.
 The [[file:../tests/integration/agentic_ai_commerce_budget_projection_consumer.rs][consumer test]] uses shared before/after JSON emitted by Lean.
+
+The =commit_shared_reservation= API binds an explicit operation ID to the proposed
+purchase, then invokes MRR Data's async atomic commit port. The Host supplies
+fresh current authority inside the transaction callback; the adapter synchronizes
+that authority through persistence. Confirmed commit, exact replay, known refusal,
+and unknown outcome are distinct results. Exact recovery is effect-free and never
+reserves again. The test-only provider checks concurrency, revocation after
+preparation, unavailable authority or ledger, lost acknowledgement, and duplicate
+offer attempts under a new operation ID. No concrete DB adapter is included.

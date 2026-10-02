@@ -29,6 +29,7 @@ fn key(seed: u8) -> String {
         .collect()
 }
 
+#[derive(Clone)]
 struct Fixture {
     root: MandatePayload,
     child: MandatePayload,
@@ -111,6 +112,20 @@ impl Fixture {
         after: &SharedBudgetClaims,
         acknowledged: bool,
     ) -> Result<ConditionalCommitDisposition, BudgetCommitError> {
+        self.with_request(before, after, acknowledged, |request| {
+            decide_shared_reservation_commit(host, request, |claims, offer| {
+                claims == self.lineage && offer == &self.lean_offer
+            })
+        })
+    }
+
+    fn with_request<T>(
+        &self,
+        before: &SharedBudgetClaims,
+        after: &SharedBudgetClaims,
+        acknowledged: bool,
+        execute: impl FnOnce(SharedBudgetCommitRequest<'_>) -> T,
+    ) -> T {
         let root_signature: Signature = signer(1).sign(&self.root.signing_bytes());
         let child_signature: Signature =
             signer(2).sign(&delegation_signing_bytes(&self.root, &self.child));
@@ -138,32 +153,29 @@ impl Fixture {
             .cid(),
             cache: CacheAdmission::Stored,
         };
-        decide_shared_reservation_commit(
-            host,
-            SharedBudgetCommitRequest {
-                signed: DelegatedAdmissionRequest {
-                    root: self.root.clone(),
-                    root_signature: root_signature.to_bytes().as_slice(),
-                    delegations: if self.lineage.len() == 1 {
-                        &[]
-                    } else {
-                        &delegations
-                    },
-                    offer: self.offer.clone(),
-                    checkout_bytes: &self.checkout,
-                    offer_signature: offer_signature.to_bytes().as_slice(),
-                    lean_lineage: &self.lineage,
-                    lean_offer: &self.lean_offer,
-                    now: after.now,
+        execute(SharedBudgetCommitRequest {
+            signed: DelegatedAdmissionRequest {
+                root: self.root.clone(),
+                root_signature: root_signature.to_bytes().as_slice(),
+                delegations: if self.lineage.len() == 1 {
+                    &[]
+                } else {
+                    &delegations
                 },
-                scope: "buyer-trip-root",
-                current,
-                current_bytes: &before_bytes,
-                proposed_bytes: &after_bytes,
-                physical: &physical,
+                offer: self.offer.clone(),
+                checkout_bytes: &self.checkout,
+                offer_signature: offer_signature.to_bytes().as_slice(),
+                lean_lineage: &self.lineage,
+                lean_offer: &self.lean_offer,
+                now: after.now,
             },
-            |claims, offer| claims == self.lineage && offer == &self.lean_offer,
-        )
+            scope: "buyer-trip-root",
+            operation_id: &after.reservations[0].purchase.purchase_id,
+            current,
+            current_bytes: &before_bytes,
+            proposed_bytes: &after_bytes,
+            physical: &physical,
+        })
     }
 
     fn next(&self, before: &SharedBudgetClaims) -> SharedBudgetClaims {
@@ -319,3 +331,6 @@ fn mutated_revision_and_time_cannot_be_committed() {
         Err(BudgetCommitError::InvalidTransition)
     );
 }
+
+#[path = "agentic_ai/commerce/budget_transactions.rs"]
+mod transactions;
