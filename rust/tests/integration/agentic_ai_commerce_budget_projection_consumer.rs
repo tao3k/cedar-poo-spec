@@ -334,3 +334,7 @@ fn mutated_revision_and_time_cannot_be_committed() {
 
 #[path = "agentic_ai/commerce/budget_transactions.rs"]
 mod transactions;
+
+#[cfg(feature = "agentic-ai-commerce-credential")]
+#[path = "agentic_ai/commerce/credentials.rs"]
+mod credentials;

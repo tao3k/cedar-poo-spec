@@ -46,15 +46,21 @@ struct State {
     lose_ack: bool,
     unavailable: bool,
 }
-struct TestPort(Mutex<State>);
+pub(super) struct TestPort(Mutex<State>);
 impl TestPort {
-    fn new(before: &SharedBudgetClaims) -> Self {
+    pub(super) fn new(before: &SharedBudgetClaims) -> Self {
         Self(Mutex::new(State {
             head: Some(head(before)),
             rows: vec![],
             lose_ack: false,
             unavailable: false,
         }))
+    }
+}
+impl TestPort {
+    #[cfg(feature = "agentic-ai-commerce-credential")]
+    pub(super) fn set_unavailable(&self) {
+        self.0.lock().unwrap().unavailable = true;
     }
 }
 impl Port for TestPort {
@@ -133,7 +139,7 @@ impl Port for TestPort {
 
 // This provider deliberately completes without suspension. This helper tests
 // its synchronous model only; a real adapter must supply its own async runtime.
-fn complete<F: Future>(future: F) -> F::Output {
+pub(super) fn complete<F: Future>(future: F) -> F::Output {
     let mut future = std::pin::pin!(future);
     match future
         .as_mut()

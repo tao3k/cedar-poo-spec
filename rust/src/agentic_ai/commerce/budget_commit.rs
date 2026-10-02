@@ -75,7 +75,7 @@ fn spend<'a>(
     })
 }
 
-fn admit<F>(
+pub(super) fn admit<F>(
     host: &CommerceAdmissionHost,
     signed: DelegatedAdmissionRequest<'_>,
     policy: F,
@@ -166,7 +166,7 @@ where
     .map_err(BudgetCommitError::Commit)
 }
 
-fn read_transition(
+pub(super) fn read_transition(
     current: ContentRevision,
     current_bytes: &[u8],
     proposed_bytes: &[u8],
@@ -201,7 +201,7 @@ fn read_transition(
     Ok((before, after))
 }
 
-fn validate_reservation(
+pub(super) fn validate_reservation(
     before: &SharedBudgetClaims,
     entry: &SharedBudgetReservation,
     lineage: &[LeanMandateClaims],

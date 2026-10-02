@@ -7,7 +7,7 @@
 [[file:Budget.lean][Budget]] binds a principal mandate to exact merchant offer terms;
 [[file:Delegation.lean][Delegation]] attenuates authority on every signed handoff;
 [[file:SharedBudget.lean][SharedBudget]] charges the root and every ancestor across all branches;
-[[file:Credential.lean][Credential]] binds a scoped credential to a reserved purchase;
+[[file:Credential.lean][Credential]] binds a scoped credential to an authenticated committed reservation;
 [[file:Projection.lean][Projection]] exports claims without derived verification flags.
 The [[file:../../Vertical/FinancialServices/AgenticCommercePayment.lean][financial payment adapter]] maps an admitted purchase to =PaymentOperation=.
 
@@ -21,7 +21,8 @@ revoking an ancestor prevents a descendant reservation.
 
 Rust APIs live under =agentic_ai::commerce= with optional
 =agentic-ai-commerce-signatures=, =agentic-ai-commerce-projection=,
-=agentic-ai-commerce-admission=, and =agentic-ai-commerce-budget-commit=
+=agentic-ai-commerce-admission=, =agentic-ai-commerce-budget-commit=, and
+=agentic-ai-commerce-credential=
 features. =just check-agentic-ai-commerce-admission= exports the Lean fixture
 and checks signatures, current Host authority, and the shared transition.
 
@@ -50,3 +51,27 @@ ledger cannot be treated as absence, and a new operation ID cannot repeat the
 same merchant offer. The signed consumer tests exercise these rules with a
 test-only serialized provider, including competing child Agents under one root.
 These checks provide no DB, crash-recovery, or deployed durability acceptance.
+
+* Credential after commit
+
+=ReservationCommitReceipt= retains the trusted scope, exact operation ID,
+previous/committed revision and content IDs, and the complete reservation lineage.
+Lean acceptance requires this authenticated commit to remain present in the
+current shared budget. It checks current ancestor revocations and caps, exact
+checkout terms, and credential expiry within the offer and every ancestor.
+The financial adapter requires this shared-budget gate before payment binding.
+
+Rust =admit_committed_credential= recovers the exact operation through the MRR
+port, verifies the original transition and raw content IDs, and then refreshes
+Host authority. A separately enrolled current issuer key verifies the signed
+credential. The private =VerifiedCredential= constructor cannot be replaced
+by caller-owned JSON flags. A later head may retain the original reservation;
+acceptance does not debit it again. Unavailable recovery is an error, not absence.
+
+The cross-language fixture exports every semantic credential field and proves
+its Lean acceptance. Only its two opaque content-ID template fields are resolved
+from actual Rust before/after bytes. Credential signing uses a versioned domain
+and fixed typed JSON serialization; this is a local format, not an AP2 JWT format.
+No payment token, provider dispatch, single-use consumption, or settlement receipt
+is implemented. A real effect gate must synchronize the head, live authority,
+issuer status, and consumption ledger through provider release.

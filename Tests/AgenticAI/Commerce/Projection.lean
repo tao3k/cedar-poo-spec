@@ -52,12 +52,30 @@ theorem sharedProjectionIsExactTransition :
       child := { child with verified := true }, verified := true }]
       { offer with verified := true } sharedPurchase = some sharedAfter := by decide
 
+-- Content IDs are opaque in Lean. Rust resolves these two template fields from
+-- the actual before/after bytes; every semantic reservation field is exported.
+def committedCredential : Credential :=
+  { credentialId := "credential-42", issuerId := "wallet",
+    receipt := {
+      scope := "buyer-trip-root", operationId := sharedPurchase.purchaseId,
+      expectedRevision := 1, expectedContentId := "host-before-content-id",
+      committedRevision := 2, committedContentId := "host-committed-content-id",
+      reservation := {
+        lineage := [sharedBefore.root, { child with verified := true }]
+        purchase := sharedPurchase }, verified := true },
+    expiresAt := 18, verified := true }
+
+theorem committedCredentialProjectionAccepted :
+    sharedAfter.acceptsCredential "buyer-trip-root" { offer with verified := true }
+      sharedPurchase committedCredential = true := by decide
+
 def fixture : Lean.Json := Lean.Json.mkObj [
   ("mandate", mandate.claimsJson),
   ("offer", offer.claimsJson),
   ("lineage", Lean.toJson ([mandate.claimsJson, child.claimsJson] : List Lean.Json)),
   ("sharedBefore", sharedBefore.claimsJson),
-  ("sharedAfter", sharedAfter.claimsJson)]
+  ("sharedAfter", sharedAfter.claimsJson),
+  ("credentialTemplate", committedCredential.claimsJson)]
 
 end CedarPooSpec.AgenticAI.CommerceProjectionTest
 

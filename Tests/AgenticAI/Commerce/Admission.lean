@@ -163,32 +163,43 @@ theorem unverifiedGrantDenied :
     Delegation.resolveChain mandate
       [{ grant with verified := false }] = none := by decide
 
+def credentialBudget : SharedBudget :=
+  { root := mandate, now := 10, reservations := [{ lineage := [mandate], purchase }],
+    revokedMandateIds := [], revision := 2 }
+def commitReceipt : ReservationCommitReceipt :=
+  { scope := "buyer-trip-root", operationId := purchase.purchaseId,
+    expectedRevision := 1, expectedContentId := "before-cid",
+    committedRevision := 2, committedContentId := "after-cid",
+    reservation := { lineage := [mandate], purchase }, verified := true }
 def credential : Credential :=
   { credentialId := "agent-token-1", issuerId := "credential-provider",
-    mandate, purchaseId := purchase.purchaseId, terms,
-    expiresAt := 18, verified := true }
+    receipt := commitReceipt, expiresAt := 18, verified := true }
 
 theorem exactCredentialAccepted :
-    reserved.acceptsCredential offer purchase credential = true := by decide
+    credentialBudget.acceptsCredential "buyer-trip-root" offer purchase credential = true := by decide
 theorem credentialCannotPrecedeReservation :
-    budget.acceptsCredential offer purchase credential = false := by decide
+    ({ credentialBudget with reservations := [] }).acceptsCredential "buyer-trip-root"
+      offer purchase credential = false := by decide
 theorem otherAgentCredentialDenied :
-    reserved.acceptsCredential offer purchase
-      { credential with mandate := child } = false := by decide
+    credentialBudget.acceptsCredential "buyer-trip-root" offer purchase
+      { credential with receipt := { commitReceipt with
+        reservation := { lineage := [child], purchase } } } = false := by decide
 theorem otherCheckoutCredentialDenied :
-    reserved.acceptsCredential offer purchase
-      { credential with terms := { terms with checkoutCommitment := "other-checkout" } } =
-      false := by decide
+    credentialBudget.acceptsCredential "buyer-trip-root"
+      { offer with terms := { terms with checkoutCommitment := "other-checkout" } }
+      purchase credential = false := by decide
 theorem expiredCredentialDenied :
-    ({ reserved with now := 18 }).acceptsCredential offer purchase credential = false := by decide
+    ({ credentialBudget with now := 18 }).acceptsCredential "buyer-trip-root"
+      offer purchase credential = false := by decide
 theorem revokedCredentialDenied :
-    ({ reserved with revoked := true }).acceptsCredential offer purchase credential = false := by decide
+    (credentialBudget.revoke mandate.mandateId).acceptsCredential "buyer-trip-root"
+      offer purchase credential = false := by decide
 theorem unverifiedCredentialDenied :
-    reserved.acceptsCredential offer purchase
+    credentialBudget.acceptsCredential "buyer-trip-root" offer purchase
       { credential with verified := false } = false := by decide
 
 def cardProfile : AgenticCommercePaymentProfile :=
-  { origin := admin, instrument := "agent-card-token", network := "card",
+  { budgetScope := "buyer-trip-root", origin := admin, instrument := "agent-card-token", network := "card",
     feeCap := "1.0000", verified := true }
 def payment : PaymentOperation :=
   { authorityMode := .delegated, payerAccount := approvedAccount, origin := admin,
@@ -202,27 +213,27 @@ def envelope : AgenticCommercePaymentEnvelope :=
   { offer, purchase, credential, payment }
 
 theorem exactPurchaseBindsPayment :
-    cardProfile.binds reserved envelope = true := by native_decide
+    cardProfile.binds credentialBudget envelope = true := by native_decide
 theorem changedPaymentMerchantDenied :
-    cardProfile.binds reserved
+    cardProfile.binds credentialBudget
       { envelope with payment := { payment with beneficiary := "other" } } = false := by native_decide
 theorem changedPaymentAmountDenied :
-    cardProfile.binds reserved
+    cardProfile.binds credentialBudget
       { envelope with payment := { payment with amount := "301.0000" } } = false := by native_decide
 theorem nonCanonicalPaymentAmountDenied :
-    cardProfile.binds reserved
+    cardProfile.binds credentialBudget
       { envelope with payment := { payment with amount := "300.00" } } = false := by native_decide
 theorem changedCheckoutInPaymentDenied :
-    cardProfile.binds reserved
+    cardProfile.binds credentialBudget
       { envelope with payment := { payment with checkoutCommitment := "other" } } = false := by native_decide
 theorem changedPaymentNonceDenied :
-    cardProfile.binds reserved
+    cardProfile.binds credentialBudget
       { envelope with payment := { payment with nonce := "buy-2" } } = false := by native_decide
 theorem wrongPaymentAgentDenied :
-    cardProfile.binds reserved
+    cardProfile.binds credentialBudget
       { envelope with payment := { payment with proposer := "other-agent" } } = false := by native_decide
 theorem expiredPaymentDenied :
-    cardProfile.binds reserved
+    cardProfile.binds credentialBudget
       { envelope with payment := { payment with expiresAt := 21 } } = false := by native_decide
 
 def sharedBudget : SharedBudget :=
@@ -339,5 +350,62 @@ theorem grandchildCannotExceedOwnCumulativeCap :
       { siblingPurchase with
         mandateId := grandchild.mandateId, agentId := grandchild.agentId
         terms := { siblingTerms with amountMinor := 20000 } } = none := by decide
+
+theorem laterRevisionRetainsCredential :
+    ({ credentialBudget with revision := 5 }).acceptsCredential "buyer-trip-root"
+      offer purchase credential = true := by decide
+theorem futureCommitReceiptDenied :
+    credentialBudget.acceptsCredential "buyer-trip-root" offer purchase
+      { credential with receipt := { commitReceipt with expectedRevision := 2, committedRevision := 3 } } = false := by decide
+theorem unverifiedCommitReceiptDenied :
+    credentialBudget.acceptsCredential "buyer-trip-root" offer purchase
+      { credential with receipt := { commitReceipt with verified := false } } = false := by decide
+theorem wrongReceiptScopeDenied :
+    credentialBudget.acceptsCredential "other-scope" offer purchase credential = false := by decide
+theorem wrongReceiptOperationDenied :
+    credentialBudget.acceptsCredential "buyer-trip-root" offer purchase
+      { credential with receipt := { commitReceipt with operationId := "other" } } = false := by decide
+theorem identicalCommitContentDenied :
+    credentialBudget.acceptsCredential "buyer-trip-root" offer purchase
+      { credential with receipt := { commitReceipt with committedContentId := "before-cid" } } =
+      false := by decide
+theorem credentialCannotOutliveOffer :
+    credentialBudget.acceptsCredential "buyer-trip-root" offer purchase
+      { credential with expiresAt := 21 } = false := by decide
+
+def childCredential : Credential :=
+  { credential with
+    receipt := { commitReceipt with
+      expectedRevision := 1
+      committedRevision := 2
+      operationId := childPurchase.purchaseId
+      reservation := { lineage := [mandate, child], purchase := childPurchase } } }
+theorem committedChildCredentialAccepted :
+    ({ sharedAfterChild with revision := 2 }).acceptsCredential "buyer-trip-root"
+      offer childPurchase childCredential =
+      true := by decide
+theorem revokedAncestorDeniesChildCredential :
+    (sharedAfterChild.revoke mandate.mandateId).acceptsCredential "buyer-trip-root"
+      offer childPurchase childCredential = false := by decide
+theorem changedRootDeniesCredential :
+    ({ sharedAfterChild with root := { mandate with policyEpoch := 5 } }).acceptsCredential
+      "buyer-trip-root" offer childPurchase childCredential = false := by decide
+
+theorem delegatedCredentialBindsLeafPayment :
+    cardProfile.binds { sharedAfterChild with revision := 2 }
+      { envelope with
+        purchase := childPurchase
+        credential := childCredential
+        payment := { payment with mandateRef := child.mandateId, proposer := child.agentId } } =
+      true := by native_decide
+theorem parentCannotReplaceLeafPaymentAuthority :
+    cardProfile.binds { sharedAfterChild with revision := 2 }
+      { envelope with purchase := childPurchase, credential := childCredential } =
+      false := by native_decide
+theorem revokedAncestorDeniesPaymentBinding :
+    cardProfile.binds (credentialBudget.revoke mandate.mandateId) envelope = false := by native_decide
+theorem wrongPaymentBudgetScopeDenied :
+    ({ cardProfile with budgetScope := "other-root" }).binds credentialBudget envelope =
+      false := by native_decide
 
 end CedarPooSpec.AgenticAI.CommerceTest

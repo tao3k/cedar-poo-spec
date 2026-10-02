@@ -4,6 +4,8 @@
 pub mod admission;
 #[cfg(feature = "agentic-ai-commerce-budget-commit")]
 pub mod budget_commit;
+#[cfg(feature = "agentic-ai-commerce-credential")]
+pub mod credential;
 #[cfg(feature = "agentic-ai-commerce-projection")]
 pub mod projection;
 pub mod signatures;

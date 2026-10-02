@@ -1,5 +1,5 @@
 import CedarPooSpec.AgenticAI.Commerce.Budget
-import CedarPooSpec.AgenticAI.Commerce.SharedBudget
+import CedarPooSpec.AgenticAI.Commerce.Credential
 import Lean
 
 /-!
@@ -67,5 +67,23 @@ def SharedBudget.claimsJson (state : SharedBudget) : Lean.Json :=
       ("purchase", entry.purchase.claimsJson)]))),
     ("revokedMandateIds", Lean.toJson state.revokedMandateIds),
     ("revision", Lean.toJson state.revision)]
+
+/-- Credential projection omits both issuer and commit verification flags. -/
+def Credential.claimsJson (credential : Credential) : Lean.Json :=
+  let receipt := credential.receipt
+  object [
+    ("credentialId", Lean.toJson credential.credentialId),
+    ("issuerId", Lean.toJson credential.issuerId),
+    ("expiresAt", Lean.toJson credential.expiresAt),
+    ("receipt", object [
+      ("scope", Lean.toJson receipt.scope),
+      ("operationId", Lean.toJson receipt.operationId),
+      ("expectedRevision", Lean.toJson receipt.expectedRevision),
+      ("expectedContentId", Lean.toJson receipt.expectedContentId),
+      ("committedRevision", Lean.toJson receipt.committedRevision),
+      ("committedContentId", Lean.toJson receipt.committedContentId),
+      ("reservation", object [
+        ("lineage", Lean.toJson (receipt.reservation.lineage.map (·.claimsJson))),
+        ("purchase", receipt.reservation.purchase.claimsJson)])])]
 
 end CedarPooSpec.AgenticAI.Commerce

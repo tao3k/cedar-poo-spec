@@ -22,6 +22,7 @@ def canonicalHkdCents (text : String) : Option Nat := do
   else none
 
 structure AgenticCommercePaymentProfile where
+  budgetScope : String
   origin : Cedar.Spec.EntityUID
   instrument : String
   network : String
@@ -42,14 +43,14 @@ structure AgenticCommercePaymentEnvelope where
 /-- Check correspondence only. Cedar authorization and Host effect release are
     separate decisions after this predicate succeeds. -/
 def AgenticCommercePaymentProfile.binds (profile : AgenticCommercePaymentProfile)
-    (budget : Budget)
+    (budget : SharedBudget)
     (envelope : AgenticCommercePaymentEnvelope) : Bool :=
   profile.verified && !profile.instrument.isEmpty &&
   !profile.network.isEmpty &&
-  budget.acceptsCredential envelope.offer envelope.purchase envelope.credential &&
+  budget.acceptsCredential profile.budgetScope envelope.offer envelope.purchase envelope.credential &&
   envelope.payment.wellFormed &&
   envelope.payment.authorityMode == .delegated &&
-  decide (envelope.payment.payerAccount = budget.mandate.principal) &&
+  decide (envelope.payment.payerAccount = budget.root.principal) &&
   decide (envelope.payment.origin = profile.origin) &&
   envelope.payment.instrument == profile.instrument &&
   envelope.payment.network == profile.network &&
@@ -61,9 +62,9 @@ def AgenticCommercePaymentProfile.binds (profile : AgenticCommercePaymentProfile
   envelope.payment.mandateRef == envelope.purchase.mandateId &&
   envelope.payment.nonce == envelope.purchase.purchaseId &&
   envelope.payment.proposer == envelope.purchase.agentId &&
-  envelope.payment.policyEpoch == budget.mandate.policyEpoch &&
+  envelope.payment.policyEpoch == budget.root.policyEpoch &&
   budget.now < envelope.payment.expiresAt &&
-  envelope.payment.expiresAt <= budget.mandate.expiresAt &&
+  envelope.payment.expiresAt <= budget.root.expiresAt &&
   envelope.payment.expiresAt <= envelope.offer.expiresAt &&
   envelope.payment.expiresAt <= envelope.credential.expiresAt &&
   canonicalHkdCents envelope.payment.amount ==

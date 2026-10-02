@@ -59,8 +59,10 @@ operation receipt. =just check-agentic-ai-commerce-admission= checks this bridge
 with JSON emitted by Lean.
 
 The public [[file:../../../CedarPooSpec/AgenticAI/Commerce/Credential.lean][credential boundary]] requires a credential to name the exact
-reserved purchase, full active mandate, checkout commitment, issuer, and
-expiry. The [[file:../../../CedarPooSpec/Vertical/FinancialServices/AgenticCommercePayment.lean][public HKD cents adapter]] checks that those objects
+committed reservation, shared scope, operation, before/after content IDs and
+revisions, full authority lineage, checkout, issuer, and expiry. Current ancestor
+revocation denies a descendant credential even when its original receipt remains
+available. A later head retaining the exact reservation does not charge it again. The [[file:../../../CedarPooSpec/Vertical/FinancialServices/AgenticCommercePayment.lean][public HKD cents adapter]] checks that those objects
 correspond to a downstream =PaymentOperation=, including payer, merchant,
 amount in canonical cents, agent, mandate, nonce, and checkout commitment.
 The latter field is optional for generic payments but mandatory in this
@@ -155,6 +157,40 @@ inter-agent trust, market manipulation, and regulatory exposure to the threat
 map. These are research results and proposed taxonomies, not proof of a
 specific production exploit or validation of this implementation.
 
+* Commit-to-credential research slice (2026-10-02)
+
+[[https://ap2-protocol.org/ap2/implementation_considerations/][AP2 implementation considerations]] assign mandate verification and payment-token
+release to the credential provider, and distinguish merchant checkout receipts
+from processor payment receipts. The [[https://www.agenticcommerce.dev/docs/reference/payments][ACP Delegate Payment reference]] scopes
+allowances by amount, currency, checkout session, merchant, expiry, and one-time
+reason; its idempotency key addresses duplicate token creation. These motivate
+separate commit, credential-admission, and effect/receipt gates in this model.
+Neither protocol specifies our synthetic shared-budget content-head format.
+
+The [[https://arxiv.org/html/2609.00060v1][formal analysis of agent payment protocols]] studies cross-stage relations
+under explicitly modeled trust boundaries. Its counterexamples and implementation
+witnesses have different evidence levels; they are not a production-wide failure
+claim. We use this distinction to ask whether an authenticated earlier commit
+still authorizes the exact current credential and checkout. We do not import its
+Tamarin results as proofs of this Lean/Rust implementation.
+
+The optional Rust [[file:../../../rust/src/agentic_ai/commerce/credential.rs][credential validator]] recovers an exact MRR operation receipt,
+verifies raw previous/committed block CIDs and the original one-reservation
+transition, and rechecks fresh signed root/delegations, policy, merchant offer,
+checkout bytes and independently enrolled issuer key. All projected verification
+flags are omitted. Lean proves accepted credentials retain a current reservation
+and an authenticated commit, with explicit negative cases for ancestor revocation,
+future revision, wrong scope/operation, expiry and checkout substitution.
+
+The [[file:../../../rust/tests/integration/agentic_ai/commerce/credentials.rs][signed consumers]] test proposal-only and unreadable-ledger rejection, later-head
+retention/removal, issuer rotation/revocation, signed claim tampering, changed
+checkout/price, current cap violations and policy/mandate revocation. The two
+opaque CIDs in the Lean credential template are filled from actual Rust content
+bytes; every semantic receipt field is taken directly from the exported fixture.
+The serialized provider remains test-only. These checks establish local admission
+correspondence, not AP2/ACP conformance, durable credential consumption, payment
+execution, fulfillment, or dispute verification.
+
 * Next code and evaluation slices
 
 1. Bind the process-local delegated admission reference to authenticated
@@ -172,7 +208,8 @@ specific production exploit or validation of this implementation.
    MRR Data is an interface for content and conditional publication. A backend
    must persist one head and exact operation receipt atomically, then test two
    child writers racing under the same root and recovery after an uncertain ACK.
-4. Bind the final merchant checkout, scoped credential, provider request,
+4. The committed-reservation to signed-credential admission gate is implemented.
+   Bind its exact credential to a provider request,
    processor receipt, fulfillment evidence, and dispute bundle to their
    independently authenticated issuers. Test price or shipping changes after
    a checkout-session update, retry after an uncertain provider response,

@@ -85,7 +85,7 @@ def run(name: str, repository: Path) -> None:
         env = {**os.environ, "LEAN_PROJECTION_FIXTURE": str(fixture)}
         for feature, consumer in (
             ("agentic-ai-commerce-admission", "agentic_ai_commerce_admission_consumer"),
-            ("agentic-ai-commerce-budget-commit", "agentic_ai_commerce_budget_projection_consumer"),
+            ("agentic-ai-commerce-credential", "agentic_ai_commerce_budget_projection_consumer"),
         ):
             _run(["cargo", "test", "--locked", "--manifest-path", "rust/Cargo.toml",
                   "--no-default-features", "--features", feature, "--test", consumer],
