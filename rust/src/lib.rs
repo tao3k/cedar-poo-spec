@@ -3,6 +3,8 @@
 mod artifact;
 pub use artifact::{CompiledPolicyJson, TemplateSourceJson};
 
+#[cfg(feature = "agent-commerce-admission")]
+pub mod agent_commerce_admission;
 pub mod authority_consumption;
 #[cfg(feature = "cedar-runtime")]
 mod bridge;

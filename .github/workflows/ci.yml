@@ -119,7 +119,7 @@ jobs:
       - run: just check-attested-schema-evolution
       - run: just check-mission-comparison
       - run: just check-personnel-governance
-      - run: just check-agent-commerce-projection
+      - run: just check-agent-commerce-admission
 
   authorization-delta:
     needs: [lean, rust]

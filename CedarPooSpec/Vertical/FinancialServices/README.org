@@ -48,8 +48,12 @@ authenticate and map the verified Rust fields into these Lean structures.
 =lean-mandate-offer-projection= Rust feature compares those claims with live
 verified mandate and offer values. =just check-agent-commerce-projection=
 exercises the cross-language mapping with signed synthetic inputs. The Host
-must separately check time, key status, policy, and revocation, and
-then persist reservations and effect receipts durably.
+must also check time, key status, policy, and revocation before setting
+=verified=. The optional Rust =agent-commerce-admission= reference performs those dynamic
+checks for signed root mandates and merchant offers with a Host-supplied clock
+and policy evaluator. Its registry and revocation state are process-local;
+delegated child mandates and durable reservation and effect receipts remain
+separate work.
 
 * Boundary
 

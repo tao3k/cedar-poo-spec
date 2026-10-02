@@ -10,6 +10,7 @@
 | =google-sdp-host= | In-memory Cedar-to-Google admission example API | Both features above |
 | =mandate-offer-signatures= | Public mandate, delegation, and offer signature verifier API | =p256= and =sha2= |
 | =lean-mandate-offer-projection= | Exact mandate and offer claims comparison for Lean admission | =mandate-offer-signatures= |
+| =agent-commerce-admission= | Process-local admission checks for signed root mandate and offer claims | =lean-mandate-offer-projection= |
 
 The Google wire contract compiles without =cedar-policy=. A consumer that
 only renders and checks Google SDP table bodies enables =google-sdp=; the
@@ -39,6 +40,19 @@ Lean types through =just check-agent-commerce-projection=. The Host must keep
 the verified values in its trusted process and set =verified= only after the
 comparison and its separate current-time, key-status, policy, and revocation
 checks. JSON claims alone do not carry cryptographic authority.
+
+The separate [[file:agent_commerce_admission.rs][Agent Commerce admission reference]] re-verifies a root mandate and
+merchant offer against currently enrolled keys and exact checkout bytes on
+every call. It rejects inactive keys, expired evidence, missing or stale policy
+epochs, revoked mandate or offer IDs, changed Lean claims, and offers outside
+the mandate scope. The Host passes a trusted clock reading and a policy
+evaluator over the exact claims. These inputs and registry changes must be
+authenticated by a deployment. The returned claims contain no reusable
+=verified= flag; a reservation or external effect needs a fresh state check.
+This process-local API does not admit delegated child mandates, authenticate
+Agent request possession, persist revocations or budget, or run Cedar itself.
+The [[file:../tests/integration/agent_commerce_admission_consumer.rs][external consumer test]] exercises these dynamic refusals under
+=agent-commerce-admission=.
 
 * Google table transformation contract
 

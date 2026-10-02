@@ -1,5 +1,8 @@
 # Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.
-check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance check-agent-commerce-projection
+check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance check-agent-commerce-admission
+
+check-agent-commerce-admission: check-agent-commerce-projection
+    cargo test --locked --manifest-path rust/Cargo.toml --no-default-features --features agent-commerce-admission --test agent_commerce_admission_consumer
 
 check-agent-commerce-projection:
     mkdir -p .lake/build
