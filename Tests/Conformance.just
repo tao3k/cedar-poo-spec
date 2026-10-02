@@ -12,8 +12,8 @@ check-agent-commerce-projection:
     LEAN_PROJECTION_FIXTURE="$PWD/.lake/build/agent-commerce-projection.json" cargo test --locked --manifest-path rust/Cargo.toml --no-default-features --features lean-mandate-offer-projection --test lean_mandate_offer_projection_consumer
 
 check-personnel-governance:
-    lake build Examples.Manifests Tests.Enterprise.Personnel.SourceCustody
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean source-custody-validated > .lake/build/source-custody-validated-manifest.json
+    lake build Productions.Manifests Tests.Enterprise.Personnel.SourceCustody
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean source-custody-validated > .lake/build/source-custody-validated-manifest.json
     cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
     jq -e -f Tests/Conformance/personnel-governance-receipts.jq .lake/build/source-custody-validated-receipts.json > /dev/null
 
@@ -60,7 +60,7 @@ check-attested-schema-evolution: prepare-attested-schema-evolution
     jq -e -f Tests/Conformance/attested-schema-evolution-receipt.jq .lake/build/attested-schema-evolution-receipt.json > /dev/null
 
 check-authorization-delta: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Governance/AuthorizationDelta.lean > .lake/build/authorization-delta.json
     jq -e -f Tests/Conformance/authorization-delta.jq .lake/build/authorization-delta.json > /dev/null
     jq '.posture_manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
     jq '.manifest' .lake/build/authorization-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
@@ -117,8 +117,8 @@ check-agent-trace-delta:
     just example enterprise agent session-trace-delta
 
 check-health-authorization-impact:
-    lake build Examples.Health.Pseudonymization.AuthorizationImpact
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Health/Pseudonymization/AuthorizationImpact.lean > .lake/build/health-authorization-impact.json
+    lake build Productions.Health.Pseudonymization.AuthorizationImpact
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Health/Pseudonymization/AuthorizationImpact.lean > .lake/build/health-authorization-impact.json
     jq -e -f Tests/Conformance/health-authorization-impact.jq .lake/build/health-authorization-impact.json > /dev/null
     jq '.suspended_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
     jq '.restored_manifest' .lake/build/health-authorization-impact.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml
@@ -129,6 +129,6 @@ check-authorization-delta-proof:
     lake build CedarPooSpec.AuthorizationDeltaProof CedarPooSpec.AuthorizationDeltaBooleanCore Tests.Governance.AuthorizationDeltaFormula Tests.Governance.AuthorizationDeltaDirect Tests.Governance.AuthorizationDeltaAxiomAudit
 
 check-payment-delta: build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean > .lake/build/payment-delta.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Enterprise/Agent/Payment/AuthorizationDelta.lean > .lake/build/payment-delta.json
     jq -e -f Tests/Conformance/payment-delta.jq .lake/build/payment-delta.json > /dev/null
     jq '.manifest' .lake/build/payment-delta.json | cargo run --locked --quiet --features cedar-runtime --manifest-path rust/Cargo.toml

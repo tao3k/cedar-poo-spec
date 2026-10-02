@@ -5,7 +5,7 @@ import subprocess
 
 
 BUILD = Path(".lake/build")
-MANIFEST = Path("Examples/Manifests.lean")
+MANIFEST = Path("Productions/Manifests.lean")
 
 
 def manifest(selector: str, filename: str | None = None) -> tuple[Path, str, Path]:
@@ -30,7 +30,7 @@ PREPARE: dict[str, list[tuple[Path, str, Path | None]]] = {
     ],
     "prepare-cedar-manifest": [
         manifest("ticket-sharing"),
-        source("Examples/Governance/ExpandedPolicy.lean", "expanded-policy.json"),
+        source("Productions/Governance/ExpandedPolicy.lean", "expanded-policy.json"),
     ],
     "prepare-source-case-manifests": [manifest("clinical"), manifest("attested")],
     "prepare-wearable-triage-manifest": [manifest("wearable-triage")],
@@ -40,12 +40,12 @@ PREPARE: dict[str, list[tuple[Path, str, Path | None]]] = {
     "prepare-purchase-manifest": [manifest("purchase-approval")],
     "prepare-delegated-manifest": [
         manifest("delegated-approval"),
-        source("Examples/Enterprise/Procurement/PublishedPolicy.lean", "delegated-published.json"),
+        source("Productions/Enterprise/Procurement/PublishedPolicy.lean", "delegated-published.json"),
     ],
     "prepare-delegated-matrix": [manifest("delegated-matrix")],
     "prepare-payment-manifest": [
         manifest("payment-release"),
-        source("Examples/Enterprise/Payment/PublishedPayment.lean", "payment-published.json"),
+        source("Productions/Enterprise/Payment/PublishedPayment.lean", "payment-published.json"),
     ],
     "prepare-agent-manifest": [manifest("agent-delegation")],
     "prepare-agent-chain-manifest": [manifest("agent-chain")],
@@ -60,11 +60,11 @@ PREPARE: dict[str, list[tuple[Path, str, Path | None]]] = {
     "prepare-tenant-device-manifest": [manifest("tenant-device")],
     "prepare-all-manifests": [
         (MANIFEST, "all", None),
-        source("Examples/Governance/ExpandedPolicy.lean", "expanded-policy.json"),
-        source("Examples/Enterprise/Procurement/PublishedPolicy.lean", "delegated-published.json"),
-        source("Examples/Enterprise/Payment/PublishedPayment.lean", "payment-published.json"),
-        source("Examples/Governance/TemplateSourceExport.lean", "template-source-bundle.json"),
-        source("Examples/Governance/TemplateSourceExport.lean", "mixed-template-source-bundle.json", "mixed"),
+        source("Productions/Governance/ExpandedPolicy.lean", "expanded-policy.json"),
+        source("Productions/Enterprise/Procurement/PublishedPolicy.lean", "delegated-published.json"),
+        source("Productions/Enterprise/Payment/PublishedPayment.lean", "payment-published.json"),
+        source("Productions/Governance/TemplateSourceExport.lean", "template-source-bundle.json"),
+        source("Productions/Governance/TemplateSourceExport.lean", "mixed-template-source-bundle.json", "mixed"),
     ],
 }
 
