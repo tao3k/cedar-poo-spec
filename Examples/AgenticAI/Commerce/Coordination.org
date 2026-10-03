@@ -62,12 +62,14 @@ a production adapter. No complete AP2 admission or deployed durability claim.
 cargo test --locked -p cedar-poo-commerce-case --no-default-features --features ap2-coordination --test agentic_ai_commerce_coordination_consumer
 #+end_src
 
-Five [[file:../../../rust/commerce-case/tests/integration/agentic_ai_commerce_coordination_consumer.rs][independent consumer tests]] use a mutex-backed reference store, real
+Six [[file:../../../rust/commerce-case/tests/integration/agentic_ai_commerce_coordination_consumer.rs][independent consumer tests]] use a mutex-backed reference store, real
 merchant ES256 receipts and two concurrent workers. They check one fresh CAS
 across alias journals, gate/journal consistency, lost ACK followed by conflict,
 global tombstones, wrong journal/old receipt refusal, terminal success, bounded
 journal growth and tuple separation. This reference store is in-memory evidence,
-not a durable backend or a proof over every possible schedule.
+not a durable backend or a proof over every possible schedule. The sixth test
+exposes the [[file:Restoration.org][policy-ID migration boundary]]: another policy key can create
+an independent fresh gate unless the Host registry prevents that split.
 
 MRR remains pinned to its current per-ledger API. Adopting this contract requires
 validated state restoration, canonical enrollment ownership and a current-trust

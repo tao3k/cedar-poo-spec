@@ -234,3 +234,30 @@ fn journal_limit_refuses_without_eviction_or_partial_update() {
             .contains(&"closed-0".into())
     );
 }
+
+#[test]
+fn changing_policy_identity_can_create_an_independent_fresh_gate() {
+    // Boundary witness: key derivation cannot enforce the Host's migration policy.
+    // No deployed Host or external send is involved.
+    let old = Store::new(SharedCheckoutState::fresh(identity()));
+    let new_policy = CheckoutCoordinationIdentity::enrolled(
+        "registry",
+        "canonical-open-1",
+        "agent-1",
+        "policy-2",
+    )
+    .unwrap();
+    assert_ne!(identity().storage_key(), new_policy.storage_key());
+    let new = Store::new(SharedCheckoutState::fresh(new_policy));
+    let same = presentation("closed-A", 10);
+    assert_eq!(
+        commit_presentation(&old, &old.read(), "A", same.clone()).unwrap(),
+        CoordinationCommit::Applied
+    );
+    assert_eq!(
+        commit_presentation(&new, &new.read(), "B", same).unwrap(),
+        CoordinationCommit::Applied
+    );
+    assert!(old.read().pending().is_some());
+    assert!(new.read().pending().is_some());
+}

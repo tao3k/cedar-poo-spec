@@ -167,3 +167,10 @@ regressions exercise the whole-record CAS contract. Canonical enrollment,
 validated durable restoration, protected current-authority refresh and a
 production persistence implementation remain open. Payment coupling and
 agent-wide serialization are not selected. V2 is not end-to-end closure.
+
+* Restoration and migration follow-up
+
+The [[file:Restoration.org][restoration/recovery research]] maps RIFL and Chubby to the current
+Cedar/MRR interfaces, records the executable policy-ID split witness and fixes
+an ordered R1-R6 experiment plan. Validated structural restoration comes first;
+anti-rollback evidence and exact historical recovery remain provider contracts.
