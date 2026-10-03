@@ -103,6 +103,20 @@ impl Resolver {
                         }
                     }
                 }
+                // The pinned schema permits selective alternatives/merchants,
+                // not omission of entire constraints or requirement slots.
+                let protected_array = |name: &str| {
+                    entries
+                        .get(name)
+                        .and_then(Value::as_array)
+                        .is_some_and(|values| values.iter().any(|v| v.get("...").is_some()))
+                };
+                if protected_array("constraints")
+                    || (entries.get("type").and_then(Value::as_str) == Some("checkout.line_items")
+                        && protected_array("items"))
+                {
+                    return Err(MandateError::Unsupported);
+                }
                 for entry in entries.values_mut() {
                     *entry = self.walk(entry.take(), depth + 1)?;
                 }

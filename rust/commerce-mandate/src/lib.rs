@@ -3,6 +3,8 @@
 #[cfg(feature = "ap2-checkout")]
 pub mod checkout;
 #[cfg(feature = "ap2-checkout")]
+mod constraints;
+#[cfg(feature = "ap2-checkout")]
 mod contract;
 #[cfg(feature = "ap2-checkout")]
 mod disclosures;

@@ -181,7 +181,11 @@ def main() -> None:
             parser.error('--check-frozen cannot generate a corpus')
         if hashlib.sha256(FIXTURE.read_bytes()).hexdigest() != CORPUS_DIGEST:
             raise ValueError('Frozen wire corpus bytes changed')
+        constraints = REPO / 'Tests/Conformance/ap2-checkout-constraints-v1.json'
+        if hashlib.sha256(constraints.read_bytes()).hexdigest() != 'b761e39a03245704ad07ce12552f540cb9646506f4a33616623f4ec3780bc908':
+            raise ValueError('Frozen constraint corpus bytes changed')
         print('AP2-CORPUS-INTEGRITY-OK 17 vectors; SDK replay not performed')
+        print('AP2-CONSTRAINT-CORPUS-INTEGRITY-OK 15 domain cases; SDK replay not performed')
         return
     if args.sdk_root is None:
         parser.error('--sdk-root is required for generation or cryptographic SDK replay')

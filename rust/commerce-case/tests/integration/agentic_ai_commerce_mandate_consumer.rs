@@ -1,7 +1,7 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use cedar_poo_commerce_mandate::checkout::{
-    AP2_SOURCE_REVISION, Audience, CheckoutContext, MandateError, MerchantId, ServerNonce,
-    TransactionContext,
+    AP2_SOURCE_REVISION, Audience, CheckoutConstraintCoverage, CheckoutContext, MandateError,
+    MerchantId, ServerNonce, TransactionContext,
 };
 use p256::ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer};
 use serde_json::{Value, json};
@@ -56,6 +56,10 @@ fn frozen_sdk_corpus_matches_strict_profile_expectations() {
                 vector["context"]["checkout_hash"].as_str().unwrap()
             );
             assert_eq!(binding.merchant_checkout().checkout_id(), "checkout-1");
+            assert_eq!(
+                binding.constraint_coverage(),
+                CheckoutConstraintCoverage::SeedBindingOnly
+            );
             assert!(!binding.root_jws_digest().is_empty());
             assert!(!binding.closed_jws_digest().is_empty());
             assert!(!binding.agent_key_digest().is_empty());
@@ -357,4 +361,129 @@ fn signature_aliases_change_evidence_but_not_signed_content_identity() {
         alias.root_signed_content_digest()
     );
     assert_eq!(original.root_key_digest(), alias.root_key_digest());
+}
+
+#[test]
+fn pinned_constraint_cases_match_selected_policy_after_all_signatures() {
+    let corpus: Value = serde_json::from_slice(include_bytes!(
+        "../../../../Tests/Conformance/ap2-checkout-constraints-v1.json"
+    ))
+    .unwrap();
+    assert_eq!(corpus["ap2_revision"], AP2_SOURCE_REVISION);
+    let mut accepted = 0;
+    let mut rejected = 0;
+    for case in corpus["cases"].as_array().unwrap() {
+        let mut sample = Sample::new();
+        sample.context.merchant_key = *signing(12).verifying_key();
+        sample.open["constraints"] = case["constraints"].clone();
+        let checkout = sign(
+            r#"{"alg":"ES256","typ":"JWT"}"#,
+            &case["checkout"].to_string(),
+            &signing(12),
+        );
+        sample.closed["checkout_hash"] = hash_bytes(checkout.as_bytes()).into();
+        sample.closed["checkout_jwt"] = checkout.into();
+        let tokens = sample.tokens(|_| {});
+        let result = sample
+            .context
+            .verify(&tokens.iter().map(String::as_str).collect::<Vec<_>>())
+            .map(|binding| binding.constraint_coverage());
+        if case["contract_expectation"] == "accept" {
+            assert_eq!(
+                result,
+                Ok(CheckoutConstraintCoverage::ItemConstraintsChecked),
+                "{}",
+                case["id"]
+            );
+            accepted += 1;
+        } else {
+            assert!(
+                result.is_err(),
+                "negative constraint admitted: {}",
+                case["id"]
+            );
+            rejected += 1;
+        }
+    }
+    assert_eq!((accepted, rejected), (3, 12));
+}
+fn constrained_sample(requirements: Value, lines: Value) -> Sample {
+    let mut sample = Sample::new();
+    sample.context.merchant_key = *signing(12).verifying_key();
+    sample.open["constraints"] = json!([{"type":"checkout.line_items","items":requirements}]);
+    let checkout = json!({"id":"checkout-bounds","merchant":{"id":"merchant-1","name":"Shop"},"line_items":lines});
+    let jwt = sign(
+        r#"{"alg":"ES256","typ":"JWT"}"#,
+        &checkout.to_string(),
+        &signing(12),
+    );
+    sample.closed["checkout_hash"] = hash_bytes(jwt.as_bytes()).into();
+    sample.closed["checkout_jwt"] = jwt.into();
+    sample
+}
+#[test]
+fn oversized_and_ambiguous_requirements_fail_closed() {
+    let requirement = json!({"id":"r","quantity":1,"acceptable_items":[{"id":"A","title":"A"}]});
+    let lines =
+        json!([{"id":"l","item":{"id":"A","title":"A","price":1},"quantity":1,"totals":[]}]);
+    let sample = constrained_sample(json!(vec![requirement.clone(); 9]), lines.clone());
+    assert_eq!(sample.outcome(|_| {}), Err(MandateError::Limit));
+    let mut too_large = requirement.clone();
+    too_large["quantity"] = 1_000_001u64.into();
+    assert_eq!(
+        constrained_sample(json!([too_large]), lines.clone()).outcome(|_| {}),
+        Err(MandateError::Limit)
+    );
+    let mut duplicate = requirement.clone();
+    duplicate["acceptable_items"] = json!([{"id":"A","title":"A"},{"id":"A","title":"alias"}]);
+    assert_eq!(
+        constrained_sample(json!([duplicate]), lines.clone()).outcome(|_| {}),
+        Err(MandateError::Claims)
+    );
+    let mut extra = requirement;
+    extra["minimum_price"] = 1.into();
+    assert_eq!(
+        constrained_sample(json!([extra]), lines).outcome(|_| {}),
+        Err(MandateError::Unsupported)
+    );
+}
+#[test]
+fn exhausting_assignment_budget_never_returns_a_verified_binding() {
+    let items: Vec<_> = (b'A'..=b'H')
+        .map(|sku| {
+            let id = char::from(sku).to_string();
+            json!({"id":id,"item":{"id":id,"title":id,"price":1},"quantity":1,"totals":[]})
+        })
+        .collect();
+    let alternatives: Vec<_> = (b'A'..=b'G')
+        .map(|sku| {
+            let id = char::from(sku).to_string();
+            json!({"id":id,"title":id})
+        })
+        .collect();
+    let mut requirements: Vec<_> = (0..7)
+        .map(|i| json!({"id":format!("r{i}"),"quantity":1,"acceptable_items":alternatives}))
+        .collect();
+    requirements
+        .push(json!({"id":"last","quantity":1,"acceptable_items":[{"id":"A","title":"A"}]}));
+    assert_eq!(
+        constrained_sample(json!(requirements), json!(items)).outcome(|_| {}),
+        Err(MandateError::Limit)
+    );
+}
+
+#[test]
+fn selective_omission_cannot_erase_constraints_or_requirement_slots() {
+    let hidden = json!({"...":hash_bytes(b"hidden-requirement")});
+    let mut sample = Sample::new();
+    sample.open["constraints"] = json!([hidden]);
+    assert_eq!(sample.outcome(|_| {}), Err(MandateError::Unsupported));
+    let requirements =
+        json!([{"id":"r","quantity":1,"acceptable_items":[{"id":"A","title":"A"}]},hidden]);
+    let lines =
+        json!([{"id":"l","item":{"id":"A","title":"A","price":1},"quantity":1,"totals":[]}]);
+    assert_eq!(
+        constrained_sample(requirements, lines).outcome(|_| {}),
+        Err(MandateError::Unsupported)
+    );
 }

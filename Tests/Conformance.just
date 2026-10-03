@@ -128,3 +128,6 @@ check-agentic-ai-commerce-wire-corpus:
 
 check-agentic-ai-commerce-wire-sdk sdk_root:
     uv run --project tools/ap2-vectors --locked python tools/ap2-vectors/run.py --sdk-root {{quote(sdk_root)}}
+
+check-agentic-ai-commerce-constraint-sdk sdk_root:
+    uv run --project tools/ap2-vectors --locked python tools/ap2-vectors/constraints.py --sdk-root {{quote(sdk_root)}}

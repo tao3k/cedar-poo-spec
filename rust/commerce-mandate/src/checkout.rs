@@ -1,12 +1,16 @@
 //! Selected two-hop ES256/SHA-256 binding verifier for the fixed SDK corpus.
-//! Supports empty constraints only; no UCP business-schema or stateful admission claim.
-use crate::{disclosures::Token, wire};
+//! Selected merchant/item constraints; no full UCP business-schema or stateful admission claim.
+use crate::{
+    constraints::{self, ConstraintSet},
+    disclosures::Token,
+    wire,
+};
 use p256::ecdsa::VerifyingKey;
 use serde_json::Value;
 
 /// Immutable source revision defining the selected SDK wire forms.
 pub const AP2_SOURCE_REVISION: &str = "e1ea56db72a6385bce3e5c1112b3a56ce60acb43";
-pub use crate::contract::MandateError;
+pub use crate::contract::{CheckoutConstraintCoverage, MandateError};
 /// Host-authenticated transaction context; keys are enrolled outside the tokens.
 /// This context supports the pinned root typ `example+sd-jwt`, terminal typ
 /// `kb+sd-jwt` and merchant typ `JWT`. All use ES256; kid/x5c are unsupported.
@@ -32,6 +36,7 @@ pub struct MerchantId(pub String);
 /// Privately constructed binding evidence; no deserialize, permit or receipt reference.
 /// Digests name exact issuer JWS bytes, independently of disclosure selection.
 pub struct VerifiedCheckoutBinding {
+    constraint_coverage: CheckoutConstraintCoverage,
     root_jws_digest: String,
     root_key_digest: String,
     root_signed_content_digest: String,
@@ -41,6 +46,11 @@ pub struct VerifiedCheckoutBinding {
     checkout: AuthenticatedCheckout,
 }
 impl VerifiedCheckoutBinding {
+    /// Explicit coverage of the selected policy; seed evidence does not satisfy
+    /// the full pinned open-mandate schema's required line-items constraint.
+    pub fn constraint_coverage(&self) -> CheckoutConstraintCoverage {
+        self.constraint_coverage
+    }
     /// Exact signed root evidence digest; not a complete authorization identity.
     pub fn root_jws_digest(&self) -> &str {
         &self.root_jws_digest
@@ -83,7 +93,9 @@ impl CheckoutContext {
         }
         let chain = self.verify_chain(tokens)?;
         let checkout = self.verify_checkout(&chain.closed)?;
+        chain.constraints.evaluate(&checkout.claims)?;
         Ok(VerifiedCheckoutBinding {
+            constraint_coverage: chain.constraints.coverage(),
             root_jws_digest: chain.root_digest,
             root_key_digest: wire::hash(self.root_key.to_encoded_point(false).as_bytes()),
             root_signed_content_digest: chain.root_content_digest,
@@ -97,7 +109,9 @@ impl CheckoutContext {
         let root = Token::parse(tokens[0])?;
         let leaf = Token::parse(tokens[1])?;
         let open = root.resolve(wire::jws(root.issuer, &self.root_key, "example+sd-jwt")?)?;
-        let (agent, open_time) = self.verify_open(&open)?;
+        let authority = self.verify_open(&open)?;
+        let agent = authority.agent;
+        let open_time = authority.validity;
         let terminal = leaf.resolve(wire::jws(leaf.issuer, &agent, "kb+sd-jwt")?)?;
         let closed = self.verify_terminal(&terminal, &root, open_time)?.clone();
         Ok(BoundChain {
@@ -112,6 +126,7 @@ impl CheckoutContext {
             closed_digest: wire::hash(leaf.issuer.as_bytes()),
             agent_digest: wire::hash(agent.to_encoded_point(false).as_bytes()),
             closed,
+            constraints: authority.constraints,
         })
     }
     fn verify_checkout(&self, closed: &Value) -> Result<AuthenticatedCheckout, MandateError> {
@@ -135,24 +150,22 @@ impl CheckoutContext {
         }
         Ok(())
     }
-    fn verify_open(&self, payload: &Value) -> Result<(VerifyingKey, (u64, u64)), MandateError> {
+    fn verify_open(&self, payload: &Value) -> Result<OpenAuthority, MandateError> {
         wire::fields(payload, &["delegate_payload"])?;
         let open = delegate(payload)?;
         wire::fields(open, &["vct", "constraints", "cnf", "iat", "exp"])?;
         if wire::text(open, "vct")? != "mandate.checkout.open.1" {
             return Err(MandateError::Unsupported);
         }
-        let constraints = open
-            .get("constraints")
-            .and_then(Value::as_array)
-            .ok_or(MandateError::Claims)?;
-        if !constraints.is_empty() {
-            return Err(MandateError::Unsupported);
-        }
+        let constraints = constraints::parse(open.get("constraints").ok_or(MandateError::Claims)?)?;
         let cnf = open.get("cnf").ok_or(MandateError::Claims)?;
         wire::fields(cnf, &["jwk"])?;
         let agent = wire::jwk(cnf.get("jwk").ok_or(MandateError::Claims)?)?;
-        Ok((agent, wire::time(open, self.now)?))
+        Ok(OpenAuthority {
+            agent,
+            validity: wire::time(open, self.now)?,
+            constraints,
+        })
     }
     fn verify_terminal<'a>(
         &self,
@@ -231,12 +244,18 @@ fn verify_parent(payload: &Value, root: &Token<'_>) -> Result<(), MandateError> 
     Ok(())
 }
 
+struct OpenAuthority {
+    agent: VerifyingKey,
+    validity: (u64, u64),
+    constraints: ConstraintSet,
+}
 struct BoundChain {
     root_digest: String,
     root_content_digest: String,
     closed_digest: String,
     agent_digest: String,
     closed: Value,
+    constraints: ConstraintSet,
 }
 /// Exact signed merchant evidence with a verified identifier; downstream UCP
 /// business-schema validation remains required before any commerce admission.

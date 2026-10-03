@@ -152,5 +152,9 @@ separates SDK wire/domain observations, independent merchant signature checks
 and future-profile expectations. Local SDK replay has run against exact pinned
 source and locked libraries. Regular CI checks frozen byte integrity and now executes the
 [[file:../../../rust/commerce-mandate/README.org][bounded Rust binding verifier]] consumer. All 17 seed vectors match the selected
-profile expectations. Nonempty constraint evaluation, full UCP validation,
-expanded mutation coverage and stateful admission remain open.
+profile expectations. The subsequent [[file:Constraints.org][constraint slice]] adds 15 domain cases,
+exact merchant IDs and bounded exact-quantity/single-SKU assignment. The Rust
+consumer signs those cases independently and checks all 32 frozen expectations
+in 11 tests. Full UCP validation, broader profile coverage and stateful
+admission remain open. V2 must specify enrollment/policy identity and a single
+atomic shared gate/journal transition before implementation.

@@ -11,4 +11,12 @@ pub enum MandateError {
     Context,
     Time,
     Claims,
+    Constraint,
+}
+
+/// Distinguishes seed wire evidence from the selected nonempty constraint policy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CheckoutConstraintCoverage {
+    SeedBindingOnly,
+    ItemConstraintsChecked,
 }

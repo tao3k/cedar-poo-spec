@@ -15,7 +15,7 @@ import Case crates or synthetic scenario inputs.
 | =cedar-poo-runtime= | Official Cedar validation, schema checks and replay | None |
 | =cedar-poo-agentic= | Common tool-action, selection and sink boundary | None |
 | =cedar-poo-commerce= | Storage-independent signatures, claims and admission | =projection=, =admission= |
-| =cedar-poo-commerce-mandate= | Bounded pinned Checkout signature/disclosure/context binding | =ap2-checkout= (empty constraints) |
+| =cedar-poo-commerce-mandate= | Bounded pinned Checkout signature/disclosure/context binding | =ap2-checkout= (selected merchant/item constraints) |
 | =cedar-poo-pseudonymization= | Common token modes and lineage | =google-sdp= adds provider wire contracts |
 | =cedar-poo-google-sdp-host= | In-memory Cedar and Google admission reference | None |
 | =cedar-poo-disclosure-host= | In-memory language-model disclosure reference | None |

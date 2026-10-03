@@ -61,7 +61,8 @@ Regular conformance CI includes only:
 just check-agentic-ai-commerce-wire-corpus
 #+end_src
 
-This first checks the exact frozen fixture SHA-256, then runs the independent
+This first checks both exact frozen fixture SHA-256 digests (17 wire vectors
+and [[file:Constraints.org][15 constraint domain cases]]), then runs the independent
 Rust binding consumer. The integrity output explicitly says Python SDK
 cryptographic replay was not performed; Rust verification is separately scored.
 
@@ -88,7 +89,9 @@ observations and Rust acceptance results are separate receipts.
 * Remaining V1 work
 
 This seed advances [[file:VerificationPlan.org][V1]] without completing it. The bounded storage-independent binding verifier now consumes these exact
-bytes. It supports empty constraints only; full mandate admission remains open.
+bytes. The [[file:Constraints.org][selected constraint extension]] supports nonempty merchant/item
+constraints; empty seeds carry explicit binding-only coverage. Full mandate
+admission remains open.
 Expand a subsequent corpus version for unknown constraints, unchanged
 inherited claims, nested/decoy disclosure graphs, reserved names, duplicate
 JSON members, unsupported algorithms, type confusion, malformed bounds and
@@ -98,4 +101,4 @@ supported branch.
 
 Shared authorization identity and atomic gates remain V2. Payment Receipt,
 finality and safe retirement remain later slices. MRR's production pin is
-unchanged: this corpus supplies no new Cedar domain implementation.
+unchanged: MRR does not yet consume this mandate verifier.
