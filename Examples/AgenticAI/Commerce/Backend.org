@@ -1,0 +1,149 @@
+#+TITLE: Unified MRR Data Backend: Performance and Lifecycle Design
+#+DATE: 2026-10-03
+
+* Ownership and implementation status
+
+Selected architecture: one =mrr-data-backend= crate in the MRR Data workspace,
+with multiple provider modules selected by features. Scheduling, backpressure,
+commit/recovery semantics, observability and lifecycle are shared. Provider
+modules implement physical capabilities and translate concrete errors. Provider
+selection must not duplicate the backend engine or create one backend per vendor.
+This is a Commerce consumer's design requirement; no backend crate, driver or
+performance result is implemented by this document.
+
+MRR semantic admission remains independent of physical providers. The existing
+=mrr-data-content::ConditionalContentCommitPort= owns the head/operation contract;
+=mrr-data-commerce= composes it with Cedar transitions. Backend implementation
+belongs to MRR Data, not Cedar. The existing =mrr-data-poo-flow= process adapter
+is not a general durable backend lifecycle. Reuse its integration boundary
+without introducing another generic orchestration framework into MRR.
+
+Proposed backend modules: =config=, =capabilities=, =scheduler=, =commit=,
+=recovery=, =lifecycle=, =observability= and =providers/=. These are internal
+responsibilities, not a requirement for one additional crate per module.
+
+* Provider capability composition
+
+Separate immutable block access from transactional authority metadata. Both
+may use one physical provider or different providers under one backend.
+Capabilities describe verified operation semantics, not just vendor names:
+bounded reads, acknowledged immutable publication, atomic head/operation update,
+unique operation identity, authenticated lookup and declared durable barriers.
+Capability requirements are checked before Ready; unsupported configurations
+refuse authority writes rather than silently fall back to weaker guarantees.
+
+A provider need not implement a database transaction if the backend itself
+supplies a qualified durable transaction engine/WAL. That path must also own
+writer exclusivity, record framing/checksums, crash replay, flush ordering and
+cross-process fencing. A WAL is not selected in this first design. Begin with
+one metadata transaction domain and independently declared block durability.
+Do not assume a blob cache/object-store API provides the metadata transaction.
+
+Publish immutable blocks first and verify their declared durable acknowledgment.
+Then atomically persist the new head, exact operation completion record and
+required authority comparisons. Orphaned blocks are possible on failure;
+uncommitted block existence grants no authority. GC must preserve every block
+reachable from live heads, retained operations and recovery evidence.
+
+* Lifecycle contract
+
+| State | Admission | Required work before leaving |
+|-------+-----------+------------------------------|
+| Constructed | none | Validate configuration; no task spawning or network I/O in constructors |
+| Opening | none | Open providers, authenticate namespace, check capability/durability configuration and writer ownership |
+| Recovering | none | Restore latest trusted head/incarnation, operation metadata and fenced writer state; validate [[file:Restoration.org][restoration invariants]] |
+| Ready | bounded fresh work | Admit through one lifecycle guard and bounded scheduler; track every owned task |
+| Draining | no new fresh work | Finish or classify already accepted work; preserve recovery access needed by those operations |
+| Closing | none | Complete declared barriers/checkpoints, join owned tasks and release provider handles in order |
+| Closed | none | Explicit terminal report; further calls refuse; repeated shutdown returns the same status |
+| Faulted | no fresh authority work | Preserve unresolved operation identities; permit only explicitly qualified diagnosis/recovery paths |
+
+Seal admission and task registration atomically before taking the drain set;
+otherwise a late spawn can escape shutdown. Ready changes to Draining only
+once. A graceful close reports pending/unknown operations and durability status,
+not merely that connection handles were dropped. Drop is best-effort cleanup;
+it cannot provide an async durable-close guarantee. Reopening uses the latest
+trusted incarnation and must reject delayed workers from the previous one.
+
+Caller cancellation before any possible commit can report a known no-write
+outcome only with evidence. Once provider submission may have changed state,
+timeout/cancellation retains the same operation identity and Unknown until exact
+reconciliation. Accepted transaction work has an explicit backend owner; dropping
+a caller future must not silently discard its recovery responsibility. Deadline
+expiry never reopens a Checkout slot or changes a pending reference.
+
+The [[https://tokio.rs/tokio/topics/shutdown][Tokio shutdown guidance]] separates detecting shutdown, notifying tasks and
+waiting for completion. The [[https://docs.rs/tokio-util/latest/tokio_util/task/task_tracker/struct.TaskTracker.html#method.close][TaskTracker close contract]] does not stop new task spawning, so backend
+admission must be sealed separately. [[https://docs.rs/tokio/1.53.1/tokio/task/struct.JoinSet.html#method.shutdown][JoinSet shutdown]] aborts tasks;
+it is not the backend's graceful durability barrier. Started
+[[https://docs.rs/tokio/1.53.1/tokio/task/fn.spawn_blocking.html][blocking tasks]] cannot be reliably aborted by task cancellation. These are
+reviewed API constraints, not implementation receipts or a new dependency pin.
+
+The backend borrows a Host runtime/executor through explicit startup. It does
+not create one Tokio runtime per provider or install process-wide signal handlers
+as a library side effect. The embedding Host chooses signal policy and close
+deadline. All internal supervisors have explicit owners and join/report paths.
+
+* Shared high-performance path
+
+- Bound both operation count and retained bytes before copying/enqueueing input.
+  Separate quotas for fresh writes, status/recovery and tenant fairness; saturated
+  writes must not starve the recovery needed to resolve Unknown operations.
+- Partition scheduling by stable coordination home. Independent homes can run
+  concurrently; one hot home retains required serialization. The provider's
+  transaction remains the correctness boundary across processes.
+- Batch independent transactions and amortize durable barriers only when the
+  provider guarantees every acknowledged operation's required durability.
+  Retain per-operation IDs/results and queue-age limits. Group flush does not
+  convert unrelated transactions into one undocumented semantic operation.
+- Compute hashes, signatures and decode bounds outside short write critical
+  sections when safe. Compare current authority versions in the protected commit
+  or use a qualified synchronization protocol; cached verification alone cannot
+  bypass revocation. The existing refresh callback may need a separately reviewed
+  versioned-authority composition before this optimization.
+- Separate async network I/O from bounded blocking disk/CPU work. The existing
+  =AsyncContentStore= blanket implementation invokes synchronous I/O inline;
+  wrapping its result in a future does not move disk work off an executor thread.
+- Reuse buffers, connection pools and immutable verified blocks where measurements
+  justify it. Cache keys bind CID/codec; current authority and authenticated absence
+  cannot be inferred from a stale cache. Avoid speculative zero-copy/lock-free
+  complexity until profiling identifies its actual cost.
+
+* Measurement and acceptance
+
+Metrics distinguish queue wait, verification, publication, protected transaction,
+durable ACK and historical recovery. Record p50/p95/p99, durable throughput,
+conflicts, Unknown outcomes, oldest unresolved operation age, queued bytes,
+provider stall time, task count and shutdown/restart duration. Avoid raw tokens,
+secret material or unbounded identity labels in logs/metrics.
+
+Benchmark the same bytes and durability mode across provider configurations.
+Declare hardware/filesystem/provider versions, runtime threads, cache warmth,
+flush policy and sample/repetition counts. Proposed sweeps: concurrency
+1/8/32/128; one hot home versus independent homes; payload 1/16/256 KiB;
+fresh writes, exact replay, mixed recovery/write and sustained saturation.
+These are experiment dimensions, not throughput or latency promises.
+
+Do not publish an optimization as a win unless it preserves refusal/unknown
+semantics and improves a declared matched workload without hiding memory or
+recovery costs. Report hot-home contention separately. Numeric service budgets
+must follow a measured baseline on the target deployment; none exists here yet.
+
+* Lifecycle and durability qualification gates
+
+| Gate | Positive control | Required adversarial case |
+|------+------------------+---------------------------|
+| Open/recover | Authenticated latest state becomes Ready | Wrong capability, stale incarnation, corrupt/truncated frame or rollback never admits writes |
+| Saturation | Independent homes progress within bounded resources | Hot tenant, stalled provider and canceled callers cannot create unbounded work or starve exact recovery |
+| Cancellation | Known pre-submit cancellation leaves no write | Cancel during durable commit remains original-ID Unknown/historical status, never fresh retry authority |
+| Drain | Accepted operations finish and clean close joins tasks | Concurrent submit/spawn during shutdown cannot escape tracking; deadline reports unresolved operations |
+| Restart | Head and completion metadata recover together | Kill between each provider durability boundary, then retry same exact body after later writes |
+| Reconfigure | Same stable home preserves pending/spent/tombstones | Provider switch or policy change cannot create another fresh authority home |
+| Performance | Repeated matched baseline and candidate receipts | Batch/flush changes cannot acknowledge before the chosen barrier; slow recovery cost remains visible |
+
+Next order: validated state restoration, backend/provider capability contracts,
+reference lifecycle/conformance harness, then one concrete durable provider and
+measured baseline. Subsequent providers reuse that harness and optimization
+engine. Physical restart tests must name the real backend and durability profile.
+All gates in this section remain planned; memory-store concurrency tests cannot
+qualify a persistent provider or establish a performance SLA.

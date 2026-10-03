@@ -138,3 +138,10 @@ registry design before production adoption. R5/R6 compose with existing root
 and dispatch fences. All rows are planned except the policy-change witness and
 prior in-memory CAS regressions. No recovery or production-adapter completion
 is claimed by this research artifact.
+
+* Unified backend follow-up
+
+The [[file:Backend.org][unified MRR Data backend design]] selects one engine with multiple
+provider modules, explicit lifecycle states, bounded scheduling and matched
+durability/performance qualification. It preserves the R1-R6 recovery boundary;
+backend/provider implementation remains an MRR Data responsibility.
