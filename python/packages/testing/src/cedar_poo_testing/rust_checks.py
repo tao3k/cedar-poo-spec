@@ -6,8 +6,6 @@ import subprocess
 
 
 COMMERCE = (None, "projection", "admission")
-MRR = (None, "credential", "consumption")
-COMMERCE_CASE = (*COMMERCE, "budget-commit", "credential", "consumption")
 
 
 def run(repository: Path) -> None:
@@ -19,16 +17,18 @@ def run(repository: Path) -> None:
         subprocess.run(["cargo", command, *base, *args], cwd=repository, check=True)
 
     metadata = json.loads(subprocess.check_output(
-        ["cargo", "metadata", *base, "--no-deps", "--format-version", "1"],
+        ["cargo", "metadata", *base, "--all-features", "--format-version", "1"],
         cwd=repository, text=True,
     ))
+    if any(p["name"].startswith("mrr-data") for p in metadata["packages"]):
+        raise ValueError("Cedar workspace resolves an MRR Data dependency")
     members = [p for p in metadata["packages"] if p["id"] in metadata["workspace_members"]]
     for package in members:
-        if package["name"] == "cedar-poo-commerce" and any(
-            d["name"].startswith("mrr-") or d["name"] == "cedar-poo-commerce-mrr"
+        if any(
+            d["name"].startswith("mrr-") or "github.com/tao3k/mrr-data" in (d.get("source") or "")
             for d in package["dependencies"]
         ):
-            raise ValueError("generic commerce imports an MRR integration")
+            raise ValueError(f"Cedar package {package['name']} imports MRR")
         if package["name"] != "cedar-poo-bridge" and not package["name"].endswith("-case"):
             if any(d["name"].endswith("-case") or d["name"] == "cedar-poo-bridge"
                    for d in package["dependencies"]):
@@ -42,8 +42,7 @@ def run(repository: Path) -> None:
                                   "cedar-poo-pseudonymization")]
     profiles += [("cedar-poo-pseudonymization", "google-sdp")]
     profiles += [("cedar-poo-commerce", f) for f in COMMERCE]
-    profiles += [("cedar-poo-commerce-mrr", f) for f in MRR]
-    profiles += [("cedar-poo-commerce-case", f) for f in COMMERCE_CASE]
+    profiles += [("cedar-poo-commerce-case", f) for f in COMMERCE]
     profiles += [("cedar-poo-pseudonymization-case", "google-contract")]
     for package, feature in profiles:
         args = ["-p", package, "--no-default-features"]
@@ -58,14 +57,8 @@ def run(repository: Path) -> None:
             raise ValueError(f"{package}/{feature} unexpectedly depends on Cedar runtime")
         if ("p256 v" in tree) != package.startswith("cedar-poo-commerce"):
             raise ValueError(f"{package}/{feature} has an unexpected P-256 dependency")
-        expects_mrr = package == "cedar-poo-commerce-mrr" or (
-            package == "cedar-poo-commerce-case" and feature in ("budget-commit", "credential", "consumption")
-        )
-        if ("mrr-data-content v" in tree) != expects_mrr:
-            raise ValueError(f"{package}/{feature} has an unexpected MRR dependency")
-        for forbidden in ("mrr-data v", "mrr-data-pseudonymization v", "cedar-poo-bridge v"):
-            if forbidden in tree:
-                raise ValueError(f"{package}/{feature} imports a reverse Cedar binding: {forbidden}")
+        if "mrr-data" in tree:
+            raise ValueError(f"{package}/{feature} imports MRR")
         cargo("clippy", *args, "--all-targets", "--", "-D", "warnings")
 
     subprocess.run(["cargo", "fmt", "--all", "--check"], cwd=repository, check=True)

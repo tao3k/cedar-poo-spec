@@ -85,7 +85,6 @@ def run(name: str, repository: Path) -> None:
         env = {**os.environ, "LEAN_PROJECTION_FIXTURE": str(fixture)}
         for feature, consumer in (
             ("admission", "agentic_ai_commerce_admission_consumer"),
-            ("consumption", "agentic_ai_commerce_budget_projection_consumer"),
         ):
             _run(["cargo", "test", "--locked", "--manifest-path", "Cargo.toml",
                   "-p", "cedar-poo-commerce-case", "--no-default-features", "--features", feature, "--test", consumer],
@@ -104,6 +103,8 @@ def run(name: str, repository: Path) -> None:
     data = json.loads(output.read_text())
     if name == "agentic-ai-commerce-projection":
         _projection(data)
+        if data != json.loads((repository / "Tests/Conformance/commerce-projection-v1.json").read_text()):
+            raise ValueError("commerce conformance fixture differs from actual Lean export")
         env = {**os.environ, "LEAN_PROJECTION_FIXTURE": str(output)}
         _run(
             ["cargo", "test", "--locked", "--manifest-path", "Cargo.toml",

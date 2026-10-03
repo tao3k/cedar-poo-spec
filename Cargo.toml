@@ -17,7 +17,6 @@ sha2 = "0.11"
 base64 = "0.23"
 cedar-policy = { version = "=4.12.0", default-features = false }
 p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa"] }
-mrr-data-content = { git = "https://github.com/tao3k/mrr-data", rev = "7ab0e62d9e437654111b867bde4eab47c4378ab1", default-features = false }
 asp-rust = { git = "https://github.com/tao3k/asp-rust", rev = "9b95fd6744a89f3f38e87f9bda33ea762f1f65e1", default-features = false }
 aes-siv = "0.7"
 aes-gcm = "0.10"
@@ -29,4 +28,3 @@ cedar-poo-commerce = { path = "rust/commerce", default-features = false }
 cedar-poo-pseudonymization = { path = "rust/pseudonymization", default-features = false }
 cedar-poo-google-sdp-host = { path = "rust/google-sdp-host", default-features = false }
 cedar-poo-disclosure-host = { path = "rust/disclosure-host", default-features = false }
-cedar-poo-commerce-mrr = { path = "rust/commerce-mrr", default-features = false }

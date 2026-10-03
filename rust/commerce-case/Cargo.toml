@@ -10,14 +10,9 @@ description = "Independent consumers of Lean commerce fixtures"
 default = []
 projection = ["cedar-poo-commerce/projection"]
 admission = ["projection", "cedar-poo-commerce/admission"]
-budget-commit = ["admission", "dep:cedar-poo-commerce-mrr", "dep:mrr-data-content"]
-credential = ["budget-commit", "cedar-poo-commerce-mrr/credential"]
-consumption = ["credential", "cedar-poo-commerce-mrr/consumption"]
 
 [dependencies]
 cedar-poo-commerce.workspace = true
-cedar-poo-commerce-mrr = { workspace = true, optional = true }
-mrr-data-content = { workspace = true, optional = true }
 
 [dev-dependencies]
 asp-rust.workspace = true
@@ -37,8 +32,3 @@ required-features = ["projection"]
 name = "agentic_ai_commerce_admission_consumer"
 path = "tests/integration/agentic_ai_commerce_admission_consumer.rs"
 required-features = ["admission"]
-
-[[test]]
-name = "agentic_ai_commerce_budget_projection_consumer"
-path = "tests/integration/agentic_ai_commerce_budget_projection_consumer.rs"
-required-features = ["budget-commit"]

@@ -4,7 +4,7 @@
 * Workspace ownership
 
 The [[file:../Cargo.toml][root workspace]] owns the lockfile, shared dependency versions and immutable
-MRR/ASP pins. All packages live under =rust/=, including shared libraries,
+ASP pin. All packages live under =rust/=, including shared libraries,
 Host adapters, Case consumers and the CLI application (=bridge/=).
 Case crates own scenario inputs, examples and external consumer tests. Libraries never
 import Case crates or synthetic scenario inputs.
@@ -15,42 +15,35 @@ import Case crates or synthetic scenario inputs.
 | =cedar-poo-runtime= | Official Cedar validation, schema checks and replay | None |
 | =cedar-poo-agentic= | Common tool-action, selection and sink boundary | None |
 | =cedar-poo-commerce= | Storage-independent signatures, claims and admission | =projection=, =admission= |
-| =cedar-poo-commerce-mrr= | MRR budget commit, credential recovery and consumption adapter | =credential=, =consumption= |
 | =cedar-poo-pseudonymization= | Common token modes and lineage | =google-sdp= adds provider wire contracts |
 | =cedar-poo-google-sdp-host= | In-memory Cedar and Google admission reference | None |
 | =cedar-poo-disclosure-host= | In-memory language-model disclosure reference | None |
 | =cedar-poo-bridge= | JSON conformance CLI and export benchmark | None |
-| =cedar-poo-commerce-case= | Independent Lean commerce fixture consumers | Selects domain and MRR adapter capabilities |
+| =cedar-poo-commerce-case= | Independent Lean commerce fixture consumers | =projection=, =admission= |
 | =cedar-poo-pseudonymization-case= | Local crypto and Google examples | =local=, =google-contract=, =google-admission= |
 | =cedar-poo-disclosure-case= | Language-model disclosure scenario | None |
 
 Commerce signatures are always present in the domain crate. Its optional
-=projection= and =admission= features have no MRR dependency. The separate
-=cedar-poo-commerce-mrr= integration owns =budget_commit= and optionally
-=credential= and =consumption= (including the permit-bound provider interface).
-It depends on the admitted Commerce API and the lower MRR content protocol.
-The Case's =budget-commit= feature selects this adapter; =credential= and
-=consumption= add its corresponding layers. No Commerce package depends on
-Cedar runtime. Common pseudonymization and its Google contract also compile
-without Cedar. Hosts explicitly compose runtime and domain libraries.
+=projection= and =admission= features have no storage dependency. The Case
+selects these capabilities. MRR-bound conditional commits, recovered credentials,
+consumption and provider permits belong to =mrr-data-commerce= in MRR Data.
+No package in this Cedar workspace imports MRR, including Case and dev dependencies.
+Common pseudonymization and its Google contract compile without Cedar runtime;
+Hosts explicitly compose runtime and domain libraries.
 
-** MRR dependency direction
-
-There are two adapter edges in the repositories, not a dependency of the MRR
-content engine on Cedar:
+** Repository dependency direction
 
 #+begin_example
-commerce-case -> commerce-mrr -> commerce (domain contracts)
-                             -> mrr-data-content -> mrr-data-core
-mrr-data-pseudonymization -> pinned Cedar pseudonymization profile
+mrr-data-commerce -> cedar-poo-commerce (admission)
+                  -> mrr-data-content -> mrr-data-core
+mrr-data-pseudonymization -> cedar-poo-pseudonymization (selected features)
 #+end_example
 
-The latter MRR adapter is outside the Commerce dependency tree. The exact
-MRR revision remains pinned centrally, but only the integration crate and its
-Case consume it. =just check-rust= rejects any MRR dependency in the generic
-Commerce manifest and checks each selected normal dependency tree for the MRR
-facade, reverse pseudonymization adapter and old Cedar bridge. Immutable pins
-make this graph reproducible; they do not themselves prevent a cycle.
+MRR Data owns integration with its physical content protocol. Cedar provides
+independent domain APIs and Lean models. =just check-rust= rejects direct MRR
+dependencies in every Cedar workspace member and checks isolated normal dependency
+trees for transitive MRR imports. A revision pin provides reproducibility;
+it does not justify a reversed ownership edge.
 
 The CLI keeps its command names, JSON formats and binary name. Library consumers
 migrate directly to their owning crate; the bridge has no domain re-export
@@ -85,9 +78,10 @@ cargo run --locked -p cedar-poo-bridge -- replay-validated-receipts < manifest.j
 The stable Just/Python entrypoints choose packages explicitly. =just check-rust=
 checks dependency isolation, each package's defaults, individual Commerce
 profiles, all workspace targets with all features, formatting and strict Clippy.
-Fixture-dependent Commerce tests run in the conformance gate after Lean export;
+Fixture-dependent Cedar Commerce tests run in the conformance gate after Lean export;
 the Rust-only gate runs all other workspace tests and the standalone admission consumer.
-The projection/admission Just checks still export actual Lean fixtures before
+The actual Lean export is compared with =Tests/Conformance/commerce-projection-v1.json=,
+which MRR Data pins for its integration consumer tests. The projection/admission Just checks export actual Lean fixtures before
 running the external Case consumers.
 
 * Google table transformation contract
@@ -164,13 +158,13 @@ not asserted to be byte-for-byte interchangeable with a Google token. The
 Google request and response boundary above is kept separate from this local
 check.
 
-The [[file:commerce-mrr/src/budget_commit.rs][shared budget bridge]] checks one new reservation against the exact
+The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/budget_commit.rs][shared budget bridge]] checks one new reservation against the exact
 current content CID and revision, fresh authority, immutable prior entries,
 root and ancestor caps, global purchase and offer identities, and mandate ID
 bindings. It then calls MRR Data's provider-neutral conditional commit
 protocol. A returned =Apply= is a proposed transition. The backend must compare
 and persist the head and operation receipt atomically; MRR Data supplies no DB.
-The [[file:commerce-case/tests/integration/agentic_ai_commerce_budget_projection_consumer.rs][consumer test]] uses shared before/after JSON emitted by Lean.
+The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/tests/integration/commerce_commit_consumer.rs][consumer test]] uses shared before/after JSON emitted by Lean.
 
 The =commit_shared_reservation= API binds an explicit operation ID to the proposed
 purchase, then invokes MRR Data's async atomic commit port. The Host supplies

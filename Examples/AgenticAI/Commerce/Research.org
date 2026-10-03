@@ -45,7 +45,7 @@ mandate ID rebinding and global purchase/offer replay, propagates ancestor
 revocation, and rejects stale root revisions. The Lean model proves revision
 advance, stale-revision refusal, and root-cap preservation.
 
-The Rust [[file:../../../rust/commerce-mrr/src/budget_commit.rs][budget bridge]] checks exact Lean before/after claims, fresh
+The Rust [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/budget_commit.rs][budget bridge]] checks exact Lean before/after claims, fresh
 signed authority, root and ancestor spend, and the current content CID. It
 uses MRR Data's conditional commit protocol to propose one head replacement
 with an exact revision and operation ID. The async commit entry point now uses
@@ -174,7 +174,7 @@ claim. We use this distinction to ask whether an authenticated earlier commit
 still authorizes the exact current credential and checkout. We do not import its
 Tamarin results as proofs of this Lean/Rust implementation.
 
-The Rust [[file:../../../rust/commerce-mrr/src/credential.rs][credential validator]] recovers an exact MRR operation receipt,
+The Rust [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/credential.rs][credential validator]] recovers an exact MRR operation receipt,
 verifies raw previous/committed block CIDs and the original one-reservation
 transition, and rechecks fresh signed root/delegations, policy, merchant offer,
 checkout bytes and independently enrolled issuer key. All projected verification
@@ -182,7 +182,7 @@ flags are omitted. Lean proves accepted credentials retain a current reservation
 and an authenticated commit, with explicit negative cases for ancestor revocation,
 future revision, wrong scope/operation, expiry and checkout substitution.
 
-The [[file:../../../rust/commerce-case/tests/integration/agentic_ai/commerce/credentials.rs][signed consumers]] test proposal-only and unreadable-ledger rejection, later-head
+The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/tests/integration/agentic_ai/commerce/credentials.rs][signed consumers]] test proposal-only and unreadable-ledger rejection, later-head
 retention/removal, issuer rotation/revocation, signed claim tampering, changed
 checkout/price, current cap violations and policy/mandate revocation. The two
 opaque CIDs in the Lean credential template are filled from actual Rust content
@@ -198,17 +198,17 @@ that does not establish one economic effect for our custom credential. [[https:/
 payment-mandate checks and signed payment receipts to different verifier roles.
 We therefore specify a separate [[file:../../../CedarPooSpec/AgenticAI/Commerce/Consumption.lean][consumption ledger]] keyed by budget scope and
 purchase, independent of credential ID and provider. Its proved duplicate refusal
-applies regardless of the provider outcome. The [[file:../../../rust/commerce-mrr/src/consumption.rs][Rust claim]] reuses the existing
+applies regardless of the provider outcome. The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/consumption.rs][Rust claim]] reuses the existing
 MRR conditional port, authenticates the original reservation receipt, compares
 exact raw ledger CIDs and proposals, and refreshes budget/issuer/mandate authority
 inside validation. The backend must serialize those changes through release.
 
 A newly confirmed claim yields one move-only release permit. Exact replay,
-uncertain commit and recovery cannot reconstruct it. The [[file:../../../rust/commerce-mrr/src/provider.rs][provider interface]] carries
+uncertain commit and recovery cannot reconstruct it. The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/provider.rs][provider interface]] carries
 the complete exact request with a stable scope/purchase idempotency key, and
 verifies a signed receipt's full-request commitment against an independently
 enrolled provider key. Status recovery performs no payment and cannot grant a
-fresh credential or retry. The [[file:../../../rust/commerce-case/tests/integration/agentic_ai/commerce/consumption.rs][test-only consumers]] check two competing claims,
+fresh credential or retry. The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/tests/integration/agentic_ai/commerce/consumption.rs][test-only consumers]] check two competing claims,
 reissued credentials/providers, uncertain claim/payment ACKs, fresh revocation,
 changed receipt/request, and key rotation. No production provider is connected.
 
@@ -247,9 +247,9 @@ receipts require their own issuers and correspondences.
 
 * Rust package ownership
 
-All packages are direct children of =rust/=. =cedar-poo-commerce= owns the
-storage-independent signature, projection and admission APIs. The MRR-bound
-budget, recovered credential, consumption and provider-permit implementations
-live in =cedar-poo-commerce-mrr=. The Case selects both libraries as needed.
-The MRR content/core dependency has no Cedar edge; its pseudonymization binding
-is a separate adapter and is not admitted into this consumer dependency tree.
+Cedar packages are direct children of =rust/=. =cedar-poo-commerce= owns the
+storage-independent signature, projection and admission APIs; its Case selects
+these capabilities. MRR Data owns =mrr-data-commerce= and the MRR-bound budget,
+recovered credential, consumption and provider-permit implementations and tests.
+MRR Data depends on Cedar's domain crates. The entire Cedar workspace has no
+MRR dependency. Lean models remain specifications, independent of the storage engine.
