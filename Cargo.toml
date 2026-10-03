@@ -1,6 +1,6 @@
 [workspace]
-members = ["rust", "rust/crates/*", "rust/cases/*"]
-default-members = ["rust"]
+members = ["rust/crates/*"]
+default-members = ["rust/crates/bridge"]
 resolver = "3"
 
 [workspace.package]

@@ -82,11 +82,11 @@ release objects through Lean-POO. It checks Cedar decisions with the official
 Rust engine, exercises a finite Host ticket-redemption model, and runs local
 synthetic-data cryptographic checks. Its [[file:../../Examples/Health/Pseudonymization/Tabular.lean][tabular input]] exports a selected
 patient ID and tenant-scope context to a fixture consumed by the local AES-SIV test.
-The [[file:../../rust/cases/pseudonymization/examples/pseudonymization_local.rs][local executable]] replays the corresponding official Cedar case, checks
+The [[file:../../rust/crates/pseudonymization-case/examples/pseudonymization_local.rs][local executable]] replays the corresponding official Cedar case, checks
 the selected input against that case's request and dataset entity, performs
 synthetic AES-SIV encryption, and emits content hashes for both the Cedar
 decision and local effect. Changed context or token-key version is rejected.
-The separate [[file:../../rust/src/README.org][Google SDP REST boundary]] constructs a table field transformation
+The separate [[file:../../rust/README.org][Google SDP REST boundary]] constructs a table field transformation
 and checks a caller-supplied response against the selected row and KMS key
 lineage. It does not send a Google request. RustCrypto's local AES-SIV token
 is not asserted to match Google's token bytes.

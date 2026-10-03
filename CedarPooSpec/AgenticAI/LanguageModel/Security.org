@@ -55,7 +55,7 @@ approved disclosure may legitimately send the same bytes, while one retry
 must not become a new operation merely because the Agent obtained another
 approval.
 
-The current [[file:../../../rust/cases/disclosure/examples/agentic_ai_language_model_disclosure_host.rs][Host example]] checks =crossApprovalReplayDenied=: a fresh approval cannot
+The current [[file:../../../rust/crates/disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][Host example]] checks =crossApprovalReplayDenied=: a fresh approval cannot
 admit the same logical operation again. =distinctApprovalAccepted= uses a
 different operation ID with the same payload, demonstrating an independent
 disclosure while budget remains. [[file:../../Admission/OperationIdentity.lean][Lean]] and [[file:../../../rust/crates/core/src/operation_identity.rs][Rust]] expose the

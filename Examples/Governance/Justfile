@@ -7,11 +7,11 @@ attested-views:
     just build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean attested-views-validated > .lake/build/attested-views-validated-manifest.json
     jq -e '(.cases | length) == 13 and (.schema[""].actions | keys) == ["query"] and ([.cases[].revision] | unique) == ["attested-dataowner-0.1", "attested-governed-0.1", "attested-governed-0.2"]' .lake/build/attested-views-validated-manifest.json > /dev/null
-    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/attested-views-validated-manifest.json > .lake/build/attested-views-validated-receipts.json
+    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-validated-receipts < .lake/build/attested-views-validated-manifest.json > .lake/build/attested-views-validated-receipts.json
     jq -e 'length == 13 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["other-project-baseline", "other-project-updated", "owner-rejected-baseline", "owner-rejected-updated", "stale-attestation-updated", "wrong-measurement-baseline", "wrong-measurement-updated", "wrong-region-baseline", "wrong-region-updated"]' .lake/build/attested-views-validated-receipts.json > /dev/null
-    jq '[.cases[] | select(.revision == "attested-governed-0.1")][0].policies' .lake/build/attested-views-validated-manifest.json | cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- render > .lake/build/attested-governed-0.1-validated.cedar
+    jq '[.cases[] | select(.revision == "attested-governed-0.1")][0].policies' .lake/build/attested-views-validated-manifest.json | cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- render > .lake/build/attested-governed-0.1-validated.cedar
     cmp .lake/build/attested-governed-0.1-validated.cedar Examples/Governance/AttestedPolicies/attested-governed-0.1.cedar
-    jq '[.cases[] | select(.revision == "attested-governed-0.2")][0].policies' .lake/build/attested-views-validated-manifest.json | cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- render > .lake/build/attested-governed-0.2-validated.cedar
+    jq '[.cases[] | select(.revision == "attested-governed-0.2")][0].policies' .lake/build/attested-views-validated-manifest.json | cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- render > .lake/build/attested-governed-0.2-validated.cedar
     cmp .lake/build/attested-governed-0.2-validated.cedar Examples/Governance/AttestedPolicies/attested-governed-0.2.cedar
 
 trusted-network:
@@ -26,9 +26,9 @@ country-approval-validated:
     just build-examples
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean country-approval-validated > .lake/build/country-approval-validated-manifest.json
     jq -e '(.cases | length) == 13 and (.schema[""].actions | keys) == ["ApproverActions", "approve", "delete", "review"]' .lake/build/country-approval-validated-manifest.json > /dev/null
-    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/country-approval-validated-manifest.json > .lake/build/country-approval-validated-receipts.json
+    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-validated-receipts < .lake/build/country-approval-validated-manifest.json > .lake/build/country-approval-validated-receipts.json
     jq -e 'length == 13 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["france-unrelated-action", "integrated-cross-country", "japan-cross-country", "restricted-after-veto"]' .lake/build/country-approval-validated-receipts.json > /dev/null
-    jq '[.cases[] | select(.revision == "integrated")][0].policies' .lake/build/country-approval-validated-manifest.json | cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- render > .lake/build/country-approval-integrated.cedar
+    jq '[.cases[] | select(.revision == "integrated")][0].policies' .lake/build/country-approval-validated-manifest.json | cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- render > .lake/build/country-approval-integrated.cedar
     cmp .lake/build/country-approval-integrated.cedar Examples/Governance/CountryPolicies/integrated.cedar
 
 ticket-sharing:

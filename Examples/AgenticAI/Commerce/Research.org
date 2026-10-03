@@ -182,7 +182,7 @@ flags are omitted. Lean proves accepted credentials retain a current reservation
 and an authenticated commit, with explicit negative cases for ancestor revocation,
 future revision, wrong scope/operation, expiry and checkout substitution.
 
-The [[file:../../../rust/cases/commerce/tests/integration/agentic_ai/commerce/credentials.rs][signed consumers]] test proposal-only and unreadable-ledger rejection, later-head
+The [[file:../../../rust/crates/commerce-case/tests/integration/agentic_ai/commerce/credentials.rs][signed consumers]] test proposal-only and unreadable-ledger rejection, later-head
 retention/removal, issuer rotation/revocation, signed claim tampering, changed
 checkout/price, current cap violations and policy/mandate revocation. The two
 opaque CIDs in the Lean credential template are filled from actual Rust content
@@ -208,7 +208,7 @@ uncertain commit and recovery cannot reconstruct it. The [[file:../../../rust/cr
 the complete exact request with a stable scope/purchase idempotency key, and
 verifies a signed receipt's full-request commitment against an independently
 enrolled provider key. Status recovery performs no payment and cannot grant a
-fresh credential or retry. The [[file:../../../rust/cases/commerce/tests/integration/agentic_ai/commerce/consumption.rs][test-only consumers]] check two competing claims,
+fresh credential or retry. The [[file:../../../rust/crates/commerce-case/tests/integration/agentic_ai/commerce/consumption.rs][test-only consumers]] check two competing claims,
 reissued credentials/providers, uncertain claim/payment ACKs, fresh revocation,
 changed receipt/request, and key rotation. No production provider is connected.
 

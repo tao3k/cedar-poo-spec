@@ -9,7 +9,7 @@ import subprocess
 BUILD = Path(".lake/build")
 RUST = [
     "cargo", "run", "--locked", "--quiet", "-p", "cedar-poo-bridge",
-    "--manifest-path", "rust/Cargo.toml",
+    "--manifest-path", "Cargo.toml",
 ]
 LEAN = [
     "timeout", "--signal=TERM", "--kill-after=3s", "120s",
@@ -87,7 +87,7 @@ def run(name: str, repository: Path) -> None:
             ("admission", "agentic_ai_commerce_admission_consumer"),
             ("consumption", "agentic_ai_commerce_budget_projection_consumer"),
         ):
-            _run(["cargo", "test", "--locked", "--manifest-path", "rust/Cargo.toml",
+            _run(["cargo", "test", "--locked", "--manifest-path", "Cargo.toml",
                   "-p", "cedar-poo-commerce-case", "--no-default-features", "--features", feature, "--test", consumer],
                  repository, env=env)
         return
@@ -106,7 +106,7 @@ def run(name: str, repository: Path) -> None:
         _projection(data)
         env = {**os.environ, "LEAN_PROJECTION_FIXTURE": str(output)}
         _run(
-            ["cargo", "test", "--locked", "--manifest-path", "rust/Cargo.toml",
+            ["cargo", "test", "--locked", "--manifest-path", "Cargo.toml",
              "-p", "cedar-poo-commerce-case", "--no-default-features", "--features", "projection",
              "--test", "agentic_ai_commerce_projection_consumer"],
             repository, env=env,

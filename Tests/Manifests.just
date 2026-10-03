@@ -60,8 +60,8 @@ prepare-mission-successor-manifest: build-examples
 
 check-mission-comparison: prepare-mission-successor-manifest
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Enterprise/Vehicle/Mission/MaintenanceComparison.lean > .lake/build/mission-maintenance-manifest.json
-    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- check-direct Examples/Enterprise/Vehicle/Mission/DirectPolicies < .lake/build/mission-successor-manifest.json
-    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- check-direct Examples/Enterprise/Vehicle/Mission/DirectChangePolicies < .lake/build/mission-maintenance-manifest.json
+    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- check-direct Examples/Enterprise/Vehicle/Mission/DirectPolicies < .lake/build/mission-successor-manifest.json
+    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- check-direct Examples/Enterprise/Vehicle/Mission/DirectChangePolicies < .lake/build/mission-maintenance-manifest.json
 
 prepare-extension-manifest: build-examples
     uv run --project python --package cedar-poo-testing --locked cedar-poo-test prepare prepare-extension-manifest

@@ -22,7 +22,7 @@ def run(repository: Path) -> None:
     ))
     members = [p for p in metadata["packages"] if p["id"] in metadata["workspace_members"]]
     for package in members:
-        if Path(package["manifest_path"]).parent.parent.name == "crates":
+        if package["name"] != "cedar-poo-bridge" and not package["name"].endswith("-case"):
             if any(d["name"].endswith("-case") or d["name"] == "cedar-poo-bridge"
                    for d in package["dependencies"]):
                 raise ValueError(f"library {package['name']} imports an application Case")

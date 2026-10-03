@@ -237,9 +237,9 @@ provide domain extensions or measure reuse on a large proof corpus.
 
 * Rust workspace
 
-The [[file:rust/src/README.org][Rust workspace guide]] documents crate ownership and Profile selection.
-Shared domain contracts live in =rust/crates/=; executable scenario consumers
-live in =rust/cases/=. The =cedar-poo-bridge= package owns the JSON CLI and export benchmark.
+The [[file:rust/README.org][Rust workspace guide]] documents crate ownership and Profile selection.
+All Rust packages live in =rust/crates/=, including shared domain contracts,
+Host adapters and executable Case consumers. The =cedar-poo-bridge= package owns the JSON CLI and export benchmark.
 =just check-rust= checks each member and its dependency boundaries; existing
 conformance recipes export Lean fixtures and run the corresponding Case consumers.
 

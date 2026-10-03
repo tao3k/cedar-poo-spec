@@ -128,7 +128,7 @@ Lean state transition does not make this transaction durable.
 [[file:DisclosureExport.lean][DisclosureExport.lean]] sends twenty synthetic policy decisions to
 the official Cedar Rust validator and authorizer. =just example health
 agentic-ai-language-model-disclosure= checks exact allow/deny outcomes, empty policy errors, and
-schema fingerprints. The same recipe runs the [[file:../../../../rust/cases/disclosure/examples/agentic_ai_language_model_disclosure_host.rs][Rust Host example]]:
+schema fingerprints. The same recipe runs the [[file:../../../../rust/crates/disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][Rust Host example]]:
 one release commits, only one of two concurrent commits succeeds, a fresh
 ticket cannot reuse the consumed approval, a fresh approval cannot replay the
 same logical operation, a separate operation with the same payload may consume

@@ -26,7 +26,7 @@ manifest and compare the entire record.
 The CLI accepts a manifest on standard input:
 
 #+begin_src sh
-cargo run --locked -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- replay-receipts < manifest.json
+cargo run --locked -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-receipts < manifest.json
 #+end_src
 
 The output is a JSON array in the manifest case order. The

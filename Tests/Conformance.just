@@ -12,7 +12,7 @@ check-agentic-ai-commerce-projection:
 check-personnel-governance:
     lake build Productions.Manifests Tests.Enterprise.Personnel.SourceCustody
     timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean source-custody-validated > .lake/build/source-custody-validated-manifest.json
-    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
+    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
     jq -e -f Tests/Conformance/personnel-governance-receipts.jq .lake/build/source-custody-validated-receipts.json > /dev/null
 
 check-tests: build-productions check-storage-effect-v1 check-protected-storage-v1 check-storage-profiles-v1 check-google-table-batch-v1
@@ -33,14 +33,14 @@ check-google-table-batch-v1:
 check-delta: check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-agent-trace-delta check-health-authorization-impact
 
 check-replay-receipts: prepare-agent-payment-manifest
-    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- replay-receipts < .lake/build/agent-payment-manifest.json > .lake/build/agent-payment-replay-receipts.json
+    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-receipts < .lake/build/agent-payment-manifest.json > .lake/build/agent-payment-replay-receipts.json
     jq -e --slurpfile manifest .lake/build/agent-payment-manifest.json -f Tests/Conformance/agent-payment-replay-receipts.jq .lake/build/agent-payment-replay-receipts.json > /dev/null
 
 prepare-agent-payment-validated-manifest: build-examples
     uv run --project python --package cedar-poo-testing --locked cedar-poo-test prepare prepare-agent-payment-validated-manifest
 
 check-schema-bound-receipts: prepare-agent-payment-validated-manifest
-    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- replay-validated-receipts < .lake/build/agent-payment-validated-manifest.json > .lake/build/agent-payment-validated-receipts.json
+    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-validated-receipts < .lake/build/agent-payment-validated-manifest.json > .lake/build/agent-payment-validated-receipts.json
     jq -e --slurpfile manifest .lake/build/agent-payment-validated-manifest.json -f Tests/Conformance/agent-payment-validated-receipts.jq .lake/build/agent-payment-validated-receipts.json > /dev/null
 
 prepare-schema-bound-scenarios: build-examples
@@ -54,7 +54,7 @@ prepare-attested-schema-evolution: build-examples
 
 check-attested-schema-evolution: prepare-attested-schema-evolution
     jq -e -f Tests/Conformance/attested-schema-evolution.jq .lake/build/attested-schema-evolution.json > /dev/null
-    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path rust/Cargo.toml -- replay-schema-only-revision < .lake/build/attested-schema-evolution.json > .lake/build/attested-schema-evolution-receipt.json
+    cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-schema-only-revision < .lake/build/attested-schema-evolution.json > .lake/build/attested-schema-evolution-receipt.json
     jq -e -f Tests/Conformance/attested-schema-evolution-receipt.jq .lake/build/attested-schema-evolution-receipt.json > /dev/null
 
 check-authorization-delta: build-examples
