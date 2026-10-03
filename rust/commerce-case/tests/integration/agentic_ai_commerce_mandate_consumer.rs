@@ -120,7 +120,9 @@ impl Sample {
         let digest = cedar_poo_commerce::signatures::sha256_hex(root.as_bytes());
         let bytes: Vec<_> = digest
             .as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
             .collect();
         let mut payload = json!({"delegate_payload":[self.closed], "iat":1800000000u64, "aud":"https://merchant.example", "nonce":"server-nonce-1", "sd_hash":URL_SAFE_NO_PAD.encode(bytes)});
@@ -239,7 +241,9 @@ fn hash_bytes(bytes: &[u8]) -> String {
     let hex = cedar_poo_commerce::signatures::sha256_hex(bytes);
     let decoded: Vec<_> = hex
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
         .collect();
     URL_SAFE_NO_PAD.encode(decoded)

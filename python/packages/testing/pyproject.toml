@@ -5,6 +5,14 @@ description = "Conformance and proof-probe runner for Cedar POO"
 requires-python = ">=3.11"
 dependencies = ["cedar-poo-bridge==0.1.0"]
 
+[project.optional-dependencies]
+ap2-sdk = [
+  "cryptography==46.0.5",
+  "jwcrypto==1.5.6",
+  "pydantic==2.12.5",
+  "sd-jwt==0.10.4",
+]
+
 [project.scripts]
 cedar-poo-test = "cedar_poo_testing.cli:main"
 

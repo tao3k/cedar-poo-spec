@@ -1,11 +1,9 @@
 """Freeze/replay domain-only constraint observations; no wire admission claim."""
-import argparse
 import hashlib
 import json
 from pathlib import Path
-from run import load_sdk, REVISION, SOURCE_DIGEST
+from .ap2_wire import load_sdk, REVISION, SOURCE_DIGEST
 
-FIXTURE = Path(__file__).resolve().parents[2] / 'Tests/Conformance/ap2-checkout-constraints-v1.json'
 CORPUS_DIGEST = 'b761e39a03245704ad07ce12552f540cb9646506f4a33616623f4ec3780bc908'
 
 def cases():
@@ -50,25 +48,21 @@ def observe(row):
     except Exception as error:
         return {'domain':'rejected','error_type':type(error).__name__}
 
-def main():
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--sdk-root',type=Path,required=True)
-    parser.add_argument('--generate',action='store_true')
-    args=parser.parse_args()
-    load_sdk(args.sdk_root.resolve())
-    if args.generate:
-        if FIXTURE.exists(): raise ValueError('Frozen corpus already exists')
+def run(repository: Path, *, sdk_root: Path, generate_corpus: bool = False) -> None:
+    fixture = repository.resolve() / 'Tests/Conformance/ap2-checkout-constraints-v1.json'
+    load_sdk(sdk_root.resolve())
+    if generate_corpus:
+        if fixture.exists(): raise ValueError('Frozen corpus already exists')
         rows=cases()
         for row in rows: row['sdk_observation']=observe(row)
-        FIXTURE.write_text(json.dumps({'schema':'cedar-poo.ap2.checkout-constraints.v1','ap2_revision':REVISION,'sdk_source_sha256':SOURCE_DIGEST,'cases':rows},indent=2,sort_keys=True)+'\n')
-    if hashlib.sha256(FIXTURE.read_bytes()).hexdigest()!=CORPUS_DIGEST: raise ValueError('Frozen constraint bytes changed')
-    corpus=json.loads(FIXTURE.read_text())
+        fixture.write_text(json.dumps({'schema':'cedar-poo.ap2.checkout-constraints.v1','ap2_revision':REVISION,'sdk_source_sha256':SOURCE_DIGEST,'cases':rows},indent=2,sort_keys=True)+'\n')
+    if hashlib.sha256(fixture.read_bytes()).hexdigest()!=CORPUS_DIGEST: raise ValueError('Frozen constraint bytes changed')
+    corpus=json.loads(fixture.read_text())
     if corpus['ap2_revision']!=REVISION or corpus['sdk_source_sha256']!=SOURCE_DIGEST: raise ValueError('Provenance mismatch')
     for row in corpus['cases']:
         actual=observe(row)
         if actual!=row['sdk_observation']: raise ValueError('SDK observation changed: '+row['id'])
         print('PASS',row['id'],'SDK='+actual['domain'],'contract='+row['contract_expectation'],flush=True)
     print('AP2-CONSTRAINT-SDK-OK',len(corpus['cases']),'domain-only cases')
-    print('fixture sha256',hashlib.sha256(FIXTURE.read_bytes()).hexdigest())
+    print('fixture sha256',hashlib.sha256(fixture.read_bytes()).hexdigest())
 
-if __name__=='__main__': main()

@@ -1,7 +1,6 @@
 """Freeze/replay pinned SDK wire observations; this tool grants no admission."""
 from __future__ import annotations
 
-import argparse
 import base64
 import copy
 import hashlib
@@ -14,8 +13,6 @@ from unittest.mock import patch
 REVISION = 'e1ea56db72a6385bce3e5c1112b3a56ce60acb43'
 SOURCE_DIGEST = '5a2eedaa96d7cd962c7baa75161b9f376b2ba37eafcb9fbea551a2573a50698d'
 CORPUS_DIGEST = 'b841dceaf97b6b78907b095bd6bfbb9e7dc43bf1bc37e8d8b0a9959b11acee9a'
-REPO = Path(__file__).resolve().parents[2]
-FIXTURE = REPO / 'Tests/Conformance/ap2-mandate-wire-v1.json'
 PACKAGES = {'cryptography': '46.0.5', 'jwcrypto': '1.5.6', 'pydantic': '2.12.5', 'sd-jwt': '0.10.4'}
 NOW = 1800000000
 
@@ -170,35 +167,33 @@ def generate() -> list[dict]:
     return vectors
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--sdk-root', type=Path)
-    parser.add_argument('--check-frozen', action='store_true', help='Offline byte-integrity check only; does not replay SDK crypto')
-    parser.add_argument('--generate', action='store_true', help='Generate new random test-only keys/signatures; refuses to replace a frozen corpus')
-    args = parser.parse_args()
-    if args.check_frozen:
-        if args.generate:
-            parser.error('--check-frozen cannot generate a corpus')
-        if hashlib.sha256(FIXTURE.read_bytes()).hexdigest() != CORPUS_DIGEST:
+def run(repository: Path, *, sdk_root: Path | None = None,
+        check_frozen: bool = False, generate_corpus: bool = False) -> None:
+    repository = repository.resolve()
+    fixture = repository / 'Tests/Conformance/ap2-mandate-wire-v1.json'
+    if check_frozen:
+        if generate_corpus:
+            raise ValueError('--check-frozen cannot generate a corpus')
+        if hashlib.sha256(fixture.read_bytes()).hexdigest() != CORPUS_DIGEST:
             raise ValueError('Frozen wire corpus bytes changed')
-        constraints = REPO / 'Tests/Conformance/ap2-checkout-constraints-v1.json'
+        constraints = repository / 'Tests/Conformance/ap2-checkout-constraints-v1.json'
         if hashlib.sha256(constraints.read_bytes()).hexdigest() != 'b761e39a03245704ad07ce12552f540cb9646506f4a33616623f4ec3780bc908':
             raise ValueError('Frozen constraint corpus bytes changed')
         print('AP2-CORPUS-INTEGRITY-OK 17 vectors; SDK replay not performed')
         print('AP2-CONSTRAINT-CORPUS-INTEGRITY-OK 15 domain cases; SDK replay not performed')
         return
-    if args.sdk_root is None:
-        parser.error('--sdk-root is required for generation or cryptographic SDK replay')
-    manifest = load_sdk(args.sdk_root.resolve())
-    if args.generate:
-        if FIXTURE.exists():
+    if sdk_root is None:
+        raise ValueError('--sdk-root is required for generation or cryptographic SDK replay')
+    manifest = load_sdk(sdk_root.resolve())
+    if generate_corpus:
+        if fixture.exists():
             raise ValueError('Frozen corpus already exists; generation requires an explicitly reviewed new corpus version')
         corpus = {'schema': 'cedar-poo.ap2.mandate-wire.v1', 'ap2_revision': REVISION,
                   'sdk_source_sha256': SOURCE_DIGEST, 'sdk_files': manifest,
                   'dependencies': PACKAGES, 'vectors': generate()}
-        FIXTURE.write_text(json.dumps(corpus, indent=2, sort_keys=True)+'\n')
-    corpus = json.loads(FIXTURE.read_text())
-    if hashlib.sha256(FIXTURE.read_bytes()).hexdigest() != CORPUS_DIGEST:
+        fixture.write_text(json.dumps(corpus, indent=2, sort_keys=True)+'\n')
+    corpus = json.loads(fixture.read_text())
+    if hashlib.sha256(fixture.read_bytes()).hexdigest() != CORPUS_DIGEST:
         raise ValueError('Frozen wire corpus bytes changed')
     if (corpus['ap2_revision'], corpus['sdk_source_sha256'], corpus['sdk_files'], corpus['dependencies']) != (REVISION, SOURCE_DIGEST, manifest, PACKAGES):
         raise ValueError('Corpus provenance mismatch')
@@ -213,6 +208,3 @@ def main() -> None:
         print(f'PASS {vector["id"]}: wire={actual["wire"]} contract={vector["contract_expectation"]}', flush=True)
     print(f'AP2-WIRE-OK {len(ids)} frozen vectors; SDK replay only, Rust verification is a separate gate')
 
-
-if __name__ == '__main__':
-    main()

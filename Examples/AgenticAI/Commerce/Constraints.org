@@ -6,7 +6,8 @@ The AP2 pin remains =e1ea56db72a6385bce3e5c1112b3a56ce60acb43=. The frozen
 [[file:../../../Tests/Conformance/ap2-checkout-constraints-v1.json][15-case domain corpus]] records actual calls to the pinned
 [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/python/ap2/sdk/constraints.py][SDK constraint evaluator]] with its generated Pydantic types. It is separate
 from the [[file:WireVectors.org][17 SDK wire vectors]]; no domain case claims SDK wire admission.
-Both replay tools verify the exact source manifest and locked dependencies.
+Both replay modules belong to the Python workspace testing package and verify
+the exact source manifest and shared locked dependencies.
 
 The [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/schemas/ap2/open_checkout_mandate.json][pinned schema]] requires a line-item constraint in a nonempty mandate.
 The selected Rust policy checks every constraint conjunctively, requires exact

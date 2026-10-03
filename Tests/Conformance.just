@@ -123,11 +123,11 @@ check-agentic-ai-commerce-presentation:
 
 # Regular CI checks frozen bytes; explicit SDK replay needs its pinned source checkout.
 check-agentic-ai-commerce-wire-corpus:
-    python3 tools/ap2-vectors/run.py --check-frozen
+    uv run --project python --package cedar-poo-testing --locked cedar-poo-test ap2-wire --check-frozen
     cargo test --locked -p cedar-poo-commerce-case --no-default-features --features ap2-checkout --test agentic_ai_commerce_mandate_consumer
 
 check-agentic-ai-commerce-wire-sdk sdk_root:
-    uv run --project tools/ap2-vectors --locked python tools/ap2-vectors/run.py --sdk-root {{quote(sdk_root)}}
+    uv run --project python --package cedar-poo-testing --extra ap2-sdk --locked cedar-poo-test ap2-wire --sdk-root {{quote(sdk_root)}}
 
 check-agentic-ai-commerce-constraint-sdk sdk_root:
-    uv run --project tools/ap2-vectors --locked python tools/ap2-vectors/constraints.py --sdk-root {{quote(sdk_root)}}
+    uv run --project python --package cedar-poo-testing --extra ap2-sdk --locked cedar-poo-test ap2-constraints --sdk-root {{quote(sdk_root)}}
