@@ -20,11 +20,13 @@ mandate ID with changed authority, repeating a purchase or merchant offer, or
 revoking an ancestor prevents a descendant reservation.
 [[file:../../../Tests/AgenticAI/Commerce/Admission.lean][Lean regressions]] cover branching and nested delegation.
 
-Rust APIs live in the dedicated =cedar-poo-commerce= crate. Signatures are
-always compiled there; optional =projection=, =admission=, =budget-commit=,
-=credential= and =consumption= features form an additive ladder. The
-=cedar-poo-commerce-case= crate owns the independent consumers and selects
-those features. Neither depends on Cedar runtime.
+The storage-independent Rust =cedar-poo-commerce= crate owns signatures,
+projected claims and admission, with optional =projection= and =admission=.
+The separate =cedar-poo-commerce-mrr= adapter owns shared-budget commit,
+optional =credential= recovery and =consumption= (with provider receipts).
+It depends on the generic Commerce API and MRR's lower content protocol;
+the generic crate has no MRR dependency. =cedar-poo-commerce-case= owns the
+independent consumers and selects those layers. All compile without Cedar runtime.
 =just check-agentic-ai-commerce-admission= exports the Lean fixture
 and checks signatures, current Host authority, and the shared transition.
 

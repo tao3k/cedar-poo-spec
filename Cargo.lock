@@ -471,7 +471,6 @@ name = "cedar-poo-commerce"
 version = "0.1.0"
 dependencies = [
  "asp-rust",
- "mrr-data-content",
  "p256",
  "serde",
  "serde_json",
@@ -484,8 +483,21 @@ version = "0.1.0"
 dependencies = [
  "asp-rust",
  "cedar-poo-commerce",
+ "cedar-poo-commerce-mrr",
  "mrr-data-content",
  "p256",
+ "serde_json",
+]
+
+[[package]]
+name = "cedar-poo-commerce-mrr"
+version = "0.1.0"
+dependencies = [
+ "asp-rust",
+ "cedar-poo-commerce",
+ "mrr-data-content",
+ "p256",
+ "serde",
  "serde_json",
 ]
 

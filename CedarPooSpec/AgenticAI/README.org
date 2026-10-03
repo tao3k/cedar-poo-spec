@@ -23,7 +23,7 @@ force every tool call through this API. A deploying harness must derive the
 real action, destination, before/after selection, recipients, and output bytes
 from its tool adapter and apply the external effect only after a durable
 decision. The [[file:../../Tests/AgenticAI/Boundary.lean][Lean tests]] and
-[[file:../../rust/crates/agentic/src/boundary.rs][Rust mirror]] check the finite
+[[file:../../rust/agentic/src/boundary.rs][Rust mirror]] check the finite
 boundary behavior; the [[file:../../Examples/Health/AgenticAI/LanguageModel/Disclosure.org][hospital case]] composes it with Cedar, lineage, grants, and a shared
 cohort ledger.
 

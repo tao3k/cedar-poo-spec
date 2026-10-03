@@ -3,7 +3,7 @@
 
 use super::{Fixture, key};
 use cedar_poo_commerce::admission::AdmissionError;
-use cedar_poo_commerce::budget_commit::{
+use cedar_poo_commerce_mrr::budget_commit::{
     BudgetCommitError, CurrentCommerceAuthority, SharedBudgetClaims, commit_shared_reservation,
 };
 use mrr_data_content::{

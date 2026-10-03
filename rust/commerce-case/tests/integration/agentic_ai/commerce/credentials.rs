@@ -2,10 +2,10 @@
 
 use super::transactions::{TestPort, complete};
 use super::{Fixture, signer};
-use cedar_poo_commerce::budget_commit::{
+use cedar_poo_commerce_mrr::budget_commit::{
     CurrentCommerceAuthority, SharedBudgetClaims, commit_shared_reservation,
 };
-use cedar_poo_commerce::credential::{
+use cedar_poo_commerce_mrr::credential::{
     CredentialAdmissionRequest, CredentialClaims, CredentialError, CredentialIssuerTrust,
     CredentialRecoveryError, VerifiedCredential, admit_committed_credential,
 };

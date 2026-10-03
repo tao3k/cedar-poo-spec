@@ -249,7 +249,7 @@ drift. A later link requires a new Lean materialization and boundary check.
 
 [[file:TicketSharingExport.lean][TicketSharingExport.lean]] derives nine
 authorization receipts from this Lean model. The
-[[file:../../rust/crates/bridge/Cargo.toml][Rust bridge]] parses the generated policies
+[[file:../../rust/bridge/Cargo.toml][Rust bridge]] parses the generated policies
 with the Cedar policy language implementation and checks each decision and
 policy error count.
 The resulting [[file:Policies/expanded.cedar][expanded Cedar policy file]]

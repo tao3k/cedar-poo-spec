@@ -4,11 +4,11 @@
 //! authority inside its backend transaction, and atomically persists the head and
 //! receipt. This module plans no DB operation and makes no durability claim.
 
-use crate::admission::{
+use cedar_poo_commerce::admission::{
     AdmissionError, AdmissionRequest, CommerceAdmissionHost, DelegatedAdmissionRequest,
 };
-use crate::projection::{LeanMandateClaims, LeanOfferClaims, LeanPurchaseTermsClaims};
-use crate::signatures::{AgentId, MandateId};
+use cedar_poo_commerce::projection::{LeanMandateClaims, LeanOfferClaims, LeanPurchaseTermsClaims};
+use cedar_poo_commerce::signatures::{AgentId, MandateId};
 use mrr_data_content::{
     ConditionalCommitDisposition, ConditionalCommitError, ConditionalCommitPortError,
     ConditionalContentCommitOutcome, ConditionalContentCommitPort, ConditionalContentWrite,

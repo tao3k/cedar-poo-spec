@@ -4,7 +4,7 @@
 * Workspace ownership
 
 The [[file:../Cargo.toml][root workspace]] owns the lockfile, shared dependency versions and immutable
-MRR/ASP pins. All packages live under =rust/crates/=, including shared libraries,
+MRR/ASP pins. All packages live under =rust/=, including shared libraries,
 Host adapters, Case consumers and the CLI application (=bridge/=).
 Case crates own scenario inputs, examples and external consumer tests. Libraries never
 import Case crates or synthetic scenario inputs.
@@ -14,20 +14,43 @@ import Case crates or synthetic scenario inputs.
 | =cedar-poo-core= | Policy JSON artifacts, authority and operation ledgers | None |
 | =cedar-poo-runtime= | Official Cedar validation, schema checks and replay | None |
 | =cedar-poo-agentic= | Common tool-action, selection and sink boundary | None |
-| =cedar-poo-commerce= | Signed claims and Host commerce protocols | =projection=, =admission=, =budget-commit=, =credential=, =consumption= |
+| =cedar-poo-commerce= | Storage-independent signatures, claims and admission | =projection=, =admission= |
+| =cedar-poo-commerce-mrr= | MRR budget commit, credential recovery and consumption adapter | =credential=, =consumption= |
 | =cedar-poo-pseudonymization= | Common token modes and lineage | =google-sdp= adds provider wire contracts |
 | =cedar-poo-google-sdp-host= | In-memory Cedar and Google admission reference | None |
 | =cedar-poo-disclosure-host= | In-memory language-model disclosure reference | None |
 | =cedar-poo-bridge= | JSON conformance CLI and export benchmark | None |
-| =cedar-poo-commerce-case= | Independent Lean commerce fixture consumers | Same additive commerce ladder |
+| =cedar-poo-commerce-case= | Independent Lean commerce fixture consumers | Selects domain and MRR adapter capabilities |
 | =cedar-poo-pseudonymization-case= | Local crypto and Google examples | =local=, =google-contract=, =google-admission= |
 | =cedar-poo-disclosure-case= | Language-model disclosure scenario | None |
 
-Commerce signatures are always present in their dedicated crate. Projection,
-admission, budget commit, credential and consumption form an additive ladder;
-MRR is enabled only from =budget-commit= onward. No Commerce profile depends
-on Cedar runtime. Common pseudonymization and its Google contract also compile
+Commerce signatures are always present in the domain crate. Its optional
+=projection= and =admission= features have no MRR dependency. The separate
+=cedar-poo-commerce-mrr= integration owns =budget_commit= and optionally
+=credential= and =consumption= (including the permit-bound provider interface).
+It depends on the admitted Commerce API and the lower MRR content protocol.
+The Case's =budget-commit= feature selects this adapter; =credential= and
+=consumption= add its corresponding layers. No Commerce package depends on
+Cedar runtime. Common pseudonymization and its Google contract also compile
 without Cedar. Hosts explicitly compose runtime and domain libraries.
+
+** MRR dependency direction
+
+There are two adapter edges in the repositories, not a dependency of the MRR
+content engine on Cedar:
+
+#+begin_example
+commerce-case -> commerce-mrr -> commerce (domain contracts)
+                             -> mrr-data-content -> mrr-data-core
+mrr-data-pseudonymization -> pinned Cedar pseudonymization profile
+#+end_example
+
+The latter MRR adapter is outside the Commerce dependency tree. The exact
+MRR revision remains pinned centrally, but only the integration crate and its
+Case consume it. =just check-rust= rejects any MRR dependency in the generic
+Commerce manifest and checks each selected normal dependency tree for the MRR
+facade, reverse pseudonymization adapter and old Cedar bridge. Immutable pins
+make this graph reproducible; they do not themselves prevent a cycle.
 
 The CLI keeps its command names, JSON formats and binary name. Library consumers
 migrate directly to their owning crate; the bridge has no domain re-export
@@ -69,7 +92,7 @@ running the external Case consumers.
 
 * Google table transformation contract
 
-[[file:crates/pseudonymization/src/google_sdp.rs][google_sdp.rs]] maps the selected Lean table input to the official Google
+[[file:pseudonymization/src/google_sdp.rs][google_sdp.rs]] maps the selected Lean table input to the official Google
 Sensitive Data Protection =projects.locations.content.deidentify= and
 =reidentify= REST body shapes. It selects one entire table column through
 =RecordTransformations.FieldTransformation=, takes the context from a second
@@ -91,12 +114,12 @@ surrogate name and encoded length. Their output binds hashes of the request
 and response JSON. An
 arbitrary JSON document can satisfy the shape check; it is not itself proof
 of Google execution, a persisted audit, or atomic Host admission.
-The [[file:crates/pseudonymization-case/examples/pseudonymization_google_contract.rs][offline example runner]] consumes two explicitly synthetic provider-shape
+The [[file:pseudonymization-case/examples/pseudonymization_google_contract.rs][offline example runner]] consumes two explicitly synthetic provider-shape
 responses from the hospital scenario and emits request/response digests.
-The [[file:crates/google-sdp-host/src/host.rs][in-memory admission API]] replays a schema-validated Cedar case,
+The [[file:google-sdp-host/src/host.rs][in-memory admission API]] replays a schema-validated Cedar case,
 binds the selected row, Google endpoint, and exact request body, and releases a caller-supplied
 response only after a digest audit entry is appended. The
-[[file:crates/pseudonymization-case/examples/pseudonymization_google_admission.rs][hospital consumer]] owns synthetic responses in its scenario directory.
+[[file:pseudonymization-case/examples/pseudonymization_google_admission.rs][hospital consumer]] owns synthetic responses in its scenario directory.
 The in-memory Host records a digest of each admitted token with its dataset,
 tenant, context, token-key version, and transformation revision. Recovery requires
 that lineage; a token with no prior admitted issuance is rejected. This
@@ -112,15 +135,15 @@ execution.
 
 * Approval-instance consumption
 
-[[file:crates/core/src/authority_consumption.rs][AuthorityLedger]] is a small Rust counterpart of the public
+[[file:core/src/authority_consumption.rs][AuthorityLedger]] is a small Rust counterpart of the public
 [[file:../CedarPooSpec/Admission/AuthorityConsumption.lean][Lean admission model]]. It matches one stable ID to one exact effect and
 rejects missing, duplicate, mismatched, and exhausted grants. The
-[[file:crates/disclosure-host/src/host.rs][in-memory disclosure Host]] rechecks Cedar and consumes an approval
+[[file:disclosure-host/src/host.rs][in-memory disclosure Host]] rechecks Cedar and consumes an approval
 under the same lock as its budget, cohort, and audit update. The
-[[file:crates/disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][offline consumer]] exercises fresh-ticket replay, concurrent tickets,
+[[file:disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][offline consumer]] exercises fresh-ticket replay, concurrent tickets,
 separate approvals, and failure before consumption.
 
-[[file:crates/core/src/operation_identity.rs][OperationLedger]] binds a logical operation ID to its exact effect.
+[[file:core/src/operation_identity.rs][OperationLedger]] binds a logical operation ID to its exact effect.
 The Host checks it at preparation and commits it alongside approval use and
 budget debit. The offline consumer rejects a fresh approval for the same
 operation while allowing an independent operation with identical payload.
@@ -133,7 +156,7 @@ response after a crash.
 
 * Local cryptographic check
 
-[[file:crates/pseudonymization-case/examples/pseudonymization_local.rs][pseudonymization_local.rs]] uses RustCrypto with a synthetic key to check
+[[file:pseudonymization-case/examples/pseudonymization_local.rs][pseudonymization_local.rs]] uses RustCrypto with a synthetic key to check
 deterministic encryption, context separation, and local reversal after
 governed Cedar decisions. Google internally expands its supplied key and
 specifies its own context handling. The local RustCrypto output is therefore
@@ -141,13 +164,13 @@ not asserted to be byte-for-byte interchangeable with a Google token. The
 Google request and response boundary above is kept separate from this local
 check.
 
-The [[file:crates/commerce/src/budget_commit.rs][shared budget bridge]] checks one new reservation against the exact
+The [[file:commerce-mrr/src/budget_commit.rs][shared budget bridge]] checks one new reservation against the exact
 current content CID and revision, fresh authority, immutable prior entries,
 root and ancestor caps, global purchase and offer identities, and mandate ID
 bindings. It then calls MRR Data's provider-neutral conditional commit
 protocol. A returned =Apply= is a proposed transition. The backend must compare
 and persist the head and operation receipt atomically; MRR Data supplies no DB.
-The [[file:crates/commerce-case/tests/integration/agentic_ai_commerce_budget_projection_consumer.rs][consumer test]] uses shared before/after JSON emitted by Lean.
+The [[file:commerce-case/tests/integration/agentic_ai_commerce_budget_projection_consumer.rs][consumer test]] uses shared before/after JSON emitted by Lean.
 
 The =commit_shared_reservation= API binds an explicit operation ID to the proposed
 purchase, then invokes MRR Data's async atomic commit port. The Host supplies

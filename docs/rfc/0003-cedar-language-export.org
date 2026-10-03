@@ -6,7 +6,7 @@
 =PolicyModules.Model.compile= yields =Cedar.Spec.Policies= in Lean. The
 [[file:../../CedarPooSpec/PolicyJson.lean][PolicyJson adapter]] serializes that
 ordinary policy set using Cedar's public JSON policy-set format. The
-[[file:../../rust/crates/bridge/Cargo.toml][Rust bridge]] parses the result with the official
+[[file:../../rust/bridge/Cargo.toml][Rust bridge]] parses the result with the official
 =cedar-policy= crate and calls its authorizer. Composition and proof reuse stay
 in Lean-POO; Cedar continues to own policy parsing and authorization.
 The =cedar-poo-core= crate owns the small JSON artifact types with no Cedar runtime

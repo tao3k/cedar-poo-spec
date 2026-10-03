@@ -162,7 +162,7 @@ fn surrogate_annotation_requires_the_declared_name_and_encoded_length() {
 #[test]
 fn table_batch_wire_replays_lean_response_matrix() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../../Tests/Conformance/google-table-batch-v1.json"
+        "../../../../Tests/Conformance/google-table-batch-v1.json"
     ))
     .unwrap();
     assert_eq!(fixture["schema"], "google-table-batch-v1");

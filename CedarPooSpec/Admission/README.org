@@ -16,9 +16,9 @@ operations reject missing, duplicate, mismatched, and exhausted grants.
 [[file:OperationIdentity.lean][OperationIdentity]] records a stable logical operation ID separately from an
 approval ID. Its =check= and =admit= prevent a fresh approval from admitting
 the same operation twice within the modeled ledger. The
-[[file:../../rust/crates/core/src/operation_identity.rs][Rust counterpart]] also binds that ID to the exact effect.
+[[file:../../rust/core/src/operation_identity.rs][Rust counterpart]] also binds that ID to the exact effect.
 The [[file:../../Examples/Enterprise/Agent/Fanout/README.org][cross-agent fanout example]] combines this ledger with policy snapshots.
-The [[file:../../rust/crates/core/src/authority_consumption.rs][Rust counterpart]] is exercised by the
+The [[file:../../rust/core/src/authority_consumption.rs][Rust counterpart]] is exercised by the
 [[file:../../Examples/Health/AgenticAI/LanguageModel/Disclosure.org][medical disclosure Host scenario]] under the same process-local lock as
 its Cedar recheck, budget debit, cohort update, and audit entry.
 The Host must authenticate grant provenance, persist its counters, and couple

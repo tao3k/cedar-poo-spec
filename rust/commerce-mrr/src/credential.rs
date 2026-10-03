@@ -6,11 +6,11 @@
 
 use std::{collections::BTreeMap, convert::Infallible};
 
-use super::admission::DelegatedAdmissionRequest;
 use super::budget_commit::{
     BudgetCommitError, CurrentCommerceAuthority, SharedBudgetClaims, SharedBudgetReservation,
     admit, read_transition, validate_reservation,
 };
+use cedar_poo_commerce::admission::DelegatedAdmissionRequest;
 use mrr_data_content::{
     ConditionalCommitError, ConditionalCommitPortError, ConditionalContentCommitPort,
     ConditionalContentWrite, ContentBlock, ContentCodec, ContentRevision,
@@ -295,7 +295,10 @@ pub(super) fn validate_authority<F>(
     policy: F,
 ) -> Result<VerifiedCredential, CredentialError>
 where
-    F: FnOnce(&[super::projection::LeanMandateClaims], &super::projection::LeanOfferClaims) -> bool,
+    F: FnOnce(
+        &[cedar_poo_commerce::projection::LeanMandateClaims],
+        &cedar_poo_commerce::projection::LeanOfferClaims,
+    ) -> bool,
 {
     request.signed.now = host.now;
     let current = current_budget(&request)?;
@@ -353,7 +356,10 @@ pub async fn admit_committed_credential<'a, P, F, G>(
 where
     P: ConditionalContentCommitPort,
     F: FnOnce() -> Result<CurrentCommerceAuthority, CredentialError>,
-    G: FnOnce(&[super::projection::LeanMandateClaims], &super::projection::LeanOfferClaims) -> bool,
+    G: FnOnce(
+        &[cedar_poo_commerce::projection::LeanMandateClaims],
+        &cedar_poo_commerce::projection::LeanOfferClaims,
+    ) -> bool,
 {
     recover_committed_credential(port, &request).await?;
     let validate = CredentialRecoveryError::Validation;

@@ -9,7 +9,7 @@ of any payment instrument. Its public [[file:../../../../CedarPooSpec/AgenticAI/
 [[file:../../../../CedarPooSpec/AgenticAI/Commerce/Delegation.lean][delegation check]], and [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgenticCommercePayment.lean][purchase-to-payment adapter]] have
 [[file:../../../../Tests/AgenticAI/Commerce/Admission.lean][regressions]] checked by =just check-agentic-ai-commerce=. The sections below
 describe the narrower payment execution and audit boundary that follows an
-admitted purchase. An optional [[file:../../../../rust/crates/commerce/src/signatures.rs][Rust mandate and offer verifier]]
+admitted purchase. An optional [[file:../../../../rust/commerce/src/signatures.rs][Rust mandate and offer verifier]]
 checks signatures and exact checkout bytes under =just check-rust=; its
 authenticated output still needs a checked mapping into the Lean objects.
 

@@ -10,12 +10,13 @@ description = "Independent consumers of Lean commerce fixtures"
 default = []
 projection = ["cedar-poo-commerce/projection"]
 admission = ["projection", "cedar-poo-commerce/admission"]
-budget-commit = ["admission", "cedar-poo-commerce/budget-commit", "dep:mrr-data-content"]
-credential = ["budget-commit", "cedar-poo-commerce/credential"]
-consumption = ["credential", "cedar-poo-commerce/consumption"]
+budget-commit = ["admission", "dep:cedar-poo-commerce-mrr", "dep:mrr-data-content"]
+credential = ["budget-commit", "cedar-poo-commerce-mrr/credential"]
+consumption = ["credential", "cedar-poo-commerce-mrr/consumption"]
 
 [dependencies]
 cedar-poo-commerce.workspace = true
+cedar-poo-commerce-mrr = { workspace = true, optional = true }
 mrr-data-content = { workspace = true, optional = true }
 
 [dev-dependencies]

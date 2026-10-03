@@ -27,9 +27,9 @@ The [[file:../../Admission/BoundOperation.lean][BoundOperation]] API binds an ef
 The [[file:../../Data/Lineage.lean][Lineage]] and [[file:../../Data/CumulativeDisclosure.lean][CumulativeDisclosure]] modules model source
 ancestry and cumulative release state. The [[file:../../../Examples/Health/AgenticAI/LanguageModel/Disclosure.org][hospital language-model disclosure case]]
 combines them with scoped approval, delegation, and Cedar policy replay.
-The [[file:../../../rust/crates/disclosure-host/src/host.rs][process-local Rust Host reference]] rechecks the
-composed Cedar policy and commits the [[file:../../../rust/crates/core/src/authority_consumption.rs][approval-instance ledger]],
-[[file:../../../rust/crates/core/src/operation_identity.rs][operation ledger]], disclosure ledger, and audit under one lock. These
+The [[file:../../../rust/disclosure-host/src/host.rs][process-local Rust Host reference]] rechecks the
+composed Cedar policy and commits the [[file:../../../rust/core/src/authority_consumption.rs][approval-instance ledger]],
+[[file:../../../rust/core/src/operation_identity.rs][operation ledger]], disclosure ledger, and audit under one lock. These
 models do not authenticate source data or supply a durable transaction.
 
 * References and precise use
@@ -55,10 +55,10 @@ approved disclosure may legitimately send the same bytes, while one retry
 must not become a new operation merely because the Agent obtained another
 approval.
 
-The current [[file:../../../rust/crates/disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][Host example]] checks =crossApprovalReplayDenied=: a fresh approval cannot
+The current [[file:../../../rust/disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][Host example]] checks =crossApprovalReplayDenied=: a fresh approval cannot
 admit the same logical operation again. =distinctApprovalAccepted= uses a
 different operation ID with the same payload, demonstrating an independent
-disclosure while budget remains. [[file:../../Admission/OperationIdentity.lean][Lean]] and [[file:../../../rust/crates/core/src/operation_identity.rs][Rust]] expose the
+disclosure while budget remains. [[file:../../Admission/OperationIdentity.lean][Lean]] and [[file:../../../rust/core/src/operation_identity.rs][Rust]] expose the
 operation ledger. =CommitReceipt= records process-local admission before any
 sink call; it is not a delivery receipt.
 

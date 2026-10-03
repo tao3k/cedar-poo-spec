@@ -9,8 +9,8 @@ use super::credential::{
     CredentialAdmissionRequest, CredentialClaims, CredentialError, CredentialIssuerTrust,
     CredentialRecoveryError, recover_committed_credential, validate_authority,
 };
-use super::projection::{LeanMandateClaims, LeanOfferClaims};
-use super::signatures::sha256_hex;
+use cedar_poo_commerce::projection::{LeanMandateClaims, LeanOfferClaims};
+use cedar_poo_commerce::signatures::sha256_hex;
 use mrr_data_content::{
     ConditionalCommitError, ConditionalCommitPortError, ConditionalContentCommitOutcome,
     ConditionalContentCommitPort, ConditionalContentWrite, ContentBlock, ContentCodec,

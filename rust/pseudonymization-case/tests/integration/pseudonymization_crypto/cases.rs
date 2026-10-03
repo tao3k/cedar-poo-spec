@@ -57,7 +57,7 @@ fn aes_siv_context_and_key_lineage_change_actual_tokens() {
 #[test]
 fn lean_selected_table_fields_are_actual_siv_inputs() {
     let fixture: TabularFixture = serde_json::from_str(include_str!(
-        "../../../../../../Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json"
+        "../../../../../Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json"
     ))
     .unwrap();
     assert_eq!(fixture.dataset, "hospital-patients");
@@ -83,7 +83,7 @@ fn lean_selected_table_fields_are_actual_siv_inputs() {
 #[test]
 fn lean_selected_table_fields_build_google_sdp_request_with_bound_key_lineage() {
     let fixture: TabularFixture = serde_json::from_str(include_str!(
-        "../../../../../../Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json"
+        "../../../../../Examples/Health/Pseudonymization/Fixtures/tabular-aes-siv.json"
     ))
     .unwrap();
     let binding = WrappedKeyBinding {

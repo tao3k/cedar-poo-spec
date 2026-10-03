@@ -107,7 +107,7 @@ authenticate it or replace the execution-time revision check.
 | Raw input to token | =Lifecycle.ingestEffect= and [[file:CrossStep.lean][CrossStep.TokenReceipt]] bind dataset, input digest, key, and revisions; Google SDP has an offline contract and local crypto example | Authenticate the real input and provider response; persist token provenance. |
 | Token to language-model workflow read and join | =CrossStep.join= consumes the token receipt and =Lifecycle.joinEffect= checks a scoped grant and policy revision | Bind the real query and every selected source receipt to the delegated language-model workflow task. |
 | Join to derived result | =CrossStep.derive= carries purpose and query digest; =JoinedLineage= composes hospital and research labels | Authenticate the transformation graph and output bytes rather than accepting model-declared labels. |
-| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, final recipients, cohort state, revisions, budget, and exact effect; the [[file:../../../../rust/crates/disclosure-host/src/host.rs][in-memory Rust Host]] reauthorizes with official Cedar and commits cohort, budget, and audit under one lock | Persist these changes durably in one transaction before sending; authenticate output, candidate-set evidence, and the final sink audience. |
+| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, final recipients, cohort state, revisions, budget, and exact effect; the [[file:../../../../rust/disclosure-host/src/host.rs][in-memory Rust Host]] reauthorizes with official Cedar and commits cohort, budget, and audit under one lock | Persist these changes durably in one transaction before sending; authenticate output, candidate-set evidence, and the final sink audience. |
 | Token to re-identification | =CrossStep.reidentify= reuses token provenance but requires =Lifecycle.revealEffect='s distinct clinical approval | Bind the actual recovery request, provider receipt, clinical purpose, and plaintext effect to one durable Host transaction. |
 
 The executable Lean transitions now pass typed synthetic receipts across all
@@ -128,7 +128,7 @@ Lean state transition does not make this transaction durable.
 [[file:DisclosureExport.lean][DisclosureExport.lean]] sends twenty synthetic policy decisions to
 the official Cedar Rust validator and authorizer. =just example health
 agentic-ai-language-model-disclosure= checks exact allow/deny outcomes, empty policy errors, and
-schema fingerprints. The same recipe runs the [[file:../../../../rust/crates/disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][Rust Host example]]:
+schema fingerprints. The same recipe runs the [[file:../../../../rust/disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][Rust Host example]]:
 one release commits, only one of two concurrent commits succeeds, a fresh
 ticket cannot reuse the consumed approval, a fresh approval cannot replay the
 same logical operation, a separate operation with the same payload may consume

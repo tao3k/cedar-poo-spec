@@ -22,7 +22,7 @@ grant cannot be inherited merely because two datasets belong to one tenant.
 
 The people, datasets, keys, and decisions are synthetic. No patient record or
 real cryptographic key appears in the example.
-The [[file:../../../rust/crates/pseudonymization-case/tests/integration/pseudonymization_crypto.rs][RustCrypto synthetic-data checks]] execute AES-SIV with a context value,
+The [[file:../../../rust/pseudonymization-case/tests/integration/pseudonymization_crypto.rs][RustCrypto synthetic-data checks]] execute AES-SIV with a context value,
 HMAC-SHA-256, and AES-GCM. They distinguish stable same-scope tokens, changed
 context or data key, unchanged tokens after a wrapper-only change, HMAC
 cross-scope key reuse, and GCM nonce-dependent ciphertext and recovery. They
@@ -36,7 +36,7 @@ differs from its admitted context. The public recipe permits per-row contexts
 and compares actual context values before claiming join compatibility. It
 does not inspect arbitrary records or issue a Google
 Sensitive Data Protection request.
-The [[file:../../../rust/crates/pseudonymization-case/examples/pseudonymization_local.rs][local executable]] checks that this fixture matches the
+The [[file:../../../rust/pseudonymization-case/examples/pseudonymization_local.rs][local executable]] checks that this fixture matches the
 =hospital-tokenize= Cedar request and dataset entity before encrypting with a
 synthetic key. It separately replays the governed =steward-reidentify=
 decision, decrypts the generated token with the same context, and rejects a
@@ -47,7 +47,7 @@ Both approvals still come from synthetic request facts; this is not a durable
 Host transaction or a Google provider execution receipt.
 The shared [[file:../../../CedarPooSpec/Platform/Google/SensitiveDataProtection.lean][Google Lean projection]] creates the selected fixture used by
 this hospital and the Cloud customer example. The
-[[file:../../../rust/crates/pseudonymization/src/google_sdp.rs][Google SDP request boundary]] consumes that fixture and a
+[[file:../../../rust/pseudonymization/src/google_sdp.rs][Google SDP request boundary]] consumes that fixture and a
 Host-resolved wrapped key descriptor. Its test checks the official table
 =RecordTransformation= shape, context field, and key lineage. It can check a
 caller-supplied response shape, but the example does not authenticate a
@@ -57,7 +57,7 @@ Run =just example health pseudonymization-google-contract= for the minimal
 offline path. It checks the Lean-selected fixture, creates both Google REST
 bodies, and consumes [[file:Fixtures/google-deidentify-response.json][synthetic de-identification]] and
 [[file:Fixtures/google-reidentify-response.json][synthetic re-identification]] responses. The
-[[file:../../../rust/crates/pseudonymization-case/examples/pseudonymization_google_contract.rs][example runner]] emits only request/response digests and boundary checks;
+[[file:../../../rust/pseudonymization-case/examples/pseudonymization_google_contract.rs][example runner]] emits only request/response digests and boundary checks;
 it also rejects a changed context, malformed token, or mismatched token-key
 version. These response files
 are deliberately fabricated wire-shape fixtures, not evidence of an actual
@@ -66,7 +66,7 @@ minimal path alongside Cedar replay and local cryptographic execution.
 Run =just example health pseudonymization-google-admission= to replay the
 official Cedar decisions, bind the selected row to the Cedar dataset and
 Google request, then exercise an in-memory admission ticket. The
-[[file:../../../rust/crates/pseudonymization-case/examples/pseudonymization_google_admission.rs][offline Host example]] rejects a racing ticket, approval revision change,
+[[file:../../../rust/pseudonymization-case/examples/pseudonymization_google_admission.rs][offline Host example]] rejects a racing ticket, approval revision change,
 an unissued recovery token both before and after tokenization,
 policy deployment, failed audit sink, changed endpoint, and changed response context before
 releasing a transformed cell. Its audit contains digests only. This example

@@ -1,6 +1,7 @@
 [workspace]
-members = ["rust/crates/*"]
-default-members = ["rust/crates/bridge"]
+members = ["rust/*"]
+exclude = ["rust/target"]
+default-members = ["rust/bridge"]
 resolver = "3"
 
 [workspace.package]
@@ -21,10 +22,11 @@ asp-rust = { git = "https://github.com/tao3k/asp-rust", rev = "9b95fd6744a89f3f3
 aes-siv = "0.7"
 aes-gcm = "0.10"
 hmac = "0.13"
-cedar-poo-core = { path = "rust/crates/core", default-features = false }
-cedar-poo-runtime = { path = "rust/crates/runtime", default-features = false }
-cedar-poo-agentic = { path = "rust/crates/agentic", default-features = false }
-cedar-poo-commerce = { path = "rust/crates/commerce", default-features = false }
-cedar-poo-pseudonymization = { path = "rust/crates/pseudonymization", default-features = false }
-cedar-poo-google-sdp-host = { path = "rust/crates/google-sdp-host", default-features = false }
-cedar-poo-disclosure-host = { path = "rust/crates/disclosure-host", default-features = false }
+cedar-poo-core = { path = "rust/core", default-features = false }
+cedar-poo-runtime = { path = "rust/runtime", default-features = false }
+cedar-poo-agentic = { path = "rust/agentic", default-features = false }
+cedar-poo-commerce = { path = "rust/commerce", default-features = false }
+cedar-poo-pseudonymization = { path = "rust/pseudonymization", default-features = false }
+cedar-poo-google-sdp-host = { path = "rust/google-sdp-host", default-features = false }
+cedar-poo-disclosure-host = { path = "rust/disclosure-host", default-features = false }
+cedar-poo-commerce-mrr = { path = "rust/commerce-mrr", default-features = false }

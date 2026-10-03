@@ -2,13 +2,13 @@
 use super::credentials::{claims, trust};
 use super::transactions::{TestPort, complete};
 use super::{Fixture, signer};
-use cedar_poo_commerce::budget_commit::{CurrentCommerceAuthority, commit_shared_reservation};
-use cedar_poo_commerce::consumption::{
+use cedar_poo_commerce_mrr::budget_commit::{CurrentCommerceAuthority, commit_shared_reservation};
+use cedar_poo_commerce_mrr::consumption::{
     ConsumptionClaimError, ConsumptionClaimRequest, ConsumptionError, ConsumptionLedgerClaims,
     CurrentConsumptionAuthority, DispatchPermit, PaymentDispatchClaims, ProviderId, claim_dispatch,
 };
-use cedar_poo_commerce::credential::{CredentialAdmissionRequest, CredentialClaims};
-use cedar_poo_commerce::provider::{
+use cedar_poo_commerce_mrr::credential::{CredentialAdmissionRequest, CredentialClaims};
+use cedar_poo_commerce_mrr::provider::{
     PaymentOutcome, PaymentProviderPort, ProviderDispatchError, ProviderFailure, ProviderFuture,
     ProviderReceiptClaims, ProviderReceiptTrust, SignedProviderReceipt, recover_payment,
     release_payment,
