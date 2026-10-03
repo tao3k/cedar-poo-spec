@@ -235,9 +235,14 @@ The immediate sequence is:
 5. Evaluate pre-signature agent manipulation and, for resource purchases, the
    separate delivered-capability activation boundary.
 
-The move-only permit remains fail-closed on replay and unknown. Progress after
-claim-before-dispatch crashes is an open protocol obligation, not a property
-established by the current reference tests.
+The move-only permit remains fail-closed on replay and unknown. The
+[[file:Recovery.org][implemented recovery protocol]] supports resumption through a provider
+ownership CAS contract; production durability remains an endpoint obligation.
+
+The [[file:VerificationPlan.org][mandate verification research and next implementation plan]] now
+refines step 4 with pinned RFC/Delegate SD-JWT/SDK correspondence, an executable
+independent-scope boundary witness, and V1--V5 acceptance experiments. Full
+mandate admission and shared presentation coordination remain designs.
 
 * Rust package ownership
 

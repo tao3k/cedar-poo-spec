@@ -192,3 +192,12 @@ through an endpoint implementing the durable ownership contract.
 The [[file:Presentation.org][AP2 Checkout Receipt subprofile]] pins upstream source, verifies
 ES256 JWT receipts and adds scoped presentation persistence. Full AP2 mandate
 processing, coupled Payment Mandates, settlement and fulfillment remain open.
+
+* Mandate verification research follow-up
+
+The [[file:VerificationPlan.org][next verification plan]] audits RFC 9901, the pinned Delegate SD-JWT
+draft and SDK against current receipt/persistence interfaces. Its Lean/Rust
+boundary witness shows two independent scopes can both present; Host identity
+alias prevention and a shared atomic gate are required for broader guarantees.
+V1--V5 distinguish planned wire verification, shared coordination, recovery,
+processor receipt evidence and safe evidence retirement.

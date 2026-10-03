@@ -17,6 +17,14 @@ theorem oldRejectionCannotClearNewPresentation :
     (rejected.present "mandate.checkout.open.1" "mandate.checkout.1" { p with reference := "closed-B" }).bind
       (fun state => state.complete reject) = none := by decide
 theorem sameReferenceCannotReopen : rejected.present "mandate.checkout.open.1" "mandate.checkout.1" p = none := by decide
+/-! Boundary witness: two fresh ledgers accept the same descriptor independently.
+If a Host assigns these scopes to the same authenticated authorization, the
+per-ledger theorem does not prevent two pending presentations. No authenticated
+identity equivalence or provider side effect is modeled by this witness. -/
+def aliasFresh : PresentationLedger := { fresh with openMandateScope := "alias/open-mandate-A" }
+theorem independentScopesCanBothPresent :
+    (fresh.present "mandate.checkout.open.1" "mandate.checkout.1" p).isSome = true ∧
+    (aliasFresh.present "mandate.checkout.open.1" "mandate.checkout.1" p).isSome = true := by decide
 private def presentationJson (p : CheckoutPresentation) : Json := Json.mkObj [
   ("reference", toJson p.reference), ("merchantIssuer", toJson p.merchantIssuer), ("presentedAt", toJson p.presentedAt)]
 private def stateJson (s : PresentationLedger) : Json := Json.mkObj [

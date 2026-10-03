@@ -55,6 +55,29 @@ fn success() -> Value {
 }
 
 #[test]
+fn independent_scopes_do_not_supply_shared_authorization_serialization() {
+    let first = state("fresh");
+    let alias = PresentationLedger {
+        open_mandate_scope: "alias/open-mandate-A".into(),
+        ..first.clone()
+    };
+    let presentation = state("pending").pending.unwrap();
+    assert_ne!(first.open_mandate_scope, alias.open_mandate_scope);
+    // Both calls succeed. A Host that aliases one authenticated authorization
+    // into these scopes must provide a shared atomic gate before either send.
+    assert!(
+        first
+            .present(OPEN_CHECKOUT_VCT, CLOSED_CHECKOUT_VCT, presentation.clone())
+            .is_some()
+    );
+    assert!(
+        alias
+            .present(OPEN_CHECKOUT_VCT, CLOSED_CHECKOUT_VCT, presentation)
+            .is_some()
+    );
+}
+
+#[test]
 fn lean_lifecycle_matches_signed_checkout_receipts() {
     let pending = state("pending");
     let p = pending.pending.as_ref().unwrap();
