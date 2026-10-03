@@ -1,0 +1,10 @@
+[project]
+name = "cedar-poo-ap2-vectors"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "cryptography==46.0.5",
+  "jwcrypto==1.5.6",
+  "pydantic==2.12.5",
+  "sd-jwt==0.10.4",
+]

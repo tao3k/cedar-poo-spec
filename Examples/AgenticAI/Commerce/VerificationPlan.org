@@ -144,3 +144,11 @@ verifier boundary, followed by V2's shared identity/gate specification. These
 can be developed independently, but a full AP2 admission claim requires their
 composition. Payment Receipt and external finality follow that composition.
 No simulated performance number should be reused as our throughput result.
+
+* V1 seed corpus implementation
+
+The [[file:WireVectors.org][fixed SDK wire seed corpus]] now supplies 17 executable vectors and
+separates SDK wire/domain observations, independent merchant signature checks
+and future-profile expectations. Local SDK replay has run against exact pinned
+source and locked libraries. Regular CI checks frozen byte integrity only.
+The bounded Rust mandate verifier and expanded mutation corpus remain open.

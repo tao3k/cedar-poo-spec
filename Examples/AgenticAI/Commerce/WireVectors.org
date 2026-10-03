@@ -1,0 +1,98 @@
+#+TITLE: Pinned AP2 Mandate Wire Seed Corpus
+#+DATE: 2026-10-03
+
+* Implemented evidence
+
+[[file:../../../Tests/Conformance/ap2-mandate-wire-v1.json][The frozen corpus]] contains 17 two-hop Checkout vectors: three positive
+controls and fourteen negative expectations for the proposed verifier profile.
+[[file:../../../tools/ap2-vectors/run.py][The generator/replay tool]] ran the actual SDK at AP2 revision
+=e1ea56db72a6385bce3e5c1112b3a56ce60acb43=. Its 40 SDK Python/source-manifest
+files are individually hashed, and their manifest digest is checked before SDK
+import. Core library versions are exact; [[file:../../../tools/ap2-vectors/uv.lock][the isolated uv lock]] also pins transitive
+packages. This environment is separate from production and the regular Python
+bridge/testing workspace.
+
+Each vector retains exact token bytes, public root/merchant keys, fixed time,
+zero skew, expected audience/nonce, checkout hash, SDK processed claims or
+exception class, and a separately labeled future-profile expectation. SDK
+results are observations; contract_expectation is an intended requirement for
+a verifier that has not yet been implemented. No value produced by this tool
+grants admission or dispatch authority.
+
+The SDK generator uses fresh test-only random EC keys, salts and signatures.
+Private keys are not retained in the corpus. Replay is deterministic against
+frozen bytes; re-generation is not byte reproducible and cannot overwrite the
+existing corpus. A new reviewed corpus version is needed to add vectors.
+
+* Observed results
+
+| Cases | SDK wire result | Additional observation / required profile behavior |
+|-------+-----------------+----------------------------------------------------|
+| valid-sd-hash, valid-issuer-jwt-hash, valid-disclosure | accepted | Typed Checkout domain and independent merchant signature checks both pass |
+| wrong-root-key, wrong-holder-key | rejected | Signature verification fails |
+| wrong-parent-hash, both-parent-hashes | rejected | Delegation binding fails |
+| wrong-audience, wrong-nonce | rejected | Supplied verifier context differs |
+| expired-root, future-hop | rejected | Explicit fixed time and zero-skew policy fail |
+| duplicate-disclosure | rejected | Duplicated disclosure input fails |
+| altered-disclosure | accepted | Processed claims omit checkout_jwt; typed domain rejects. Proposed strict disclosure processing must reject the supplied unmatched disclosure |
+| missing-checkout-disclosure | accepted | Legitimate selective omission still lacks a required domain claim; domain rejects |
+| missing-verifier-context | accepted | SDK optional audience/nonce inputs were omitted; proposed profile requires independently authenticated inputs |
+| unsupported-vct | accepted | Signature/chain processing succeeds, typed Checkout schema rejects the unsupported version |
+| wrong-merchant-signature | accepted | Domain extraction/constraints also succeed; independent merchant signature check rejects |
+
+These outcomes concern the exact selected API calls and inputs. They do not
+establish that a composed deployment admits the negative requests or executes
+payments. In particular, the altered-disclosure observation demonstrates that
+wire success cannot replace required-claim validation; no altered checkout
+claim was recovered or admitted by the typed domain path.
+
+The frozen SDK [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/python/ap2/sdk/checkout_mandate_chain.py][CheckoutMandateChain]] extracts checkout payload and evaluates
+constraints. The replay tool separately checks its merchant JWS against the
+enrolled merchant key. SDK chain processing and that domain helper are
+separate stages. [[https://www.rfc-editor.org/rfc/rfc9901.html#section-7.1][RFC 9901 section 7.1]] requires validating supplied disclosures;
+our future strict policy must preserve that rule even where this pinned SDK
+observation differs. SDK agreement alone is not the acceptance oracle.
+
+* Running the checks
+
+Regular conformance CI includes only:
+
+#+begin_src sh
+just check-agentic-ai-commerce-wire-corpus
+#+end_src
+
+This is an offline SHA-256 integrity check of the exact frozen fixture. Its
+output explicitly says SDK cryptographic replay was not performed.
+
+For actual SDK replay, obtain the AP2 source at the pinned revision above and
+supply the repository root. A GitHub source archive is sufficient; altered SDK
+files fail the embedded manifest digest check. Install the separate locked
+Python dependencies through uv, then run:
+
+#+begin_src sh
+just check-agentic-ai-commerce-wire-sdk /absolute/path/to/pinned/AP2
+#+end_src
+
+On a populated cache this can be run offline with:
+
+#+begin_src sh
+uv run --project tools/ap2-vectors --locked --offline python tools/ap2-vectors/run.py --sdk-root /absolute/path/to/pinned/AP2
+#+end_src
+
+The observed local receipt is =AP2-WIRE-OK 17 frozen vectors=. It covers the
+three SDK/independent-observer stages above, not a Rust implementation.
+
+* Remaining V1 work
+
+This seed advances [[file:VerificationPlan.org][V1]] without completing it. The next direct implementation
+is a bounded storage-independent verifier consuming these exact bytes.
+Expand a subsequent corpus version for unknown constraints, unchanged
+inherited claims, nested/decoy disclosure graphs, reserved names, duplicate
+JSON members, unsupported algorithms, type confusion, malformed bounds and
+certificate trust policies. Match role/type/hash support before admitting a
+new feature. Extend mutation coverage with positive controls for each newly
+supported branch.
+
+Shared authorization identity and atomic gates remain V2. Payment Receipt,
+finality and safe retirement remain later slices. MRR's production pin is
+unchanged: this corpus supplies no new Cedar domain implementation.

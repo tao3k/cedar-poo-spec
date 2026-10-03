@@ -7,5 +7,6 @@
 rust/target/
 /target/
 python/.venv/
+tools/ap2-vectors/.venv/
 __pycache__/
 *.pyc

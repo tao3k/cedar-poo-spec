@@ -1,0 +1,773 @@
+{
+  "ap2_revision": "e1ea56db72a6385bce3e5c1112b3a56ce60acb43",
+  "dependencies": {
+    "cryptography": "46.0.5",
+    "jwcrypto": "1.5.6",
+    "pydantic": "2.12.5",
+    "sd-jwt": "0.10.4"
+  },
+  "schema": "cedar-poo.ap2.mandate-wire.v1",
+  "sdk_files": {
+    "code/sdk/python/ap2/sdk/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "code/sdk/python/ap2/sdk/checkout_mandate_chain.py": "e2538a57886e3fb727778233bacb9c2c6a820880a179e1063d0f7381da4a5928",
+    "code/sdk/python/ap2/sdk/constraints.py": "9f640592a4f719a2f5cd216905aa9968d6ee852dc4ce37213fe384d1641ab481",
+    "code/sdk/python/ap2/sdk/disclosure_metadata.py": "734e519838d9ce0c90f379e86db91ca8bc79584d0a1686a8dd03ebf2c1ef19cb",
+    "code/sdk/python/ap2/sdk/generated/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "code/sdk/python/ap2/sdk/generated/checkout_mandate.py": "98474de2b28839b5a3a965caf73c357d7f9bfd235839df6039acc73467472d44",
+    "code/sdk/python/ap2/sdk/generated/checkout_receipt.py": "1436ce7a38ed63b04c1c1d6d145e0dce8f4e220b5bc3485dbe298a9b40c9bf02",
+    "code/sdk/python/ap2/sdk/generated/open_checkout_mandate.py": "14fdd261e6eaa7757ca594127117e4c071492fbf9287fcac6ae85461decf6ba6",
+    "code/sdk/python/ap2/sdk/generated/open_payment_mandate.py": "0ca5659a838cc15a2de62fa142d539d46fb8c653e1296c2365d78510e99e9fda",
+    "code/sdk/python/ap2/sdk/generated/payment_mandate.py": "dd392be7351489c962c78f155ec49b226d3b42c534dee26b46bbfe59068d3819",
+    "code/sdk/python/ap2/sdk/generated/payment_receipt.py": "78db7cd258eedd66a1f4e891e1b704df7cff78183249de94e4e77b2df3bb8aae",
+    "code/sdk/python/ap2/sdk/generated/types/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "code/sdk/python/ap2/sdk/generated/types/amount.py": "811c20a429a082770333f2c999f75d42856e15a110a9ed034da01e1d94476585",
+    "code/sdk/python/ap2/sdk/generated/types/buyer.py": "5fc25cd9720276278e3fd1aec46d7a00f771aa3965fe811bcaa67a46435784be",
+    "code/sdk/python/ap2/sdk/generated/types/checkout.py": "7c2da4c6d431c5f525eb53ea631431be915a1706bfd9ee42fc276f9d6534f8b3",
+    "code/sdk/python/ap2/sdk/generated/types/item.py": "ccfd2cdee46d42b659b6b8536a18dbec6106e03d9d53b984704eeb22a9bc0410",
+    "code/sdk/python/ap2/sdk/generated/types/jwk.py": "e4ce732ec374ec01b5c36bd923c1b311f4f2766f4fe186c13e98b952d511374b",
+    "code/sdk/python/ap2/sdk/generated/types/line_item.py": "45199d423af79332f7aa67917ef412b53a7c6857c8c7755b556dda8fcb922505",
+    "code/sdk/python/ap2/sdk/generated/types/link.py": "4559a2e31b4afca38ff64b31f44d8f082f300dac1b219200ebffc3d19fdbefe3",
+    "code/sdk/python/ap2/sdk/generated/types/merchant.py": "736a58143121aae66bb38499465eae10e223e0a0efe74958e213c83cf7003215",
+    "code/sdk/python/ap2/sdk/generated/types/message.py": "34edbde542507e3f56b3bcd0b4a8fc817208fccabaa281279a0d11923518170c",
+    "code/sdk/python/ap2/sdk/generated/types/message_error.py": "a272bd35f38e697c4ba9db974e89034687db5260a0b54e580fe6837d3b90af48",
+    "code/sdk/python/ap2/sdk/generated/types/message_info.py": "2c8190537d84e7f50101a7e8ba1956860e30458bd95e0221d1fbea54734d58cd",
+    "code/sdk/python/ap2/sdk/generated/types/message_warning.py": "5b7d285a141d7af1e3d38f705c01c7b7d61ea04d5518390cce4da2f4f7a32b54",
+    "code/sdk/python/ap2/sdk/generated/types/payment_instrument.py": "9a88aff0059a492298366220efb149fe53316905375c4d1a3d9473c00648d23c",
+    "code/sdk/python/ap2/sdk/generated/types/pisp.py": "10403c735f2d26bb70067b7d2d2638e1cdfabfcffd0d5e01c70b192ac6c78045",
+    "code/sdk/python/ap2/sdk/generated/types/receipt_status.py": "96381700d4c1b8a316fa9576c0210bf45388451ef32258559dcc89d730abff50",
+    "code/sdk/python/ap2/sdk/generated/types/total.py": "69a7b96f19edaabbd381d48cc8a62a4315d14b05d05daa775a70be76f9b65eff",
+    "code/sdk/python/ap2/sdk/jwt_helper.py": "09f21ae7f5eb9bce869f63f188064adcc5570be612a36a076a185d77f2f6d264",
+    "code/sdk/python/ap2/sdk/mandate.py": "6251ec83622192805cd3cd8a4830f9ab922260c3089d4ff9323b9eb2ec27b1f5",
+    "code/sdk/python/ap2/sdk/max_flow_helper.py": "92a6dba9f5b2c2a887ea8ec77dd166cbcd54dd7192a9118939ee51c3eb1a8251",
+    "code/sdk/python/ap2/sdk/payment_mandate_chain.py": "77015620be81d73a9234e9c7cdc6fbd2a3ff6dad49221303ee6a47f0fa8eb755",
+    "code/sdk/python/ap2/sdk/receipt_wrapper.py": "7485ef84a7f80da5b8da39d547b9623125d43a373767ede97274cc480a70cb80",
+    "code/sdk/python/ap2/sdk/sdjwt/__init__.py": "250499bc27eb134def08553352db54f7aa732158ce1c0f0185a01113e66ea432",
+    "code/sdk/python/ap2/sdk/sdjwt/chain.py": "7d515f4d31592be2121400c18cc3b0ee1cce873eb309af781a6817db058ae2f6",
+    "code/sdk/python/ap2/sdk/sdjwt/common.py": "6b33fe08b17cca52c5818ee9063903de2febea215b21a3a1384254e9b5a549b1",
+    "code/sdk/python/ap2/sdk/sdjwt/kb_sd_jwt.py": "f9b8a9563e7a7d39c2b62a6510fdc19b0c9fb09b4f42bb0c98c1548aef1f2a2c",
+    "code/sdk/python/ap2/sdk/sdjwt/sd_jwt.py": "9bd864482de7355500b39a9fcb6b53070dabf5a1b16bc928593b916e014c3ba9",
+    "code/sdk/python/ap2/sdk/utils.py": "92920007d190f68cad6b9899f0133ae511332196f59e3255d68be08dbc1e2a2f",
+    "pyproject.toml": "78656cfd88b01d10c693a7fdffdf9d789dc4ddfbb57c208b583e13986fd44b63"
+  },
+  "sdk_source_sha256": "5a2eedaa96d7cd962c7baa75161b9f376b2ba37eafcb9fbea551a2573a50698d",
+  "vectors": [
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "accept",
+      "id": "valid-sd-hash",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Two-hop chain and independently signed merchant checkout",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "domain": "accepted",
+        "merchant_signature": "accepted",
+        "payloads": [
+          {
+            "cnf": {
+              "jwk": {
+                "crv": "P-256",
+                "kty": "EC",
+                "x": "Inq9Qh2GjnWhUGV-S8scvcn_QRyL23hiNTCeGeLqZqw",
+                "y": "oU6mXUG0Qw6Dj7zM1Hqk3zXrAQy1JhkuSicYSarrSB4"
+              }
+            },
+            "constraints": [],
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.open.1"
+          },
+          {
+            "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+            "checkout_jwt": "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpZCI6ImNoZWNrb3V0LTEiLCJtZXJjaGFudCI6eyJpZCI6Im1lcmNoYW50LTEiLCJuYW1lIjoiU2hvcCJ9LCJsaW5lX2l0ZW1zIjpbXSwic3RhdHVzIjoicmVhZHlfZm9yX2NvbXBsZXRlIiwiY3VycmVuY3kiOiJVU0QiLCJ0b3RhbHMiOlt7InR5cGUiOiJzdWJ0b3RhbCIsImFtb3VudCI6MH0seyJ0eXBlIjoidG90YWwiLCJhbW91bnQiOjB9XSwibGlua3MiOltdfQ.P_aB1mJxhNFH1Hfd5RZ5fm8y7e2RZQybKjXUN1U4vzrurldYp2RUX8VDkaoG-CPmkWgwrfU8l51twyZOCPwMTw",
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.1"
+          }
+        ],
+        "wire": "accepted"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIjR0cy1yMmZ3OEtZTU5oUjg3d3RkRU5vOG4zcEszM183ckh2Ujlmd282a2MifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.AbjbzJxR58N4lqZDOhUxd4wWgNVSJ7MShrVDMHIy2rfrhhw6lSBU55DQnN7Mwmx0-ow-3o5dBZldPTGQ5X2GCA~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "accept",
+      "id": "valid-issuer-jwt-hash",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Alternate pinned delegation hash mode",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "domain": "accepted",
+        "merchant_signature": "accepted",
+        "payloads": [
+          {
+            "cnf": {
+              "jwk": {
+                "crv": "P-256",
+                "kty": "EC",
+                "x": "Inq9Qh2GjnWhUGV-S8scvcn_QRyL23hiNTCeGeLqZqw",
+                "y": "oU6mXUG0Qw6Dj7zM1Hqk3zXrAQy1JhkuSicYSarrSB4"
+              }
+            },
+            "constraints": [],
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.open.1"
+          },
+          {
+            "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+            "checkout_jwt": "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpZCI6ImNoZWNrb3V0LTEiLCJtZXJjaGFudCI6eyJpZCI6Im1lcmNoYW50LTEiLCJuYW1lIjoiU2hvcCJ9LCJsaW5lX2l0ZW1zIjpbXSwic3RhdHVzIjoicmVhZHlfZm9yX2NvbXBsZXRlIiwiY3VycmVuY3kiOiJVU0QiLCJ0b3RhbHMiOlt7InR5cGUiOiJzdWJ0b3RhbCIsImFtb3VudCI6MH0seyJ0eXBlIjoidG90YWwiLCJhbW91bnQiOjB9XSwibGlua3MiOltdfQ.P_aB1mJxhNFH1Hfd5RZ5fm8y7e2RZQybKjXUN1U4vzrurldYp2RUX8VDkaoG-CPmkWgwrfU8l51twyZOCPwMTw",
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.1"
+          }
+        ],
+        "wire": "accepted"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogInRLMGlFVmlWdEN4TFo4M1N4TTMtRER0NU1PWmRsaFdGQ2loSUFWS08wNmMifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJpc3N1ZXJfand0X2hhc2giOiAiUGk1dFc1ZVFQa0JTb0FMbEx0dl95TVdXVC1IdGhXZ0wyWFZMaFUwWWdiOCIsICJfc2RfYWxnIjogInNoYS0yNTYifQ.lH4oHYHis-EEK1x888b-ZcFAJfWHnjFACLO68f-bz_dalcfPVCu6Vbw_iwBsCOPh5U5rtCdimV2cPUdXFZpFWg~WyI4dVcwclR5SzYzUW8yX0tPblJkbUJRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "wrong-root-key",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Independently enrolled root trust mismatch",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "PWA6IDbaLPEyVholHelS5JLB-VAh0KtOqfbCyLmTLM8",
+        "y": "k8DTbLACaAWdCPjNSQgdVEabPG5bYOaWEfJxpEWMg3s"
+      },
+      "sdk_observation": {
+        "error_type": "InvalidJWSSignature",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIjR0cy1yMmZ3OEtZTU5oUjg3d3RkRU5vOG4zcEszM183ckh2Ujlmd282a2MifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.AbjbzJxR58N4lqZDOhUxd4wWgNVSJ7MShrVDMHIy2rfrhhw6lSBU55DQnN7Mwmx0-ow-3o5dBZldPTGQ5X2GCA~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "wrong-holder-key",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Terminal signature does not match verified parent cnf",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "error_type": "InvalidJWSSignature",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIjRnODZkYzh6VEk5WVE2VVBEV2s3a1ZiX0VJU0FUQmNjTzE4TWVDdVhncEkifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.KW-bkKQ67mZvF3ouEaorrBwtHmuYxkXuVG-9fHFEf-bLR6mPDAAeQnCKhPjB2QZDs25ALVNHhDkyYH3_SJCTOQ~WyJBRXpkd0JuUExndXZ1NVBGc1lSdk5BIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "wrong-parent-hash",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Valid holder signature over substituted parent hash",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "error_type": "ValueError",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjpbeyIuLi4iOiI0dHMtcjJmdzhLWU1OaFI4N3d0ZEVObzhuM3BLMzNfN3JIdlI5ZndvNmtjIn1dLCJpYXQiOjE4MDAwMDAwMDAsImF1ZCI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsIm5vbmNlIjoic2VydmVyLW5vbmNlLTEiLCJzZF9oYXNoIjoid3JvbmciLCJfc2RfYWxnIjoic2hhLTI1NiJ9.PJ4nepDQZT-VzosjCltd6cjqnDW-wT0OC7qwQls-AdFB8nAsUxAKUWfjlFwKsNowPtXmh2PZ-sMSELxcnjIsUA~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "both-parent-hashes",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Ambiguous delegation hash modes",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "error_type": "ValueError",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjpbeyIuLi4iOiI0dHMtcjJmdzhLWU1OaFI4N3d0ZEVObzhuM3BLMzNfN3JIdlI5ZndvNmtjIn1dLCJpYXQiOjE4MDAwMDAwMDAsImF1ZCI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsIm5vbmNlIjoic2VydmVyLW5vbmNlLTEiLCJzZF9oYXNoIjoiMHVRdEE0R0l5bWh5ZUNXbGJtZE9OT05XVHh1Q2UwYnlTYy1yUHA0Qy1OQSIsIl9zZF9hbGciOiJzaGEtMjU2IiwiaXNzdWVyX2p3dF9oYXNoIjoiUGk1dFc1ZVFQa0JTb0FMbEx0dl95TVdXVC1IdGhXZ0wyWFZMaFUwWWdiOCJ9.CHTx5WmDAcBsbDb_-tuz-qS4RF3uRZkVeaf-aNrxZwmvReL_uKIjrYEUr5QXICb4OBnfUDk-8yTMcYQwk3KIqQ~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://other.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "wrong-audience",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Authenticated verifier audience differs",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "error_type": "ValueError",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIjR0cy1yMmZ3OEtZTU5oUjg3d3RkRU5vOG4zcEszM183ckh2Ujlmd282a2MifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.AbjbzJxR58N4lqZDOhUxd4wWgNVSJ7MShrVDMHIy2rfrhhw6lSBU55DQnN7Mwmx0-ow-3o5dBZldPTGQ5X2GCA~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-2",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "wrong-nonce",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Authenticated server nonce differs",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "error_type": "ValueError",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIjR0cy1yMmZ3OEtZTU5oUjg3d3RkRU5vOG4zcEszM183ckh2Ujlmd282a2MifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.AbjbzJxR58N4lqZDOhUxd4wWgNVSJ7MShrVDMHIy2rfrhhw6lSBU55DQnN7Mwmx0-ow-3o5dBZldPTGQ5X2GCA~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "expired-root",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Expired parent with otherwise correctly rebound child",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "error_type": "ValueError",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogInd2cWdhY3RhZ21NSkJsUDE1MFhEZWI2MFBVUHdNbXVEZGtsT1lBeERnV0EifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.8XS7O1XTOae-YBv2DXRsivbtNW7A7fu3C_fpoEgZ1jld1QRF_mO6Oqzc29-mW60vldBDAzYo28cQpptzmHifKg~WyJLc053RVVoc25ETDg5T3A2d3JQNHJ3IiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTc5OTk5OTk5OX1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIlZMQjNPMEJwVW9oNWFHTmFiM2tGaUJETE5HcVg3RTVJN21ieTJ4UzRiTVkifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIkpaaW5INWxaRHpvSjdPd2t4WVptbnE5Y0lXOGdkM1E4dHFGelRhQnVHMzgiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.0iYF_16Bl9g7LV-NbCH3IRFBttwSqJnTafZmRjKOq3Ut58YabfW8EoC-xFBGcEJsnLGtwfEuTHgGdEPtKPShqg~WyJ2OW05OEo3VHd4ekFFdV9nRW9OaEN3IiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "future-hop",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Validly signed future terminal issuance time",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "error_type": "ValueError",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjpbeyIuLi4iOiI0dHMtcjJmdzhLWU1OaFI4N3d0ZEVObzhuM3BLMzNfN3JIdlI5ZndvNmtjIn1dLCJpYXQiOjE4MDAwMDAwMDEsImF1ZCI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsIm5vbmNlIjoic2VydmVyLW5vbmNlLTEiLCJzZF9oYXNoIjoiMHVRdEE0R0l5bWh5ZUNXbGJtZE9OT05XVHh1Q2UwYnlTYy1yUHA0Qy1OQSIsIl9zZF9hbGciOiJzaGEtMjU2In0.qTqad0jvRyXQmgFQt_fe1h_hJNGRQfhxRrQf4rErQMyoaDxIZ0zJf7bu9VcDgIzyNgdVwFufTxw6hdb-LcPJvQ~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "accept",
+      "id": "valid-disclosure",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Required checkout claim reconstructed from its digest",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "domain": "accepted",
+        "merchant_signature": "accepted",
+        "payloads": [
+          {
+            "cnf": {
+              "jwk": {
+                "crv": "P-256",
+                "kty": "EC",
+                "x": "Inq9Qh2GjnWhUGV-S8scvcn_QRyL23hiNTCeGeLqZqw",
+                "y": "oU6mXUG0Qw6Dj7zM1Hqk3zXrAQy1JhkuSicYSarrSB4"
+              }
+            },
+            "constraints": [],
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.open.1"
+          },
+          {
+            "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+            "checkout_jwt": "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpZCI6ImNoZWNrb3V0LTEiLCJtZXJjaGFudCI6eyJpZCI6Im1lcmNoYW50LTEiLCJuYW1lIjoiU2hvcCJ9LCJsaW5lX2l0ZW1zIjpbXSwic3RhdHVzIjoicmVhZHlfZm9yX2NvbXBsZXRlIiwiY3VycmVuY3kiOiJVU0QiLCJ0b3RhbHMiOlt7InR5cGUiOiJzdWJ0b3RhbCIsImFtb3VudCI6MH0seyJ0eXBlIjoidG90YWwiLCJhbW91bnQiOjB9XSwibGlua3MiOltdfQ.P_aB1mJxhNFH1Hfd5RZ5fm8y7e2RZQybKjXUN1U4vzrurldYp2RUX8VDkaoG-CPmkWgwrfU8l51twyZOCPwMTw",
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.1"
+          }
+        ],
+        "wire": "accepted"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIi1VTlNiZ1ZIcGtzOFdsQXY3SkMxSUNvSzJlelBEaXZzOTNzLVBjLUEzdlEifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.vfsGqj1X-Nn5QmlFNB16X3k3DO1lyEIQ_ncQej8KtsGY5-xx18RWI5lp1WZ3-laj8Q5J3sF0zo85gC-6SNNSqA~WyJEdVRWQXJ6OTg4VFJCODlrN0FoVWlnIiwgImNoZWNrb3V0X2p3dCIsICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3Il0~WyJGR05vdURGaURxZi04dEtrZzVNQWFBIiwgeyJfc2QiOiBbImtpQ09OMnZpbS10N25ZSW5oMnZqd25kWU1IakQ3NGF1aUwxeWdBc2R4bFUiXSwgInZjdCI6ICJtYW5kYXRlLmNoZWNrb3V0LjEiLCAiY2hlY2tvdXRfaGFzaCI6ICJLRnRyRE8xNXFVUUg3WERZeDViV2w1NFRtb2x6czBscEFGbU9WbHcyMy1VIiwgImlhdCI6IDE4MDAwMDAwMDAsICJleHAiOiAxODAwMDAwNjAwfV0~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "altered-disclosure",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Altered disclosure is ignored by pinned SDK; required checkout claim remains absent",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "domain": "rejected",
+        "domain_error_type": "ValidationError",
+        "merchant_signature": "rejected",
+        "payloads": [
+          {
+            "cnf": {
+              "jwk": {
+                "crv": "P-256",
+                "kty": "EC",
+                "x": "Inq9Qh2GjnWhUGV-S8scvcn_QRyL23hiNTCeGeLqZqw",
+                "y": "oU6mXUG0Qw6Dj7zM1Hqk3zXrAQy1JhkuSicYSarrSB4"
+              }
+            },
+            "constraints": [],
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.open.1"
+          },
+          {
+            "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.1"
+          }
+        ],
+        "wire": "accepted"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIi1VTlNiZ1ZIcGtzOFdsQXY3SkMxSUNvSzJlelBEaXZzOTNzLVBjLUEzdlEifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.vfsGqj1X-Nn5QmlFNB16X3k3DO1lyEIQ_ncQej8KtsGY5-xx18RWI5lp1WZ3-laj8Q5J3sF0zo85gC-6SNNSqA~WyJEdVRWQXJ6OTg4VFJCODlrN0FoVWlnIiwgImNoZWNrb3V0X2p3dCIsICJjaGFuZ2VkLWNoZWNrb3V0Il0~WyJGR05vdURGaURxZi04dEtrZzVNQWFBIiwgeyJfc2QiOiBbImtpQ09OMnZpbS10N25ZSW5oMnZqd25kWU1IakQ3NGF1aUwxeWdBc2R4bFUiXSwgInZjdCI6ICJtYW5kYXRlLmNoZWNrb3V0LjEiLCAiY2hlY2tvdXRfaGFzaCI6ICJLRnRyRE8xNXFVUUg3WERZeDViV2w1NFRtb2x6czBscEFGbU9WbHcyMy1VIiwgImlhdCI6IDE4MDAwMDAwMDAsICJleHAiOiAxODAwMDAwNjAwfV0~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "duplicate-disclosure",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "One disclosure supplied twice",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "error_type": "ValueError",
+        "wire": "rejected"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIi1VTlNiZ1ZIcGtzOFdsQXY3SkMxSUNvSzJlelBEaXZzOTNzLVBjLUEzdlEifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.vfsGqj1X-Nn5QmlFNB16X3k3DO1lyEIQ_ncQej8KtsGY5-xx18RWI5lp1WZ3-laj8Q5J3sF0zo85gC-6SNNSqA~WyJEdVRWQXJ6OTg4VFJCODlrN0FoVWlnIiwgImNoZWNrb3V0X2p3dCIsICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3Il0~WyJGR05vdURGaURxZi04dEtrZzVNQWFBIiwgeyJfc2QiOiBbImtpQ09OMnZpbS10N25ZSW5oMnZqd25kWU1IakQ3NGF1aUwxeWdBc2R4bFUiXSwgInZjdCI6ICJtYW5kYXRlLmNoZWNrb3V0LjEiLCAiY2hlY2tvdXRfaGFzaCI6ICJLRnRyRE8xNXFVUUg3WERZeDViV2w1NFRtb2x6czBscEFGbU9WbHcyMy1VIiwgImlhdCI6IDE4MDAwMDAwMDAsICJleHAiOiAxODAwMDAwNjAwfV0~WyJEdVRWQXJ6OTg4VFJCODlrN0FoVWlnIiwgImNoZWNrb3V0X2p3dCIsICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3Il0~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "missing-checkout-disclosure",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Wire validity alone cannot supply required domain claim",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "domain": "rejected",
+        "domain_error_type": "ValidationError",
+        "merchant_signature": "rejected",
+        "payloads": [
+          {
+            "cnf": {
+              "jwk": {
+                "crv": "P-256",
+                "kty": "EC",
+                "x": "Inq9Qh2GjnWhUGV-S8scvcn_QRyL23hiNTCeGeLqZqw",
+                "y": "oU6mXUG0Qw6Dj7zM1Hqk3zXrAQy1JhkuSicYSarrSB4"
+              }
+            },
+            "constraints": [],
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.open.1"
+          },
+          {
+            "aud": "https://merchant.example",
+            "delegate_payload": [],
+            "iat": 1800000000,
+            "nonce": "server-nonce-1",
+            "sd_hash": "0uQtA4GIymhyeCWlbmdONONWTxuCe0bySc-rPp4C-NA"
+          }
+        ],
+        "wire": "accepted"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIi1VTlNiZ1ZIcGtzOFdsQXY3SkMxSUNvSzJlelBEaXZzOTNzLVBjLUEzdlEifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.vfsGqj1X-Nn5QmlFNB16X3k3DO1lyEIQ_ncQej8KtsGY5-xx18RWI5lp1WZ3-laj8Q5J3sF0zo85gC-6SNNSqA~"
+      ]
+    },
+    {
+      "context": {
+        "aud": null,
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": null,
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "missing-verifier-context",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Optional SDK defaults cannot stand for authenticated transaction inputs",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "domain": "accepted",
+        "merchant_signature": "accepted",
+        "payloads": [
+          {
+            "cnf": {
+              "jwk": {
+                "crv": "P-256",
+                "kty": "EC",
+                "x": "Inq9Qh2GjnWhUGV-S8scvcn_QRyL23hiNTCeGeLqZqw",
+                "y": "oU6mXUG0Qw6Dj7zM1Hqk3zXrAQy1JhkuSicYSarrSB4"
+              }
+            },
+            "constraints": [],
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.open.1"
+          },
+          {
+            "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+            "checkout_jwt": "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpZCI6ImNoZWNrb3V0LTEiLCJtZXJjaGFudCI6eyJpZCI6Im1lcmNoYW50LTEiLCJuYW1lIjoiU2hvcCJ9LCJsaW5lX2l0ZW1zIjpbXSwic3RhdHVzIjoicmVhZHlfZm9yX2NvbXBsZXRlIiwiY3VycmVuY3kiOiJVU0QiLCJ0b3RhbHMiOlt7InR5cGUiOiJzdWJ0b3RhbCIsImFtb3VudCI6MH0seyJ0eXBlIjoidG90YWwiLCJhbW91bnQiOjB9XSwibGlua3MiOltdfQ.P_aB1mJxhNFH1Hfd5RZ5fm8y7e2RZQybKjXUN1U4vzrurldYp2RUX8VDkaoG-CPmkWgwrfU8l51twyZOCPwMTw",
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.1"
+          }
+        ],
+        "wire": "accepted"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIjR0cy1yMmZ3OEtZTU5oUjg3d3RkRU5vOG4zcEszM183ckh2Ujlmd282a2MifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.AbjbzJxR58N4lqZDOhUxd4wWgNVSJ7MShrVDMHIy2rfrhhw6lSBU55DQnN7Mwmx0-ow-3o5dBZldPTGQ5X2GCA~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "KFtrDO15qUQH7XDYx5bWl54Tmolzs0lpAFmOVlw23-U",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "unsupported-vct",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Cryptographically valid unsupported closed mandate schema",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "domain": "rejected",
+        "domain_error_type": "ValidationError",
+        "merchant_signature": "rejected",
+        "payloads": [
+          {
+            "cnf": {
+              "jwk": {
+                "crv": "P-256",
+                "kty": "EC",
+                "x": "Inq9Qh2GjnWhUGV-S8scvcn_QRyL23hiNTCeGeLqZqw",
+                "y": "oU6mXUG0Qw6Dj7zM1Hqk3zXrAQy1JhkuSicYSarrSB4"
+              }
+            },
+            "constraints": [],
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.open.1"
+          },
+          {
+            "...": "4ts-r2fw8KYMNhR87wtdENo8n3pK33_7rHvR9fwo6kc",
+            "vct": "mandate.checkout.2"
+          }
+        ],
+        "wire": "accepted"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjpbeyIuLi4iOiI0dHMtcjJmdzhLWU1OaFI4N3d0ZEVObzhuM3BLMzNfN3JIdlI5ZndvNmtjIiwidmN0IjoibWFuZGF0ZS5jaGVja291dC4yIn1dLCJpYXQiOjE4MDAwMDAwMDAsImF1ZCI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsIm5vbmNlIjoic2VydmVyLW5vbmNlLTEiLCJzZF9oYXNoIjoiMHVRdEE0R0l5bWh5ZUNXbGJtZE9OT05XVHh1Q2UwYnlTYy1yUHA0Qy1OQSIsIl9zZF9hbGciOiJzaGEtMjU2In0.2XSkiU4BjhnDB4KuaajZFbnc0l2_FWEvN1FxVyfM1vpj8qRYWLdA8uS7Jc2TAV71G99slCLhqxVXVWUP20jZ1g~WyJVOTBPOWNnM2swT2tJQTBlU0E1LW9RIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLlBfYUIxbUp4aE5GSDFIZmQ1Ulo1Zm04eTdlMlJaUXliS2pYVU4xVTR2enJ1cmxkWXAyUlVYOFZEa2FvRy1DUG1rV2d3cmZVOGw1MXR3eVpPQ1B3TVR3IiwgImNoZWNrb3V0X2hhc2giOiAiS0Z0ckRPMTVxVVFIN1hEWXg1YldsNTRUbW9senMwbHBBRm1PVmx3MjMtVSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    },
+    {
+      "context": {
+        "aud": "https://merchant.example",
+        "checkout_hash": "_gZCO5-blKwH3pjhsv6VtU-_CjJFbJU9b1W3Fo2pIZE",
+        "nonce": "server-nonce-1",
+        "now": 1800000000
+      },
+      "contract_expectation": "reject",
+      "id": "wrong-merchant-signature",
+      "merchant_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "jSLow5CDYSmcZnNMKSUPNWGsgFB9FoogOtl7bEBc9pc",
+        "y": "OIL6P0JHxdAGWNhQApWG-uNuAJfMZ73w6LttNUNhklM"
+      },
+      "purpose": "Domain extraction and constraints do not authenticate merchant signing authority",
+      "root_jwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "WQ9oFzr7_fv7RmghC_iysTPkqHtiXScVvmXzJgQczPw",
+        "y": "UC51orw24FJXXP-29jfSL1sIXnHHVbGfLLcFMrouULs"
+      },
+      "sdk_observation": {
+        "domain": "accepted",
+        "merchant_signature": "rejected",
+        "payloads": [
+          {
+            "cnf": {
+              "jwk": {
+                "crv": "P-256",
+                "kty": "EC",
+                "x": "Inq9Qh2GjnWhUGV-S8scvcn_QRyL23hiNTCeGeLqZqw",
+                "y": "oU6mXUG0Qw6Dj7zM1Hqk3zXrAQy1JhkuSicYSarrSB4"
+              }
+            },
+            "constraints": [],
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.open.1"
+          },
+          {
+            "checkout_hash": "_gZCO5-blKwH3pjhsv6VtU-_CjJFbJU9b1W3Fo2pIZE",
+            "checkout_jwt": "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpZCI6ImNoZWNrb3V0LTEiLCJtZXJjaGFudCI6eyJpZCI6Im1lcmNoYW50LTEiLCJuYW1lIjoiU2hvcCJ9LCJsaW5lX2l0ZW1zIjpbXSwic3RhdHVzIjoicmVhZHlfZm9yX2NvbXBsZXRlIiwiY3VycmVuY3kiOiJVU0QiLCJ0b3RhbHMiOlt7InR5cGUiOiJzdWJ0b3RhbCIsImFtb3VudCI6MH0seyJ0eXBlIjoidG90YWwiLCJhbW91bnQiOjB9XSwibGlua3MiOltdfQ.npOF0BdOhCJMz1tTWF9IJvmIYLWYKOkHno-k2B7TwjK6BQIFcTJzYi34dcjVoIFTsb2PLN5LCrsYkdw30Vs8AQ",
+            "exp": 1800000600,
+            "iat": 1800000000,
+            "vct": "mandate.checkout.1"
+          }
+        ],
+        "wire": "accepted"
+      },
+      "tokens": [
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImV4YW1wbGUrc2Qtand0In0.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIkRRMEd0eUQ1SEs5S2dqWjVQNWFTMXZvdFo5MEN6cmk2cmNpNEpFV3RuazAifV0sICJfc2RfYWxnIjogInNoYS0yNTYifQ.o9stQ67o2chkVpkwgdzCtQWFVU4lklka-T7rlP0DXk2ajFJOB8qEn6gw-khWicSIJkrqKvZlmoJ5T5gEe6d0qw~WyJKcy1YYk5DN0dmQW9MNVdTclhKdFhRIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC5vcGVuLjEiLCAiY29uc3RyYWludHMiOiBbXSwgImNuZiI6IHsiandrIjogeyJjcnYiOiAiUC0yNTYiLCAia3R5IjogIkVDIiwgIngiOiAiSW5xOVFoMkdqbldoVUdWLVM4c2N2Y25fUVJ5TDIzaGlOVENlR2VMcVpxdyIsICJ5IjogIm9VNm1YVUcwUXc2RGo3ek0xSHFrM3pYckFReTFKaGt1U2ljWVNhcnJTQjQifX0sICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~",
+        "eyJhbGciOiAiRVMyNTYiLCAidHlwIjogImtiK3NkLWp3dCJ9.eyJkZWxlZ2F0ZV9wYXlsb2FkIjogW3siLi4uIjogIm1lVzBtYWNFWWlMQUNIdjhYWGd0NUlhdUh2ek10RHhYVWUxTlp3a2xra0EifV0sICJpYXQiOiAxODAwMDAwMDAwLCAiYXVkIjogImh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZSIsICJub25jZSI6ICJzZXJ2ZXItbm9uY2UtMSIsICJzZF9oYXNoIjogIjB1UXRBNEdJeW1oeWVDV2xibWRPTk9OV1R4dUNlMGJ5U2MtclBwNEMtTkEiLCAiX3NkX2FsZyI6ICJzaGEtMjU2In0.3g1cqlW4XzQMy3a3LcD9a_sQ0i_W1bXlhMlGA_p7vr3cc24jyPSvwqybpZavCA5umZ2XVRL21kKhyr5Gl-RNqA~WyJYRzRuRmlnSjhmOVlXSWdma1VjMDdnIiwgeyJ2Y3QiOiAibWFuZGF0ZS5jaGVja291dC4xIiwgImNoZWNrb3V0X2p3dCI6ICJleUpoYkdjaU9pQWlSVk15TlRZaUxDQWlkSGx3SWpvZ0lrcFhWQ0o5LmV5SnBaQ0k2SW1Ob1pXTnJiM1YwTFRFaUxDSnRaWEpqYUdGdWRDSTZleUpwWkNJNkltMWxjbU5vWVc1MExURWlMQ0p1WVcxbElqb2lVMmh2Y0NKOUxDSnNhVzVsWDJsMFpXMXpJanBiWFN3aWMzUmhkSFZ6SWpvaWNtVmhaSGxmWm05eVgyTnZiWEJzWlhSbElpd2lZM1Z5Y21WdVkza2lPaUpWVTBRaUxDSjBiM1JoYkhNaU9sdDdJblI1Y0dVaU9pSnpkV0owYjNSaGJDSXNJbUZ0YjNWdWRDSTZNSDBzZXlKMGVYQmxJam9pZEc5MFlXd2lMQ0poYlc5MWJuUWlPakI5WFN3aWJHbHVhM01pT2x0ZGZRLm5wT0YwQmRPaENKTXoxdFRXRjlJSnZtSVlMV1lLT2tIbm8tazJCN1R3aks2QlFJRmNUSnpZaTM0ZGNqVm9JRlRzYjJQTE41TENyc1lrZHczMFZzOEFRIiwgImNoZWNrb3V0X2hhc2giOiAiX2daQ081LWJsS3dIM3BqaHN2NlZ0VS1fQ2pKRmJKVTliMVczRm8ycElaRSIsICJpYXQiOiAxODAwMDAwMDAwLCAiZXhwIjogMTgwMDAwMDYwMH1d~"
+      ]
+    }
+  ]
+}

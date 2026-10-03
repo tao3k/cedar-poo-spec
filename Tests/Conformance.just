@@ -1,5 +1,5 @@
 # Generate Lean inputs, replay Cedar decisions, then run Tests/Conformance.
-check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance check-agentic-ai-commerce-admission check-agentic-ai-commerce-acceptance check-agentic-ai-commerce-presentation
+check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance check-agentic-ai-commerce-admission check-agentic-ai-commerce-acceptance check-agentic-ai-commerce-presentation check-agentic-ai-commerce-wire-corpus
 
 check-agentic-ai-commerce-admission: check-agentic-ai-commerce-projection
     uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agentic-ai-commerce-admission
@@ -120,3 +120,10 @@ check-agentic-ai-commerce-acceptance:
 check-agentic-ai-commerce-presentation:
     lake build Tests.AgenticAI.Commerce.Presentation
     uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agentic-ai-commerce-presentation
+
+# Regular CI checks frozen bytes; explicit SDK replay needs its pinned source checkout.
+check-agentic-ai-commerce-wire-corpus:
+    python3 tools/ap2-vectors/run.py --check-frozen
+
+check-agentic-ai-commerce-wire-sdk sdk_root:
+    uv run --project tools/ap2-vectors --locked python tools/ap2-vectors/run.py --sdk-root {{quote(sdk_root)}}
