@@ -186,3 +186,9 @@ The [[file:Recovery.org][dispatch recovery protocol]] persists original root aut
 consumption request and adds provider ownership CAS, exact recovery and dual
 fence acceptance. Previously stranded acknowledged claims can be resumed only
 through an endpoint implementing the durable ownership contract.
+
+* Presentation subprofile follow-up
+
+The [[file:Presentation.org][AP2 Checkout Receipt subprofile]] pins upstream source, verifies
+ES256 JWT receipts and adds scoped presentation persistence. Full AP2 mandate
+processing, coupled Payment Mandates, settlement and fulfillment remain open.

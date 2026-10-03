@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 
 
-COMMERCE = (None, "projection", "admission", "acceptance")
+COMMERCE = (None, "projection", "admission", "acceptance", "ap2-receipt")
 
 
 def run(repository: Path) -> None:

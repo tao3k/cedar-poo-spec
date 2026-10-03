@@ -24,7 +24,7 @@ provider receipt. No cross-provider global clock is assumed.
 | One scoped purchase claim | Formal Analysis v1 P3; Zero-Trust Runtime Verification arXiv 2602.06345v1 | budget scope and purchase identity at conditional consumption commit | Consumption.lean consumedPurchaseCannotClaimAgain; competing claims and reissued credential tests | atomic head and operation ledger in ConditionalContentCommitPort; actual rail uniqueness separately tested |
 | Unknown outcome recovery | Formal Analysis v1 P6/P17; RIFL SOSP 2015 storage contract comparison | original provider, operation and request body; status query only | lost claim ACK grants no permit; lost provider response retains tombstone; recovery after retirement | fenced ownership recovery implemented; durable endpoint and queue qualification remain external |
 | Endpoint attestation | Formal Analysis v1 P18 | exact request commitment and independently enrolled provider signing key | receipt substitution and key revocation regressions | enrolled keys and authenticated transport; receipt success is not settlement finality |
-| Presentation serialization | AP2 specification v0.2, upstream commit not yet selected | shopping agent and one outstanding Payment/Checkout presentation | design only | pin one version before implementing its schema and rejection receipt |
+| Presentation serialization | AP2 specification v0.2, e1ea56db72a6385bce3e5c1112b3a56ce60acb43 | shopping agent and one outstanding Payment/Checkout presentation | Checkout Receipt ES256 subprofile and scoped lifecycle implemented | full SD-JWT, Payment Receipt and cross-scope serialization remain external |
 | Finality and fulfillment | Formal Analysis v1 P4/P5/P6 | settlement, delivered goods, activation, compensation | unimplemented | external settlement and fulfillment witnesses |
 | Intent integrity before signature | Beyond the Mandate arXiv 2608.23858v1 | independent purchase intent against catalog/A2A/MCP inputs | unimplemented adversarial experiment | valid signatures alone cannot establish unmanipulated intent |
 
@@ -71,3 +71,6 @@ Resumable release uses the [[file:Recovery.org][fenced ownership protocol]]: the
 an earlier owner at protected acceptance. Deployment durability and eventual
 completion remain external; global root quiescence, AP2 conformance and settlement
 are not established by the pure model.
+
+The [[file:Presentation.org][pinned presentation subprofile]] has its own optional feature and
+conformance recipe. Its scoped proof and strict wire subset are stated explicitly.

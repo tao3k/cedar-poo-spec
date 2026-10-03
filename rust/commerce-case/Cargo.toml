@@ -8,6 +8,7 @@ description = "Independent consumers of Lean commerce fixtures"
 
 [features]
 default = []
+ap2-receipt = ["cedar-poo-commerce/ap2-receipt"]
 acceptance = ["cedar-poo-commerce/acceptance"]
 projection = ["cedar-poo-commerce/projection"]
 admission = ["projection", "cedar-poo-commerce/admission"]
@@ -18,6 +19,7 @@ cedar-poo-commerce.workspace = true
 [dev-dependencies]
 asp-rust.workspace = true
 serde_json.workspace = true
+base64.workspace = true
 p256.workspace = true
 
 [[test]]
@@ -38,3 +40,8 @@ required-features = ["admission"]
 name = "agentic_ai_commerce_acceptance_consumer"
 path = "tests/integration/agentic_ai_commerce_acceptance_consumer.rs"
 required-features = ["acceptance"]
+
+[[test]]
+name = "agentic_ai_commerce_presentation_consumer"
+path = "tests/integration/agentic_ai_commerce_presentation_consumer.rs"
+required-features = ["ap2-receipt"]

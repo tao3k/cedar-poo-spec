@@ -10,9 +10,11 @@ description = "Storage-independent agentic commerce signatures and admission"
 default = []
 projection = []
 acceptance = []
+ap2-receipt = ["dep:base64"]
 admission = ["projection"]
 
 [dependencies]
+base64 = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 p256.workspace = true

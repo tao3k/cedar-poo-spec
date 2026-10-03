@@ -355,6 +355,7 @@ name = "cedar-poo-commerce"
 version = "0.1.0"
 dependencies = [
  "asp-rust",
+ "base64",
  "p256",
  "serde",
  "serde_json",
@@ -366,6 +367,7 @@ name = "cedar-poo-commerce-case"
 version = "0.1.0"
 dependencies = [
  "asp-rust",
+ "base64",
  "cedar-poo-commerce",
  "p256",
  "serde_json",

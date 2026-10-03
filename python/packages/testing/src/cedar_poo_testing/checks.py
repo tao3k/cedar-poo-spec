@@ -1,5 +1,7 @@
 """Lean fixture and Rust consumer checks behind stable Just recipe names."""
 
+import hashlib
+
 import json
 import os
 from pathlib import Path
@@ -18,6 +20,10 @@ LEAN = [
 
 # Source, output stem, jq assertion, and manifest fields replayed by Cedar.
 CHECKS = {
+    "agentic-ai-commerce-presentation": (
+        "Tests/AgenticAI/Commerce/Presentation.lean",
+        "agentic-ai-commerce-presentation", None, (),
+    ),
     "agentic-ai-commerce-acceptance": (
         "Tests/AgenticAI/Commerce/Acceptance.lean",
         "agentic-ai-commerce-acceptance", None, (),
@@ -105,12 +111,21 @@ def run(name: str, repository: Path) -> None:
             cwd=repository, stdout=subprocess.DEVNULL, check=True,
         )
     data = json.loads(output.read_text())
-    if name == "agentic-ai-commerce-acceptance":
-        if data != json.loads((repository / "Tests/Conformance/commerce-acceptance-v1.json").read_text()):
+    if name in ("agentic-ai-commerce-acceptance", "agentic-ai-commerce-presentation"):
+        kind = "presentation" if name.endswith("presentation") else "acceptance"
+        if data != json.loads((repository / f"Tests/Conformance/commerce-{kind}-v1.json").read_text()):
             raise ValueError("acceptance fixture differs from actual Lean export")
+        if kind == "presentation":
+            upstream = repository / "Tests/Conformance/ap2-upstream"
+            pin = json.loads((upstream / "source.json").read_text())
+            if data["ap2Revision"] != pin["revision"]:
+                raise ValueError("presentation fixture and upstream source pins differ")
+            for path, digest in pin["files"].items():
+                if hashlib.sha256((upstream / path).read_bytes()).hexdigest() != digest:
+                    raise ValueError(f"pinned AP2 source digest differs: {path}")
         _run(["cargo", "test", "--locked", "-p", "cedar-poo-commerce-case",
-              "--no-default-features", "--features", "acceptance", "--test",
-              "agentic_ai_commerce_acceptance_consumer"], repository)
+              "--no-default-features", "--features", "ap2-receipt" if kind == "presentation" else "acceptance", "--test",
+              f"agentic_ai_commerce_{kind}_consumer"], repository)
         return
     if name == "agentic-ai-commerce-projection":
         _projection(data)
