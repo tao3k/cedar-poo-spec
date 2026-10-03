@@ -43,6 +43,9 @@ def run(repository: Path) -> None:
     profiles += [("cedar-poo-pseudonymization", "google-sdp")]
     profiles += [("cedar-poo-commerce", f) for f in COMMERCE]
     profiles += [("cedar-poo-commerce-case", f) for f in COMMERCE]
+    profiles += [("cedar-poo-commerce-mandate", None),
+                 ("cedar-poo-commerce-mandate", "ap2-checkout"),
+                 ("cedar-poo-commerce-case", "ap2-checkout")]
     profiles += [("cedar-poo-pseudonymization-case", "google-contract")]
     for package, feature in profiles:
         args = ["-p", package, "--no-default-features"]
@@ -55,7 +58,10 @@ def run(repository: Path) -> None:
         (build / f"{package}-{feature or 'default'}-tree.txt").write_text(tree)
         if "cedar-policy" in tree:
             raise ValueError(f"{package}/{feature} unexpectedly depends on Cedar runtime")
-        if ("p256 v" in tree) != package.startswith("cedar-poo-commerce"):
+        expects_p256 = package.startswith("cedar-poo-commerce") and (
+            package != "cedar-poo-commerce-mandate" or feature == "ap2-checkout"
+        )
+        if ("p256 v" in tree) != expects_p256:
             raise ValueError(f"{package}/{feature} has an unexpected P-256 dependency")
         if "mrr-data" in tree:
             raise ValueError(f"{package}/{feature} imports MRR")
@@ -65,6 +71,8 @@ def run(repository: Path) -> None:
     cargo("clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings")
     cargo("test", "--workspace", "--all-features", "--exclude", "cedar-poo-commerce-case")
     cargo("test", "-p", "cedar-poo-commerce-case", "--no-default-features")
+    cargo("test", "-p", "cedar-poo-commerce-case", "--no-default-features",
+          "--features", "ap2-checkout", "--test", "agentic_ai_commerce_mandate_consumer")
     # Fixture-dependent consumers execute in cedar-conformance after Lean exports.
     cargo("test", "-p", "cedar-poo-commerce-case", "--features", "admission",
           "--test", "agentic_ai_commerce_admission_consumer")

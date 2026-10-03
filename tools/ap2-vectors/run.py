@@ -207,7 +207,7 @@ def main() -> None:
         if actual != vector['sdk_observation']:
             raise ValueError(f'SDK observation changed: {vector["id"]}: {actual}')
         print(f'PASS {vector["id"]}: wire={actual["wire"]} contract={vector["contract_expectation"]}', flush=True)
-    print(f'AP2-WIRE-OK {len(ids)} frozen vectors; no Rust mandate verifier or admission claim')
+    print(f'AP2-WIRE-OK {len(ids)} frozen vectors; SDK replay only, Rust verification is a separate gate')
 
 
 if __name__ == '__main__':

@@ -150,5 +150,7 @@ No simulated performance number should be reused as our throughput result.
 The [[file:WireVectors.org][fixed SDK wire seed corpus]] now supplies 17 executable vectors and
 separates SDK wire/domain observations, independent merchant signature checks
 and future-profile expectations. Local SDK replay has run against exact pinned
-source and locked libraries. Regular CI checks frozen byte integrity only.
-The bounded Rust mandate verifier and expanded mutation corpus remain open.
+source and locked libraries. Regular CI checks frozen byte integrity and now executes the
+[[file:../../../rust/commerce-mandate/README.org][bounded Rust binding verifier]] consumer. All 17 seed vectors match the selected
+profile expectations. Nonempty constraint evaluation, full UCP validation,
+expanded mutation coverage and stateful admission remain open.

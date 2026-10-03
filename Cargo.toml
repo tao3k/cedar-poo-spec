@@ -25,6 +25,7 @@ cedar-poo-core = { path = "rust/core", default-features = false }
 cedar-poo-runtime = { path = "rust/runtime", default-features = false }
 cedar-poo-agentic = { path = "rust/agentic", default-features = false }
 cedar-poo-commerce = { path = "rust/commerce", default-features = false }
+cedar-poo-commerce-mandate = { path = "rust/commerce-mandate", default-features = false }
 cedar-poo-pseudonymization = { path = "rust/pseudonymization", default-features = false }
 cedar-poo-google-sdp-host = { path = "rust/google-sdp-host", default-features = false }
 cedar-poo-disclosure-host = { path = "rust/disclosure-host", default-features = false }

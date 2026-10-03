@@ -61,8 +61,9 @@ Regular conformance CI includes only:
 just check-agentic-ai-commerce-wire-corpus
 #+end_src
 
-This is an offline SHA-256 integrity check of the exact frozen fixture. Its
-output explicitly says SDK cryptographic replay was not performed.
+This first checks the exact frozen fixture SHA-256, then runs the independent
+Rust binding consumer. The integrity output explicitly says Python SDK
+cryptographic replay was not performed; Rust verification is separately scored.
 
 For actual SDK replay, obtain the AP2 source at the pinned revision above and
 supply the repository root. A GitHub source archive is sufficient; altered SDK
@@ -79,13 +80,15 @@ On a populated cache this can be run offline with:
 uv run --project tools/ap2-vectors --locked --offline python tools/ap2-vectors/run.py --sdk-root /absolute/path/to/pinned/AP2
 #+end_src
 
-The observed local receipt is =AP2-WIRE-OK 17 frozen vectors=. It covers the
-three SDK/independent-observer stages above, not a Rust implementation.
+The Python replay receipt is =AP2-WIRE-OK 17 frozen vectors=. The independent
+[[file:../../../rust/commerce-mandate/README.org][bounded Rust binding verifier]] now checks the same bytes against the selected
+profile expectations: 3 accepted bindings and 14 refused bindings. Python SDK
+observations and Rust acceptance results are separate receipts.
 
 * Remaining V1 work
 
-This seed advances [[file:VerificationPlan.org][V1]] without completing it. The next direct implementation
-is a bounded storage-independent verifier consuming these exact bytes.
+This seed advances [[file:VerificationPlan.org][V1]] without completing it. The bounded storage-independent binding verifier now consumes these exact
+bytes. It supports empty constraints only; full mandate admission remains open.
 Expand a subsequent corpus version for unknown constraints, unchanged
 inherited claims, nested/decoy disclosure graphs, reserved names, duplicate
 JSON members, unsupported algorithms, type confusion, malformed bounds and
