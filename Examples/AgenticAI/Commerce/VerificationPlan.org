@@ -1,0 +1,181 @@
+#+TITLE: Commerce Verification Research and Next Implementation Plan
+#+DATE: 2026-10-03
+
+* Starting evidence
+
+Cedar =101aff3b6c11769dfc6e8e727e31437383d5f351= implements the
+[[file:Presentation.org][selected Checkout Receipt subprofile]]. MRR
+=a4e7dc67bf4d0d8982339430a6ddd9c74c5e3b99= persists its journal through a
+protected conditional commit. Both domains in MRR pin that Cedar revision.
+These are the starting implementation snapshots for this research.
+
+The domain verifies merchant receipts. The Host still verifies the original
+mandate chain, Checkout JWT and constraints. A successful receipt closes a
+presentation slot; it does not independently establish funds settlement,
+fulfillment, or the user's informed approval of the original intent.
+
+* Source correspondence and transfer limits
+
+AP2 source and SDK links below all pin
+=e1ea56db72a6385bce3e5c1112b3a56ce60acb43=. Research papers use explicit versions.
+A source observation identifies an interface obligation; it does not by itself
+establish an exploitable behavior of a composed deployment.
+
+| Source | Finding used here | Code seam / transfer limit |
+|--------+-------------------+----------------------------|
+| [[https://www.rfc-editor.org/rfc/rfc9901.html#section-7][RFC 9901, sections 7.1 and 7.3]] | Verify the issuer signature and disclosure graph; verifier policy determines whether key binding is required. Required KB validates the holder key, type, time, audience, nonce and presentation hash. | A future mandate verifier must return processed claims only after verification. Existing CheckoutReceiptTrust verifies compact receipt JWS, not SD-JWT. |
+| [[https://www.ietf.org/archive/id/draft-gco-oauth-delegate-sd-jwt-00.html][Delegate SD-JWT draft-00, sections 5, 6 and 8]] | Delegation adds per-hop signatures and binding. The two hash modes allow different disclosure handling. This is a work-in-progress extension to RFC 9901. | Pin the draft independently; do not accept an arbitrary delegation chain as an AP2 flow or equate terminal KB-SD-JWT with ordinary kb+jwt. |
+| [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/python/ap2/sdk/sdjwt/chain.py][Pinned SDK chain.py]], [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/python/ap2/sdk/sdjwt/common.py][common.py]] and [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/python/ap2/sdk/sdjwt/kb_sd_jwt.py][kb_sd_jwt.py]] | Chain signatures walk previously verified cnf keys. Binding hashes distinguish the serialized SD-JWT and issuer JWT. Expected terminal audience and nonce are optional API inputs. | Our adapter must require authenticated transaction inputs rather than inherit optional defaults. SDK behavior is a differential witness, not the sole normative oracle. |
+| [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/python/ap2/sdk/checkout_mandate_chain.py][CheckoutMandateChain]] | Typed checkout constraints consume supplied checkout content; the extraction helper decodes JWT payload. | This helper alone does not authenticate the merchant signature. Composition must verify exact signed checkout bytes and derive their hash independently. |
+| [[https://arxiv.org/html/2602.06345v1][Zero-Trust Runtime Verification, v1]] | Context binding and atomic nonce consumption address different replay classes in a simulated runtime. | Retain both mechanisms as separate experiments. Its nonce window and performance results do not establish our durability, safe tombstone deletion or provider acceptance guarantees. |
+| [[https://arxiv.org/html/2609.00060v1][A Formal Analysis of Agent Payment Protocols, v1]] | Symbolic counterexamples, SDK/schema witnesses and implementation PoCs have distinct evidence levels. | Map P1/P3/P4/P5/P6/P8/P17/P18 to our interfaces and preserve positive reachability. An AP2 finding requires checking the exact source version and composed path. |
+
+The earlier runtime-verification paper's claim about missing stateful AP2
+requirements must not be repeated as a finding about the pinned specification.
+Its [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/docs/ap2/specification.md][autonomous-flow rules]] restrict subsequent presentations until rejection.
+This is a specification obligation; endpoint atomic enforcement remains a
+separate implementation question. The same source leaves agent-to-agent
+mandate delegation outside AP2's current scope. Supporting a general dSD-JWT
+primitive would not silently expand our admitted AP2 flow.
+
+* Executable boundary witness
+
+[[file:../../../Tests/AgenticAI/Commerce/Presentation.lean][independentScopesCanBothPresent]] and the
+[[file:../../../rust/commerce-case/tests/integration/agentic_ai_commerce_presentation_consumer.rs][Rust consumer's independent-scope witness]] both run today's transition
+against two fresh ledgers with different scope strings and the same descriptor.
+Both calls succeed. The existing pending/spent proofs remain valid per ledger.
+
+If a Host maps one authenticated authorization to both strings, this becomes
+two pending presentations for that authorization. The witness does not prove
+that any deployed Host allows aliases, or that either provider executed an
+economic effect. It proves that alias prevention and shared admission cannot
+be inferred from the pure per-ledger transition. MRR's scope hash preserves the
+provided distinction; hashing does not resolve authority identity aliases.
+
+* Proposed verification boundary
+
+These APIs and guarantees are designs, not implemented capabilities.
+
+1. A storage-independent =rust/commerce-mandate= crate should own the bounded
+   pinned wire verifier, with default features empty. Keep receipt and mandate
+   role policies explicit. Do not introduce an MRR dependency into Cedar.
+2. Introduce a verifier context containing the independently authenticated role,
+   issuer/key enrollment, exact transaction audience, server nonce, current time
+   and explicit skew policy. A presented token cannot choose those inputs.
+3. Parse into an untrusted representation with duplicate JSON member rejection,
+   byte/disclosure/depth/hop limits and explicit unsupported-feature errors.
+   Parsing alone grants no admission. Preserve exact source bytes for hashes.
+4. Verify root trust, all hop signatures and types, disclosure digests, parent
+   binding and time claims. Then check exact mandate vcts, unchanged inherited
+   claims, merchant Checkout JWT binding and every applicable constraint.
+   Unknown constraints fail evaluation; omitted required context fails closed.
+5. Return a privately constructed verified value carrying authenticated root,
+   agent key, open and closed mandate references, exact checkout reference,
+   role and policy version. Never deserialize a caller-supplied verified flag
+   into that type. Cryptographic verification does not imply fresh runtime use.
+6. MRR composes this result with protected state and acceptance fences. Current
+   authority refresh remains synchronized with the commit. Raw chain evidence
+   can live in the Host evidence store, with an authenticated immutable handle.
+
+The first interoperable subset should be the pinned two-payload open/closed
+Checkout flow. ES256 with enrolled kid keys is a candidate bounded policy;
+x5c enrollment needs a separate certificate-path and identity policy. A valid
+unsupported flow must return Unsupported, not a generic verified result.
+A frozen vector suite must settle exact supported JOSE types, time boundaries,
+hash modes and receipt-reference derivation before changing today's Host input.
+
+* Shared presentation coordination
+
+Choose coordination identity from verified authorization lineage and agent
+identity. Do not use an arbitrary request scope string as its authority key.
+Document whether policy groups only aliases of one authorization, couples its
+Checkout and Payment Mandates, or serializes unrelated authorizations for an
+agent. The last interpretation needs explicit policy and interoperability review;
+it must not be silently inferred from the current per-ledger model.
+
+For the selected grouping, a single protected operation must compare/update the
+shared presentation gate and the specific mandate journal. Either co-locate
+both in one revisioned content root, or require a genuine atomic multi-record
+backend capability. Two independent conditional commits leave a crash window.
+MRR must describe this capability as a protocol; it does not become a database.
+
+Define fresh, pending, terminal rejection and spent states on the shared gate.
+A receipt can release only its exact pending reference and role. Payment and
+Checkout rejection rules require a coupled flow specification; one role's
+error must not automatically release the other's gate. Unknown delivery or
+persistence retains pending authority. Ownership recovery reuses the existing
+[[file:Recovery.org][provider recovery contract]], with a generation fence against delayed owners.
+
+Garbage collection requires showing that no retained mandate, permitted skew,
+recovery path or delayed acceptance can use the deleted identity again. The
+runtime paper's short nonce window is not sufficient evidence for this proof.
+
+* Payment Receipt and downstream evidence
+
+The pinned [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/schemas/ap2/payment_receipt.json][Payment Receipt schema]] requires payment_id; its success branch also
+requires PSP and network confirmation IDs. The selected future policy must
+address a flow without a network explicitly, rather than fabricate a network
+identifier or silently relax the pinned schema. A receipt issuer's assertion
+and independently observed finality remain distinct evidence.
+
+Use separate processor receipt trust. Store the exact signed receipt, payment
+mandate reference, checkout correspondence and confirmation references before
+projection into a finality model. Processor success does not prove delivery.
+Refund or compensation needs a new evidenced transition and cannot erase the
+original acceptance. Do not put Payment Receipt fields into Checkout receipts.
+
+* Experiments and acceptance order
+
+| Order | Experiment | Positive control | Required refusal / proof |
+|-------+------------+------------------+--------------------------|
+| V1 | Frozen SDK-generated two-hop vectors plus independently authored mutation corpus | Valid chain, valid merchant checkout and constraints admitted | Wrong root/key/parent hash; substituted Checkout JWT; unsupported typ/vct/hash; duplicate or unreachable disclosure; missing required audience/nonce; expired hop; unknown constraint rejected before admission |
+| V2 | Shared gate with two scope aliases and two concurrent workers | One authorized fresh presentation can commit | At most one pending grant for the verified grouping; alias changes cannot bypass it; crash between gate/journal updates impossible under the chosen commit contract |
+| V3 | Lost ACK, timeout and delayed receipt traces | Exact confirmed rejection permits a different reference | Replay grants no new send; stale receipt cannot clear a newer owner; unknown remains pending; spent never reacquires |
+| V4 | Processor receipt schema and cross-role substitution | Independently enrolled processor's exact receipt persists | Merchant key cannot satisfy processor role; wrong payment/mandate correspondence rejected; schema success alone cannot assert external finality |
+| V5 | Expiry/skew and evidence retirement traces | Expired, irrecoverable authorization can eventually retire under a proved policy | No accepted effect after unsafe tombstone deletion; clock uncertainty remains explicit |
+
+V1 includes separately scored signature validity, processed claims, domain
+constraints and admission outcomes. Agreement with SDK is evidence of matched
+behavior for those vectors. It is not proof that all supported cryptographic
+inputs are safe. Report disagreement with both source references and exact bytes.
+
+The immediate implementation order is V1's frozen wire corpus and bounded
+verifier boundary, followed by V2's shared identity/gate specification. These
+can be developed independently, but a full AP2 admission claim requires their
+composition. Payment Receipt and external finality follow that composition.
+No simulated performance number should be reused as our throughput result.
+
+* V1 seed corpus implementation
+
+The [[file:WireVectors.org][fixed SDK wire seed corpus]] now supplies 17 executable vectors and
+separates SDK wire/domain observations, independent merchant signature checks
+and future-profile expectations. Local SDK replay has run against exact pinned
+source and locked libraries. Regular CI checks frozen byte integrity and now executes the
+[[file:../../../rust/commerce-mandate/README.org][bounded Rust binding verifier]] consumer. All 17 seed vectors match the selected
+profile expectations. The subsequent [[file:Constraints.org][constraint slice]] adds 15 domain cases,
+exact merchant IDs and bounded exact-quantity/single-SKU assignment. The Rust
+consumer signs those cases independently and checks all 32 frozen expectations
+in 11 tests. Full UCP validation, broader profile coverage and stateful
+admission remain open. V2 must specify enrollment/policy identity and a single
+atomic shared gate/journal transition before implementation.
+
+* V2 co-located Checkout contract
+
+The [[file:Coordination.org][selected shared Checkout implementation]] groups aliases only for one
+Host-enrolled authorization/agent/policy identity. Five independent consumer
+regressions exercise the whole-record CAS contract. Canonical enrollment,
+authenticated durable restoration, protected current-authority refresh and a
+production persistence implementation remain open. Payment coupling and
+agent-wide serialization are not selected. V2 is not end-to-end closure.
+
+* Restoration and migration follow-up
+
+The [[file:Restoration.org][restoration/recovery research]] maps RIFL and Chubby to the current
+Cedar/MRR interfaces, records the executable policy-ID split witness and fixes
+an ordered R1-R6 experiment plan. Validated structural restoration comes first;
+anti-rollback evidence and exact historical recovery remain provider contracts.
+
+Structural Checkout restoration now supplies R1 consumer evidence. The generic
+[[file:../../../Productions/Backend.org][Production backend architecture]] serves all Profiles/Cases; Commerce contributes
+one domain validator and test suite. Shared backend/provider implementation is
+an MRR Data responsibility, independent of this consumer-specific wire format.

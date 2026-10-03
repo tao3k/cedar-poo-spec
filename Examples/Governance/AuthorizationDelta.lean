@@ -13,25 +13,43 @@ open CedarPooSpec.TicketSharingExample
 open CedarPooSpec.AuthorizationDelta
 
 def run : IO Lean.Json := do
-  let narrowed ← match ← analyzeModel model "Published" "Posture" schema with
+  let narrowed ← match ← analyzeModelImpactExplained model "Published" "Posture" schema with
     | .ok report => pure report
     | .error error => throw (IO.userError s!"posture analysis: {reprStr error}")
-  if !narrowed.noExpansion then
+  if !narrowed.symbolic.noGain then
     throw (IO.userError "posture revision unexpectedly expands authorization")
-  let expanded ← match ← analyzeModel expandedModel "Revoked" "Expanded" schema with
+  let expanded ← match ← analyzeModelImpactExplained expandedModel "Revoked" "Expanded" schema with
     | .ok report => pure report
     | .error error => throw (IO.userError s!"grant analysis: {reprStr error}")
-  if expanded.noExpansion then
+  if expanded.symbolic.noGain then
     throw (IO.userError "new ticket grant has no expansion witness")
-  let .ok narrowJson := CedarPooSpec.AuthorizationDeltaJson.report narrowed
+  let narrowReport : Report :=
+    { changedPolicyIds := narrowed.symbolic.changedPolicyIds
+      environmentsChecked := narrowed.symbolic.environmentsChecked
+      expansions := narrowed.symbolic.gains }
+  let expandedReport : Report :=
+    { changedPolicyIds := expanded.symbolic.changedPolicyIds
+      environmentsChecked := expanded.symbolic.environmentsChecked
+      expansions := expanded.symbolic.gains }
+  let .ok narrowJson := CedarPooSpec.AuthorizationDeltaJson.report narrowReport
     | throw (IO.userError "could not render posture report")
-  let .ok expandedJson := CedarPooSpec.AuthorizationDeltaJson.report expanded
+  let .ok expandedJson := CedarPooSpec.AuthorizationDeltaJson.report expandedReport
     | throw (IO.userError "could not render grant counterexample")
-  let .ok manifest := CedarPooSpec.AuthorizationDeltaJson.witnessCases expanded
-    expandedModel "Revoked" "Expanded"
+  let .ok narrowImpact := CedarPooSpec.AuthorizationDeltaJson.impactReport narrowed.symbolic
+    | throw (IO.userError "could not render posture impact")
+  let .ok expandedImpact := CedarPooSpec.AuthorizationDeltaJson.impactReport expanded.symbolic
+    | throw (IO.userError "could not render grant impact")
+  let .ok postureManifest := CedarPooSpec.AuthorizationDeltaJson.impactWitnessCases
+    narrowed.symbolic model "Published" "Posture"
+    | throw (IO.userError "could not render Cedar posture witness cases")
+  let .ok manifest := CedarPooSpec.AuthorizationDeltaJson.impactWitnessCases
+    expanded.symbolic expandedModel "Revoked" "Expanded"
     | throw (IO.userError "could not render Cedar witness cases")
   return Lean.Json.mkObj [("posture", narrowJson), ("new_grant", expandedJson),
-    ("manifest", manifest)]
+    ("posture_impact", narrowImpact), ("new_grant_impact", expandedImpact),
+    ("posture_explanation", CedarPooSpec.AuthorizationDeltaJson.explainedImpactReport narrowed),
+    ("new_grant_explanation", CedarPooSpec.AuthorizationDeltaJson.explainedImpactReport expanded),
+    ("posture_manifest", postureManifest), ("manifest", manifest)]
 
 end CedarPooSpec.TicketSharingDelta
 

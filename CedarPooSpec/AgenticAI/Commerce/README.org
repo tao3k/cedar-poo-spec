@@ -1,0 +1,121 @@
+#+TITLE: Agentic AI Commerce
+#+OPTIONS: toc:nil
+
+* Public ownership
+
+=CedarPooSpec.AgenticAI.Commerce= owns generic commerce authority:
+[[file:Budget.lean][Budget]] binds a principal mandate to exact merchant offer terms;
+[[file:Delegation.lean][Delegation]] attenuates authority on every signed handoff;
+[[file:SharedBudget.lean][SharedBudget]] charges the root and every ancestor across all branches;
+[[file:Credential.lean][Credential]] binds a scoped credential to an authenticated committed reservation;
+[[file:Consumption.lean][Consumption]] claims one release per scoped purchase;
+[[file:Projection.lean][Projection]] exports claims without derived verification flags.
+The [[file:../../Vertical/FinancialServices/AgenticCommercePayment.lean][financial payment adapter]] maps an admitted purchase to =PaymentOperation=.
+
+* Checks and external obligations
+
+The shared model preserves the root cap and advances its revision for each
+accepted reservation. A stale shared revision cannot reserve. Reusing a
+mandate ID with changed authority, repeating a purchase or merchant offer, or
+revoking an ancestor prevents a descendant reservation.
+[[file:../../../Tests/AgenticAI/Commerce/Admission.lean][Lean regressions]] cover branching and nested delegation.
+
+The storage-independent Rust =cedar-poo-commerce= crate owns signatures,
+projected claims and admission, with optional =projection= and =admission=.
+MRR Data owns =mrr-data-commerce=, which depends on this domain API for
+shared-budget commit, credential recovery, consumption and provider receipts.
+Cedar imports no MRR package. =cedar-poo-commerce-case= owns the independent
+signature, projection and admission consumers. They compile without Cedar runtime.
+=just check-agentic-ai-commerce-admission= exports the Lean fixture and checks
+signatures and current Host authority. MRR Data owns the content protocol
+integration tests against the fixture pinned from this specification.
+
+The Host authenticates the clock, key and revocation state, current content
+head, and policy evaluator. MRR Data supplies a provider-neutral conditional
+commit protocol. A backend compares and persists the next head and exact
+operation receipt in one atomic transaction. These pure checks execute no
+storage transaction, payment, or external effect.
+
+The [[file:../../../Examples/AgenticAI/Commerce/Research.org][research scenario]] records synthetic protocol scope and remaining
+provider, fulfillment, and dispute-evidence work.
+
+* Commit port and recovery
+
+The Rust =commit_shared_reservation= entry point accepts an explicit operation
+ID matching the embedded purchase and uses MRR Data's async
+=ConditionalContentCommitPort=. It refreshes Host keys, revocation, policy epoch,
+and clock through a callback inside the backend's protected transaction. The
+adapter must serialize authority changes or include their versions in the atomic
+comparison. A changed clock makes an old proposal stale and requires a new one.
+
+A confirmed write yields =Committed= with the exact head/operation receipt.
+An exact retry yields =Replayed= and skips new reservation validation. An uncertain
+result yields =Unknown=; recovery queries the same exact operation. An unavailable
+ledger cannot be treated as absence, and a new operation ID cannot repeat the
+same merchant offer. The signed consumer tests exercise these rules with a
+test-only serialized provider, including competing child Agents under one root.
+These checks provide no DB, crash-recovery, or deployed durability acceptance.
+
+* Credential after commit
+
+=ReservationCommitReceipt= retains the trusted scope, exact operation ID,
+previous/committed revision and content IDs, and the complete reservation lineage.
+Lean acceptance requires this authenticated commit to remain present in the
+current shared budget. It checks current ancestor revocations and caps, exact
+checkout terms, and credential expiry within the offer and every ancestor.
+The financial adapter requires this shared-budget gate before payment binding.
+
+Rust =admit_committed_credential= recovers the exact operation through the MRR
+port, verifies the original transition and raw content IDs, and then refreshes
+Host authority. A separately enrolled current issuer key verifies the signed
+credential. The private =VerifiedCredential= constructor cannot be replaced
+by caller-owned JSON flags. A later head may retain the original reservation;
+acceptance does not debit it again. Unavailable recovery is an error, not absence.
+
+The cross-language fixture exports every semantic credential field and proves
+its Lean acceptance. Only its two opaque content-ID template fields are resolved
+from actual Rust before/after bytes. Credential signing uses a versioned domain
+and fixed typed JSON serialization; this is a local format, not an AP2 JWT format.
+No payment token or production payment network is implemented.
+The consumption and provider contracts below require a deploying adapter to
+synchronize the head, live authority, issuer status and consumption ledger through
+provider release.
+
+* Purchase consumption and provider receipt
+
+The consumption ledger is independent from reservation accounting. Its uniqueness
+key is the trusted budget scope and purchase ID, across credential reissue and
+provider changes. Lean proves an already consumed purchase cannot claim again,
+and a successful claim advances the ledger revision. Rust checks the exact
+one-row proposal and immutable previous rows, then uses MRR Data's existing
+conditional port to atomically persist the claim. The backend must authenticate
+one canonical ledger namespace per budget scope and synchronize the current
+budget, issuer, key, clock and policy versions through release.
+
+Only a newly confirmed commit whose fresh callback ran yields a move-only,
+non-serializable =DispatchPermit=. Exact replay is status only. An unknown commit
+has no permit; lookup cannot reconstruct one. =PaymentProviderPort= consumes that
+permit for one dispatch and supplies an effect-free recovery query. The provider
+request contains the complete signed credential, reservation lineage and checkout.
+Its stable idempotency key derives from a length-prefixed budget-scope/purchase
+pair; credential reissue and provider changes do not create another release.
+
+=ProviderReceiptTrust= verifies a versioned P-256 signature using independently
+enrolled current provider keys. The receipt commits to the entire exact request,
+not only a merchant, amount or opaque payment reference. A successful response
+and signed rejection remain distinct from unavailable or unknown status. A payment
+receipt attests processor status, not fulfillment. Production adapters must
+recheck/synchronize live authority through the actual release; a permit snapshot
+alone is not a lease maintaining authority across suspension or restart.
+
+Seven test-only consumers cover the exact Lean proposal, simultaneous claimers,
+credential/provider substitution, lost consumption ACK, unknown payment response
+with exact recovery, provider key/receipt substitution, and fresh budget/issuer
+revocation. They demonstrate local protocol behavior. They provide no live payment,
+backend crash/durability or AP2/ACP wire-conformance acceptance.
+
+The protocol deliberately retains the consumed purchase after unknown or rejected
+outcomes. A crash between claim and dispatch, or known non-release after consuming
+the permit, can leave the purchase blocked. Recovery never mints another permit.
+A production adapter needs a separately verified fenced, idempotent retry protocol
+before claiming eventual delivery or exactly-once economic execution.

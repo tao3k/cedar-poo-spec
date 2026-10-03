@@ -1,0 +1,203 @@
+#+TITLE: Agentic AI Commerce: Plan and Paper Audit
+#+DATE: 2026-10-03
+#+OPTIONS: toc:2
+
+* Scope and current evidence
+
+This audit follows the delegated-Commerce main line. Baselines are Cedar
+=e587fa5c4e9eb6a92b5599a88f894f5bdd6407c9= and MRR Data
+=3aa76e2a07c7b9c4394e6d5de86c7a866869c2a5=. It reviews source and primary
+literature; it does not execute the experiments proposed below.
+
+Cedar owns domain models, signatures, projection and admission. MRR Data
+imports those APIs and owns content-protocol integration. Neither repository
+supplies a deployed Commerce DB or payment processor. New durability adapters
+remain consumers of the MRR protocol, never dependencies imported by Cedar.
+
+| Existing seam | Established capability | Remaining obligation |
+|---------------+------------------------+----------------------|
+| [[file:../../../CedarPooSpec/AgenticAI/Commerce/SharedBudget.lean][SharedBudget]] | Sequential revision advance, stale-revision refusal and root-cap theorem | A backend must implement the atomic transition across concurrent writers |
+| [[file:../../../rust/commerce/src/admission.rs][CommerceAdmissionHost]] | Current signed lineage, enrolled keys, policy epoch, expiry and revocation checks | Authenticate live inputs; synchronize changes with reservation and protected acceptance |
+| [[https://github.com/tao3k/mrr-data/blob/3aa76e2a07c7b9c4394e6d5de86c7a866869c2a5/crates/mrr-data-content/src/conditional_port.rs][ConditionalContentCommitPort]] | Explicit commit/replay/unknown interface and atomic head/receipt contract | Backend conformance and durable authority-version comparison |
+| [[https://github.com/tao3k/mrr-data/blob/3aa76e2a07c7b9c4394e6d5de86c7a866869c2a5/crates/mrr-data-commerce/src/consumption.rs][claim_dispatch / DispatchPermit]] | Fresh confirmed claim creates one move-only permit; replay and unknown mint none | Permit is a snapshot; crash after claim loses liveness; no enforced release fence |
+| [[https://github.com/tao3k/mrr-data/blob/3aa76e2a07c7b9c4394e6d5de86c7a866869c2a5/crates/mrr-data-commerce/src/provider.rs][PaymentProviderPort / recover_payment]] | Exact provider request and signed status correspondence | Durable retry ownership, provider-enforced deduplication and declared finality |
+| [[file:../../../CedarPooSpec/AgenticAI/Commerce/Consumption.lean][ProviderReceipt]] | Authenticated receipt corresponds to the exact dispatch | No fulfillment, settlement-finality or compensation state machine |
+
+* Audit findings
+
+** A1: authority synchronization is still an adapter premise
+
+=claim_dispatch= refreshes authority inside the commit callback. Its
+=DispatchPermit= carries the request, not a durable root cut or an enforceable
+provider fence. =PaymentProviderPort= documents synchronization through actual
+release, but the type signature cannot establish that a suspended adapter obeys
+it. This is a declared implementation obligation, not a newly demonstrated
+exploit. Principal-level =policy_epoch= must not silently stand in for a
+root-mandate revocation generation: their scope and update authority differ.
+
+Specify the provider acceptance linearization point. A retired root must not
+be accepted after that provider's fence. Work admitted before the fence can
+complete afterward and needs accounting; cancellation is not payment rollback.
+Start with the current single-root lineage. Multi-root support algebra is a
+later extension requiring its own semantics and evidence.
+
+** A2: consumption safety currently trades away recovery liveness
+
+A persisted claim followed by process death destroys the only permit. Neither
+an exact claim replay nor a provider =NotSent= result reopens the purchase.
+This prevents duplicate release in the reference design, but can strand it.
+An =Unknown= status must retain the exact operation and request binding.
+
+An outbox/recovery design needs an immutable request, durable attempt ownership,
+a current acceptance fence, and an independently declared provider deduplication
+and retention contract. It cannot recreate a fresh unrestricted permit from the
+old credential. Without those endpoint capabilities, blocked/unknown is the
+correct observable result; eventual payment is not guaranteed.
+
+** A3: receipt authenticity does not establish settlement or fulfillment
+
+The current =succeeded/rejected= receipt model has no rail-specific finality
+predicate or service-delivery evidence. Give each profile a typed meaning for
+accepted, finalized and fulfilled, with independently trusted issuers and exact
+transaction correspondence. Do not reinterpret the existing success receipt
+as cleared funds or completed delivery.
+
+** A4: signed claims can faithfully bind a manipulated selection
+
+Current signature and projection checks protect the supplied transaction.
+They do not establish that the agent's earlier tool results or selected seller
+faithfully reflected the principal's task. Evaluate pre-signature manipulation
+as a separate Host/Case experiment with an independent intent oracle. Preserve
+both a legitimate-success control and a signed-but-task-inconsistent witness.
+
+** A5: AP2 presentation is a separate protocol lifecycle
+
+The existing synthetic budget admits several different purchases. The inspected
+[[https://raw.githubusercontent.com/google-agentic-commerce/AP2/main/docs/ap2/specification.md][AP2 specification]] requires the shopping agent to obtain a rejection receipt
+before another open Checkout/Payment Mandate presentation. A future protocol
+profile must bind the correct mandate, checkout and role-specific receipt, and
+match exact schema versions. Pin the upstream source commit before implementing
+this profile. Budget consumption does not implement its presentation rule.
+
+* Primary literature and transfer limits
+
+Sources inspected on 2026-10-03. The 2026 arXiv entries below are preprints;
+proposals, modeled proofs and testbed results are separate evidence levels.
+The experiment column is our proposed transfer, not an experiment already run.
+
+| Priority / source | Reviewed contribution and limit | Code seam and falsifiable transfer |
+|-------------------+---------------------------------+------------------------------------|
+| Core: [[https://arxiv.org/html/2609.00060v1][A Formal Analysis of Agent Payment Protocols]] | Tamarin cross-stage properties for x402/MPP/AP2/ACP; symbolic findings and implementation witnesses have different scopes | Map P1/P3/P4/P5/P6/P8/P17/P18 to claims, ledger, acceptance, finality and issuers; keep successful reachability controls alongside rejection traces |
+| Core: [[https://arxiv.org/html/2609.21284v1][Authorization Revocation for Long-Running AI Agents]] | Root cuts and sink fences address queued/delegated late effects; provider-free conditional results do not certify a deployed processor | Suspend after claim, retire the root, install an acceptance fence, then resume; stale acceptance must fail while pre-fence accepted work remains accounted |
+| Foundation: [[https://www.usenix.org/legacy/event/osdi06/tech/full_papers/burrows/burrows.pdf][Chubby, OSDI 2006, section 2.4]] | Sequencers are checked by protected servers; a client-side lock does not itself reject stale requests | Restart the old worker after a newer fence is durable; the accepting endpoint must reject its old generation |
+| Foundation: [[https://seojinpark.net/projects/rifl/][RIFL, SOSP 2015, author project overview]] | Exactly-once RPC infrastructure under a storage-system contract; reviewed author overview, not a reproduced implementation | Recover the exact operation after lost ACK; storage deduplication must not be generalized to an independent payment rail |
+| Adversarial: [[https://arxiv.org/html/2608.23858v1][Beyond the Mandate]] | AP2 v0.2 testbed studies manipulation before signing; no measured production payment-rail consequence | Supply adversarial catalog/tool data, obtain a valid signature, and compare the resulting selection with an independent principal-task oracle |
+| Caution: [[https://arxiv.org/html/2602.06345v1][Zero-Trust Runtime Verification for Agentic Payment Protocols]] | Context binding plus atomic nonce consumption; simulation assumes strong storage consistency | Test expired nonce eviction with a reissued credential for the same purchase; the long-lived consumption invariant must still hold |
+| Later: [[https://arxiv.org/html/2609.14744v1][AcquireBound]] | Delivered resources require a distinct activation decision; registered local/offline results have bounded provider scope | For a purchased API credential/compute resource, reject an overprivileged returned capability even when payment and delivery evidence match |
+
+The nonce-window paper's throughput and latency are not measurements of this
+implementation. A TTL safe for one expiring nonce does not determine the
+retention horizon of our scope/purchase tombstone. Prove that no currently
+acceptable credential, replay, restored snapshot or provider retry can reopen
+the slot before reclaiming that record.
+
+The existing [[https://arxiv.org/abs/2604.15367][Agentic Commerce SoK]] remains a threat-map background source;
+it is not an implementation recipe or conformance proof. [[https://www.agenticcommerce.dev/docs/reference/payments][ACP Delegate Payment]]
+specifies idempotent token creation, which must be distinguished from deduplication
+of payment release, final settlement and service delivery.
+
+* Revised implementation order
+
+** P0: freeze the proof and source correspondence
+
+Create a property matrix with source/version, role, exact bound fields,
+acceptance event, invariant, code location and positive/negative trace. Classify
+each guarantee as proved in Lean, checked locally, required of a backend/provider,
+or unimplemented. Start with the existing synthetic profile; add one pinned
+protocol profile before claiming AP2/ACP/MPP conformance.
+
+** P1: model acceptance-time authority and fence it
+
+Cedar owns the pure root-generation and protected-acceptance transition.
+MRR/Host consumers own fence persistence, authority observation and endpoint
+adapters. Require a durable binding between request, root lineage and the
+acceptance generation. Test a current success case, a suspended old request,
+key/revocation changes, stale-worker restart and an unrelated-root control.
+An endpoint without an authenticated acceptance barrier cannot establish the
+post-fence claim. Do not compare unrelated issuer/provider counters as one clock.
+
+** P2: define recovery before selecting a production backend
+
+Specify claim, dispatch attempt, provider acceptance, unknown, rejected and
+finalized states. Add a provider-free deterministic failure harness in the MRR
+integration, then expose those same probes as conformance requirements for
+external storage/provider adapters. MRR stays the protocol/interface owner;
+this plan does not choose or embed a DB.
+
+| Injection point | Required observation |
+|-----------------+----------------------|
+| Before claim commit | No accepted effect and no false confirmed claim |
+| Head/receipt durable, ACK lost | Exact operation recovery; no second debit or new unrestricted permit |
+| Claim ACK received, process dies before send | Explicit stranded state under today's API; future resumption needs a fenced durable ownership rule |
+| Provider accepts, reply lost | Unknown with the original provider, key and body; never retry through another provider |
+| Signed receipt received, local persistence lost | Authenticate and recover the same receipt; no fresh purchase claim |
+| Root retired after permit creation | Old-root acceptance after the installed sink fence is refused |
+| Consumption record reclaimed | Old/reissued credentials cannot reopen the logical purchase |
+| Same operation ID, different body | Conflict, regardless of replay order or worker restart |
+
+Check =acceptedEconomicEffects(scope,purchase) <= 1= only against an explicitly
+instrumented provider acceptance oracle. A client API call count is not that
+oracle. Progress requires declared endpoint/query availability and retry support.
+
+** P3: add protocol-specific presentation and evidence
+
+For the first selected wire profile, verify exact schema versions, issuer roles,
+canonical checkout binding and presentation/acceptance/rejection receipts.
+Add settlement-finality and fulfillment/compensation rules as separate layers.
+Implement parsing and semantic correspondence in Cedar domain/Case packages;
+persist profile state and integrate content through MRR consumers.
+
+** P4: evaluate agent selection and acquired capability
+
+Run deployment-specific pre-signature prompt injection, seller substitution and
+tool-result poisoning with matched benign controls. Measure false accepts,
+false rejects and reviewer burden. For resource purchases, later extend the
+Case with quarantined output, authenticated capability resolution and explicit
+activation. Payment approval alone cannot activate a new credential or agent.
+
+* Next concrete slice
+
+Start P0 and the single-root part of P1. The first deliverable should be a small
+Lean acceptance/fence model, its explicit bridge obligation, and the delayed
+permit trace that the current interface leaves to the provider contract.
+Preserve today's replay/unknown fail-closed behavior until a reviewed P2
+recovery contract justifies any new durable resumption transition.
+
+* Implementation follow-up
+
+The single-root P0/P1 slice is implemented in the [[file:Properties.org][property correspondence matrix]].
+Provider-local fences now bind fresh consumption permits to the root generation
+and exact provider/request. Deployment assumptions and recovery gaps remain
+explicit; this does not establish a global quiescence certificate.
+
+* Recovery implementation follow-up
+
+The [[file:Recovery.org][dispatch recovery protocol]] persists original root authority in the
+consumption request and adds provider ownership CAS, exact recovery and dual
+fence acceptance. Previously stranded acknowledged claims can be resumed only
+through an endpoint implementing the durable ownership contract.
+
+* Presentation subprofile follow-up
+
+The [[file:Presentation.org][AP2 Checkout Receipt subprofile]] pins upstream source, verifies
+ES256 JWT receipts and adds scoped presentation persistence. Full AP2 mandate
+processing, coupled Payment Mandates, settlement and fulfillment remain open.
+
+* Mandate verification research follow-up
+
+The [[file:VerificationPlan.org][next verification plan]] audits RFC 9901, the pinned Delegate SD-JWT
+draft and SDK against current receipt/persistence interfaces. Its Lean/Rust
+boundary witness shows two independent scopes can both present; Host identity
+alias prevention and a shared atomic gate are required for broader guarantees.
+V1--V5 distinguish planned wire verification, shared coordination, recovery,
+processor receipt evidence and safe evidence retirement.

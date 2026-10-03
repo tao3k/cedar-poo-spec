@@ -44,7 +44,7 @@ ordinary controller permit unbounded. The final root denies both paths.
 checks the surviving policy IDs. The [[file:PaymentReleaseExport.lean][exporter]]
 checks both authorization requests for each of ten operations, plus eight
 branch probes, against the official Rust Cedar authorizer. The
-[[file:PublishedPayment.lean][publication entrypoint]] emits the integrated
+[[file:../../../Examples/Enterprise/Payment/PublishedPayment.lean][publication entrypoint]] emits the integrated
 JSON only after schema and policy validation; its JSON and generated
 [[file:PaymentPolicies/integrated.cedar][Cedar source]] are compared with the
 conformance artifact.

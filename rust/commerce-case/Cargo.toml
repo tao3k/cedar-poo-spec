@@ -1,0 +1,60 @@
+[package]
+name = "cedar-poo-commerce-case"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Independent consumers of Lean commerce fixtures"
+
+[features]
+default = []
+ap2-checkout = ["dep:cedar-poo-commerce-mandate", "cedar-poo-commerce-mandate/ap2-checkout"]
+ap2-receipt = ["cedar-poo-commerce/ap2-receipt"]
+ap2-coordination = ["ap2-receipt", "cedar-poo-commerce/ap2-coordination"]
+acceptance = ["cedar-poo-commerce/acceptance"]
+projection = ["cedar-poo-commerce/projection"]
+admission = ["projection", "cedar-poo-commerce/admission"]
+
+[dependencies]
+cedar-poo-commerce.workspace = true
+cedar-poo-commerce-mandate = { workspace = true, optional = true }
+
+[dev-dependencies]
+asp-rust.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+p256.workspace = true
+
+[[test]]
+name = "agentic_ai_commerce_signatures_consumer"
+path = "tests/integration/agentic_ai_commerce_signatures_consumer.rs"
+
+[[test]]
+name = "agentic_ai_commerce_projection_consumer"
+path = "tests/integration/agentic_ai_commerce_projection_consumer.rs"
+required-features = ["projection"]
+
+[[test]]
+name = "agentic_ai_commerce_admission_consumer"
+path = "tests/integration/agentic_ai_commerce_admission_consumer.rs"
+required-features = ["admission"]
+
+[[test]]
+name = "agentic_ai_commerce_acceptance_consumer"
+path = "tests/integration/agentic_ai_commerce_acceptance_consumer.rs"
+required-features = ["acceptance"]
+
+[[test]]
+name = "agentic_ai_commerce_presentation_consumer"
+path = "tests/integration/agentic_ai_commerce_presentation_consumer.rs"
+required-features = ["ap2-receipt"]
+
+[[test]]
+name = "agentic_ai_commerce_mandate_consumer"
+path = "tests/integration/agentic_ai_commerce_mandate_consumer.rs"
+required-features = ["ap2-checkout"]
+
+[[test]]
+name = "agentic_ai_commerce_coordination_consumer"
+path = "tests/integration/agentic_ai_commerce_coordination_consumer.rs"
+required-features = ["ap2-coordination"]

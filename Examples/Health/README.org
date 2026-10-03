@@ -26,6 +26,11 @@ privacy, agent, and incident controls. It compares deterministic AES-SIV,
 randomized AES-GCM with a unique IV, and one-way HMAC across linked clinical
 and research datasets.
 
+The [[file:AgenticAI/LanguageModel/Disclosure.org][tool-using language-model disclosure
+case]] continues from a tokenized result to a workspace or message effect.
+Its dedicated namespace distinguishes this AI workflow from generic delegated
+actors and approval rules.
+
 The [[file:PriorAuthorization/README.org][provider-to-payer prior-authorization
 example]] connects clinical and billing records, patient identity, AI draft
 requirements, disclosure, payer rules, and delegation in one POO-composed

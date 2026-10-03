@@ -13,9 +13,12 @@ sibling vetoes, and the difference between an absent policy slot and an
 explicit removal tombstone. [[file:Language/SchemaProjection.lean][SchemaProjection.lean]] checks invalid schema
 admission. [[file:ReuseScale.lean][ReuseScale.lean]] checks proof dependency
 impact at scale.
+[[file:Governance/AuthorizationDeltaInvalidation.lean][AuthorizationDeltaInvalidation.lean]] checks that sibling C4 editors
+of one changed policy invalidate descendants on both branches.
 [[file:Health/Pseudonymization.lean][Health/Pseudonymization.lean]] checks hospital Cedar decisions and
 local POO composition. Rust unit tests remain in the Rust crate's
-=rust/tests/unit/= directory.
+=rust/<owner>/tests/unit/= directories. Case consumer tests live under
+=rust/<case>-case/tests/integration/=.
 [[file:Enterprise/Agent/DataFlow/Dispatch.lean][Dispatch.lean]] checks two-axis
 C4 method selection for the Data Flow policy builder, proves exact ordered
 policy equality with the owner-composed root, and ties both paths to Cedar's
@@ -24,6 +27,8 @@ decision matrix.
 small-team and large-team source decisions, scoped approval revocation, device
 and Agent boundaries, incident recovery, schema validation, and admission
 snapshot mismatch.
+[[file:Data/StorageEffect.lean][StorageEffect.lean]] fixes the expected decisions
+for the versioned storage-effect fixture exported to physical storage consumers.
 [[file:Conformance/personnel-governance-receipts.jq][Personnel governance receipts]]
 assert the named decision matrix after official Cedar Rust replay.
 
@@ -33,7 +38,7 @@ just check-tests
 
 * Cross-language conformance
 
-[[file:Conformance/][Conformance/]] owns executable assertions over generated Lean manifests
+[[file:Conformance][Conformance/]] owns executable assertions over generated Lean manifests
 and Cedar Rust replay receipts. Each =.jq= file checks one named contract;
 the root Justfile only generates the inputs and invokes these tests. This
 keeps schema shapes, replay counts, digests, and authorization-delta

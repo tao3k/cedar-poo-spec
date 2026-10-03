@@ -1,0 +1,35 @@
+#+TITLE: Storage Effect V1
+#+OPTIONS: toc:nil
+
+[[file:StorageEffect.lean][StorageEffect]] projects one physical storage
+operation. It includes an operation ID, subject, purpose, immutable snapshot
+CID, complete ordered source labels, destination identity and custody, storage
+tier, selected policy root, and lineage revision. =StorageClaim= binds that
+whole effect to an epoch, expiry and decision. =rawAdmitted= checks exact claim
+equality and current state, then applies [[file:DerivedArtifact.lean][DerivedArtifact.canFlowTo]]
+and an additional prohibition on restricted raw bytes. A destination's
+=acceptsRestricted= flag may be used by a later protected path; it never
+permits raw restricted storage.
+
+The versioned wire projection represents a Cedar =EntityUID= as separate
+=type= and =id= strings, following [[file:../PolicyJson.lean][PolicyJson.entity]].
+The snapshot CID is canonical lowercase CIDv1 base32 text. The Host parses
+and validates it as a CID, authenticates the actual snapshot and source labels,
+and uses the exact =PolicySnapshot.root= string. The operation ID is an opaque
+Host-issued, single-use value. The Host must bind destination identity to its
+configured physical store, authenticate lineage revision and current policy,
+atomically redeem approval, and commit the effect and audit. This pure Lean
+check does none of those tasks and does not encrypt or transfer bytes.
+
+[[file:../../Productions/Data/StorageEffectFixture.lean][StorageEffectFixture]]
+exports 17 named JSON cases into
+[[file:../../Tests/Conformance/storage-effect-v1.json][the checked fixture]].
+[[file:../../Tests/Data/StorageEffect.lean][The Lean test]] fixes their
+expected decisions: two allowed raw projections and fifteen rejections. A
+Rust consumer replays the same JSON; the fixture is not an authorization
+credential.
+
+#+begin_src sh
+lake build Tests.Data.StorageEffect
+just check-storage-effect-v1
+#+end_src

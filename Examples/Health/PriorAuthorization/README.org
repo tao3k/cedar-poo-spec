@@ -80,7 +80,7 @@ flowchart LR
 =casesExact= checks the finite Lean decisions. The
 [[file:ValidatedExport.lean][schema-bound exporter]] sends all 45
 pre-admission requests to the official Cedar Rust validator and authorizer;
-the checked generated Cedar files are under [[file:Policies/][Policies/]].
+the checked generated Cedar files are under [[file:Policies][Policies/]].
 These checks establish agreement for the modeled facts and requests, not
 clinical safety, model-output correctness, or production compliance.
 

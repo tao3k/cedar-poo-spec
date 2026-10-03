@@ -59,10 +59,10 @@ root before the sample effect may proceed.
 The Lean-selected row passes through the shared
 [[file:../../../CedarPooSpec/Platform/Google/SensitiveDataProtection.lean][Google provider projection]] into [[file:Fixtures/selected-table.json][the checked fixture]]. The focused recipe
 also runs the existing
-[[file:../../../rust/examples/pseudonymization_google_contract.rs][Google SDP REST adapter example]] against synthetic
+[[file:../../../rust/pseudonymization-case/examples/pseudonymization_google_contract.rs][Google SDP REST adapter example]] against synthetic
 [[file:Fixtures/google-deidentify-response.json][de-identification]] and
 [[file:Fixtures/google-reidentify-response.json][re-identification]] response shapes. The adapter uses its established
-=rust/src/google_sdp.rs= implementation; this scenario does not maintain a
+=rust/pseudonymization/src/google_sdp.rs= implementation; this scenario does not maintain a
 second Google client. Its output checks request shape and a fabricated
 round-trip shape, without contacting Google or proving cryptographic output.
 

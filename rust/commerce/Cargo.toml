@@ -1,0 +1,26 @@
+[package]
+name = "cedar-poo-commerce"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Storage-independent agentic commerce signatures and admission"
+
+[features]
+default = []
+projection = []
+acceptance = []
+ap2-receipt = ["dep:base64"]
+ap2-coordination = ["ap2-receipt"]
+admission = ["projection"]
+
+[dependencies]
+base64 = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+p256.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+asp-rust.workspace = true
+

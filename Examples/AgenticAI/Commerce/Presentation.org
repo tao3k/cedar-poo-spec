@@ -1,0 +1,90 @@
+#+TITLE: Pinned AP2 Checkout Receipt and Presentation Subprofile
+#+DATE: 2026-10-03
+
+* Source and selected boundary
+
+The source is [[https://github.com/google-agentic-commerce/AP2/tree/e1ea56db72a6385bce3e5c1112b3a56ce60acb43][AP2 v0.2 at e1ea56db72a6385bce3e5c1112b3a56ce60acb43]].
+The checkout receipt and receipt-status schemas are retained with the original
+Apache-2.0 license under =Tests/Conformance/ap2-upstream/=. =source.json= records
+the full commit and exact local SHA-256 digests; the conformance recipe checks
+them. Profile versioning does not follow mutable main.
+
+This slice supports merchant Checkout Receipt compact ES256 JWS and the local
+single-pending-checkout lifecycle. Exact mandate vcts are
+=mandate.checkout.open.1= and =mandate.checkout.1=. Merchant trust is enrolled
+independently from the receipt and from payment-provider receipt trust.
+
+Full SD-JWT delegation/disclosure verification, key binding, constraint
+vocabulary, checkout-JWT verification/hash binding and mandate-reference
+construction remain Host inputs. References in the Lean semantic fixture are
+opaque placeholders; they are not hash or JWT interoperability witnesses.
+The implementation does not claim full AP2 conformance.
+
+* Wire rules
+
+Checkout receipts require =status=, =iss=, =iat= and =reference=. Success has an
+=order_id=; Error has =error= and =error_description=. The selected subprofile
+requires nonempty strings and rejects nulls, duplicate fields, unknown fields,
+mixed success/error fields and Payment Receipt payloads. These restrictions
+are narrower than the upstream extensible JSON Schema. Only ES256 with an
+optional JWT typ and optional matching configured kid is supported. Unsupported
+JOSE headers, critical extensions, padded/invalid base64url and oversized JWTs
+fail closed. Verification uses exact compact signing bytes and current merchant
+keys, issuer, reference and a Host-supplied time window.
+
+A signed Error alone is insufficient to reopen. The Host configures a merchant's
+terminal non-acceptance code policy using =allow_rejection=. There is no invented
+AP2-wide error-code registry. Codes such as timeout/unknown must not be classified
+as terminal rejection. An unenrolled or unrecognized error keeps the slot pending.
+Enrollment/rotation resets this policy; it must be configured for the new key.
+
+* Lifecycle and persistence
+
+| State/event | Next state | Another presentation? |
+|-------------+------------+-----------------------|
+| fresh scoped ledger + verified mandate | pending exact merchant/reference | no |
+| pending + missing/unknown response | pending | no |
+| pending + authenticated terminal rejection | clear, retain reference tombstone | fresh reference only |
+| pending + exact Success receipt | spent | no reuse of this authorization |
+| replayed old rejection, wrong role/key/reference/time | unchanged | no |
+| commit ACK lost | reconcile exact operation; no new send grant | no |
+
+A ledger is scoped by an independently authenticated open mandate and shopping
+agent. Host namespace assignment must prevent aliases and enforce any broader
+cross-mandate/agent serialization policy. This model proves one outstanding
+presentation in that scoped ledger; it does not establish global agent-wide
+serialization across independently created scopes or coupled Payment Mandates.
+References are retained so an old rejection cannot unlock a later attempt.
+The subsequent [[file:Coordination.org][shared Checkout contract]] co-locates the gate and alias journals
+for a Host-enrolled canonical identity; the existing MRR adapter still consumes
+the per-ledger model.
+
+MRR =commit_presentation= uses one conditional head/operation transaction,
+refreshes live mandate/receipt authority inside validation, and compares the
+exact proposed state with the Cedar transition. It persists a slot before the
+Host sends externally. =Replayed= is status only. Unknown persistence grants no
+new send. No network client, database or automatic resend is supplied.
+
+* Executable evidence
+
+- [[file:../../../CedarPooSpec/AgenticAI/Commerce/Presentation.lean][Lean lifecycle]] proves spent/pending scopes cannot present and unverified
+  receipts cannot complete. Executable fixtures check rejection, success and
+  rejection replay against a later attempt.
+- [[file:../../../Tests/AgenticAI/Commerce/Presentation.lean][Actual Lean export]] feeds the independent Rust consumer.
+- [[file:../../../rust/commerce/src/presentation/mod.rs][Optional ap2-receipt feature]] verifies real compact JWS signatures and receipt
+  fields. Independent tests exercise algorithm/header confusion, schema/role
+  confusion, current key rotation, timestamps and reference replay.
+- Positive receipt payloads are checked against required fields, branch fields,
+  enums and primitive types in the exact retained upstream schemas. This bounded
+  check is not a general JSON Schema or upstream SDK differential validator.
+- MRR regressions cover persisted slot/rejection/retry, terminal success, lost
+  ACK/exact replay, forged or revoked receipts, conflicting operation bodies
+  and competing presentation commits.
+
+* Remaining protocol and economic gates
+
+Payment Receipt and cross-role coordination, full mandate verification and
+upstream SDK interoperability remain subsequent work. Presentation acceptance
+or receipt Success is not settlement finality, delivery, activation or
+compensation evidence. The original root/provider and dispatch ownership fences
+continue to protect the separate economic-effect boundary.

@@ -1,0 +1,925 @@
+{
+  "ap2_revision": "e1ea56db72a6385bce3e5c1112b3a56ce60acb43",
+  "cases": [
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 2,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "accept",
+      "id": "exact-quantity",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 2,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "other",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "wrong-merchant",
+      "sdk_observation": {
+        "domain": "rejected"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 1,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "underfilled-requirement",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 3,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "excess-units",
+      "sdk_observation": {
+        "domain": "rejected"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 2,
+            "totals": []
+          },
+          {
+            "id": "line-B",
+            "item": {
+              "id": "B",
+              "price": 100,
+              "title": "B"
+            },
+            "quantity": 1,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "extra-sku",
+      "sdk_observation": {
+        "domain": "rejected"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 1,
+            "totals": []
+          },
+          {
+            "id": "line-B",
+            "item": {
+              "id": "B",
+              "price": 100,
+              "title": "B"
+            },
+            "quantity": 1,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                },
+                {
+                  "id": "B",
+                  "title": "B"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "mixed-alternatives",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 1,
+            "totals": []
+          },
+          {
+            "id": "line-B",
+            "item": {
+              "id": "B",
+              "price": 100,
+              "title": "B"
+            },
+            "quantity": 1,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                },
+                {
+                  "id": "B",
+                  "title": "B"
+                }
+              ],
+              "id": "r1",
+              "quantity": 1
+            },
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r2",
+              "quantity": 1
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "accept",
+      "id": "overlap-needs-backtracking",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 2,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "empty-alternatives",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 2,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        },
+        {
+          "type": "unknown.constraint"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "unknown-constraint",
+      "sdk_observation": {
+        "domain": "rejected",
+        "error_type": "ValidationError"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 0,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "zero-quantity",
+      "sdk_observation": {
+        "domain": "rejected",
+        "error_type": "ValidationError"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 2,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "same",
+              "quantity": 1
+            },
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "same",
+              "quantity": 1
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "duplicate-requirement-id",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 2,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "missing-line-items-constraint",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "line-A",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 2,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "B",
+                  "title": "B"
+                }
+              ],
+              "id": "r2",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "all-constraints-conjoined",
+      "sdk_observation": {
+        "domain": "rejected"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "same",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 1,
+            "totals": []
+          },
+          {
+            "id": "same",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 1,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "reject",
+      "id": "duplicate-cart-line-id",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    },
+    {
+      "checkout": {
+        "currency": "USD",
+        "id": "checkout-constraints",
+        "line_items": [
+          {
+            "id": "one",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 1,
+            "totals": []
+          },
+          {
+            "id": "two",
+            "item": {
+              "id": "A",
+              "price": 100,
+              "title": "A"
+            },
+            "quantity": 1,
+            "totals": []
+          }
+        ],
+        "links": [],
+        "merchant": {
+          "id": "merchant-1",
+          "name": "Shop"
+        },
+        "status": "ready_for_complete",
+        "totals": []
+      },
+      "constraints": [
+        {
+          "allowed": [
+            {
+              "id": "merchant-1",
+              "name": "Shop"
+            }
+          ],
+          "type": "checkout.allowed_merchants"
+        },
+        {
+          "items": [
+            {
+              "acceptable_items": [
+                {
+                  "id": "A",
+                  "title": "A"
+                }
+              ],
+              "id": "r1",
+              "quantity": 2
+            }
+          ],
+          "type": "checkout.line_items"
+        }
+      ],
+      "contract_expectation": "accept",
+      "id": "aggregate-same-sku",
+      "sdk_observation": {
+        "domain": "accepted"
+      }
+    }
+  ],
+  "schema": "cedar-poo.ap2.checkout-constraints.v1",
+  "sdk_source_sha256": "5a2eedaa96d7cd962c7baa75161b9f376b2ba37eafcb9fbea551a2573a50698d"
+}

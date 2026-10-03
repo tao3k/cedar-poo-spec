@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/google-agentic-commerce/AP2",
+  "revision": "e1ea56db72a6385bce3e5c1112b3a56ce60acb43",
+  "files": {
+    "checkout_receipt.json": "941198a1fc1916d04813a8b8ccba4b407471305a6eb1b5338b1f67b6299764ea",
+    "types/receipt_status.json": "ad51c1c20be72e286f4ff6fe2819145dcec7e5e3e0f6dc7870fcf748c06c1da0",
+    "LICENSE": "b1d2870f1a00e4d7f56576e5f0870cba109e041f8af66866cf5b499478e654e7"
+  }
+}

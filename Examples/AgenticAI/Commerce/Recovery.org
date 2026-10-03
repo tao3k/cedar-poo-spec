@@ -1,0 +1,80 @@
+#+TITLE: Commerce Fenced Dispatch Recovery
+#+DATE: 2026-10-03
+
+* Exact immutable descriptor
+
+The consumption record now commits the original root authority snapshot inside
+its payment request. Provider, stable operation, complete credential/receipt,
+root namespace, mandate and generation are covered by the request commitment.
+A caller cannot recover an old operation while replacing its generation with
+new authority. This is a direct schema change in the existing unpublished PR;
+there is no compatibility parser for earlier persisted request layouts.
+
+The original before/after content bytes and conditional operation identity
+must remain retrievable by the deploying Host. =recover_dispatch= verifies the
+exact authenticated commit receipt and transition. It returns a historical
+=RecoveredDispatch=, never a fresh =DispatchPermit=. Recovery of an absent or
+substituted record cannot release anything. Current authorization is refreshed
+by the provider ownership transaction and protected acceptance contract.
+
+* Ownership and acceptance
+
+Provider-owned state binds the operation to its exact request commitment,
+monotonic ownership generation, current worker and accepted flag. Generation
+zero represents the original fresh sender. Protected compare-and-swap takeover
+increments generation; the endpoint rejects obsolete owners at acceptance.
+A timeout or claimed worker death alone grants no authority.
+
+Both fresh and resumed dispatch paths MUST use the same ownership row. A
+provider implementing recovery while leaving fresh dispatch outside that row
+allows the paused original sender to bypass the takeover fence. Root generation
+and ownership generation are independent counters and must both be checked.
+
+| State or observation | Permitted next action | Effect eligibility |
+|----------------------+-----------------------+--------------------|
+| consumption commit outcome unknown | exact receipt recovery | none |
+| committed historical descriptor, no endpoint owner | acquire with expected generation zero | only after protected ownership ACK |
+| unaccepted owner, expected generation matches | acquire a strictly newer owner | old owner rejected |
+| ownership ACK lost | read exact owner row, then new CAS | no permit from lost ACK or read |
+| root retired or rotated since original claim | recover historical descriptor/status | new acquisition and acceptance rejected |
+| durable endpoint acceptance | reconcile original provider request/status | no reacquisition or second acceptance |
+| status absent or unavailable after acceptance | retain unknown and reconcile | no fresh release |
+| generation exhausted | refuse acquisition | no wraparound |
+
+Protected acceptance means the endpoint durably takes responsibility for the
+operation. Its durable queue/processor protocol must process or reconcile that
+operation exactly under the original identity. The pure model does not equate
+acceptance with bank settlement, delivered goods or successful completion.
+A process mutex followed by an unprotected bank call is insufficient.
+
+* Model and receipts
+
+[[file:../../../CedarPooSpec/AgenticAI/Commerce/Acceptance.lean][Lean]] proves obsolete owners cannot accept, accepted operations cannot
+reacquire ownership, and accepted operations cannot accept again. The actual
+Lean ownership trace is exported in =commerce-acceptance-v1.json= and consumed
+by the independent Rust acceptance profile. Rust also refuses u64 exhaustion.
+
+MRR exposes =ResumablePaymentProviderPort=, authenticated owner lookup,
+=acquire_dispatch= and =release_owned_payment=. The deploying endpoint supplies
+atomicity, durable owner/accepted rows, authentication and live-authority refresh.
+Its default methods do not pretend to implement these properties.
+
+Deterministic tests cover lost consumption ACK, crash after claim before send,
+paused fresh sender, ownership takeover, lost ownership ACK, root retirement,
+rotation, exact-body recovery, accepted response loss and competing owners.
+Logical endpoint reload verifies rejection using restored ownership state; it
+is separate from physical backend durability qualification.
+
+* Transfer limits and next gate
+
+This applies the server-side generation check described by Chubby section 2.4
+and the provider-local fence boundary from Root-scoped Quiescence
+(arXiv 2609.21284v1). It does not transfer a storage exactly-once RPC claim such
+as RIFL to a payment rail. The formal payment analysis (arXiv 2609.00060v1)
+separates recovery/atomicity, settlement finality and fulfillment properties.
+
+A deployment still needs a qualified persistent endpoint adapter, retained
+operation/authority records, complete mediation, authenticated scope ownership
+and evidence of root fence installation. No database is selected or embedded.
+The next protocol slice is a pinned presentation profile and its explicit
+acceptance/rejection receipts; settlement and fulfillment remain separate work.
