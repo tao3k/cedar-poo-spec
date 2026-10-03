@@ -71,7 +71,7 @@ new send. No network client, database or automatic resend is supplied.
   receipts cannot complete. Executable fixtures check rejection, success and
   rejection replay against a later attempt.
 - [[file:../../../Tests/AgenticAI/Commerce/Presentation.lean][Actual Lean export]] feeds the independent Rust consumer.
-- [[file:../../../rust/commerce/src/presentation.rs][Optional ap2-receipt feature]] verifies real compact JWS signatures and receipt
+- [[file:../../../rust/commerce/src/presentation/mod.rs][Optional ap2-receipt feature]] verifies real compact JWS signatures and receipt
   fields. Independent tests exercise algorithm/header confusion, schema/role
   confusion, current key rotation, timestamps and reference replay.
 - Positive receipt payloads are checked against required fields, branch fields,

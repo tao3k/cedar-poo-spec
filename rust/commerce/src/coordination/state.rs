@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 pub enum CoordinationError {
     InvalidIdentity,
     InvalidTransition,
+    InvalidSnapshot,
     Limit,
 }
 
@@ -65,14 +66,14 @@ impl CheckoutCoordinationIdentity {
 
 /// One whole record owns both shared authority and all alias journals.
 /// Private fields prevent constructing mismatched gate/journal proposals.
-/// No Deserialize: a validated persistent restoration contract is future work.
+/// No public Deserialize: restore only through bounded structural validation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct SharedCheckoutState {
-    identity: CheckoutCoordinationIdentity,
-    revision: u64,
-    pending_journal: Option<String>,
-    spent: bool,
-    journals: BTreeMap<String, PresentationLedger>,
+    pub(super) identity: CheckoutCoordinationIdentity,
+    pub(super) revision: u64,
+    pub(super) pending_journal: Option<String>,
+    pub(super) spent: bool,
+    pub(super) journals: BTreeMap<String, PresentationLedger>,
 }
 impl SharedCheckoutState {
     /// Initial state. The backend must create it only if the key never existed;

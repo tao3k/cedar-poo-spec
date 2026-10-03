@@ -18,7 +18,7 @@ pending/spent authority; a new policy ID alone is not safe reset permission.
 
 * One protected update
 
-[[file:../../../rust/commerce/src/coordination.rs][SharedCheckoutState]] contains the shared gate and all alias journals in one
+[[file:../../../rust/commerce/src/coordination/mod.rs][SharedCheckoutState]] contains the shared gate and all alias journals in one
 record. Presentation creates one journal's pending slot and the shared pending
 journal together. Receipt completion clears both together; Success marks the
 shared authorization spent, and terminal rejection retains reference tombstones
@@ -55,14 +55,14 @@ Registry tuple components and journal names are nonempty and at most 256 bytes;
 reference and merchant issuer are at most 256 bytes. One record retains at most
 16 journals and 256 used references. Limits refuse new work without eviction.
 Private state fields preserve the gate/journal invariant. Serialization supports
-inspection; validated persistent restoration is not implemented, so this is not
-a production adapter. No complete AP2 admission or deployed durability claim.
+inspection; versioned structural restoration is implemented. Authenticated durable
+head/incarnation continuity and a production persistence adapter remain open. No complete AP2 admission or deployed durability claim.
 
 #+begin_src sh
 cargo test --locked -p cedar-poo-commerce-case --no-default-features --features ap2-coordination --test agentic_ai_commerce_coordination_consumer
 #+end_src
 
-Six [[file:../../../rust/commerce-case/tests/integration/agentic_ai_commerce_coordination_consumer.rs][independent consumer tests]] use a mutex-backed reference store, real
+Ten [[file:../../../rust/commerce-case/tests/integration/agentic_ai_commerce_coordination_consumer.rs][independent consumer tests]] use a mutex-backed reference store, real
 merchant ES256 receipts and two concurrent workers. They check one fresh CAS
 across alias journals, gate/journal consistency, lost ACK followed by conflict,
 global tombstones, wrong journal/old receipt refusal, terminal success, bounded
@@ -72,5 +72,22 @@ exposes the [[file:Restoration.org][policy-ID migration boundary]]: another poli
 an independent fresh gate unless the Host registry prevents that split.
 
 MRR remains pinned to its current per-ledger API. Adopting this contract requires
-validated state restoration, canonical enrollment ownership and a current-trust
+authenticated state restoration, canonical enrollment ownership and a current-trust
 atomic persistence adapter; changing a pin alone supplies none of those.
+
+* Versioned structural snapshot restoration
+
+=SharedCheckoutState::snapshot_bytes= emits =cedar-poo.checkout-state.v1=.
+=restore_snapshot= accepts at most 512 KiB and nesting depth 12, refuses duplicate
+members including decoded journal-key aliases, unknown fields, unsupported
+versions, missing explicit pending/null fields and floating-point revisions.
+It binds the expected enrolled identity and validates scope, global tombstone
+uniqueness, pending/spent mirrors and checked transition counters. Limits refuse
+rather than truncate. The byte limit permits all 256 references at their maximum
+escaped string size; a boundary regression checks that encode/restore agree.
+
+Four added consumer tests check fresh/pending/rejected/retried/spent round-trips,
+CAS continuation, malformed wire input, structural mutations and resource bounds.
+One structurally fresh snapshot deliberately restores, demonstrating that this
+API does not authenticate history or prevent rollback by itself. Provider head
+and incarnation binding must precede use in protected CAS. No send permit follows.

@@ -36,3 +36,11 @@ just check-protected-storage-v1
 just check-storage-profiles-v1
 just check-google-table-batch-v1
 #+end_src
+
+* Shared backend infrastructure
+
+The [[file:Backend.org][shared Production backend]] defines one MRR Data engine with multiple
+providers for all Profiles and Cases. Profile adapters supply domain state,
+validation and authority requirements; the common backend owns persistence,
+recovery, lifecycle, backpressure and performance instrumentation. The document
+is an architecture contract; implementation/physical qualification remain open.

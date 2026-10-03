@@ -164,7 +164,7 @@ atomic shared gate/journal transition before implementation.
 The [[file:Coordination.org][selected shared Checkout implementation]] groups aliases only for one
 Host-enrolled authorization/agent/policy identity. Five independent consumer
 regressions exercise the whole-record CAS contract. Canonical enrollment,
-validated durable restoration, protected current-authority refresh and a
+authenticated durable restoration, protected current-authority refresh and a
 production persistence implementation remain open. Payment coupling and
 agent-wide serialization are not selected. V2 is not end-to-end closure.
 
@@ -174,3 +174,8 @@ The [[file:Restoration.org][restoration/recovery research]] maps RIFL and Chubby
 Cedar/MRR interfaces, records the executable policy-ID split witness and fixes
 an ordered R1-R6 experiment plan. Validated structural restoration comes first;
 anti-rollback evidence and exact historical recovery remain provider contracts.
+
+Structural Checkout restoration now supplies R1 consumer evidence. The generic
+[[file:../../../Productions/Backend.org][Production backend architecture]] serves all Profiles/Cases; Commerce contributes
+one domain validator and test suite. Shared backend/provider implementation is
+an MRR Data responsibility, independent of this consumer-specific wire format.

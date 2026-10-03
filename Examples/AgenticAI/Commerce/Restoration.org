@@ -4,7 +4,7 @@
 * Exact starting interfaces
 
 Cedar =0bd83234c0f253eaa83052e4ce0ad717e26c27cd= supplies the selected
-[[file:Coordination.org][shared Checkout CAS contract]]. Its state has private fields and Serialize,
+[[file:Coordination.org][shared Checkout CAS contract]]. At that starting snapshot its state had private fields and Serialize,
 but no validated deserializer or authenticated durable recovery operation.
 =Applied/Conflict/Unknown= cannot recover the result of an earlier write.
 The enrolled tuple constructor checks shape, not canonical registry ownership.
@@ -131,17 +131,20 @@ Historical replay does not invoke a fresh admission callback or grant a send.
 | R5 | Synchronize live authority | Fresh admitted commit succeeds under current generations | Revoke between verification and protected commit; rotate receipt key; wrong generation refuses fresh admission |
 | R6 | Retain evidence across boundaries | Qualified restart keeps state and exact operation metadata | Crash after each durability boundary cannot expose one without the other; timeout cannot clear pending |
 
-R1 is the next local implementation slice. R2/R3 then require a deployment-neutral
+R1 structural restoration is now implemented and independently tested in the
+[[file:Coordination.org][Checkout consumer profile]]. R2/R3 still require a deployment-neutral
 provider protocol and independent reference consumer; physical backend tests
 must declare the backend/durability configuration. R4 needs the stable-home
 registry design before production adoption. R5/R6 compose with existing root
-and dispatch fences. All rows are planned except the policy-change witness and
-prior in-memory CAS regressions. No recovery or production-adapter completion
+and dispatch fences. R1 covers structural input and lifecycle round-trips only. R2-R6 remain planned,
+alongside the existing policy-change witness and in-memory CAS regressions.
+No authenticated durable recovery or production-adapter completion
 is claimed by this research artifact.
 
 * Unified backend follow-up
 
-The [[file:Backend.org][unified MRR Data backend design]] selects one engine with multiple
-provider modules, explicit lifecycle states, bounded scheduling and matched
+The [[file:../../../Productions/Backend.org][shared Production backend design]] selects one engine with multiple
+provider modules serving all Profiles/Cases, explicit lifecycle states, bounded
+scheduling and matched
 durability/performance qualification. It preserves the R1-R6 recovery boundary;
 backend/provider implementation remains an MRR Data responsibility.

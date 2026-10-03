@@ -1,4 +1,4 @@
-#+TITLE: Unified MRR Data Backend: Performance and Lifecycle Design
+#+TITLE: Shared Production Backend: MRR Data, Providers and Lifecycle
 #+DATE: 2026-10-03
 
 * Ownership and implementation status
@@ -8,12 +8,15 @@ with multiple provider modules selected by features. Scheduling, backpressure,
 commit/recovery semantics, observability and lifecycle are shared. Provider
 modules implement physical capabilities and translate concrete errors. Provider
 selection must not duplicate the backend engine or create one backend per vendor.
-This is a Commerce consumer's design requirement; no backend crate, driver or
-performance result is implemented by this document.
+This is shared infrastructure for every Production Profile and Case, including
+commerce, pseudonymization, protected storage and other domain compositions.
+No backend crate, driver or performance result is implemented by this document.
 
 MRR semantic admission remains independent of physical providers. The existing
 =mrr-data-content::ConditionalContentCommitPort= owns the head/operation contract;
-=mrr-data-commerce= composes it with Cedar transitions. Backend implementation
+=mrr-data-commerce= is one profile adapter composing it with Cedar transitions.
+Other profiles compose their own validated state/effect contracts through the
+same backend. Backend implementation
 belongs to MRR Data, not Cedar. The existing =mrr-data-poo-flow= process adapter
 is not a general durable backend lifecycle. Reuse its integration boundary
 without introducing another generic orchestration framework into MRR.
@@ -21,6 +24,28 @@ without introducing another generic orchestration framework into MRR.
 Proposed backend modules: =config=, =capabilities=, =scheduler=, =commit=,
 =recovery=, =lifecycle=, =observability= and =providers/=. These are internal
 responsibilities, not a requirement for one additional crate per module.
+
+* Shared Profile and Case boundary
+
+The backend accepts versioned profile identities, stable state namespaces,
+exact operation descriptors, content commitments and independently supplied
+transition validators. It owns scheduling, durable head/operation transactions,
+recovery, retention and lifecycle. It does not hardcode a Commerce ledger,
+pseudonymization policy or a specific Profile's state machine.
+
+A Profile declares its state/evidence formats, resource limits, validation and
+authority-version requirements. A Case selects a Profile, provider capabilities
+and operational configuration. Provider routing is configuration of the same
+backend, not a separate engine per Case. Generic backend modules must not import
+Examples, Tests or domain-specific adapters; adapters and independent consumers
+point toward the shared backend/protocols.
+
+The backend implements the provider-neutral MRR Data contract. Profile-specific
+validators execute within its protected commit boundary, or under a qualified
+version-comparison contract. One shared conformance harness checks every provider;
+additional profile suites qualify domain compositions. Application state
+restoration remains profile-owned. Profile qualification suites consume this
+shared contract; the Production architecture is defined independently of them.
 
 * Provider capability composition
 
@@ -51,7 +76,7 @@ reachable from live heads, retained operations and recovery evidence.
 |-------+-----------+------------------------------|
 | Constructed | none | Validate configuration; no task spawning or network I/O in constructors |
 | Opening | none | Open providers, authenticate namespace, check capability/durability configuration and writer ownership |
-| Recovering | none | Restore latest trusted head/incarnation, operation metadata and fenced writer state; validate [[file:Restoration.org][restoration invariants]] |
+| Recovering | none | Restore latest trusted head/incarnation, operation metadata and fenced writer state; validate profile-selected structural invariants and authenticated head continuity |
 | Ready | bounded fresh work | Admit through one lifecycle guard and bounded scheduler; track every owned task |
 | Draining | no new fresh work | Finish or classify already accepted work; preserve recovery access needed by those operations |
 | Closing | none | Complete declared barriers/checkpoints, join owned tasks and release provider handles in order |
@@ -70,7 +95,7 @@ outcome only with evidence. Once provider submission may have changed state,
 timeout/cancellation retains the same operation identity and Unknown until exact
 reconciliation. Accepted transaction work has an explicit backend owner; dropping
 a caller future must not silently discard its recovery responsibility. Deadline
-expiry never reopens a Checkout slot or changes a pending reference.
+expiry never resets a profile's pending authority or changes its operation identity.
 
 The [[https://tokio.rs/tokio/topics/shutdown][Tokio shutdown guidance]] separates detecting shutdown, notifying tasks and
 waiting for completion. The [[https://docs.rs/tokio-util/latest/tokio_util/task/task_tracker/struct.TaskTracker.html#method.close][TaskTracker close contract]] does not stop new task spawning, so backend
@@ -141,8 +166,9 @@ must follow a measured baseline on the target deployment; none exists here yet.
 | Reconfigure | Same stable home preserves pending/spent/tombstones | Provider switch or policy change cannot create another fresh authority home |
 | Performance | Repeated matched baseline and candidate receipts | Batch/flush changes cannot acknowledge before the chosen barrier; slow recovery cost remains visible |
 
-Next order: validated state restoration, backend/provider capability contracts,
-reference lifecycle/conformance harness, then one concrete durable provider and
+Next order: generic backend/provider capability and lifecycle contracts,
+profile validation integration, shared reference conformance harness, then one
+concrete durable provider and
 measured baseline. Subsequent providers reuse that harness and optimization
 engine. Physical restart tests must name the real backend and durability profile.
 All gates in this section remain planned; memory-store concurrency tests cannot

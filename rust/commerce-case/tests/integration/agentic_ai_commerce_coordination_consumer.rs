@@ -261,3 +261,170 @@ fn changing_policy_identity_can_create_an_independent_fresh_gate() {
     assert!(old.read().pending().is_some());
     assert!(new.read().pending().is_some());
 }
+
+fn restored(
+    value: &serde_json::Value,
+) -> Result<SharedCheckoutState, cedar_poo_commerce::coordination::CoordinationError> {
+    SharedCheckoutState::restore_snapshot(&serde_json::to_vec(value).unwrap(), &identity())
+}
+fn two_journal_snapshot() -> serde_json::Value {
+    let store = Store::new(SharedCheckoutState::fresh(identity()));
+    let a = presentation("closed-A", 10);
+    commit_presentation(&store, &store.read(), "A", a.clone()).unwrap();
+    commit_receipt(&store, &store.read(), "A", &receipt(&a, false)).unwrap();
+    commit_presentation(&store, &store.read(), "B", presentation("closed-B", 11)).unwrap();
+    serde_json::from_slice(&store.read().snapshot_bytes()).unwrap()
+}
+
+#[test]
+fn snapshots_round_trip_all_selected_lifecycle_states_and_resume_cas() {
+    let store = Store::new(SharedCheckoutState::fresh(identity()));
+    let check = |state: SharedCheckoutState| {
+        let copy =
+            SharedCheckoutState::restore_snapshot(&state.snapshot_bytes(), &identity()).unwrap();
+        assert_eq!(copy, state);
+        copy
+    };
+    check(store.read());
+    let a = presentation("closed-A", 10);
+    commit_presentation(&store, &store.read(), "A", a.clone()).unwrap();
+    let pending = check(store.read());
+    commit_receipt(&store, &pending, "A", &receipt(&a, false)).unwrap();
+    let rejected = check(store.read());
+    let b = presentation("closed-B", 11);
+    commit_presentation(&store, &rejected, "B", b.clone()).unwrap();
+    let retried = check(store.read());
+    commit_receipt(&store, &retried, "B", &receipt(&b, true)).unwrap();
+    let spent = check(store.read());
+    assert!(commit_presentation(&store, &spent, "C", presentation("closed-C", 12)).is_err());
+    let other =
+        CheckoutCoordinationIdentity::enrolled("registry", "other", "agent-1", "policy-1").unwrap();
+    assert!(SharedCheckoutState::restore_snapshot(&spent.snapshot_bytes(), &other).is_err());
+}
+
+#[test]
+fn snapshot_wire_rejects_duplicates_schema_confusion_and_unbounded_input() {
+    let base = two_journal_snapshot();
+    for change in [
+        ("version", json!("future")),
+        ("state", json!(null)),
+        ("unknown", json!(1)),
+    ] {
+        let mut bad = base.clone();
+        bad[change.0] = change.1;
+        assert!(restored(&bad).is_err());
+    }
+    for revision in [json!(-1), json!(3.0), json!("3")] {
+        let mut bad = base.clone();
+        bad["state"]["revision"] = revision;
+        assert!(restored(&bad).is_err());
+    }
+    let mut omitted = base.clone();
+    omitted["state"]
+        .as_object_mut()
+        .unwrap()
+        .remove("pending_journal");
+    assert!(restored(&omitted).is_err());
+    let mut omitted = base.clone();
+    omitted["state"]["journals"]["A"]
+        .as_object_mut()
+        .unwrap()
+        .remove("pending");
+    assert!(restored(&omitted).is_err());
+    let original = base.to_string();
+    let duplicate = original.replacen(
+        "\"A\":",
+        &format!("\"\\u0041\":{},\"A\":", base["state"]["journals"]["A"]),
+        1,
+    );
+    assert!(SharedCheckoutState::restore_snapshot(duplicate.as_bytes(), &identity()).is_err());
+    let duplicate = original.replacen("\"revision\":3", "\"revision\":3,\"revision\":3", 1);
+    assert_ne!(duplicate, original);
+    assert!(SharedCheckoutState::restore_snapshot(duplicate.as_bytes(), &identity()).is_err());
+    assert!(
+        SharedCheckoutState::restore_snapshot(format!("{original} true").as_bytes(), &identity())
+            .is_err()
+    );
+    assert!(SharedCheckoutState::restore_snapshot(&vec![b' '; 524_289], &identity()).is_err());
+    let mut deep = json!(0);
+    for _ in 0..14 {
+        deep = json!([deep]);
+    }
+    assert!(restored(&deep).is_err());
+}
+
+#[test]
+fn restored_gate_journals_and_transition_counters_cannot_disagree() {
+    let base = two_journal_snapshot();
+    for change in 0..11 {
+        let mut bad = base.clone();
+        let state = &mut bad["state"];
+        match change {
+            0 => state["revision"] = json!(2),
+            1 => state["pending_journal"] = json!("A"),
+            2 => state["spent"] = json!(true),
+            3 => state["journals"]["A"]["openMandateScope"] = json!("other"),
+            4 => state["journals"]["A"]["revision"] = json!(u64::MAX),
+            5 => state["journals"]["B"]["seen"] = json!(["closed-A"]),
+            6 => state["journals"]["B"]["pending"]["reference"] = json!("old"),
+            7 => state["journals"]["B"]["pending"]["merchantIssuer"] = json!(""),
+            8 => state["journals"]["A"]["spent"] = json!(true),
+            9 => state["journals"]["A"]["seen"] = json!([]),
+            _ => state["journals"]["A"]["seen"] = json!(["closed-A", "closed-A"]),
+        }
+        assert!(restored(&bad).is_err(), "mutation {change}");
+    }
+    let mut bad = base.clone();
+    bad["state"]["journals"]["A"]["pending"] = base["state"]["journals"]["B"]["pending"].clone();
+    bad["state"]["journals"]["A"]["pending"]["reference"] = json!("closed-A");
+    bad["state"]["journals"]["A"]["revision"] = json!(1);
+    bad["state"]["revision"] = json!(2);
+    assert!(restored(&bad).is_err());
+}
+
+#[test]
+fn restoration_limits_preserve_maximum_tombstones_and_do_not_prove_authenticity() {
+    let fresh = SharedCheckoutState::fresh(identity());
+    // Even a structurally fresh snapshot restores: trusted-head continuity is an
+    // external prerequisite, not something this structural parser can establish.
+    assert_eq!(
+        SharedCheckoutState::restore_snapshot(&fresh.snapshot_bytes(), &identity()).unwrap(),
+        fresh
+    );
+    let mut value = two_journal_snapshot();
+    let mut ledger = value["state"]["journals"]["A"].clone();
+    let references: Vec<_> = (0..256)
+        .map(|n| format!("{n:03}{}", "\0".repeat(253)))
+        .collect();
+    ledger["seen"] = json!(references);
+    ledger["revision"] = json!(512);
+    value["state"]["journals"] = json!({"A":ledger});
+    value["state"]["pending_journal"] = json!(null);
+    value["state"]["revision"] = json!(512);
+    let boundary = restored(&value).unwrap();
+    assert!(boundary.snapshot_bytes().len() <= 524_288);
+    assert_eq!(
+        SharedCheckoutState::restore_snapshot(&boundary.snapshot_bytes(), &identity()).unwrap(),
+        boundary
+    );
+    value["state"]["journals"]["A"]["seen"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("extra"));
+    value["state"]["journals"]["A"]["revision"] = json!(514);
+    value["state"]["revision"] = json!(514);
+    assert!(restored(&value).is_err());
+    let mut value = two_journal_snapshot();
+    let ledger = value["state"]["journals"]["A"].clone();
+    let entries: serde_json::Map<_, _> = (0..17)
+        .map(|n| {
+            let mut item = ledger.clone();
+            item["seen"] = json!([format!("ref-{n}")]);
+            (format!("alias-{n}"), item)
+        })
+        .collect();
+    value["state"]["journals"] = entries.into();
+    value["state"]["pending_journal"] = json!(null);
+    value["state"]["revision"] = json!(34);
+    assert!(restored(&value).is_err());
+}
