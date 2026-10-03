@@ -34,7 +34,7 @@ cross-agent-egress-lean:
 
 cross-agent-egress:
     just build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean cross-agent-egress-validated > .lake/build/cross-agent-egress-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean cross-agent-egress-validated > .lake/build/cross-agent-egress-validated-manifest.json
     jq -e '(.cases | length) == 20 and (.schema[""].actions | keys) == ["read", "send"]' .lake/build/cross-agent-egress-validated-manifest.json > /dev/null
     cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-validated-receipts < .lake/build/cross-agent-egress-validated-manifest.json > .lake/build/cross-agent-egress-validated-receipts.json
     jq -e 'length == 20 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["governed-off-task-send-step-0","governed-shared-budget-step-1","governed-shared-ledger-blocks-step-1","history-owner-blocks-shared-egress-step-1","incident-freezes-otherwise-valid-egress-step-1","recovered-keeps-lineage-history-step-1"]' .lake/build/cross-agent-egress-validated-receipts.json > /dev/null
@@ -48,7 +48,7 @@ department-synthesis-lean:
 
 department-synthesis:
     just build-examples
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean department-synthesis-validated > .lake/build/department-synthesis-validated-manifest.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean department-synthesis-validated > .lake/build/department-synthesis-validated-manifest.json
     jq -e '(.cases | length) == 22 and (.schema[""].actions | keys) == ["read", "send"]' .lake/build/department-synthesis-validated-manifest.json > /dev/null
     cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-validated-receipts < .lake/build/department-synthesis-validated-manifest.json > .lake/build/department-synthesis-validated-receipts.json
     jq -e 'length == 22 and all(.[]; .replay.error_policy_ids == [] and (.schema_sha256 | test("^[0-9a-f]{64}$"))) and ([.[] | select(.replay.decision == "deny") | .replay.case_name] | sort) == ["finance-owner-closes-sales-leak-step-0","governed-joint-result-denied-step-2","incident-denies-unaffected-sales-step-1","recovered-retains-aggregation-step-2","revoked-after-read-denied-step-0","revoked-read-denied-step-0","revoked-send-denied-step-0","sales-owner-closes-finance-leak-step-0"]' .lake/build/department-synthesis-validated-receipts.json > /dev/null

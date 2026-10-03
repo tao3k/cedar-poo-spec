@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 
 
-COMMERCE = (None, "projection", "admission", "acceptance", "ap2-receipt")
+COMMERCE = (None, "projection", "admission", "acceptance", "ap2-receipt", "ap2-coordination")
 
 
 def run(repository: Path) -> None:
@@ -73,6 +73,8 @@ def run(repository: Path) -> None:
     cargo("test", "-p", "cedar-poo-commerce-case", "--no-default-features")
     cargo("test", "-p", "cedar-poo-commerce-case", "--no-default-features",
           "--features", "ap2-checkout", "--test", "agentic_ai_commerce_mandate_consumer")
+    cargo("test", "-p", "cedar-poo-commerce-case", "--no-default-features",
+          "--features", "ap2-coordination", "--test", "agentic_ai_commerce_coordination_consumer")
     # Fixture-dependent consumers execute in cedar-conformance after Lean exports.
     cargo("test", "-p", "cedar-poo-commerce-case", "--features", "admission",
           "--test", "agentic_ai_commerce_admission_consumer")

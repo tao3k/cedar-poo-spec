@@ -55,6 +55,9 @@ cross-mandate/agent serialization policy. This model proves one outstanding
 presentation in that scoped ledger; it does not establish global agent-wide
 serialization across independently created scopes or coupled Payment Mandates.
 References are retained so an old rejection cannot unlock a later attempt.
+The subsequent [[file:Coordination.org][shared Checkout contract]] co-locates the gate and alias journals
+for a Host-enrolled canonical identity; the existing MRR adapter still consumes
+the per-ledger model.
 
 MRR =commit_presentation= uses one conditional head/operation transaction,
 refreshes live mandate/receipt authority inside validation, and compares the

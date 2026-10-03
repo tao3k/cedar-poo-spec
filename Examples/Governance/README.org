@@ -186,7 +186,7 @@ claim of complete real-world authorization coverage.
 
 * Ticket-sharing template revision
 
-The [[file:../../Productions/Governance/AuthorizationDelta.lean][authorization-delta production case]] compares two
+The [[file:../../Examples/Governance/AuthorizationDelta.lean][authorization-delta example case]] compares two
 revisions of this same C4 graph with upstream Cedar SymCC. The posture overlay
 has no new Allow within the schema; the later ticket grant yields a concrete
 new-Allow/old-Deny witness. The witness is replayed by official Rust Cedar.
@@ -230,7 +230,7 @@ authorization certificate and requires fresh per-policy certificates only
 for the two changed linked bodies. =revokedCertificate= then closes the
 removal revision without a new policy-body certificate.
 
-[[file:../../Productions/Governance/TemplateSourceExport.lean][TemplateSourceExport.lean]] retains the
+[[file:../../Examples/Governance/TemplateSourceExport.lean][TemplateSourceExport.lean]] retains the
 editable revised templates and three slot bindings in
 [[file:TemplateSources/posture.json][posture.json]]. Rust Cedar parses that
 source and compares the linked policy IDs and canonical bodies with Lean's

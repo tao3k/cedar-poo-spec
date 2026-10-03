@@ -5,8 +5,8 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "cedar-poo-bridge",
+    "cedar-poo-py-test",
     "cedar-poo-python-workspace",
-    "cedar-poo-testing",
 ]
 
 [[package]]
@@ -24,12 +24,7 @@ version = "0.1.0"
 source = { editable = "packages/bridge" }
 
 [[package]]
-name = "cedar-poo-python-workspace"
-version = "0.1.0"
-source = { virtual = "." }
-
-[[package]]
-name = "cedar-poo-testing"
+name = "cedar-poo-py-test"
 version = "0.1.0"
 source = { editable = "packages/testing" }
 dependencies = [
@@ -53,6 +48,11 @@ requires-dist = [
     { name = "sd-jwt", marker = "extra == 'ap2-sdk'", specifier = "==0.10.4" },
 ]
 provides-extras = ["ap2-sdk"]
+
+[[package]]
+name = "cedar-poo-python-workspace"
+version = "0.1.0"
+source = { virtual = "." }
 
 [[package]]
 name = "cffi"

@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from . import artifacts, checks, cpc, manifests, scenarios, rust_checks, ap2_wire, ap2_constraints
+from . import artifacts, checks, cpc, manifests, scenarios, rust_checks, ap2_wire, ap2_constraints, layer_checks
 
 
 def main() -> None:
@@ -17,6 +17,7 @@ def main() -> None:
     check.add_argument("recipe", choices=sorted(checks.NAMES))
     commands.add_parser("emit-artifacts", help="generate Cedar artifacts from manifests")
     commands.add_parser("check-artifacts", help="check Cedar artifacts against manifests")
+    commands.add_parser("check-lean-layers", help="check library and Production import isolation")
     commands.add_parser("check-rust", help="check Rust feature boundaries and consumers")
     commands.add_parser("check-cpc", help="check the pinned Ethos research proof")
     wire = commands.add_parser("ap2-wire", help="check frozen AP2 bytes or replay the pinned SDK wire corpus")
@@ -41,6 +42,8 @@ def main() -> None:
     elif args.command == "ap2-constraints":
         ap2_constraints.run(args.repository, sdk_root=args.sdk_root,
                             generate_corpus=args.generate)
+    elif args.command == "check-lean-layers":
+        layer_checks.run(args.repository)
     elif args.command == "check-rust":
         rust_checks.run(args.repository)
     elif args.command in {"emit-artifacts", "check-artifacts"}:

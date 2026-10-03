@@ -11,6 +11,7 @@ default = []
 projection = []
 acceptance = []
 ap2-receipt = ["dep:base64"]
+ap2-coordination = ["ap2-receipt"]
 admission = ["projection"]
 
 [dependencies]

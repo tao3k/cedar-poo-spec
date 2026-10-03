@@ -29,7 +29,7 @@ CHECKS = {
         "agentic-ai-commerce-acceptance", None, (),
     ),
     "authorization-delta": (
-        "Productions/Governance/AuthorizationDelta.lean", "authorization-delta",
+        "Examples/Governance/AuthorizationDelta.lean", "authorization-delta",
         "authorization-delta", ("posture_manifest", "manifest"),
     ),
     "authorization-delta-operational": (
@@ -50,11 +50,11 @@ CHECKS = {
         "payment-joint-release", ("manifest",),
     ),
     "payment-delta": (
-        "Productions/Enterprise/Agent/Payment/AuthorizationDelta.lean", "payment-delta",
+        "Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean", "payment-delta",
         "payment-delta", ("manifest",),
     ),
     "health-authorization-impact": (
-        "Productions/Health/Pseudonymization/AuthorizationImpact.lean",
+        "Examples/Health/Pseudonymization/AuthorizationImpact.lean",
         "health-authorization-impact", "health-authorization-impact",
         ("suspended_manifest", "restored_manifest", "approval_manifest", "lineage_changes"),
     ),

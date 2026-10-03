@@ -1,19 +1,19 @@
 set working-directory := '../..'
 
 pipeline-google-threat:
-    lake build Productions.Cloud.Pipeline.ReplayMain Tests.Cloud.Pipeline.GoogleThreatCase
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Cloud/Pipeline/ReplayMain.lean > .lake/build/cloud-pipeline-google-threat-manifest.json
+    lake build Examples.Cloud.Pipeline.ReplayMain Tests.Cloud.Pipeline.GoogleThreatCase
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Cloud/Pipeline/ReplayMain.lean > .lake/build/cloud-pipeline-google-threat-manifest.json
     cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- < .lake/build/cloud-pipeline-google-threat-manifest.json
 
 pipeline-google-deployment:
-    lake build Productions.Cloud.Pipeline.DeploymentReplayMain Tests.Cloud.Pipeline.DeploymentCase
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Cloud/Pipeline/DeploymentReplayMain.lean > .lake/build/cloud-pipeline-google-deployment-manifest.json
+    lake build Examples.Cloud.Pipeline.DeploymentReplayMain Tests.Cloud.Pipeline.DeploymentCase
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Cloud/Pipeline/DeploymentReplayMain.lean > .lake/build/cloud-pipeline-google-deployment-manifest.json
     cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- < .lake/build/cloud-pipeline-google-deployment-manifest.json
 
 data-protection-google-sdp:
-    lake build Productions.Cloud.DataProtection.ReplayMain Productions.Cloud.DataProtection.FixtureMain Tests.Cloud.DataProtection.GoogleSdpRelease
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Cloud/DataProtection/ReplayMain.lean > .lake/build/cloud-google-sdp-manifest.json
+    lake build Examples.Cloud.DataProtection.ReplayMain Examples.Cloud.DataProtection.FixtureMain Tests.Cloud.DataProtection.GoogleSdpRelease
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Cloud/DataProtection/ReplayMain.lean > .lake/build/cloud-google-sdp-manifest.json
     cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- < .lake/build/cloud-google-sdp-manifest.json
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Cloud/DataProtection/FixtureMain.lean > .lake/build/cloud-google-sdp-selected.json
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Cloud/DataProtection/FixtureMain.lean > .lake/build/cloud-google-sdp-selected.json
     cmp .lake/build/cloud-google-sdp-selected.json Examples/Cloud/DataProtection/Fixtures/selected-table.json
     cargo run --locked --quiet -p cedar-poo-pseudonymization-case --features google-contract --manifest-path Cargo.toml --example pseudonymization_google_contract -- Examples/Cloud/DataProtection/Fixtures/selected-table.json Examples/Cloud/DataProtection/Fixtures/google-deidentify-response.json Examples/Cloud/DataProtection/Fixtures/google-reidentify-response.json > .lake/build/cloud-google-sdp-contract-receipt.json

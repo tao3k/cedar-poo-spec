@@ -255,7 +255,7 @@ the downstream analytics service must supply.
 
 * Authorization impact without a cloud provider
 
-[[file:../../../Productions/Health/Pseudonymization/AuthorizationImpact.lean][AuthorizationImpact.lean]] uses the same Lean-POO
+[[file:../../../Examples/Health/Pseudonymization/AuthorizationImpact.lean][AuthorizationImpact.lean]] uses the same Lean-POO
 model and Cedar semantics without calling Google or any other cloud provider.
 It analyzes the =HospitalSiv → AgentIncident= revision in both directions:
 the incident removes an agent's join permission and grants none. The

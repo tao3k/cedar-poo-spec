@@ -179,3 +179,8 @@ and unknown outcome are distinct results. Exact recovery is effect-free and neve
 reserves again. The test-only provider checks concurrency, revocation after
 preparation, unavailable authority or ledger, lost acknowledgement, and duplicate
 offer attempts under a new operation ID. No concrete DB adapter is included.
+
+The optional =ap2-coordination= feature supplies the [[file:../Examples/AgenticAI/Commerce/Coordination.org][co-located Checkout gate/journal contract]].
+It groups Host-enrolled canonical authorization/agent/policy identities and
+issues one whole-record CAS. Its independent consumer checks concurrency and
+unknown ACK behavior; it supplies neither a durable backend nor a send permit.

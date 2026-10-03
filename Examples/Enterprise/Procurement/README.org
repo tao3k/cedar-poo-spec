@@ -61,7 +61,7 @@ the official Cedar Rust authorizer.
 
 =delegatedPublication= and
 =revokedPublication= establish schema and Cedar policy validation before
-publication. [[file:../../../Productions/Enterprise/Procurement/PublishedPolicy.lean][PublishedPolicy.lean]] emits the
+publication. [[file:../../../Examples/Enterprise/Procurement/PublishedPolicy.lean][PublishedPolicy.lean]] emits the
 validated JSON; the check compares that exact JSON to the delegated
 conformance receipt, then the Rust bridge checks it and the generated
 [[file:DelegatedPolicies/delegated.cedar][Cedar source]]. These are finite

@@ -70,7 +70,7 @@ resource's lineage revision and the selected catalog revision must match.
 The catalog is derivation evidence, not a replacement authorization system.
 Cedar evaluates the policies produced by LeanPOO. The same requests are also
 [[file:ReplayExport.lean][exported]] through a focused
-[[file:../../../Productions/Health/ModelStewardship/ReplayMain.lean][entry point]] and replayed against the official Cedar
+[[file:../../../Examples/Health/ModelStewardship/ReplayMain.lean][entry point]] and replayed against the official Cedar
 Rust runtime by =just example health model-stewardship=. The Host must authenticate
 every source edge, assessment issuer and result, approval, patient binding,
 model bytes, destination, clock, and catalog revision. At effect time it must

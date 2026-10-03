@@ -158,3 +158,12 @@ consumer signs those cases independently and checks all 32 frozen expectations
 in 11 tests. Full UCP validation, broader profile coverage and stateful
 admission remain open. V2 must specify enrollment/policy identity and a single
 atomic shared gate/journal transition before implementation.
+
+* V2 co-located Checkout contract
+
+The [[file:Coordination.org][selected shared Checkout implementation]] groups aliases only for one
+Host-enrolled authorization/agent/policy identity. Five independent consumer
+regressions exercise the whole-record CAS contract. Canonical enrollment,
+validated durable restoration, protected current-authority refresh and a
+production persistence implementation remain open. Payment coupling and
+agent-wide serialization are not selected. V2 is not end-to-end closure.

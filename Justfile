@@ -31,7 +31,7 @@ build:
 build-examples: build
     lake build Examples
 
-build-productions: build-examples
+build-productions: check-lean-layers build
     lake build Productions
 
 check-docs:
@@ -68,3 +68,6 @@ check-quick:
     lake build CedarPooSpec Tests
 
 check-lean: check-tests check-authorization-delta-proof check-policy-reuse
+
+check-lean-layers:
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check-lean-layers

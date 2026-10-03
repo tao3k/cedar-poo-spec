@@ -2,7 +2,7 @@
 
 import unittest
 
-from cedar_poo_testing.checks import _projection
+from cedar_poo_py_test.checks import _projection
 
 
 class ProjectionTests(unittest.TestCase):

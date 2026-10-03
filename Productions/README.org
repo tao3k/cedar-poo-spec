@@ -1,19 +1,17 @@
 #+TITLE: Production Cases and Cross-language Exports
 #+OPTIONS: toc:nil
 
-=Productions/= owns composed, versioned cases that are executed by Lean or
-exported to Rust and other consumers. =Examples/= remains the source of
-illustrative policy scenarios and reusable example ingredients. A production
-case may import those ingredients, but the executable export entrypoint and
-its stable wire shape live here.
+=Productions/= owns composed, versioned production profiles and their exports.
+Its complete local import closure must exclude =Examples/= and =Tests/=.
+=CedarPooSpec/= owns reusable semantic contracts; example scenarios and their
+publication/replay entrypoints belong to =Examples/=. Tests consume these
+layers to check conformance.
 
-The central [[file:Manifests.lean][manifest dispatcher]] selects composed
-scenario cases for the Cedar Rust replay runner. Dedicated entrypoints under
-=Cloud/=, =Enterprise/=, =Governance/= and =Health/= emit their own bounded
-receipts. [[file:Data/StorageEffectFixture.lean][Raw storage]] and
-[[file:Data/ProtectedStorageFixture.lean][protected storage]] publish
-versioned JSON matrices. Their checked copies under =Tests/Conformance/=
-are replayed by MRR Data Rust; they are test vectors, not credentials.
+The [[file:../Examples/Manifests.lean][example manifest dispatcher]] and scenario-specific export entrypoints
+live in =Examples/=. [[file:Data/StorageEffectFixture.lean][Raw storage]] and
+[[file:Data/ProtectedStorageFixture.lean][protected storage]] export independent
+Production profiles. Their checked copies under =Tests/Conformance/= are
+conformance vectors, not credentials.
 [[file:Data/StorageProfileMatrix.lean][The storage profile matrix]] crosses
 source sensitivity, destination acceptance, tenant match and storage tier for
 both raw and protected decisions. Its protected cases derive a child LeanPoo

@@ -1,0 +1,74 @@
+#+TITLE: Shared Checkout Identity and Co-located Gate/Journal Contract
+
+* Selected grouping
+
+=cedar-poo-commerce/ap2-coordination= groups Checkout aliases with the tuple:
+Host enrollment namespace, canonical authorization ID, enrolled agent ID and
+policy ID. The Host supplies these registry values after current authority
+validation; =CheckoutCoordinationIdentity::enrolled= checks shape only.
+All aliases of the same authorization must resolve to the same tuple. Changed
+signature bytes or caller scope names must not create a fresh registry entry.
+The versioned JSON tuple hash is a local storage key, not an AP2 reference or
+an alias canonicalizer. Key/issuer alias enrollment remains a Host obligation.
+
+This policy serializes aliases of one Checkout authorization. It does not
+couple Payment and Checkout or serialize unrelated authorizations of an agent.
+If policy changes grouping, retained identities must migrate without discarding
+pending/spent authority; a new policy ID alone is not safe reset permission.
+
+* One protected update
+
+[[file:../../../rust/commerce/src/coordination.rs][SharedCheckoutState]] contains the shared gate and all alias journals in one
+record. Presentation creates one journal's pending slot and the shared pending
+journal together. Receipt completion clears both together; Success marks the
+shared authorization spent, and terminal rejection retains reference tombstones
+across every journal. Whole-record revision advances once per update.
+
+=SharedCheckoutStore::compare_exchange= must compare the whole expected record
+and persist the whole proposed record atomically under the identity key.
+Separate gate and journal writes violate the contract. Fresh initialization
+must be insert-if-absent; an existing pending/spent record cannot be replaced
+with fresh state. Revision rollback and tombstone deletion are forbidden.
+The supplied library computes proposals and invokes exactly one CAS. It does
+not implement storage or prove a particular provider's linearizability.
+
+| Outcome/event | Meaning |
+|---------------+---------|
+| Applied | Fresh whole-record durable write |
+| Conflict | Expected record differs; stale exact replay is not a new write |
+| Unknown | Durability/ACK uncertain; reconcile current state, never infer rejection or resend |
+| Missing receipt | Keep pending gate and journal |
+| Exact current verified terminal rejection | Clear pending, retain all reference tombstones |
+| Exact verified Success | Mark shared authority spent |
+| Other journal or stale receipt | Refuse before CAS |
+
+Commit outcomes are persistence status, not send capabilities. The Host must
+validate mandate, selected constraints, exact reference, current enrollment and
+receipt trust inside the protected persistence/effect boundary. Verified receipt
+objects do not by themselves certify current trust. No recovery takeover,
+network resend, nonce consumption or durable current-authority certificate is
+introduced. Existing [[file:Recovery.org][acceptance/ownership fences]] remain separate obligations.
+
+* Bounds and executable evidence
+
+Registry tuple components and journal names are nonempty and at most 256 bytes;
+reference and merchant issuer are at most 256 bytes. One record retains at most
+16 journals and 256 used references. Limits refuse new work without eviction.
+Private state fields preserve the gate/journal invariant. Serialization supports
+inspection; validated persistent restoration is not implemented, so this is not
+a production adapter. No complete AP2 admission or deployed durability claim.
+
+#+begin_src sh
+cargo test --locked -p cedar-poo-commerce-case --no-default-features --features ap2-coordination --test agentic_ai_commerce_coordination_consumer
+#+end_src
+
+Five [[file:../../../rust/commerce-case/tests/integration/agentic_ai_commerce_coordination_consumer.rs][independent consumer tests]] use a mutex-backed reference store, real
+merchant ES256 receipts and two concurrent workers. They check one fresh CAS
+across alias journals, gate/journal consistency, lost ACK followed by conflict,
+global tombstones, wrong journal/old receipt refusal, terminal success, bounded
+journal growth and tuple separation. This reference store is in-memory evidence,
+not a durable backend or a proof over every possible schedule.
+
+MRR remains pinned to its current per-ledger API. Adopting this contract requires
+validated state restoration, canonical enrollment ownership and a current-trust
+atomic persistence adapter; changing a pin alone supplies none of those.

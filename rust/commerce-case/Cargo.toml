@@ -10,6 +10,7 @@ description = "Independent consumers of Lean commerce fixtures"
 default = []
 ap2-checkout = ["dep:cedar-poo-commerce-mandate", "cedar-poo-commerce-mandate/ap2-checkout"]
 ap2-receipt = ["cedar-poo-commerce/ap2-receipt"]
+ap2-coordination = ["ap2-receipt", "cedar-poo-commerce/ap2-coordination"]
 acceptance = ["cedar-poo-commerce/acceptance"]
 projection = ["cedar-poo-commerce/projection"]
 admission = ["projection", "cedar-poo-commerce/admission"]
@@ -52,3 +53,8 @@ required-features = ["ap2-receipt"]
 name = "agentic_ai_commerce_mandate_consumer"
 path = "tests/integration/agentic_ai_commerce_mandate_consumer.rs"
 required-features = ["ap2-checkout"]
+
+[[test]]
+name = "agentic_ai_commerce_coordination_consumer"
+path = "tests/integration/agentic_ai_commerce_coordination_consumer.rs"
+required-features = ["ap2-coordination"]

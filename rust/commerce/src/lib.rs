@@ -12,3 +12,6 @@ asp_rust::asp_rust_cargo_test_gate!(mode = deny, config = asp_rust::default_asp_
 
 #[cfg(feature = "ap2-receipt")]
 pub mod presentation;
+
+#[cfg(feature = "ap2-coordination")]
+pub mod coordination;

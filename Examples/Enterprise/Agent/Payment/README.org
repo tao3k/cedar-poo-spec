@@ -119,7 +119,7 @@ match the approved payment. This bank-rail adapter separately checks the
 reported fee against =feeCap= before the ledger records settlement. Provider
 authentication and actual financial finality remain Host responsibilities.
 
-The [[file:../../../../Productions/Enterprise/Agent/Payment/AuthorizationDelta.lean][authorization-delta production case]] also checks
+The [[file:../../../../Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean][authorization-delta example case]] also checks
 the entire schema-defined authorization space for two changes. Adding the
 emergency freeze produces no new Allow across four request types. Removing
 that freeze produces a concrete new-Allow/old-Deny witness, which the official

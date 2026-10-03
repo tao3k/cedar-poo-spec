@@ -5,7 +5,7 @@
 
 [[file:../../../Tests/Conformance/ap2-mandate-wire-v1.json][The frozen corpus]] contains 17 two-hop Checkout vectors: three positive
 controls and fourteen negative expectations for the proposed verifier profile.
-[[file:../../../python/packages/testing/src/cedar_poo_testing/ap2_wire.py][The generator/replay tool]] ran the actual SDK at AP2 revision
+[[file:../../../python/packages/testing/src/cedar_poo_py_test/ap2_wire.py][The generator/replay tool]] ran the actual SDK at AP2 revision
 =e1ea56db72a6385bce3e5c1112b3a56ce60acb43=. Its 40 SDK Python/source-manifest
 files are individually hashed, and their manifest digest is checked before SDK
 import. Core library versions are exact; [[file:../../../python/uv.lock][the Python workspace uv lock]] also pins transitive
@@ -79,7 +79,7 @@ just check-agentic-ai-commerce-wire-sdk /absolute/path/to/pinned/AP2
 On a populated cache this can be run offline with:
 
 #+begin_src sh
-uv run --project python --package cedar-poo-testing --extra ap2-sdk --locked --offline cedar-poo-test ap2-wire --sdk-root /absolute/path/to/pinned/AP2
+uv run --project python --package cedar-poo-py-test --extra ap2-sdk --locked --offline cedar-poo-py-test ap2-wire --sdk-root /absolute/path/to/pinned/AP2
 #+end_src
 
 The Python replay receipt is =AP2-WIRE-OK 17 frozen vectors=. The independent

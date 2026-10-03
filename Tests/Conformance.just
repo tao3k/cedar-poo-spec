@@ -2,16 +2,16 @@
 check-conformance: check-replay-receipts check-schema-bound-receipts check-schema-bound-scenarios check-attested-schema-evolution check-authorization-delta check-authorization-delta-operational check-authorization-delta-reasons check-authorization-delta-effective-reasons check-payment-delta check-payment-interaction check-payment-audit check-agent-trace-delta check-health-authorization-impact check-personnel-governance check-agentic-ai-commerce-admission check-agentic-ai-commerce-acceptance check-agentic-ai-commerce-presentation check-agentic-ai-commerce-wire-corpus
 
 check-agentic-ai-commerce-admission: check-agentic-ai-commerce-projection
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agentic-ai-commerce-admission
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check agentic-ai-commerce-admission
 
 check-agentic-ai-commerce-projection:
     mkdir -p .lake/build
     lake build Tests.AgenticAI.Commerce.Projection
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agentic-ai-commerce-projection
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check agentic-ai-commerce-projection
 
 check-personnel-governance:
-    lake build Productions.Manifests Tests.Enterprise.Personnel.SourceCustody
-    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Productions/Manifests.lean source-custody-validated > .lake/build/source-custody-validated-manifest.json
+    lake build Examples.Manifests Tests.Enterprise.Personnel.SourceCustody
+    timeout --signal=TERM --kill-after=3s 120s lake env lean -M 2048 -T 10000000 --run Examples/Manifests.lean source-custody-validated > .lake/build/source-custody-validated-manifest.json
     cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-validated-receipts < .lake/build/source-custody-validated-manifest.json > .lake/build/source-custody-validated-receipts.json
     jq -e -f Tests/Conformance/personnel-governance-receipts.jq .lake/build/source-custody-validated-receipts.json > /dev/null
 
@@ -37,20 +37,20 @@ check-replay-receipts: prepare-agent-payment-manifest
     jq -e --slurpfile manifest .lake/build/agent-payment-manifest.json -f Tests/Conformance/agent-payment-replay-receipts.jq .lake/build/agent-payment-replay-receipts.json > /dev/null
 
 prepare-agent-payment-validated-manifest: build-examples
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test prepare prepare-agent-payment-validated-manifest
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test prepare prepare-agent-payment-validated-manifest
 
 check-schema-bound-receipts: prepare-agent-payment-validated-manifest
     cargo run --locked --quiet -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-validated-receipts < .lake/build/agent-payment-validated-manifest.json > .lake/build/agent-payment-validated-receipts.json
     jq -e --slurpfile manifest .lake/build/agent-payment-validated-manifest.json -f Tests/Conformance/agent-payment-validated-receipts.jq .lake/build/agent-payment-validated-receipts.json > /dev/null
 
 prepare-schema-bound-scenarios: build-examples
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test prepare prepare-schema-bound-scenarios
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test prepare prepare-schema-bound-scenarios
 
 check-schema-bound-scenarios: prepare-schema-bound-scenarios
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test schema-bound
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test schema-bound
 
 prepare-attested-schema-evolution: build-examples
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test prepare prepare-attested-schema-evolution
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test prepare prepare-attested-schema-evolution
 
 check-attested-schema-evolution: prepare-attested-schema-evolution
     jq -e -f Tests/Conformance/attested-schema-evolution.jq .lake/build/attested-schema-evolution.json > /dev/null
@@ -58,11 +58,11 @@ check-attested-schema-evolution: prepare-attested-schema-evolution
     jq -e -f Tests/Conformance/attested-schema-evolution-receipt.jq .lake/build/attested-schema-evolution-receipt.json > /dev/null
 
 check-authorization-delta: build-examples
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check authorization-delta
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check authorization-delta
 
 check-authorization-delta-operational:
     lake build CedarPooSpec.AuthorizationDeltaOperationalExactProof Tests.Governance.AuthorizationDeltaOperational Tests.Governance.AuthorizationDeltaFormula
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check authorization-delta-operational
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check authorization-delta-operational
 
 # Research artifact only: emits the exact query and cvc5's CPC output.
 # The fixture's UNSAT theorem is separate and uses native computation certificates.
@@ -77,19 +77,19 @@ probe-authorization-delta-proof:
 # Optional pinned research check: Ethos validates a renamed reference query.
 # The constructor-name translation is still outside the Lean proof boundary.
 probe-authorization-delta-proof-ethos: probe-authorization-delta-proof
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check-cpc --input .lake/build/authorization-delta-exact.smt2 --output-dir .lake/build --cvc5 "$CVC5" --ethos "$ETHOS" --signature-root "$CPC_SIGNATURE_ROOT"
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check-cpc --input .lake/build/authorization-delta-exact.smt2 --output-dir .lake/build --cvc5 "$CVC5" --ethos "$ETHOS" --signature-root "$CPC_SIGNATURE_ROOT"
 
 check-authorization-delta-reasons:
     lake build Tests.Governance.AuthorizationDeltaReasons
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check authorization-delta-reasons
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check authorization-delta-reasons
 
 check-authorization-delta-effective-reasons:
     lake build CedarPooSpec.AuthorizationDeltaEffectiveReasonsProof Tests.Governance.AuthorizationDeltaEffectiveReasons
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check authorization-delta-effective-reasons
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check authorization-delta-effective-reasons
 
 check-payment-interaction:
     lake build Examples.Enterprise.Agent.Payment.JointRelease
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check payment-interaction
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check payment-interaction
 
 # Public payment operation, selectable audit stages, and concrete Cedar adapter.
 check-payment-audit:
@@ -104,30 +104,30 @@ check-agent-trace-delta:
     just example enterprise agent session-trace-delta
 
 check-health-authorization-impact:
-    lake build Productions.Health.Pseudonymization.AuthorizationImpact
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check health-authorization-impact
+    lake build Examples.Health.Pseudonymization.AuthorizationImpact
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check health-authorization-impact
 
 check-authorization-delta-proof:
     lake build CedarPooSpec.AuthorizationDeltaProof CedarPooSpec.AuthorizationDeltaBooleanCore Tests.Governance.AuthorizationDeltaFormula Tests.Governance.AuthorizationDeltaDirect Tests.Governance.AuthorizationDeltaAxiomAudit
 
 check-payment-delta: build-examples
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check payment-delta
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check payment-delta
 
 check-agentic-ai-commerce-acceptance:
     lake build Tests.AgenticAI.Commerce.Acceptance
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agentic-ai-commerce-acceptance
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check agentic-ai-commerce-acceptance
 
 check-agentic-ai-commerce-presentation:
     lake build Tests.AgenticAI.Commerce.Presentation
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test check agentic-ai-commerce-presentation
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test check agentic-ai-commerce-presentation
 
 # Regular CI checks frozen bytes; explicit SDK replay needs its pinned source checkout.
 check-agentic-ai-commerce-wire-corpus:
-    uv run --project python --package cedar-poo-testing --locked cedar-poo-test ap2-wire --check-frozen
+    uv run --project python --package cedar-poo-py-test --locked cedar-poo-py-test ap2-wire --check-frozen
     cargo test --locked -p cedar-poo-commerce-case --no-default-features --features ap2-checkout --test agentic_ai_commerce_mandate_consumer
 
 check-agentic-ai-commerce-wire-sdk sdk_root:
-    uv run --project python --package cedar-poo-testing --extra ap2-sdk --locked cedar-poo-test ap2-wire --sdk-root {{quote(sdk_root)}}
+    uv run --project python --package cedar-poo-py-test --extra ap2-sdk --locked cedar-poo-py-test ap2-wire --sdk-root {{quote(sdk_root)}}
 
 check-agentic-ai-commerce-constraint-sdk sdk_root:
-    uv run --project python --package cedar-poo-testing --extra ap2-sdk --locked cedar-poo-test ap2-constraints --sdk-root {{quote(sdk_root)}}
+    uv run --project python --package cedar-poo-py-test --extra ap2-sdk --locked cedar-poo-py-test ap2-constraints --sdk-root {{quote(sdk_root)}}
