@@ -9,6 +9,7 @@ description = "Storage-independent agentic commerce signatures and admission"
 [features]
 default = []
 projection = []
+acceptance = []
 admission = ["projection"]
 
 [dependencies]

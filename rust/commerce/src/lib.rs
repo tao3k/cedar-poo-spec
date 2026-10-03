@@ -1,4 +1,6 @@
 //! Storage-independent commerce signatures, projected claims and admission.
+#[cfg(feature = "acceptance")]
+pub mod acceptance;
 #[cfg(feature = "admission")]
 pub mod admission;
 #[cfg(feature = "projection")]

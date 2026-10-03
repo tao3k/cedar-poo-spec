@@ -86,3 +86,5 @@ import CedarPooSpec.AuthorizationDeltaInteraction
 import CedarPooSpec.AuthorizationDeltaRelease
 import CedarPooSpec.AuthorizationDeltaTrace
 import CedarPooSpec.AuthorizationDeltaJson
+
+import CedarPooSpec.AgenticAI.Commerce.Acceptance

@@ -8,6 +8,7 @@ description = "Independent consumers of Lean commerce fixtures"
 
 [features]
 default = []
+acceptance = ["cedar-poo-commerce/acceptance"]
 projection = ["cedar-poo-commerce/projection"]
 admission = ["projection", "cedar-poo-commerce/admission"]
 
@@ -32,3 +33,8 @@ required-features = ["projection"]
 name = "agentic_ai_commerce_admission_consumer"
 path = "tests/integration/agentic_ai_commerce_admission_consumer.rs"
 required-features = ["admission"]
+
+[[test]]
+name = "agentic_ai_commerce_acceptance_consumer"
+path = "tests/integration/agentic_ai_commerce_acceptance_consumer.rs"
+required-features = ["acceptance"]

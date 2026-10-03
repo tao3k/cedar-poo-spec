@@ -55,8 +55,9 @@ The signed consumer races two children, refuses over-cap retry, and recovers a
 lost acknowledgement under the original operation without a second reservation.
 These checks execute no DB transaction:
 the backend must authenticate its inputs and atomically persist the head and
-operation receipt. =just check-agentic-ai-commerce-admission= checks this bridge
-with JSON emitted by Lean.
+operation receipt. MRR Data owns this bridge and its consumers against the
+exact-pinned Lean fixture; =just check-agentic-ai-commerce-admission= verifies
+Cedar signature, projection and admission consumers.
 
 The public [[file:../../../CedarPooSpec/AgenticAI/Commerce/Credential.lean][credential boundary]] requires a credential to name the exact
 committed reservation, shared scope, operation, before/after content IDs and
@@ -221,29 +222,22 @@ receipts require their own issuers and correspondences.
 
 * Next code and evaluation slices
 
-1. Bind the process-local delegated admission reference to authenticated
-   clock, key, policy, and revocation sources. Recheck the complete signed
-   lineage within a durable shared-budget reservation transaction; a stale
-   root, parent Agent key, or child grant must fail before reservation.
-2. Specify a separate presentation ledger for protocols that require a
-   single outstanding open mandate. Test a second presentation without a
-   matching signed rejection receipt, a forged receipt, and a receipt for a
-   different checkout. Keep this separate from the synthetic multi-purchase
-   budget rather than quietly changing its semantics.
-3. Connect the proved shared-root revision and cap rules to a backend's atomic
-   transaction. The pure Lean model and MRR Data conditional commit protocol
-   are implemented; the Rust bridge checks exact Lean before/after claims.
-   MRR Data is an interface for content and conditional publication. A backend
-   must persist one head and exact operation receipt atomically, then test two
-   child writers racing under the same root and recovery after an uncertain ACK.
-4. Credential admission, single consumption, provider request and signed receipt
-   contracts are implemented with test-only providers. Connect a production
-   sandbox and durable ledger; validate crash-after-claim recovery, fenced retry,
-   provider-enforced idempotency and authority changes during suspended release.
-   Then bind fulfillment and dispute evidence to independently trusted issuers.
-5. Evaluate prompt injection, seller substitution, collusion, and model drift
-   with measured detection quality and reviewer load. A passing fixture does
-   not establish operational risk performance.
+The [[file:Audit.org][2026-10-03 plan and paper audit]] supersedes the earlier next-slice order.
+The immediate sequence is:
+
+1. Freeze source/version-to-property correspondence and current evidence levels.
+2. Model single-root acceptance-time revocation and an endpoint-enforced fence.
+3. Specify durable claim/retry/recovery and build a deterministic failure harness;
+   external adapters implement MRR's conformance contract, without adding a DB
+   dependency to Cedar or treating MRR as a storage backend.
+4. Add one pinned wire profile's presentation and role-specific receipts, then
+   finality, fulfillment and compensation correspondence.
+5. Evaluate pre-signature agent manipulation and, for resource purchases, the
+   separate delivered-capability activation boundary.
+
+The move-only permit remains fail-closed on replay and unknown. Progress after
+claim-before-dispatch crashes is an open protocol obligation, not a property
+established by the current reference tests.
 
 * Rust package ownership
 

@@ -18,6 +18,10 @@ LEAN = [
 
 # Source, output stem, jq assertion, and manifest fields replayed by Cedar.
 CHECKS = {
+    "agentic-ai-commerce-acceptance": (
+        "Tests/AgenticAI/Commerce/Acceptance.lean",
+        "agentic-ai-commerce-acceptance", None, (),
+    ),
     "authorization-delta": (
         "Productions/Governance/AuthorizationDelta.lean", "authorization-delta",
         "authorization-delta", ("posture_manifest", "manifest"),
@@ -101,6 +105,13 @@ def run(name: str, repository: Path) -> None:
             cwd=repository, stdout=subprocess.DEVNULL, check=True,
         )
     data = json.loads(output.read_text())
+    if name == "agentic-ai-commerce-acceptance":
+        if data != json.loads((repository / "Tests/Conformance/commerce-acceptance-v1.json").read_text()):
+            raise ValueError("acceptance fixture differs from actual Lean export")
+        _run(["cargo", "test", "--locked", "-p", "cedar-poo-commerce-case",
+              "--no-default-features", "--features", "acceptance", "--test",
+              "agentic_ai_commerce_acceptance_consumer"], repository)
+        return
     if name == "agentic-ai-commerce-projection":
         _projection(data)
         if data != json.loads((repository / "Tests/Conformance/commerce-projection-v1.json").read_text()):
