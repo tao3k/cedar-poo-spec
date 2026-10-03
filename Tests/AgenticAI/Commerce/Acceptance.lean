@@ -32,8 +32,23 @@ private def caseJson (name : String) (f : RootFence) (t : AcceptanceTicket)
   ("provider", toJson provider), ("operation", toJson operation), ("commitment", toJson commitment),
   ("accepted", toJson (f.accepts t provider operation commitment))]
 
+def ready : DispatchOwnership := ⟨"body-42", 0, "fresh", false⟩
+def oldOwner : DispatchOwnership := ⟨"body-42", 1, "old", false⟩
+def newOwner : DispatchOwnership := ⟨"body-42", 2, "new", false⟩
+def accepted : DispatchOwnership := ⟨"body-42", 2, "new", true⟩
+theorem firstOwnershipIsExact : ready.acquire 0 "old" = some oldOwner := by decide
+theorem takeoverIsExact : oldOwner.acquire 1 "new" = some newOwner := by decide
+theorem resumedOldOwnerIsDenied : newOwner.accept 1 "old" "body-42" = none := by decide
+theorem acceptanceIsExact : newOwner.accept 2 "new" "body-42" = some accepted := by decide
+theorem acceptedRecoveryCannotReopen : accepted.acquire 2 "restart" = none := by decide
+private def ownershipJson (s : DispatchOwnership) : Json := Json.mkObj [
+  ("requestCommitment", toJson s.requestCommitment), ("generation", toJson s.generation),
+  ("owner", toJson s.owner), ("accepted", toJson s.accepted)]
+
 def fixture : Json := Json.mkObj [
   ("schema", toJson "cedar-poo.commerce.acceptance.v1"),
+  ("ownership", Json.mkObj [("ready", ownershipJson ready), ("old", ownershipJson oldOwner),
+    ("new", ownershipJson newOwner), ("accepted", ownershipJson accepted)]),
   ("cases", toJson ([
     caseJson "fresh" fence ticket "processor" "purchase-42" "body-42",
     caseJson "retired" retired ticket "processor" "purchase-42" "body-42",

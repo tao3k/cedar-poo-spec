@@ -71,7 +71,8 @@ theorem committedCredentialProjectionAccepted :
 
 def dispatch : PaymentDispatch :=
   { providerId := "processor", idempotencyKey := "host-derived-idempotency-key",
-    credential := committedCredential }
+    credential := committedCredential,
+    authority := ⟨⟨"buyer-trip-root", "trip-root"⟩, 7, false⟩ }
 def consumptionBefore : ConsumptionLedger :=
   { budgetScope := "buyer-trip-root", revision := 1, requests := [] }
 def consumptionAfter : ConsumptionLedger :=

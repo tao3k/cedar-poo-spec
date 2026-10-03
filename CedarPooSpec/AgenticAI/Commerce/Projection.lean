@@ -89,7 +89,12 @@ def Credential.claimsJson (credential : Credential) : Lean.Json :=
 def PaymentDispatch.claimsJson (request : PaymentDispatch) : Lean.Json :=
   object [("providerId", Lean.toJson request.providerId),
     ("idempotencyKey", Lean.toJson request.idempotencyKey),
-    ("credential", request.credential.claimsJson)]
+    ("credential", request.credential.claimsJson),
+    ("authority", object [
+      ("root", object [("budgetScope", Lean.toJson request.authority.root.budgetScope),
+        ("mandateId", Lean.toJson request.authority.root.mandateId)]),
+      ("generation", Lean.toJson request.authority.generation),
+      ("retired", Lean.toJson request.authority.retired)])]
 
 def ConsumptionLedger.claimsJson (state : ConsumptionLedger) : Lean.Json :=
   object [("budgetScope", Lean.toJson state.budgetScope),

@@ -179,3 +179,10 @@ The single-root P0/P1 slice is implemented in the [[file:Properties.org][propert
 Provider-local fences now bind fresh consumption permits to the root generation
 and exact provider/request. Deployment assumptions and recovery gaps remain
 explicit; this does not establish a global quiescence certificate.
+
+* Recovery implementation follow-up
+
+The [[file:Recovery.org][dispatch recovery protocol]] persists original root authority in the
+consumption request and adds provider ownership CAS, exact recovery and dual
+fence acceptance. Previously stranded acknowledged claims can be resumed only
+through an endpoint implementing the durable ownership contract.

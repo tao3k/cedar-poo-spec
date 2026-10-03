@@ -63,3 +63,46 @@ impl RootFence {
             && ticket.request_commitment == commitment
     }
 }
+
+/// Provider-owned operation state; acceptance is durable custody, not settlement.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct DispatchOwnership {
+    pub request_commitment: String,
+    pub generation: u64,
+    pub owner: String,
+    pub accepted: bool,
+}
+impl DispatchOwnership {
+    /// Compare-and-swap ownership while the operation is still unaccepted.
+    /// Timeout or a worker's claimed death alone never establishes ownership.
+    #[must_use]
+    pub fn acquire(&self, expected: u64, worker: &str) -> Option<Self> {
+        if self.accepted
+            || expected != self.generation
+            || worker.is_empty()
+            || self.request_commitment.is_empty()
+        {
+            return None;
+        }
+        Some(Self {
+            generation: self.generation.checked_add(1)?,
+            owner: worker.into(),
+            ..self.clone()
+        })
+    }
+    /// Transition once at the protected endpoint after checking the root fence.
+    #[must_use]
+    pub fn accept(&self, generation: u64, worker: &str, commitment: &str) -> Option<Self> {
+        (!self.accepted
+            && generation == self.generation
+            && worker == self.owner
+            && !worker.is_empty()
+            && commitment == self.request_commitment
+            && !commitment.is_empty())
+        .then(|| Self {
+            accepted: true,
+            ..self.clone()
+        })
+    }
+}

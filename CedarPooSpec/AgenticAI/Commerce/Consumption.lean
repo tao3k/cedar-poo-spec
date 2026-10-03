@@ -1,4 +1,5 @@
 import CedarPooSpec.AgenticAI.Commerce.Credential
+import CedarPooSpec.AgenticAI.Commerce.Acceptance
 
 /-!
 Consumption is unique by budget scope and purchase, across credential reissue
@@ -12,6 +13,7 @@ structure PaymentDispatch where
   providerId : String
   idempotencyKey : String
   credential : Credential
+  authority : RootFence
   deriving DecidableEq, Repr
 
 structure ConsumptionLedger where
@@ -30,7 +32,9 @@ def ConsumptionLedger.claim (state : ConsumptionLedger) (expectedRevision : Nat)
     (request : PaymentDispatch) : Option ConsumptionLedger :=
   if state.hasPurchase purchase.purchaseId then none else
   if expectedRevision = state.revision && !request.providerId.isEmpty &&
-      !request.idempotencyKey.isEmpty &&
+      !request.idempotencyKey.isEmpty && !request.authority.retired &&
+      decide (request.authority.root.budgetScope = state.budgetScope) &&
+      decide (request.authority.root.mandateId = budget.root.mandateId) &&
       budget.acceptsCredential state.budgetScope offer purchase request.credential then
     some { state with revision := state.revision + 1, requests := request :: state.requests }
   else none

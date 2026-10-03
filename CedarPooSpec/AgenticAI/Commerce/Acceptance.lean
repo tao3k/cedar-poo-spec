@@ -56,4 +56,43 @@ theorem retirementIsPermanent (current next : RootFence)
   simp only [RootFence.advance] at h
   split at h <;> simp_all
 
+/-- Endpoint-owned state bound to the immutable dispatch commitment. Accepted
+means the protected endpoint durably took responsibility; it is not settlement. -/
+structure DispatchOwnership where
+  requestCommitment : String
+  generation : Nat
+  owner : String
+  accepted : Bool
+  deriving DecidableEq, Repr
+
+def DispatchOwnership.acquire (state : DispatchOwnership) (expected : Nat)
+    (worker : String) : Option DispatchOwnership :=
+  if state.accepted then none else
+  if expected = state.generation ∧ ¬worker.isEmpty ∧ ¬state.requestCommitment.isEmpty then
+    some { state with generation := state.generation + 1, owner := worker }
+  else none
+
+def DispatchOwnership.accept (state : DispatchOwnership) (generation : Nat)
+    (worker commitment : String) : Option DispatchOwnership :=
+  if state.accepted then none else
+  if generation = state.generation ∧ worker = state.owner ∧ ¬worker.isEmpty ∧
+      commitment = state.requestCommitment ∧ ¬commitment.isEmpty then
+    some { state with accepted := true }
+  else none
+
+theorem acceptedCannotReacquire (state : DispatchOwnership) (expected : Nat)
+    (worker : String) (h : state.accepted = true) : state.acquire expected worker = none := by
+  simp [DispatchOwnership.acquire, h]
+
+theorem acceptedCannotAcceptAgain (state : DispatchOwnership) (generation : Nat)
+    (worker commitment : String) (h : state.accepted = true) :
+    state.accept generation worker commitment = none := by
+  simp [DispatchOwnership.accept, h]
+
+theorem obsoleteOwnerCannotAccept (state : DispatchOwnership) (generation : Nat)
+    (worker commitment : String) (h : generation ≠ state.generation) :
+    state.accept generation worker commitment = none := by
+  unfold DispatchOwnership.accept
+  split <;> simp_all
+
 end CedarPooSpec.AgenticAI.Commerce
