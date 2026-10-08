@@ -33,6 +33,14 @@ Cognito group projection, then composes the insurance rule with independent
 Lakehouse location controls. The public object neither assumes Cognito nor
 imports an AWS module.
 
+* Agentic AI commerce payment adapter
+
+[[file:AgenticCommercePayment.lean][AgenticCommercePayment]] maps one admitted purchase to the public
+=PaymentOperation= using a canonical HKD cents profile. Mandates, delegation,
+signature evidence, and shared budget semantics belong to
+[[file:../../AgenticAI/Commerce/README.org][AgenticAI.Commerce]]. The finance layer owns the payment mapping.
+The [[file:../../../Examples/AgenticAI/Commerce/Research.org][research scenario]] and [[file:../../../Tests/AgenticAI/Commerce/Admission.lean][regressions]] compose those public layers.
+
 * Boundary
 
 =Vertical/FinancialServices/= holds finance-specific reusable controls.

@@ -74,6 +74,48 @@ outside this example's one-to-three-hop range. The model does not implement
 HMAC, OAuth token exchange, or runtime loop detection across arbitrary
 external agents.
 
+* Authorization delta across the whole path
+
+The [[file:../../../../CedarPooSpec/AuthorizationDeltaCompound.lean][compound delta API]] compares the same ordered tool, delegation, and
+origin checks under two POO revisions. It validates each Cedar request,
+entity snapshot, and compiled policy set before reporting a decision. A
+changed path is rejected: adding a hop is a new operation requiring its own
+review, not a policy-only delta. The Host must authenticate the chain and
+both snapshots and must recheck the current revision before an effect.
+
+=compoundDeltaCasesExact= covers three five-layer revisions. Revising the
+origin depth limit turns the complete chain from Deny to Allow. When an
+edge-specific incident veto is also present, the origin layer gains Allow
+but the complete chain remains Deny. Adding the veto to an admitted chain
+produces an operation-level loss at exactly one layer. Thus a local policy
+gain is not automatically an authorization gain for the business operation.
+=changedCompoundRejectedFully= checks that a one-hop path cannot be compared
+to a two-hop path as though only policy bodies changed.
+
+This is finite evidence for this modeled chain and these supplied entity
+snapshots. It does not establish authority attenuation for every possible
+agent delegation graph, cumulative action budgets, or serialized admission
+of a real tool call.
+
+* Research and upstream boundary
+
+[[https://arxiv.org/abs/2608.07556][MasDrift]] reports authorization drift as agent hierarchies deepen and
+compares source re-anchoring with propagated restrictions. This example
+chooses a concrete re-anchoring boundary: the origin check remains a
+required layer even after three delegations. [[https://arxiv.org/abs/2608.15888][Bounded Agents]] identifies another
+gap: independently permitted actions may compose into a prohibited outcome,
+and delegation must narrow scope and budgets. The current compound delta
+handles conjunction of required checks; it does not solve history-dependent
+budgets or cross-action composition.
+
+The [[https://github.com/cedar-policy/cedar/issues/2428][Cedar schemaless error report]] illustrates a separate fail-open deployment
+hazard: an erroneous forbid can be skipped while a broad permit still
+applies. The [[https://docs.cedarpolicy.com/auth/authorization.html][Cedar authorization guide]] documents policy-error diagnostics. This API
+requires schema validation and rejects any runtime policy evaluation error
+in either revision. The issue is not evidence that Cedar's documented
+authorizer semantics are incorrect. Host code must still reject errors at
+effect admission and avoid treating an analysis result as an execution ticket.
+
 #+begin_src sh
 just example enterprise agent chain
 just check-cedar-language

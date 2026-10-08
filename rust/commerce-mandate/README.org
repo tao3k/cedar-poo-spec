@@ -1,0 +1,122 @@
+#+TITLE: Bounded Checkout Mandate Binding Verifier
+
+Default features are empty. Select =ap2-checkout= to use the storage-independent
+=checkout= module. The crate has no MRR, Cedar policy runtime, database or
+application Case dependency. =cedar-poo-commerce-case/ap2-checkout= independently
+consumes its public API and the frozen SDK corpus.
+
+* Supported wire subset
+
+The source pin is =e1ea56db72a6385bce3e5c1112b3a56ce60acb43=. This first
+implementation targets the [[file:../../Examples/AgenticAI/Commerce/WireVectors.org][fixed SDK seed vectors]], including their root JOSE
+type =example+sd-jwt=. That SDK default is explicitly supported here; it must
+not be mistaken for a complete deployed AP2 credential-type negotiation policy.
+
+- Exactly two compact SD-JWT components, each ending in a tilde; no trailing
+  ordinary KB-JWT or intermediate delegation hop.
+- ES256 root, terminal agent and merchant signatures. Root typ is exactly
+  =example+sd-jwt=, terminal typ =kb+sd-jwt=, merchant typ =JWT=.
+- Independently enrolled root and merchant public keys. Agent public key is
+  obtained only from verified, disclosure-resolved root =cnf.jwk=.
+- SHA-256 disclosures; exactly one =sd_hash= or =issuer_jwt_hash= parent binding.
+  The hashes use exact serialized ASCII bytes; no JSON reserialization.
+- Exact =mandate.checkout.open.1= and =mandate.checkout.1= mandate versions,
+  exactly one resolved delegate object per component, and the selected constraints below.
+- Mandatory nonempty Host audience, server nonce and merchant identifier.
+  Terminal audience/nonce and signed merchant ID must match those inputs.
+- Required integer mandate iat/exp, zero skew, =iat <= now < exp=, nonempty
+  validity interval, closed issuance no earlier than open issuance and closed
+  expiry no later than open expiry. Terminal iat is checked against open iat
+  and now. The Host supplies current time independently of presented tokens.
+- Exact closed checkout hash correspondence followed by independent merchant
+  JWS verification. Signed payload must have a nonempty checkout and merchant
+  ID; complete UCP business/schema validation remains downstream.
+
+Unsupported headers (including kid, x5c, crit or token-provided jwk), additional
+claims, unknown constraint types, other algorithms/types and delegation flows
+return an explicit refusal. No fallback admits an unsupported input.
+
+* Bounded parsing and disclosure rules
+
+Each component/JWS is at most 16,384 bytes; each SD-JWT carries at most 16
+disclosures. Parsing/resolution depth is at most 16. JSON duplicate members are
+rejected before projection; the selected parser rejects floating-point JSON
+numbers. Recursive object and array disclosures are resolved against signed
+digests, with duplicate references, reused disclosures, overwritten claims,
+reserved claim names and unmatched supplied disclosures rejected. Missing
+unselected disclosures are allowed at the wire layer, but mandatory domain
+claims must still be present. Decoy digests do not invent claims.
+
+The original fixed SDK can ignore an unmatched changed disclosure and later
+fail a mandatory domain claim. This verifier refuses the unmatched disclosure
+itself. Its success criteria are the explicitly selected contract, not merely
+agreement with SDK processing.
+
+* Selected constraints
+
+The [[file:../../Examples/AgenticAI/Commerce/Constraints.org][constraint corpus and policy]] adds exact merchant-ID whitelists and
+line-item requirements. Every supplied constraint must pass. Each requirement
+consumes its exact positive quantity from one acceptable SKU; all purchased
+units must be assigned once. Same-SKU cart lines aggregate, distinct line and
+requirement IDs are mandatory, and empty acceptable sets are refused. Overlap
+uses bounded backtracking, with 4,096 visited states per line-item constraint.
+Exhaustion returns =Limit=, never a verified binding.
+
+Bounds: 16 constraints, 16 merchants/candidates/cart lines, 8 requirements per
+line-item constraint, and 1,000,000 units per requirement/aggregated SKU.
+Nonempty constraints require a line-item constraint. Empty seed constraints
+remain supported with explicit =SeedBindingOnly= coverage; successful nonempty
+constraints return =ItemConstraintsChecked=. Neither is an admission permit.
+
+The selected policy is stricter than several pinned SDK domain observations.
+It is not a claim of complete AP2 conformance. Selective merchant/candidate
+arrays remain supported, but placeholders in the whole constraints array or
+requirement-slot array are refused, preventing omission from erasing a rule.
+Item price is structurally an unsigned integer; totals, currency, price
+arithmetic and full UCP schema validation remain downstream.
+
+* Output and authority boundary
+
+Only successful verification constructs =VerifiedCheckoutBinding=. It cannot
+be deserialized from caller JSON and grants no presentation/consumption permit.
+=AuthenticatedCheckout= retains the exact merchant JWS for business validation
+and evidence retrieval. Checkout ID is authenticated, but prices, currency,
+totals, checkout completion, consent and fulfillment have not been
+validated by a complete UCP schema/policy engine.
+
+The output distinguishes exact signed root/closed JWS evidence hashes, the
+root signed-header/payload hash excluding signature and disclosures, the
+enrolled root key fingerprint and verified agent key fingerprint. A regression
+changes an ECDSA signature from s to n-s and rebinds the child: both chains
+verify, exact root evidence differs, and signed-content/key fingerprints remain
+equal. This is why token bytes alone cannot provide a shared authorization
+identity. Host grouping must also bind enrollment and policy identity, and
+handle issuer/key aliases. This crate supplies neither that registry nor its
+atomic persistence.
+
+No AP2 receipt-reference hash is inferred from these evidence digests.
+Existing Checkout Receipt reference input remains a Host obligation. Root trust
+refresh/revocation, server nonce consumption, shared-scope coordination,
+acceptance fences and state freshness remain synchronized Host/MRR duties.
+A verified value is not a durable current-authority certificate.
+
+* Executable receipt
+
+#+begin_src sh
+cargo test --locked -p cedar-poo-commerce-case --no-default-features --features ap2-checkout --test agentic_ai_commerce_mandate_consumer
+cargo test --locked -p cedar-poo-commerce-mandate --all-features --lib
+#+end_src
+
+Eleven independent consumer tests cover 17 frozen wire vectors (3 accepted /
+14 refused) plus 15 frozen domain cases (3 accepted / 12 refused). The latter
+are independently signed by the Rust consumer; they are not SDK wire tokens.
+Tests also cover signed claim mutations, merchant/time context, duplicate
+JSON/JOSE, input bounds, recursive disclosure rejection, signature aliases,
+assignment-budget exhaustion and selective omission of entire rules.
+The ASP public API/ownership gate, strict Clippy and full Rust workspace gate
+pass locally. Regular conformance checks both frozen digests and runs the Rust
+consumer. Actual Python SDK replay remains a separate explicit command.
+
+Complete UCP validation, additional JOSE profiles, broader vector/fuzz coverage
+and shared authorization coordination remain subsequent work. No complete AP2
+conformance or real payment claim.

@@ -8,7 +8,7 @@ namespace CedarPooSpec.TemplateSourceExport
 open CedarPooSpec.TicketSharingExample
 
 theorem duplicateLinkIdsRejected :
-    (match CedarPooSpec.PolicyJson.templateSet templatesV2
+    (match CedarPooSpec.PolicyJson.templateSet postureTemplates
       (links ++ [linked "alice-ticket-a" "contributor" alice ticketA]) with
      | .error .duplicateTemplateLinkId => true
      | _ => false) = true := by
@@ -29,16 +29,16 @@ def contributorLinks : Cedar.Spec.TemplateLinkedPolicies :=
   links.filter fun link => link.id != "bob-ticket-a"
 
 def contributorTemplates : Cedar.Spec.Templates :=
-  Cedar.Data.Map.make [("contributor", contributorV2)]
+  Cedar.Data.Map.make [("contributor", postureContributor)]
 
 theorem unlinkedTemplateRejected :
-    (match CedarPooSpec.PolicyJson.sourceSet [staticViewer] templatesV2 contributorLinks with
+    (match CedarPooSpec.PolicyJson.sourceSet [staticViewer] postureTemplates contributorLinks with
      | .error (.unlinkedTemplateId "viewer") => true
      | _ => false) = true := by
   native_decide
 
 theorem staticLinkCollisionRejected :
-    (match CedarPooSpec.PolicyJson.sourceSet [staticViewer] templatesV2 links with
+    (match CedarPooSpec.PolicyJson.sourceSet [staticViewer] postureTemplates links with
      | .error (.duplicatePolicyId "bob-ticket-a") => true
      | _ => false) = true := by
   native_decide

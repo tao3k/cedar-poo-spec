@@ -45,7 +45,7 @@ root. This manifest does not authenticate deployment state.
 flowchart TD
   L[Lean-POO: objects, C4, patches, proof reuse] --> P[cedar-poo-spec]
   C[cedar-spec: language, schema, validation, authorizer, theorems] --> P
-  P --> B[cedar-poo-bridge: validated artifact and conformance]
+  P --> B[cedar-poo-runtime: validated artifact and conformance]
   V[Lambda Episteme: Scenario, Profile, Case, Source] --> F[POO Flow Cedar Provider]
   F --> A[poo-flow-cedar-authority: Rust authority and FFI]
   B --> A
@@ -58,7 +58,7 @@ artifact and runtime admission boundary. Lambda does not import Lean
 declarations into Gerbil at runtime. A Profile or Case contributes meaning;
 the Host authenticates the actual inputs and selects the accepted composition.
 POO Flow's Cedar binding owns the Rust dependency on this repository's
-=cedar-poo-bridge= at a pinned revision. This repository does not maintain
+=cedar-poo-core= and =cedar-poo-runtime= at a pinned revision. This repository does not maintain
 a second POO Flow receiver, synthetic =Bootstrap=, or conformance crate.
 POO Flow's Rust =Bootstrap= already carries policy sources, schema and
 entities, Profile provenance, a revision, and revocation epoch; its
@@ -111,7 +111,7 @@ The bridge uses Cedar's public formats and official parsers.
 
 The binding belongs in POO Flow's =bindings/cedar-gerbil= workspace,
 alongside =cedar-authority= and the Gerbil projection. Its Rust dependency
-points to this repository's =cedar-poo-bridge= library at an immutable
+points to this repository's =cedar-poo-runtime= library at an immutable
 revision. The bridge
 supplies checked Cedar policy sources and artifact evidence; POO Flow remains
 the sole owner of =Bootstrap=, =Proposal=, authority admission, signing,

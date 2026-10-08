@@ -1,0 +1,52 @@
+#+TITLE: Reflection: Protected Storage Commit and LeanPoo
+#+OPTIONS: toc:nil
+
+* Question and decision
+
+This iteration added a post-root commit disposition and a composed protection
+profile. We checked whether LeanPoo could own either concern. It owns the
+profile construction: [[file:../../CedarPooSpec/Data/ProtectionProfile.lean][ProtectionProfile]]
+uses typed =Object.define= slots, a computed intent slot, and =extendWith=
+for child overrides. [[file:../../Tests/Data/ProtectionProfile.lean][Lean tests]]
+show that a key-version override recomputes the intent while the parent and
+source custody stay intact. The
+[[file:../../Productions/Data/StorageProfileMatrix.lean][production matrix]]
+uses the same mechanism to override a base storage effect before exporting
+composed cases for Rust.
+
+* Capability fit
+
+| LeanPoo capability | Decision and evidence |
+|--------------------+-----------------------|
+| Typed Object slots, computed =self= slot, inheritance | Used for profile variation and intent recomputation; tests detect stale inherited values. |
+| C4 and multi-owner composition | Not added here: one base profile and one child override create no conflicting owner order. Existing Cedar policy families exercise C4 separately. |
+| Multimethod or generic dispatch | Not added: the same admission and commit rules apply to every profile. The profile changes data, not the operation selected. |
+| Incremental cache and proof revision | Not added: each bounded fixture computes one intent, and no dependency reuse or proof invalidation is asserted. There is no repeated workload measurement to justify a cache. |
+| Mutable object or class lifecycle | Not added: current authority and the operation ledger are authenticated Host state; a Lean object would not provide an atomic transaction. |
+
+The [[file:../../CedarPooSpec/Data/ProtectedStorage.lean][pure commit disposition]]
+therefore remains a value-level rule. A fresh result needs an exact physical
+acknowledgement and current authority; an exact authenticated prior receipt
+can replay after expiry without creating an effect. The Host still supplies
+authenticity and atomic ledger compare-and-set. The checked
+[[file:../../Tests/Conformance/protected-storage-v1.json][fixture]] and Rust
+replay detect rule drift; they do not prove a deployed Host transaction.
+
+* Next iteration trigger
+
+Reconsider dispatch if independently owned protection profiles contribute
+different ordered construction rules. Reconsider proof revision or caching
+only when a concrete profile update requires selective recomputation and a
+test can observe reuse or invalidation. Keep the physical acknowledgement and
+ledger transaction at the Host boundary.
+
+* Reflection: names and schema identity
+
+The storage, protection, read, and Table batch types now use semantic names
+without release suffixes. The checked JSON artifacts retain their explicit
+=schema= identifiers; nested storage and read objects no longer repeat a
+=version= field. This changes the projection bytes, so the Lean exporters and
+Rust consumers replay the same regenerated fixtures. The existing LeanPoo
+profile still composes destination and key choices through typed slots and
+inheritance. Renaming those types creates no new independent owner, method
+selection, or proof dependency, so no additional LeanPoo mechanism is used.

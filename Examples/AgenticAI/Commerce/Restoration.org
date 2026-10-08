@@ -1,0 +1,150 @@
+#+TITLE: Checkout Restoration, Recovery and Identity Migration Research
+#+DATE: 2026-10-03
+
+* Exact starting interfaces
+
+Cedar =0bd83234c0f253eaa83052e4ce0ad717e26c27cd= supplies the selected
+[[file:Coordination.org][shared Checkout CAS contract]]. At that starting snapshot its state had private fields and Serialize,
+but no validated deserializer or authenticated durable recovery operation.
+=Applied/Conflict/Unknown= cannot recover the result of an earlier write.
+The enrolled tuple constructor checks shape, not canonical registry ownership.
+
+MRR =a4e7dc67bf4d0d8982339430a6ddd9c74c5e3b99= still uses the per-ledger
+=PresentationJournal=. Its =ConditionalContentCommitPort= persists the head
+and exact operation receipt together, runs current-authority validation for
+fresh Apply and exposes exact recovery/replay as historical status. These are
+port contracts, not an installed storage backend. The new shared state is not
+yet consumed there. Cedar must retain zero MRR imports; MRR owns composition.
+
+* Paper-to-interface correspondence
+
+| Primary source | Selected finding | Interface consequence and transfer limit |
+|----------------+------------------+------------------------------------------|
+| [[https://web.stanford.edu/~ouster/cgi-bin/papers/rifl.pdf][Lee et al., RIFL, SOSP 2015, sections 3 and 4]] | Stable request identity, durable completion records, retry rendezvous and safe retention are separate obligations. Completion evidence must persist atomically with the operation; retries must find it after migration. | Shared CAS gives exclusion, while an exact operation receipt supplies historical outcome recovery. A stale CAS conflict alone cannot distinguish our prior commit from another writer. No exactly-once network payment claim follows. |
+| [[https://static.usenix.org/events/osdi06/tech/full_papers/burrows/burrows_html/][Burrows, Chubby, OSDI 2006, section 2.4]] | Resource recipients validate lock generation carried by a sequencer; acquiring coordination authority does not force every recipient to enforce it. | Revision compares protect the state store. Root/dispatch generations must separately reach the protected acceptance endpoint. Our gate revision is not a downstream fencing token. |
+
+RIFL's lease-based retirement checks an expired client at the server; deleting
+records solely because time elapsed can admit a delayed retry. For our design,
+a client ACK or mandate expiry is insufficient to delete authorization
+pending/spent state. A future retention proof must cover all replay paths,
+identity migration and acceptance fences. No paper throughput figures become
+our benchmark results.
+
+* Concrete identity migration witness
+
+The [[file:../../../rust/commerce-case/tests/integration/agentic_ai_commerce_coordination_consumer.rs][independent consumer]] now changes only policy-1 to policy-2 for the same
+canonical authorization/agent. The API derives different keys, and two fresh
+reference stores both commit the same reference. This directly demonstrates
+that tuple hashing and whole-record CAS cannot establish migration exclusivity.
+It does not show that a deployed registry permits this mapping or that either
+request caused an economic effect. The same-key concurrent positive control
+still permits exactly one fresh CAS.
+
+Proposed design: retain a stable authorization coordination home and put policy
+revision in the authenticated authority snapshot, rather than use a new policy
+revision to create another fresh home. Stable home creation binds registry
+namespace, root lineage/incarnation and canonical enrolled agent. Issuer/key
+aliases resolve through that registry. Revision replacement must preserve
+pending/spent state and tombstones. Distinct authorizations may remain distinct;
+agent-wide serialization and Checkout/Payment coupling require separate policy.
+This is a design recommendation; the current tuple API has not been migrated.
+
+If a grouping policy really changes the home, an atomic registry transition
+must retire/fence the old home, designate the successor, and transfer retained
+state before new admission. Without genuine multi-record atomicity, refuse
+online cross-home migration. Same-home policy refresh is the preferred first
+implementation. A paused sender also needs the existing endpoint fence;
+updating the registry or store alone cannot retract an accepted external effect.
+
+* Proposed validated restoration boundary
+
+A versioned wire envelope should decode into an untrusted snapshot first.
+No public Deserialize should construct =SharedCheckoutState= directly. A
+separate restoration function receives the expected enrolled identity and an
+authenticated durable head/incarnation. Shape validation and anti-rollback
+validation are different checks. Historical evidence must not become a send
+permit or certify current authorization.
+
+For the current two-transition model, validate these necessary invariants:
+
+- Unknown fields, duplicate members (including journal-map keys), floating-point
+  revisions, overflow and unsupported versions are rejected before projection.
+- Identity/key agree with the expected registry binding; every journal scope
+  equals that identity's storage key. Journal IDs are nonempty and bounded.
+- Bounds preserve the current 16 journals, 256 total references and 256-byte
+  identifier limits. Never truncate or evict evidence to pass restoration.
+- Seen references are nonempty, unique within each journal and disjoint across
+  all journals. A pending reference is its journal's most recently added one.
+- At most one journal is pending; =pending_journal= identifies exactly that
+  journal. Missing or extra pending pointers are rejected.
+- Shared spent iff one journal is spent; at most one journal is spent, and
+  spent forbids every pending slot. No previously spent authority becomes fresh.
+- Stored journals have at least one seen reference. For each journal,
+  =revision = 2 * seen_count - pending_count=. Shared revision equals the sum
+  of journal revisions, using checked arithmetic.
+
+The counter equation follows from this implementation: Present appends one
+reference and increments once; Receipt increments once without appending.
+It is tied to the selected model/version, not a universal protocol invariant.
+Future recovery/migration transitions must version or revise it explicitly.
+These structural checks cannot prove authentic history: a fabricated fresh
+snapshot satisfies them. Durable head authentication, incarnation continuity
+and rollback detection must come from the deploying provider/registry contract.
+
+Keep exact mandate/merchant evidence and receipt JWS in an authenticated
+append-only operation journal or referenced evidence store. The shared state
+alone does not retain all those bytes. Restore authority state and operation
+completion metadata together; do not use independent conditional writes.
+
+* Recovery disposition and current authority
+
+| Observation | Proposed interpretation | Permitted consequence |
+|-------------+-------------------------+-----------------------|
+| CAS Unknown | Original operation may have committed | Retain uncertainty; lookup exact operation identity |
+| Later head differs; no exact receipt | Our operation's outcome is unproved | Conflict/unknown, no inferred fresh-send grant |
+| Exact original completion receipt | Historical commit under original body is confirmed | Return Replayed/recovered status; no new effect authority |
+| Authenticated lookup has no operation row | Known absence only under provider retention/incarnation contract | Any fresh attempt still needs one protected live-authority transaction |
+| Lookup unavailable, stale replica or changed incarnation | Absence/continuity unproved | Refuse fresh admission and retain uncertainty |
+| Receipt key revoked after historical commit | Historical bytes remain evidence | Do not turn old verification into current receipt/admission authority |
+
+Exact operation identity must bind coordination home, event kind, request
+reference, expected incarnation/revision and exact replacement/evidence body.
+Retries reuse it; changed bodies under the same ID are conflicts. Domain event
+identity, persistence retry identity, and provider payment operation identity
+are distinct. Versioned framing is required before hashing each tuple.
+
+A future protected adapter should compare the authenticated head, operation
+record and current enrollment/policy/root generations in one linearizable
+boundary. Alternatively, use a provider-guaranteed synchronization contract for
+authority refresh. A callback followed by an unprotected CAS has a revocation
+window. A successful CAS followed by an unfenced payment call has another one.
+Historical replay does not invoke a fresh admission callback or grant a send.
+
+* Falsifiable experiments and implementation order
+
+| Order | Experiment | Positive control | Required refusal / observation |
+|-------+------------+------------------+--------------------------------|
+| R1 | Validate restored structural state | Authentic fresh, pending, rejected/retried and spent snapshots round-trip | Duplicate keys, wrong scope/pending mirror, cross-journal reference reuse, counter mismatch and oversized state refuse |
+| R2 | Bind snapshot to durable continuity | Latest authenticated head restores without a capability | Structurally valid old/spent-to-fresh snapshot, wrong incarnation and stale replica cannot reset authority |
+| R3 | Recover exact completion record | Lost ACK returns original historical receipt after later writes/restart | Changed body/same operation, missing ledger during migration and unavailable lookup remain conflict/unknown |
+| R4 | Preserve policy/issuer/agent aliases | Same authorization resolves to one retained home across policy refresh | New policy ID cannot create fresh pending authority; paused old sender fails endpoint fence |
+| R5 | Synchronize live authority | Fresh admitted commit succeeds under current generations | Revoke between verification and protected commit; rotate receipt key; wrong generation refuses fresh admission |
+| R6 | Retain evidence across boundaries | Qualified restart keeps state and exact operation metadata | Crash after each durability boundary cannot expose one without the other; timeout cannot clear pending |
+
+R1 structural restoration is now implemented and independently tested in the
+[[file:Coordination.org][Checkout consumer profile]]. R2/R3 still require a deployment-neutral
+provider protocol and independent reference consumer; physical backend tests
+must declare the backend/durability configuration. R4 needs the stable-home
+registry design before production adoption. R5/R6 compose with existing root
+and dispatch fences. R1 covers structural input and lifecycle round-trips only. R2-R6 remain planned,
+alongside the existing policy-change witness and in-memory CAS regressions.
+No authenticated durable recovery or production-adapter completion
+is claimed by this research artifact.
+
+* Unified backend follow-up
+
+The [[file:../../../Productions/Backend.org][shared Production backend design]] selects one engine with multiple
+provider modules serving all Profiles/Cases, explicit lifecycle states, bounded
+scheduling and matched
+durability/performance qualification. It preserves the R1-R6 recovery boundary;
+backend/provider implementation remains an MRR Data responsibility.

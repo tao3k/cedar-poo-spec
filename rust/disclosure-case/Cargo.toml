@@ -1,0 +1,18 @@
+[package]
+name = "cedar-poo-disclosure-case"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Language-model disclosure executable case"
+
+[dependencies]
+cedar-poo-disclosure-host.workspace = true
+cedar-poo-runtime.workspace = true
+cedar-poo-agentic.workspace = true
+cedar-poo-core.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+asp-rust.workspace = true
+

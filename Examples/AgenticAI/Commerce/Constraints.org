@@ -1,0 +1,81 @@
+#+TITLE: Selected Checkout Constraints and SDK Differential Corpus
+
+* Source and selected policy
+
+The AP2 pin remains =e1ea56db72a6385bce3e5c1112b3a56ce60acb43=. The frozen
+[[file:../../../Tests/Conformance/ap2-checkout-constraints-v1.json][15-case domain corpus]] records actual calls to the pinned
+[[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/python/ap2/sdk/constraints.py][SDK constraint evaluator]] with its generated Pydantic types. It is separate
+from the [[file:WireVectors.org][17 SDK wire vectors]]; no domain case claims SDK wire admission.
+Both replay modules belong to the Python workspace testing package and verify
+the exact source manifest and shared locked dependencies.
+
+The [[https://github.com/google-agentic-commerce/AP2/blob/e1ea56db72a6385bce3e5c1112b3a56ce60acb43/code/sdk/schemas/ap2/open_checkout_mandate.json][pinned schema]] requires a line-item constraint in a nonempty mandate.
+The selected Rust policy checks every constraint conjunctively, requires exact
+merchant IDs and assigns each requirement's exact positive quantity to one
+acceptable SKU. Every cart unit must be assigned once. Duplicate line,
+requirement and candidate IDs and empty acceptable sets are refused.
+Same-SKU units across distinct cart lines aggregate. This is a selected strict
+policy, not a general proof of AP2 semantics or full UCP schema conformance.
+The original empty seed constraints retain explicit =SeedBindingOnly= coverage;
+nonempty success returns =ItemConstraintsChecked=.
+
+| Frozen case | Pinned SDK domain observation | Selected Rust policy |
+|-------------+-------------------------------+----------------------|
+| exact-quantity | accepted | accept |
+| wrong-merchant | rejected | reject |
+| underfilled-requirement | accepted | reject |
+| excess-units | rejected | reject |
+| extra-sku | rejected | reject |
+| mixed-alternatives | accepted | reject |
+| overlap-needs-backtracking | accepted | accept |
+| empty-alternatives | accepted | reject |
+| unknown-constraint | rejected (ValidationError) | reject |
+| zero-quantity | rejected (ValidationError) | reject |
+| duplicate-requirement-id | accepted | reject |
+| missing-line-items-constraint | accepted | reject |
+| all-constraints-conjoined | rejected | reject |
+| duplicate-cart-line-id | accepted | reject |
+| aggregate-same-sku | accepted | accept |
+
+The SDK flow checks available cart units against requirement capacities but can
+leave demand unfilled or mix alternatives into one requirement. Its generated
+model does not enforce the schema's contains rule. These are API observations
+for fixed inputs; they establish no deployed payment vulnerability. Rust
+acceptance is scored against the explicit selected policy rather than SDK
+agreement. Merchant name/website fallback is not supported.
+
+* Authenticated inputs and bounded search
+
+The [[file:../../../rust/commerce-mandate/README.org][storage-independent verifier]] parses constraints from authenticated root
+claims, verifies delegation bindings and the independent merchant signature,
+and evaluates the authenticated checkout before constructing its private
+verified result. The consumer signs each domain case using test-only keys.
+
+Bounds: 16 constraints, 16 merchants/candidates/cart lines, 8 requirements per
+line-item constraint, 1,000,000 units per requirement/aggregated SKU, and 4,096
+visited assignment states per line-item constraint. Bounded backtracking
+handles overlapping acceptable sets; exhaustion returns =Limit=. A regression
+exercises a validly signed adversarial input that exhausts this budget.
+
+Selective arrays may narrow disclosed merchant/candidate alternatives. Whole
+constraint and requirement-slot array placeholders are unsupported, even if
+a disclosure is supplied. Signed omission regressions prevent dropping a rule
+or falling back to empty-seed coverage. Missing mandatory fields still fail.
+
+Item price is checked only as an unsigned integer. Price arithmetic, totals,
+currency, image/website URL semantics, checkout completion and full UCP schema
+validation are not checked. Shared identity, atomic authorization coordination,
+nonce consumption and trust freshness remain [[file:VerificationPlan.org][subsequent composition work]].
+
+* Receipts
+
+#+begin_src sh
+just check-agentic-ai-commerce-wire-corpus
+just check-agentic-ai-commerce-constraint-sdk /absolute/path/to/pinned/AP2
+#+end_src
+
+Regular CI checks both frozen byte digests and runs 11 Rust consumer tests,
+covering all 32 frozen expectations plus independent mutations and bounds.
+The separate Python receipt is =AP2-CONSTRAINT-SDK-OK 15 domain-only cases=.
+It replays domain observations, not signatures. The original SDK wire replay
+remains separate. No benchmark or full admission claim follows from these tests.

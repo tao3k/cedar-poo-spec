@@ -1,0 +1,76 @@
+#+TITLE: Commerce Property and Source Correspondence
+#+DATE: 2026-10-03
+
+* Scope and acceptance event
+
+The first executable slice is single-root authorization retirement at a
+provider-local protected acceptance event. The root is the independently
+authenticated pair =(budgetScope, rootMandateId)=. Scope ownership binds the
+principal; an untrusted caller must not select another principal's namespace.
+Generation is a root incarnation counter, distinct from principal policyEpoch.
+Key rotation increments generation. Retirement is irreversible for that root.
+Reauthorization requires a fresh authenticated root incarnation and namespace.
+
+The issuer's root cut and a provider's installed fence are distinct events.
+Missing installation evidence means quiescence is unknown. An old ticket can
+still be accepted before that endpoint installs the fence. Work accepted before
+installation can complete afterward and remains accountable through its exact
+provider receipt. No cross-provider global clock is assumed.
+
+| Property | Primary source and version | Bound fields / acceptance event | Executable evidence | Remaining assumption or gap |
+|----------+----------------------------+---------------------------------+---------------------+-----------------------------|
+| Authorization freshness | Root-scoped Quiescence, arXiv 2609.21284v1; Chubby OSDI 2006 section 2.4 | root namespace, root mandate, generation, provider, operation, full request commitment; protected endpoint acceptance | Acceptance.lean: retiredFenceRejects, staleGenerationRejects, advanceIncreasesGeneration, retirementIsPermanent; Rust acceptance profile; MRR suspended worker, key rotation and logical restart cases | authenticated durable fence installation and complete endpoint mediation |
+| Complete transaction terms | Formal Analysis, arXiv 2609.00060v1 P1 | amount, asset, merchant, offer, checkout, lineage, receipt, credential, provider and operation | existing signatures, projection, credential and signed receipt consumers | transport and endpoint identity enrollment |
+| One scoped purchase claim | Formal Analysis v1 P3; Zero-Trust Runtime Verification arXiv 2602.06345v1 | budget scope and purchase identity at conditional consumption commit | Consumption.lean consumedPurchaseCannotClaimAgain; competing claims and reissued credential tests | atomic head and operation ledger in ConditionalContentCommitPort; actual rail uniqueness separately tested |
+| Unknown outcome recovery | Formal Analysis v1 P6/P17; RIFL SOSP 2015 storage contract comparison | original provider, operation and request body; status query only | lost claim ACK grants no permit; lost provider response retains tombstone; recovery after retirement | fenced ownership recovery implemented; durable endpoint and queue qualification remain external |
+| Endpoint attestation | Formal Analysis v1 P18 | exact request commitment and independently enrolled provider signing key | receipt substitution and key revocation regressions | enrolled keys and authenticated transport; receipt success is not settlement finality |
+| Presentation serialization | AP2 specification v0.2, e1ea56db72a6385bce3e5c1112b3a56ce60acb43 | shopping agent and one outstanding Payment/Checkout presentation | Checkout Receipt ES256 subprofile and scoped lifecycle implemented | full SD-JWT, Payment Receipt and cross-scope serialization remain external |
+| Finality and fulfillment | Formal Analysis v1 P4/P5/P6 | settlement, delivered goods, activation, compensation | unimplemented | external settlement and fulfillment witnesses |
+| Intent integrity before signature | Beyond the Mandate arXiv 2608.23858v1 | independent purchase intent against catalog/A2A/MCP inputs | unimplemented adversarial experiment | valid signatures alone cannot establish unmanipulated intent |
+
+* Implementation seams
+
+- [[file:../../../CedarPooSpec/AgenticAI/Commerce/Acceptance.lean][Pure Lean fence model]]
+- [[file:../../../rust/commerce/src/acceptance.rs][Optional Cedar acceptance feature]]
+- [[file:../../../Tests/AgenticAI/Commerce/Acceptance.lean][Executable Lean acceptance fixtures]]
+- [[file:../../../Tests/Conformance/commerce-acceptance-v1.json][Versioned fixture]]
+- MRR =crates/mrr-data-commerce/src/consumption.rs=: a fresh claim captures
+  authenticated root generation inside the conditional commit validation.
+- MRR =provider.rs=: the endpoint contract requires =permit.eligible_at= in
+  the protected acceptance transaction, with no intervening unprotected await.
+- The deterministic MRR endpoint holds one fence lock across eligibility and
+  recording its acceptance oracle. The counter measures that oracle, not real
+  bank charges. Rust traits cannot compel a remote processor to honor the contract.
+
+* Validation and deployment gates
+
+=just check-agentic-ai-commerce-acceptance= builds Lean, regenerates its JSON,
+compares the checked fixture, and executes the independent Rust consumer.
+The Rust gate includes acceptance as its own isolated feature profile.
+MRR tests exercise fresh acceptance, claim then retirement, rotation, logical
+endpoint restart, unrelated root cuts, misbound authority, unknown result and
+recovery of a pre-fence accepted request.
+
+A deployment must provide durable root fences, accepted operation/body records,
+authenticated updates, scope ownership and endpoint serialization. Loss of
+fence state fails closed; default initialization from an old worker snapshot
+is prohibited. No database or payment rail is provided by these libraries.
+
+* Recovery boundary retained
+
+| Observation | Allowed action | Fresh permit? |
+|-------------+----------------+---------------|
+| uncertain conditional claim | recover exact commit receipt | no |
+| acknowledged claim, process lost before send | recover committed descriptor and acquire fenced provider ownership | no |
+| known non-release / NotSent | retain consumed purchase and report refusal | no |
+| provider outcome unknown | query exact original provider and body | no |
+| accepted receipt before fence | verify/query same receipt after retirement | no |
+| absent or unavailable provider status | retain unknown; never switch provider or operation ID | no |
+
+Resumable release uses the [[file:Recovery.org][fenced ownership protocol]]: the endpoint rejects
+an earlier owner at protected acceptance. Deployment durability and eventual
+completion remain external; global root quiescence, AP2 conformance and settlement
+are not established by the pure model.
+
+The [[file:Presentation.org][pinned presentation subprofile]] has its own optional feature and
+conformance recipe. Its scoped proof and strict wire subset are stated explicitly.

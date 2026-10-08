@@ -3,7 +3,7 @@
 
 * Contract
 
-The optional Rust =cedar-runtime= feature exposes =replay_manifest= and
+The Rust =cedar-poo-runtime= crate exposes =replay_manifest= and
 =verify_replay_receipts=. They parse the Lean-generated Cedar policy JSON,
 replay every request with the pinned official =cedar-policy= authorizer, and
 compare the decision, reason IDs, and error policy IDs with Lean's manifest.
@@ -26,7 +26,7 @@ manifest and compare the entire record.
 The CLI accepts a manifest on standard input:
 
 #+begin_src sh
-cargo run --locked --features cedar-runtime --manifest-path rust/Cargo.toml -- replay-receipts < manifest.json
+cargo run --locked -p cedar-poo-bridge --manifest-path Cargo.toml -- replay-receipts < manifest.json
 #+end_src
 
 The output is a JSON array in the manifest case order. The

@@ -103,7 +103,7 @@ structure Session where
   usedExports : Int64 := 0
   maxExports : Int64 := 1
   delegatedIntent : String := "report"
-  deriving BEq, Repr
+  deriving BEq, DecidableEq, Repr
 
 structure Attempt where
   action : EntityUID

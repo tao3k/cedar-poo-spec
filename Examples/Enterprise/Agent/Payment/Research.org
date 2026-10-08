@@ -1,0 +1,209 @@
+#+TITLE: Payment Operations: Authorization, Audit, and Effect
+#+OPTIONS: toc:nil
+
+* Scope and executable model
+
+As of 2026-10-01, this is a research map and synthetic assurance case, not a
+deployed payment service. The public
+[[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentOperation.lean][PaymentOperation]] is a concrete instruction: direct or delegated authority
+mode, payer account, origin, payment instrument or rail, beneficiary, amount,
+asset, network, fee cap, mandate reference, nonce, policy epoch, and expiry.
+A delegated instruction requires a mandate reference; its authenticity and
+scope remain Host obligations. Its methods keep three decisions
+separate:
+
+| Method boundary | Owner | Current executable claim |
+|-----------------+-------+--------------------------|
+| Authorization | Cedar policy and Host binding | An error-free Allow for this operation and the exact audit-policy snapshot is required. |
+| Audit | =PaymentAuditPolicy.accepts= | The policy selects any positive number of evidence stages. Every supplied item must be verified, current, affirmative, and bound to the operation and policy snapshot. |
+| Effect reservation | =PaymentOperation.prepare= plus Host | Only an authorized, audited, fresh operation consumes its nonce and creates a pending attempt; an identical second reservation fails. Actual transfer execution remains Host-owned. |
+
+AI model, human reviewer, deterministic rule, and external investigator are
+*kinds of audit evidence*, not Payment subclasses or hardcoded steps. A
+requirement selects source and minimum distinct actors. A policy may require
+human actors to differ across stages and exclude the proposer. A negative or
+escalated verdict blocks the audited operation; model output never creates a
+Cedar Allow. The downstream [[file:PaymentAudit.lean][example]] chooses three stages
+(one model, Risk human, Compliance human) and binds Cedar's
+=PaymentGoverned= decision. The [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][regressions]] exercise one-, two-, and
+three-stage policies, changed beneficiary or fee, adverse/unverified
+evidence, same reviewer, stale epoch, expiry, replay, and amount denial. Run
+=just check-payment-audit=.
+
+This object-level split follows the [[https://www.federalreserve.gov/newsevents/speech/waller20260928a.htm][Federal Reserve's distinction]] between
+agent-assisted and agent-delegated payments, and the [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 specification's]]
+separation of checkout, payment mandate, credential verification, and
+processor effect. Our =instrument= and =mandateRef= are opaque identifiers, not
+AP2-compliant credentials. The [[https://arxiv.org/abs/2609.00060][protocol analysis preprint]] similarly motivates
+checking bindings across lifecycle stages; it does not certify this model.
+
+The =verified= flags are Host assertions. This code does not verify signatures,
+run a risk model, persist a nonce, or execute a payment. A production Host
+must authenticate each evidence source, canonicalize and sign the complete
+operation including instrument-specific details, obtain the actual policy epoch
+and error-free Cedar response, and persist the nonce with its pending attempt
+before dispatch. Detection quality and reviewer load need measurement.
+This pure contract follows the ownership boundary in
+[[file:../../../../docs/rfc/0008-composable-control-objects.org][RFC 0008]]: Cedar owns authorization, the public library states control
+requirements, and the Host owns authentication and effects.
+
+* Payment attempt lifecycle and uncertain responses
+
+The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLifecycle.lean][PaymentLifecycle]] separates =reserved=, =submitted=,
+=accepted=, =settled=, and =rejected=. =prepare= pairs the nonce reservation
+with a pending attempt. =submit= permits one transition from =reserved= to
+=submitted= and returns one =ProcessorRequest= carrying the complete payment
+and its nonce as a stable idempotency key. The Host must atomically compare and
+persist that transition before calling the processor, so a stale copy of
+=reserved= cannot emit another command. An unanswered request stays =submitted=.
+=statusQuery= permits a read-only lookup by the same key; after acceptance it
+also carries the provider reference. Recovery records authenticated
+=ProcessorEvidence= that matches the payment and key. It must not infer failure
+from a timeout and resend the payment.
+
+Processor acceptance is an acknowledgement, not settlement. A later
+settlement or rejection must match the accepted provider reference. Direct
+final outcomes from =submitted= are also modeled. Settlement and rejection
+are terminal. The [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][regressions]] check no second submit,
+acceptance without settlement, matching finality, forged or mismatched
+observations, wrong idempotency keys, and terminal states.
+=just check-payment-audit= compiles them.
+
+Settlement evidence now also carries the processor-reported payer account,
+instrument, beneficiary, amount, asset, network, and charged fee. The generic
+state machine checks the first six against the approved operation and stores
+the details with the final record. It requires a nonempty charged fee but
+leaves its numeric interpretation to the rail adapter. Missing or mismatched
+effect terms cannot change an accepted attempt to settled; acceptance and
+rejection cannot carry settlement details.
+
+The pure model does not supply a durable transaction, a processor idempotency
+guarantee, an authenticated status query, or evidence of economic finality.
+The Host must enforce these at the adapter boundary and reconcile an uncertain
+response before declaring a final outcome. The local no-second-submit theorem
+concerns this state machine; it does not prove that a remote processor applies
+an effect at most once. A crash after persisting =submitted= but before sending
+may leave an unsent pending request. If status lookup reports no record, this
+model does not authorize a resend; the Host must hold it for reconciliation or
+use a separately specified provider guarantee for safe same-key retry.
+
+The [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLedger.lean][PaymentLedger]] makes the Host's request-key record explicit across multiple
+payments. =prepare= inserts a pending record with nonce reservation;
+=dispatch= requires both that reservation and exactly one matching record,
+changes it to =submitted=, and returns its
+processor command; =cached= and =statusQuery= read the same record without a
+new command; =reconcile= caches an authenticated processor outcome. A missing
+or duplicate key fails closed, and a second payment cannot claim an existing
+key. The [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][tests]] exercise these transitions and show that dispatching one key leaves
+another payment reserved.
+
+The ledger is an abstract value, not durable storage or a transaction manager.
+Each successful mutation advances its =revision=; the Host must use the prior
+revision as an atomic compare-and-swap token when persisting the result and
+reject stale concurrent writers before it sends the command. A processor must
+also guarantee stable same-key resolution for status queries; otherwise the
+model cannot establish remote at-most-once effect or safe automated recovery.
+
+The bank-rail [[file:PaymentAudit.lean][fee-cap reconciliation helper]] additionally parses the reported
+fee in the same canonical decimal profile and checks that it is nonnegative
+and at most the authorized =feeCap=. The generic ledger intentionally leaves
+rail-specific fee comparisons to adapters. Neither the =verified= flag nor
+the =settled= phase proves bank clearing or legal finality: the Host must
+authenticate the provider receipt and apply the rail's actual finality rule.
+This models the receipt and effect correspondence questions identified in
+[[https://arxiv.org/html/2609.00060][the formal protocol study]]; the [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 specification]] likewise separates signed
+payment receipts from later dispute verification. These sources do not
+certify this synthetic bank-rail profile.
+
+The [[https://arxiv.org/html/2609.00060][formal protocol study]] describes MPP-14 as a source-aligned symbolic trace:
+spend is recorded, a response is lost, and retry accounts the same logical
+request twice. Its patched reference atomically records a request key, cost,
+and result state. This model addresses the *Host command* side of that pattern;
+it does not reproduce the studied protocol or assert a deployed vulnerability.
+The [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 specification]] separately binds mandates and receipts to a checkout;
+our nonce key is a local Host convention, not an AP2 credential or AP2-mandated
+idempotency rule.
+
+* Numeric terms at the Cedar adapter boundary
+
+The [[https://docs.cedarpolicy.com/policies/syntax-operators.html][Cedar decimal constructor]] accepts one to four fractional digits and
+leading-zero spellings. Two strings can therefore denote one Cedar value
+while remaining distinct =PaymentOperation= fields and audit bindings. The
+[[file:PaymentAudit.lean][bank-rail example adapter]] now accepts only the fixed four-place spelling
+produced by Cedar's decimal =toString=, for both =amount= and =feeCap=. It
+rejects negative or overflowing fee caps. The ledger preparation helper uses
+the adapter's Cedar Allow and a separate synthetic Host =PaymentExecutionProfile=
+before reserving a request key. The profile fixes the example's delegated mode,
+instrument, beneficiary, asset, network, mandate reference, and maximum fee
+cap; its =verified= flag is an asserted Host fact, not a signature check. The
+tests rebind all audit evidence to altered terms so the negative results test
+the adapter checks rather than stale evidence.
+
+This is a local transport profile, not a claim that Cedar requires one spelling.
+The current Cedar policy authorizes =amount=, account, and origin; it does not
+see beneficiary or asset, and it does not compare =feeCap= to a policy limit.
+The fixture proves that Cedar alone still allows a changed beneficiary while
+the composite example decision denies it. Neither layer verifies the fee
+eventually charged by a processor or the delegated mandate's signature. The
+Host must authenticate the profile and mandate, then bind the final processor
+payload and fee result to these exact terms. Other rails need their own
+numeric range, precision, asset, and canonical encoding rules before dispatch.
+
+* Cross-stage audit-policy binding
+
+The authorization receipt and every audit item now carry the *exact*
+=PaymentAuditPolicy=, while =PaymentState= supplies the currently active
+policy. =PaymentOperation.admissible= compares the authorization snapshot to
+that active policy, and =PaymentAuditPolicy.accepts= checks every evidence
+item against it. A three-stage authorization cannot be paired with a later
+one-stage plan even when the Cedar policy epoch is unchanged. Recapturing an
+authorization for the one-stage plan still cannot reuse evidence issued for
+the three-stage plan. These are executable negative cases in
+[[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][PaymentAudit.lean]]. The public =changedAuditPolicyCannotReserve= theorem
+proves the first rejection for any payment and evidence.
+
+This is a matched, local response to the cross-stage binding questions in
+[[https://arxiv.org/html/2609.00060][A Formal Analysis of Agent Payment Protocols]] and the state-binding
+family in [[https://arxiv.org/html/2608.23858][Beyond the Mandate]] (both 2026 preprints). Their broader
+protocol findings do not imply that any named provider has this exact bug.
+The comparison is structural Lean equality, not a cryptographic digest or a
+live policy-store read. The Host must authenticate evidence, read its actual
+active audit policy, and compare/reserve it atomically with execution.
+
+* Industry and research evidence
+
+| Source | Relevant boundary | Next executable question |
+|--------+-------------------+--------------------------|
+| [[https://www.federalreserve.gov/newsevents/speech/waller20260928a.htm][Federal Reserve, Waller (2026)]] | Agent-assisted and delegated payments raise authentication, trust, fraud, and liability questions. | Bind a signed delegation mandate to each action. |
+| [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy.html][AWS AgentCore Policy]] and [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-iam-roles.html][Payments IAM roles]] | Cedar can constrain an agent tool call; session creation and =ProcessPayment= are separate authorities. | Replay exact arguments at the enforcement point and verify deployed mode. |
+| [[https://docs.aws.amazon.com/solutions/payments-fraud-prevention-on-aws/][AWS fraud prevention guidance]] | Near-real-time ML risk detection supplies evidence, not authorization. | Bind signed model version and risk result to the transaction. |
+| [[https://learn.microsoft.com/en-us/entra/agent-id/agent-identities][Microsoft Entra Agent ID]] and [[https://learn.microsoft.com/en-us/microsoft-copilot-studio/flows-advanced-approvals][multistage approvals]] | Agent identity and human approval are distinct; financial transactions are a human-approval use case. | Invalidate signatures after any payment edit. |
+| [[https://learn.microsoft.com/en-us/azure/security/fundamentals/shared-responsibility-ai-agent][Azure agent shared responsibility]] | Calls for action-level authorization and human gates. | Compare the approved action with the current policy epoch. |
+| [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][Google AP2 specification v0.2]] and [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/agent_authorization.md][agent authorization]] | Signed checkout and payment mandates support deterministic verification. | Model scope, revocation, canonical payload, and replay. |
+| [[https://docs.cloud.google.com/financial-services/anti-money-laundering/docs/concepts/overview][Google AML AI]] | Risk scores feed human investigation; its documented monthly AML workflow does not establish a real-time crypto payment blocker. | Keep investigation evidence separate from per-transaction release. |
+| [[https://www.amazon.science/publications/cedar-a-new-language-for-expressive-fast-safe-and-analyzable-authorization][Cedar paper]] and [[https://www.amazon.science/publications/symcert-verifying-smt-based-policy-analyses][SymCert (FMCAD 2026)]] | Authorization and symbolic analysis motivate the Cedar decision and proof boundary. | Check a certificate against the exact reviewed policy version. |
+| [[https://arxiv.org/abs/2609.00060][Formal Analysis of Agent Payment Protocols (2026 preprint)]] and [[https://arxiv.org/abs/2608.23858][Beyond the Mandate (2026 preprint)]] | Study agent payment protocols and preauthorization manipulation. | Test mandate substitution and interleaved approvals. |
+| [[https://arxiv.org/abs/2606.28679][ScopeGate]], [[https://arxiv.org/abs/2607.03656][AutoCedar]], and [[https://arxiv.org/abs/2601.22569][Whispers of Wealth]] (preprints) | Motivate tool-argument scope, whole-store review, and prompt-injection pressure on AP2. | Add adversarial cases without treating model output as approval. |
+
+* Incident evidence and limits
+
+The [[https://www.bitget.com/campaigns/bitget-security-incident-2026][Bitget disclosure]] reports that its security system detected abnormal
+transfers after a third-party product compromise led to stolen internal
+credentials and forged withdrawal commands that bypassed risk verification.
+Its [[https://www.bitget.com/support/articles/12560603896305/][investigation update]] also attributes the compromise to a third-party
+product. The public record does not establish whether AI detection was
+deployed or whether it would have prevented the incident. We use the bypass
+pattern to test whether execution independently verifies identity, exact
+command binding, risk evidence, and release authority.
+
+* Next research slices
+
+1. Define canonical intent serialization and signed evidence verification;
+   check substitution and replay against the public processor adapter.
+2. Connect the approved policy epoch and whole-store authorization-delta
+   review to an atomic Host publication/execution transaction.
+3. Compare AP2 mandate semantics and delegated authorization with the
+   synthetic model, then add protocol-level adversarial traces.
+4. Evaluate a real detector on a documented dataset with false-negative,
+   false-positive, latency, drift, and reviewer-load measurements. Do not
+   present fixture assertions as detection performance.

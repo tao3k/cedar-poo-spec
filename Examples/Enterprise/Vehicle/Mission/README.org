@@ -170,16 +170,16 @@ attack. We have not rerun the model or independently audited the
 dataset author's attack labels. The dataset metadata used for extraction has SHA-256
 =5932fd7a7053e5fc5c9ad03ed94e82efa7e152d77793fb69a7980c50fc4a8f4c=.
 
-The [[file:DirectPolicies/][direct Cedar baseline]] stores six
+The [[file:DirectPolicies][direct Cedar baseline]] stores six
 standalone Cedar policy snapshots without Lean-generated comments.
 The official Rust Cedar engine authorizes all 68 existing requests
 with the same allow/deny decision and determining and erroring policy bodies
 as Lean. Source policy IDs are regenerated, so the comparison uses bodies.
 For one
 controlled change, fallback handoff additionally requires
-=routeApproved=. [[file:MaintenanceComparison.lean][Lean]] makes this
+=routeApproved=. [[file:../../../../Examples/Enterprise/Vehicle/Mission/MaintenanceComparison.lean][Lean]] makes this
 change once in =Base= and proves that all six roots inherit it. Six
-[[file:DirectChangePolicies/][direct Cedar snapshots]] each need the
+[[file:DirectChangePolicies][direct Cedar snapshots]] each need the
 same condition edit; official Cedar matches Lean on 12 changed-case
 requests. This change is a maintenance probe, *not* a recommended
 fallback rule for a vehicle. These are literal maintenance occurrences for this

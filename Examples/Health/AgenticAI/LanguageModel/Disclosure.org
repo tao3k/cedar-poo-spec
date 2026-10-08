@@ -1,0 +1,153 @@
+#+TITLE: Language-Model Agentic Disclosure Across Derived Data and Channels
+#+OPTIONS: toc:nil
+
+* Scope
+
+This case belongs to =CedarPooSpec.AgenticAI.LanguageModel=: the system uses a
+language model to plan actions and invoke tools. The Cedar =Actor= named
+"analytics-agent" is the delegated execution principal in this synthetic
+case; it is not the model or a general definition of every software agent.
+Generic approval, delegation, lineage, and storage contracts remain in their
+own namespaces. See the [[file:../../../../CedarPooSpec/AgenticAI/LanguageModel/Security.org][namespace boundary]].
+The [[file:../../../../CedarPooSpec/AgenticAI/README.org][top-level AgenticAI library]]
+owns reusable tool-action and sink checks; this hospital workflow supplies
+the Cedar policy, grants, and synthetic Host facts.
+
+* Published motivation
+
+The references below identify the published problem and the precise part this
+case uses. They do not establish that this implementation reproduces a paper's
+measurements or a vendor's production controls.
+
+| Reference | Published finding or boundary | Use in this case |
+|-----------+-------------------------------+------------------|
+| [[https://arxiv.org/abs/2609.14003][Shim et al., FLOWSEAL, arXiv:2609.14003, 2026]] | Collaborative workspace and channel-decoupled disclosures can evade model-context privacy instructions; the paper proposes provenance-aware tool interception. | Workspace and message effects share source labels and one ledger. |
+| [[https://arxiv.org/abs/2606.12341][Xie and Li, OCELOT, arXiv:2606.12341, 2026]] | Cumulative leakage is a trajectory property; the paper proposes witness-verified declassification and budget accounting. | The finite state model checks current budget on each release. It does not implement OCELOT's semantic risk estimator or certified cost. |
+| [[https://www.frontiersin.org/journals/digital-health/articles/10.3389/fdgth.2026.1832168/full][K-anonymity decay in multi-turn clinical large language model conversations, Frontiers in Digital Health, 2026]] | Individually acceptable clinical disclosures can narrow an anonymity set across turns; k is one singling-out indicator, not a complete privacy guarantee. | Two releases each leave four synthetic candidates, but their intersection leaves two and is rejected at threshold three. |
+| [[https://aclanthology.org/2026.privatenlp-main.1/][Shayesteh and Wilson, From Conventional Web Privacy to Agentic Disclosure, PrivateNLP 2026]] | Free-text tool arguments can invite context-dependent oversharing; the paper is diagnostic and does not measure realized leakage. | The ticket binds the selected output digest, destination, and channel as concrete tool-effect parameters. |
+| [[https://docs.cloud.google.com/sensitive-data-protection/docs/pseudonymization][Google Cloud Sensitive Data Protection, Pseudonymization]] | Deterministic tokenization permits scoped correlation but does not itself govern later result disclosure. | The earlier hospital tokenization example remains a separate stage. |
+
+The cross-industry gateway and Host-admission rationale, including the Traefik
+AEGIS article, is referenced in [[file:../../../../CedarPooSpec/AgenticAI/LanguageModel/Security.org][Security.org]]. This hospital case keeps
+references whose results directly determine its data and disclosure controls.
+
+These sources motivate the threat and control boundaries. The hospital,
+research project, workspace, messages, and policy decisions here are synthetic;
+they are not reported deployments or reproduced paper benchmarks.
+
+* Composition and execution boundary
+
+[[file:Disclosure.lean][Disclosure.lean]] uses =LeanPoo.Object.defineStrict= to give the
+hospital source a typed object, then =defineStrictFrom= to combine an independent
+research-source amendment with it. The inherited artifact method observes the
+final source list, and =joinedResultRetainsBothSources= checks its result.
+The research method appends a label to an inherited default instead of
+rebuilding the whole artifact.
+
+This iteration adds =FinalAudience= as an independently owned veto alongside
+the existing lineage, grant, cohort, and budget owners. =Model.mix= keeps that
+veto when the governed root is compiled; the Cedar replay denies an expanded
+audience or a missing source-specific recipient grant even when all other gates pass. The live audience and its revision are
+Host observations, so LeanPoo composes the policy requirement but cannot
+cache membership or establish that the provider's ACL matches it.
+
+The policy model has separately owned lineage, scoped approval, human-to-agent
+delegation, cumulative cohort, shared budget, and final-audience gates. =Model.mix= assembles
+them; an incident adds a local veto and
+recovery withdraws it. Only governed, incident, and recovered roots can enter
+=prepare=. The broad ancestor is retained as a counterexample in Cedar replay,
+not as a deployable release root.
+
+#+begin_src mermaid
+stateDiagram-v2
+    Hospital --> Joined: inherited source label
+    Research --> Joined: source amendment
+    Joined --> Governed: lineage + approval + delegation + cohort + budget + audience
+    Governed --> Incident: add veto
+    Incident --> Recovered: withdraw veto
+#+end_src
+
+The Host supplies authenticated source labels, an observed output digest,
+approval and delegation revisions, policy revision, budget epoch, reviewed
+candidate sets, the live workspace recipient list and its revision, and audit readiness. The model rejects an omitted source
+label, a substituted output digest, a changed channel after ticket
+preparation, stale approval or delegation, a second release after budget
+consumption, and a second individually acceptable cohort disclosure whose
+intersection falls below the configured threshold. It also rejects a workspace
+whose recipients expand beyond the source-specific Host-approved grants, including a membership
+change between ticket preparation and redemption. The patient IDs are
+synthetic; the Host must derive candidate evidence from the actual query and
+bind it to the exact output bytes. This finite k threshold is a singling-out
+proxy, not a semantic leakage certificate or statistical disclosure control.
+Revoking a single research-source recipient grant now increments the audience
+revision and epoch; an already prepared ticket and a fresh request both fail
+while the workspace member list remains unchanged.
+
+A selective deletion is also an externally visible disclosure: the surviving
+entries can reveal which candidate records were genuine even if the tool writes
+no sensitive prose. =SelectionDelta= binds the before and after candidate lists;
+the Host's observed delta must equal the proposed one, be a proper deletion
+without duplicate IDs, and match the cohort candidates. A content-write label
+cannot hide an observed deletion. The top-level =AgenticAI.Boundary= uses
+LeanPoo multiple dispatch over typed action and sink classes, combining the
+selection rule with the shared audience and output-binding checks. The first
+synthetic selection passes; another independently acceptable selection is
+denied after their survivor sets intersect below the cohort threshold. This
+models one finite omission pattern, not a general semantic privacy guarantee.
+
+The namespace migration changes the owner of this example, not the policy
+graph. LeanPoo still composes =FinalAudience= with the other independent veto
+owners. Grant revocation is a current Host fact; object inheritance cannot
+authenticate it or replace the execution-time revision check.
+
+* Cross-step solution and current closure
+
+| Step | Current executable evidence | Remaining implementation boundary |
+|------+-----------------------------+-----------------------------------|
+| Raw input to token | =Lifecycle.ingestEffect= and [[file:CrossStep.lean][CrossStep.TokenReceipt]] bind dataset, input digest, key, and revisions; Google SDP has an offline contract and local crypto example | Authenticate the real input and provider response; persist token provenance. |
+| Token to language-model workflow read and join | =CrossStep.join= consumes the token receipt and =Lifecycle.joinEffect= checks a scoped grant and policy revision | Bind the real query and every selected source receipt to the delegated language-model workflow task. |
+| Join to derived result | =CrossStep.derive= carries purpose and query digest; =JoinedLineage= composes hospital and research labels | Authenticate the transformation graph and output bytes rather than accepting model-declared labels. |
+| Derived result to external channel | =CrossStep.publish= checks receipt continuity; Cedar replays composed policy; =prepare= and =redeem= check current grants, delegation, final recipients, cohort state, revisions, budget, and exact effect; the [[file:../../../../rust/disclosure-host/src/host.rs][in-memory Rust Host]] reauthorizes with official Cedar and commits cohort, budget, and audit under one lock | Persist these changes durably in one transaction before sending; authenticate output, candidate-set evidence, and the final sink audience. |
+| Token to re-identification | =CrossStep.reidentify= reuses token provenance but requires =Lifecycle.revealEffect='s distinct clinical approval | Bind the actual recovery request, provider receipt, clinical purpose, and plaintext effect to one durable Host transaction. |
+
+The executable Lean transitions now pass typed synthetic receipts across all
+five steps. =syntheticTrajectoryAdmits= checks the complete path;
+=staleTokenAndChangedPurposeFail= and =researchGrantCannotReidentify= check
+version, purpose, and grant separation. The receipts are still constructed
+from synthetic values and are not authenticated provider or query evidence.
+The solution contract for a deployment is: the Host resolves source and
+delegation evidence; Cedar decides using the currently deployed POO-composed
+policy; the Host compares the proposed effect with the authenticated output;
+then it atomically checks epoch, revisions, the authenticated final audience,
+source-specific recipient grants, stable approval ID, cumulative candidate
+set, budget, and audit persistence. Only after commit may the Host make the external
+effect visible. On conflict, changed approval, changed policy, or failed audit,
+it must recompute the request and refuse the old ticket. A normal process-local
+Lean state transition does not make this transaction durable.
+
+[[file:DisclosureExport.lean][DisclosureExport.lean]] sends twenty synthetic policy decisions to
+the official Cedar Rust validator and authorizer. =just example health
+agentic-ai-language-model-disclosure= checks exact allow/deny outcomes, empty policy errors, and
+schema fingerprints. The same recipe runs the [[file:../../../../rust/disclosure-case/examples/agentic_ai_language_model_disclosure_host.rs][Rust Host example]]:
+one release commits, only one of two concurrent commits succeeds, a fresh
+ticket cannot reuse the consumed approval, a fresh approval cannot replay the
+same logical operation, a separate operation with the same payload may consume
+remaining budget, duplicate approval IDs fail closed, a stale ticket and
+altered channel fail, a later message is denied by the shared cohort state,
+and an expanded audience or revoked source grant is denied. The Host also
+requires an observed selection delta and denies a second selection after the
+shared cohort narrows. Revocation, audit failure, wrong grant issuer, and a
+substituted candidate set fail before release. The commit receipt records
+operation ID, approval ID and use count, source, destination, purpose,
+recipients, and revisions without
+logging patient identifiers. This is a process-local Host
+reference with synthetic facts. It does not authenticate a real query or
+provider receipt, durably persist the transaction, send an external effect,
+or establish a measured privacy guarantee.
+
+=crossApprovalReplayDenied= and =distinctApprovalAccepted= distinguish a
+retry with fresh approval from an independent disclosure with the same
+payload. The operation ledger is process-local and the commit receipt
+precedes any sink response. The cross-industry [[file:../../../../CedarPooSpec/AgenticAI/LanguageModel/Security.org][effect-gap analysis]] specifies the
+remaining durable journal, dispatch-attempt state, and reconciliation
+requirements. No current example claims that a timeout is safe to reissue.

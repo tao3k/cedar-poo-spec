@@ -1,6 +1,18 @@
 #+TITLE: Agent Payment
 #+OPTIONS: toc:nil
 
+* Agentic AI commerce direction
+
+The [[file:../../../AgenticAI/Commerce/Research.org][agentic AI commerce research map]] puts delegated
+intent, agent identity, merchant offer binding, and cumulative budget ahead
+of any payment instrument. Its public [[file:../../../../CedarPooSpec/AgenticAI/Commerce/Budget.lean][pure admission kernel]],
+[[file:../../../../CedarPooSpec/AgenticAI/Commerce/Delegation.lean][delegation check]], and [[file:../../../../CedarPooSpec/Vertical/FinancialServices/AgenticCommercePayment.lean][purchase-to-payment adapter]] have
+[[file:../../../../Tests/AgenticAI/Commerce/Admission.lean][regressions]] checked by =just check-agentic-ai-commerce=. The sections below
+describe the narrower payment execution and audit boundary that follows an
+admitted purchase. An optional [[file:../../../../rust/commerce/src/signatures.rs][Rust mandate and offer verifier]]
+checks signatures and exact checkout bytes under =just check-rust=; its
+authenticated output still needs a checked mapping into the Lean objects.
+
 * AI agent payment with per-call value authorization
 
 [[file:AgentPayment.lean][AgentPayment.lean]] extends the agent authorization
@@ -79,7 +91,35 @@ atomic. Idempotency, replay prevention, human approval workflow, and the
 integrity of those inputs remain host responsibilities. The case checks
 authorization behavior; it does not claim to implement a payment processor.
 
-The [[file:AuthorizationDelta.lean][authorization-delta example]] also checks
+[[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentOperation.lean][PaymentOperation.lean]] owns the public payment object and its
+authorization, audit, and nonce-reservation methods. Audit requirements
+select one, two, three, or more evidence stages; no fixed AI/human count is
+part of the payment type. [[file:PaymentAudit.lean][PaymentAudit.lean]] is this
+example's three-stage policy and Cedar adapter. [[file:../../../../Tests/Enterprise/Agent/Payment/PaymentAudit.lean][Regressions]] cover
+different stage counts, substitution, stale evidence, and replay. See
+[[file:Research.org][the continuing research map]] for sources and boundaries.
+Authorization and each audit item also bind the exact audit-policy snapshot;
+changing that policy invalidates their previous evidence.
+The [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLifecycle.lean][payment lifecycle]] emits an effect request with the payment nonce as its
+idempotency key, a read-only status query for uncertain outcomes, and exact
+key/payment matching for processor observations. The Host must persist the
+transition with an atomic state check before dispatch and require provider-side
+key resolution. See the
+[[file:Research.org][research map]] for the modeled guarantee and its limits.
+The public [[file:../../../../CedarPooSpec/Vertical/FinancialServices/PaymentLedger.lean][PaymentLedger]] adds an abstract per-key record and cached outcome across
+multiple payments. Duplicate keys and malformed duplicate records fail closed;
+the Host still owns atomic persistence and the processor's idempotency contract.
+This example's [[file:PaymentAudit.lean][Cedar adapter]] also requires one four-place decimal spelling for
+amount and fee cap. A synthetic Host profile fixes the beneficiary, asset,
+rail, mandate reference, and fee ceiling before ledger preparation. The Cedar
+policy sees account, origin, and amount; no code here authenticates a mandate
+signature or a real processor receipt.
+The lifecycle now stores processor-reported settlement terms only after they
+match the approved payment. This bank-rail adapter separately checks the
+reported fee against =feeCap= before the ledger records settlement. Provider
+authentication and actual financial finality remain Host responsibilities.
+
+The [[file:../../../../Examples/Enterprise/Agent/Payment/AuthorizationDelta.lean][authorization-delta example case]] also checks
 the entire schema-defined authorization space for two changes. Adding the
 emergency freeze produces no new Allow across four request types. Removing
 that freeze produces a concrete new-Allow/old-Deny witness, which the official
@@ -87,6 +127,83 @@ Rust Cedar authorizer replays. This verifies the global direction of each
 policy revision within the schema, beyond the sixteen fixed operations above.
 The solver boundary is specified in
 [[file:../../../../docs/rfc/0004-authorization-delta.org][RFC 0004]].
+
+* Joint release across owners
+
+[[file:JointRelease.lean][JointRelease.lean]] studies a different change: the
+payment platform has two active, overlapping holds on the approved account.
+Risk and Compliance own separate POO modules. Each team removes only its own
+hold; C4 then mixes the two release branches. Cedar checks all four compiled
+roots against the same schema:
+
+| Root | Risk hold | Compliance hold | Gain over =DualHold= |
+|------+-----------+-----------------+----------------------|
+| =DualHold= | present | present | base |
+| =RiskReleased= | removed | present | none |
+| =ComplianceReleased= | present | removed | none |
+| =JointRelease= | removed | removed | concrete gain |
+
+This is a *joint-only authorization gain*. A branch review of either removal
+alone would miss it. The reusable
+[[file:../../../../CedarPooSpec/AuthorizationDeltaInteraction.lean][interaction analyzer]] requires both branch gain queries to be empty before
+classifying the combined gain, then replays the combined witness against both
+branches. The four responses and determining-policy IDs are replayed by the
+official Rust Cedar authorizer. POO =extend=, =remove=, and =mix= provide the
+owner-local edit trails and final C4 topology; Cedar remains the authority for
+the Allow/Deny result. The example uses synthetic identities and amounts, and
+does not claim to model a real payment provider's production policy.
+
+The research motivation is concrete but the four-root release is our own
+constructed discriminator. [[https://arxiv.org/abs/2607.03656][AutoCedar (2026)]] stresses verification of the
+*whole* policy store when AI proposes access rules. [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-create-update-validation.html][AWS AgentCore policy validation]]
+analyzes a proposed policy against policies already in its engine. A later
+independent release changes that engine again; testing the final composition
+is therefore necessary. This last statement is our inference from the
+documented validation boundary, not a claim that AgentCore has this defect.
+[[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-test-a-policy.html][AgentCore LOG_ONLY]] policies do not participate in the enforced decision;
+the modeled holds are active vetoes. [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-security-best-practices.html][AWS runtime guidance]] also states that
+explicit deny wins when active policies are evaluated.
+
+The result covers Cedar decisions in the supplied schema environments.
+External solver trust, policy-evaluation errors outside the concrete witness,
+the actual deployment state, and Host execution remain separate gates. It is
+evidence of one joint gain, not a proof that the two removals are the only
+cause or that every possible branch composition has been explored.
+
+The [[file:../../../../CedarPooSpec/AuthorizationDeltaRelease.lean][release-review snapshot]] binds that analysis to the four compiled
+policy sets, the exact schema representation, all C4 modules in the four root
+ancestries, and a Host-supplied policy epoch. A changed epoch or schema, or an
+owner edit that leaves Cedar policy bodies identical, makes the snapshot
+stale. A new owner outside those ancestries leaves it reusable. The
+=noGainCurrentPolicies= API refuses this example's joint gain with
+=requiresReview=; capturing a result does not approve it. An authorized Host
+can perform a separate approval workflow after reviewing the witness, but
+must compare the snapshot and reserve publication in one transaction.
+The pure =advanceNoGain= transition demonstrates this compare-and-swap shape:
+one current no-gain review checks the active root, exact active policy set,
+enforcing execution mode, and epoch, then returns the composed policies and
+next version. A different active policy set, observation or disabled mode,
+or second attempt with the same review fails. The Host must read the actual
+deployed policies and mode and execute this transition atomically with
+publication; this is a state-model receipt, not a durable transaction.
+
+[[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-enforcement-modes.html][AgentCore documents]] why mode belongs in this gate: =LOG_ONLY= still evaluates
+policy decisions but does not block tool calls, and an unattached engine does
+not enforce those decisions. The example models this deployment condition
+without claiming to read or control an AWS gateway.
+
+This boundary matters in actual deployments. [[https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/policy-store-aliases-using.html][AWS Verified Permissions]]
+documents that policy-store alias changes propagate asynchronously and cannot
+provide an atomic cutover. [[https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/manage-policies-engines.html][AgentCore]] likewise documents asynchronous policy updates and
+invalidation of in-flight temporal sessions for relevant changes. This Lean
+snapshot is a Host contract, not a claim that those remote services provide
+the required compare-and-swap primitive. A caller must authenticate the
+approval, bind it to the reviewed epoch and release, verify what policy set is
+actually active, and coordinate effects or traffic switching itself.
+
+#+begin_src sh
+just check-payment-interaction
+#+end_src
 
 #+begin_src sh
 just example enterprise agent payment

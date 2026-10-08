@@ -53,6 +53,14 @@ dataset-level =scope= declaration alone cannot establish token equality. The
 selection remains a pure input projection; the Host must authenticate the
 record and execute the cryptographic operation.
 
+[[file:TableBatch.org][TableBatch V1]] applies that selection to a strictly
+ordered, bounded set of rows. Its Production fixture and Rust replay fix
+the all-or-none row, context and byte decisions. The separate Rust Cloud
+planner rechecks each row against one verified Arrow child and a current
+claim before returning per-row plans. [[file:TableBatchWire.lean][TableBatch
+Wire V1]] and its Rust bridge additionally form one Table request and reject
+any mismatched response without admitting local row outputs.
+
 [[file:Compatibility.lean][TokenRelation]] expresses that same recipe
 comparison directly in Cedar's expression AST. A consumer chooses the
 source and target expressions; Cedar evaluates the resulting policy. Tenant
@@ -74,11 +82,11 @@ release objects through Lean-POO. It checks Cedar decisions with the official
 Rust engine, exercises a finite Host ticket-redemption model, and runs local
 synthetic-data cryptographic checks. Its [[file:../../Examples/Health/Pseudonymization/Tabular.lean][tabular input]] exports a selected
 patient ID and tenant-scope context to a fixture consumed by the local AES-SIV test.
-The [[file:../../rust/examples/pseudonymization_local.rs][local executable]] replays the corresponding official Cedar case, checks
+The [[file:../../rust/pseudonymization-case/examples/pseudonymization_local.rs][local executable]] replays the corresponding official Cedar case, checks
 the selected input against that case's request and dataset entity, performs
 synthetic AES-SIV encryption, and emits content hashes for both the Cedar
 decision and local effect. Changed context or token-key version is rejected.
-The separate [[file:../../rust/src/README.org][Google SDP REST boundary]] constructs a table field transformation
+The separate [[file:../../rust/README.org][Google SDP REST boundary]] constructs a table field transformation
 and checks a caller-supplied response against the selected row and KMS key
 lineage. It does not send a Google request. RustCrypto's local AES-SIV token
 is not asserted to match Google's token bytes.

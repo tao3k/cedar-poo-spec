@@ -1,0 +1,44 @@
+#+TITLE: Google Table Batch Selection V1
+#+OPTIONS: toc:nil
+
+[[file:TableBatch.lean][TableBatch V1]] selects an ordered, bounded set of
+synthetic tabular AES-SIV inputs. It uses the existing
+[[file:Tabular.lean][named value and context column rule]] for every row.
+Ordinals must strictly increase, the batch cannot be empty, and V1 caps the
+declared row budget at 256 and selected UTF-8 bytes at 1 MiB. The caller may
+choose tighter positive limits. A failure rejects the complete selection.
+Different per-row contexts are valid only when the recipe has no fixed
+admitted context.
+
+The [[file:../../Productions/Pseudonymization/TableBatchFixture.lean][Production
+fixture]] exports 13 cases, including two accepted batches. Its checked
+[[file:../../Tests/Conformance/google-table-batch-v1.json][JSON artifact]] is
+replayed by the Rust MRR Data library. [[file:../../Tests/Pseudonymization/TableBatch.lean][Lean
+tests]] fix the counts. This selection does not authenticate Arrow data,
+current policy decisions or key access. Rust checks those for each selected
+row after physical child verification.
+
+[[file:TableBatchWire.lean][TableBatch Wire V1]] then checks one ordered Table
+response against the selected rows. The provider returns no MRR row ordinals,
+so the bridge adds an untransformed =__mrr_row_v1= column with a unique
+request-position marker. A response with reordered, missing or duplicate
+markers is rejected before assigning tokens to MRR row identities.
+All row counts and contexts must match, every value must change, and the
+reported success count must equal the batch size with no reported errors.
+The same checked JSON includes twelve wire cases (two allow, ten deny), replayed
+by the Rust Google bridge. That bridge also checks AES-SIV token syntax and
+forms one bounded Google Table request. It checks the exact serialized body
+against a conservative 400 KB local ceiling below Google's currently documented
+0.5 MB request limit. A rejected response releases no local
+row output; this cannot roll back provider work or authenticate transport.
+The Host bounds response bytes and controls any durable effect or release.
+Google's documented =content:deidentify= endpoint accepts a Table for record
+transformations and reports transformation results in the response overview:
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/projects.content/deidentify][method]],
+[[https://docs.cloud.google.com/sensitive-data-protection/docs/reference/rest/v2/TransformationOverview][overview]],
+[[https://docs.cloud.google.com/sensitive-data-protection/limits][limits]].
+
+#+begin_src sh
+just check-google-table-batch-v1
+lake build Tests.Pseudonymization.TableBatch
+#+end_src

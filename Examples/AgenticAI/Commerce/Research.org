@@ -1,0 +1,254 @@
+#+TITLE: Agentic AI Commerce: Delegated Intent Before Payment
+#+OPTIONS: toc:nil
+
+* Thesis and boundary
+
+As of 2026-10-02, the strategic object here is a principal's bounded task
+delegated to an identified agent. The agent may discover a seller, select an
+offer, and request a purchase while the principal is absent. A payment rail
+executes a later, narrower instruction. The trust question is whether the
+agent's exact choice is inside its current authority and corresponds to the
+merchant's actual offer. This repository models that question separately from
+processor acceptance, settlement, and bank clearing.
+
+The public [[file:../../../CedarPooSpec/AgenticAI/Commerce/Budget.lean][Commerce Budget]] kernel represents a verified mandate, a verified
+merchant offer, exact selected purchase terms (including an opaque checkout
+commitment), and one mandate's cumulative
+budget. It admits a purchase only when agent identity, mandate ID, merchant,
+product, offer, amount, asset, policy epoch, expiry, revocation state, and
+remaining budget agree. The budget also retains the *whole active mandate* so
+the same ID cannot silently acquire another principal or a wider scope. A
+successful reservation stores the complete purchase
+and increments a revision. The Host must authenticate both input assertions
+and persist that revision with compare-and-swap before issuing any credential
+or payment request. The [[file:../../../Tests/AgenticAI/Commerce/Admission.lean][regressions]] exercise substitution, replay, stale
+authority, revocation, and budget boundaries. Run =just check-agentic-ai-commerce=.
+
+Amounts are natural-number minor units in this abstract kernel. An asset
+adapter must define the unit, supported assets, and conversion to an actual
+payment instrument. The model does not sign mandates, authenticate merchant
+quotes, issue agent-specific tokens, perform identity proofing, detect fraud,
+publish policy, or execute a purchase. Its =verified= flags are Host assertions.
+Its multi-purchase budget is a synthetic local contract, not AP2 conformance.
+The checkout commitment is an opaque value until the Host computes and verifies
+it against a canonical merchant checkout.
+
+The public [[file:../../../CedarPooSpec/AgenticAI/Commerce/Delegation.lean][delegation kernel]] additionally checks that each child Agent can only
+narrow the preceding mandate's merchant, product, per-purchase, cumulative,
+asset, principal, policy epoch, and expiry constraints. It resolves an exact
+chain of parent snapshots and issuer Agent identities, and refuses reuse of
+an ancestor mandate ID, Agent ID, or Agent key. Its =verified= flag
+still asserts Host authentication. The public
+[[file:../../../CedarPooSpec/AgenticAI/Commerce/SharedBudget.lean][shared budget]] now charges the principal root and every ancestor for each
+accepted purchase across delegated branches. It retains exact lineages, refuses
+mandate ID rebinding and global purchase/offer replay, propagates ancestor
+revocation, and rejects stale root revisions. The Lean model proves revision
+advance, stale-revision refusal, and root-cap preservation.
+
+The Rust [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/budget_commit.rs][budget bridge]] checks exact Lean before/after claims, fresh
+signed authority, root and ancestor spend, and the current content CID. It
+uses MRR Data's conditional commit protocol to propose one head replacement
+with an exact revision and operation ID. The async commit entry point now uses
+a Host-supplied transaction port, refreshes authority inside its validation
+callback, and separates confirmed commit, exact replay, and unknown outcome.
+The signed consumer races two children, refuses over-cap retry, and recovers a
+lost acknowledgement under the original operation without a second reservation.
+These checks execute no DB transaction:
+the backend must authenticate its inputs and atomically persist the head and
+operation receipt. MRR Data owns this bridge and its consumers against the
+exact-pinned Lean fixture; =just check-agentic-ai-commerce-admission= verifies
+Cedar signature, projection and admission consumers.
+
+The public [[file:../../../CedarPooSpec/AgenticAI/Commerce/Credential.lean][credential boundary]] requires a credential to name the exact
+committed reservation, shared scope, operation, before/after content IDs and
+revisions, full authority lineage, checkout, issuer, and expiry. Current ancestor
+revocation denies a descendant credential even when its original receipt remains
+available. A later head retaining the exact reservation does not charge it again. The [[file:../../../CedarPooSpec/Vertical/FinancialServices/AgenticCommercePayment.lean][public HKD cents adapter]] checks that those objects
+correspond to a downstream =PaymentOperation=, including payer, merchant,
+amount in canonical cents, agent, mandate, nonce, and checkout commitment.
+The latter field is optional for generic payments but mandatory in this
+adapter. A matching envelope is *not* a Cedar Allow or an instruction to send
+funds. The Host still verifies signatures, applies policy, ensures durable
+single use of the credential, and binds the same checkout to the provider's
+real request and response.
+
+The Rust [[file:../../../rust/commerce/src/signatures.rs][mandate and offer verifier]] checks raw P-256 ECDSA signatures
+over domain-separated, length-prefixed mandate, child delegation, and offer
+payloads. Its trust table maps the complete Cedar principal UID components or
+a merchant ID to a public key. The principal-signed mandate binds the Agent's
+public key; that parent Agent key must sign each child grant. The offer verifier
+also recomputes SHA-256 over the exact checkout bytes. Positive and
+altered-agent, altered-principal, altered-price, altered-checkout,
+wrong-issuer, widening-child, and ancestor-identity-reuse cases are executable under the
+=cedar-poo-commerce= crate and its independent Case consumer, which =just check-rust= covers. This is a
+local versioned encoding, not AP2 JWT or a live issuer integration. The Host
+must map *every* verified Rust field to the corresponding Lean object before
+setting =verified=, and must manage key enrollment, rotation, and revocation.
+The optional [[file:../../../rust/commerce/src/projection.rs][projection API]] now checks all signed mandate and offer fields against
+the [[file:../../../CedarPooSpec/AgenticAI/Commerce/Projection.lean][public Lean claims]]. =just check-agentic-ai-commerce-projection= tests a Lean JSON
+fixture against live Rust verified values and individually changes each field.
+This establishes field correspondence for the synthetic fixture; the Host
+still owns the live admission decision and dynamic checks.
+The optional [[file:../../../rust/commerce/src/admission.rs][process-local admission reference]] now re-verifies the signed root mandate,
+each parent-agent-signed child, and the merchant offer on each call against
+current enrolled keys, time, policy epoch, ancestor and child revocations,
+exact Lean lineage claims, and a Host policy callback. The clock, policy
+evaluator, and registry updates are trusted Host inputs. This establishes
+process-local delegated admission for the synthetic fixture; it neither
+authenticates a live Agent request nor makes the registry and budget durable.
+
+* Evidence from Hong Kong and the wider market
+
+| Dated primary source | Observed direction | Engineering consequence |
+|----------------------+--------------------+-------------------------|
+| [[https://www.hkma.gov.hk/media/eng/doc/key-information/press-release/2026/20260203e3a1.pdf][HKMA Fintech Promotion Blueprint, 2026-02-03]] | Names agentic AI as an autonomous decision and execution frontier while calling for capabilities, shared infrastructure, and sandboxes before broader customer-facing deployment. | Keep the pure authority kernel separate from provider integrations and measure a real Host in a controlled environment. |
+| [[https://newsroom.mastercard.com/news/ap/en-hk/newsroom/press-releases/en-hk/2026/mastercard-completes-its-first-live-agentic-transaction-in-hong-kong/][Mastercard Hong Kong announcement, 2026-03-27]] | Reports a live agent-booked airport ride with HSBC and DBS Hong Kong. It describes an agent-specific token, explicit consumer consent, and passkey confirmation. | Model the agent, consent scope, and exact merchant offer as first-class inputs; a token is not proof that a purchase matched the principal's task. |
+| [[https://www.mastercard.com/global/en/news-and-trends/Insights/2026/mastercard-agentic-commerce-trust-white-paper.html][Mastercard trust framework, 2026-09-30]] | Organizes agentic AI commerce around identity, intent, controls, trusted execution, and intelligence. | Test cross-stage correspondence and leave risk intelligence as evidence rather than unconditional authority. |
+| [[https://stripe.com/blog/machine-payments-protocol][Stripe/Tempo MPP announcement, 2026-03-18]] | Introduces programmatic machine payments for APIs and services, including fiat and stablecoin paths. | Treat a machine payment challenge as an offer requiring delegated scope and budget checks before credential use. |
+| [[https://usa.visa.com/about-visa/newsroom/press-releases.releaseId.22276.html][Visa Intelligent Commerce Connect, 2026-04-08]] | Announces a pilot on-ramp spanning agent protocols, token vaults, and networks. | Keep admission independent of any one checkout protocol or rail. |
+
+These announcements establish industry direction and reported deployments,
+not an audited security guarantee for this code or for every named partner.
+The HKMA blueprint is a policy and ecosystem signal, not a rule authorizing
+autonomous transfers.
+
+* Research map: four distinct protocol surfaces
+
+| Surface and primary specification | What the source actually specifies | Boundary in this repository |
+|-----------------------------------+------------------------------------+-----------------------------|
+| [[https://developer.visa.com/capabilities/trusted-agent-protocol/trusted-agent-protocol-specifications/][Visa Trusted Agent Protocol]] | Signed HTTP requests let a merchant identify a participating Agent and distinguish browsing from payment interaction. The signatures cover request components, timestamps, and a nonce. | Agent recognition is upstream evidence; a recognized Agent still needs a specific user mandate and an authenticated merchant offer. The Rust signature module does not verify HTTP Message Signatures. |
+| [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 v0.2]] and [[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/agent_authorization.md][Agent Authorization]] | A user-signed open mandate binds an Agent key; the Agent later binds a closed mandate to the transaction. Merchant, credential provider, network, and processor have different verification and receipt duties. Unknown constraints fail evaluation. | The Lean predicates model selected authority and correspondence properties. They do not parse AP2 SD-JWTs, evaluate its constraint vocabulary, issue signed receipts, or implement its verifier roles. |
+| [[https://www.agenticcommerce.dev/docs/concepts/architecture][ACP architecture]] and [[https://www.agenticcommerce.dev/docs/reference/checkout][checkout reference]] | The seller owns a stateful checkout session and final price, inventory, payment processing, and fulfillment. Delegate Payment gives a PSP scoped payment-token responsibilities. | A checkout session update is a new merchant state: the Host must rebind the final seller-supplied terms before issuing a scoped credential. A stored offer ID alone is insufficient. |
+| [[https://github.com/tempoxyz/mpp-specs][MPP specification repository]] | An HTTP 402 challenge is answered with a payment credential on retry; the core separates HTTP mechanics from payment methods. | A challenge is a proposed price for an HTTP resource, not proof of the principal's permission to pay it. The challenge, resource, credential, and returned service effect need one exact binding. |
+
+The common engineering inference is that *agent recognition*, *delegated
+purchase authority*, *merchant price integrity*, and *payment execution* are
+independent facts. None implies the next. This is why the optional Rust module
+is named =cedar_poo_commerce::signatures=: it authenticates only the signed mandate,
+delegation, and merchant offer payloads plus checkout bytes. The public Lean
+model then checks structural scope and purchase correspondence, subject to a
+Host mapping and durable state. No cross-protocol conformance is claimed.
+
+* Protocol and research implications
+
+[[https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/specification.md][AP2 v0.2]] distinguishes human-present approval of a closed
+checkout from autonomous operation under open mandates. In the latter, an
+agent key signs a closed mandate and verifiers check the user-authorized
+constraints; checkout and payment mandates bind to a merchant-signed checkout.
+AP2 describes agent-to-agent mandate delegation as outside its current scope.
+This motivates exact offer binding and a separate future study of multi-agent
+attenuation; this synthetic kernel does not implement AP2 JWTs or its
+single-open-mandate presentation rule.
+
+AP2 further requires exact mandate schema version matching, deterministic
+verification by each role, and signed acceptance or rejection receipts. An
+autonomous Shopping Agent must wait for a rejection receipt before presenting
+a subsequent open Checkout or Payment Mandate. The present multi-purchase budget
+is deliberately a different contract; it cannot be presented as AP2's
+one-outstanding-presentation lifecycle. At dispute time, AP2 links both mandate
+receipts back to the exact signed checkout and payment mandates. The current
+=checkoutCommitment= and =PaymentOperation= fields only preserve local
+correspondence; they do not supply those independently signed artifacts.
+
+[[https://arxiv.org/abs/2609.00060][A Formal Analysis of Agent Payment Protocols]] (2026 preprint) studies x402,
+MPP, ACP, and AP2 and finds cross-actor, cross-stage binding questions between
+intent, authority, payment, and service effects. [[https://arxiv.org/abs/2604.15367][SoK: Security of Autonomous
+LLM Agents in Agentic Commerce]] (2026 preprint) adds agent integrity,
+inter-agent trust, market manipulation, and regulatory exposure to the threat
+map. These are research results and proposed taxonomies, not proof of a
+specific production exploit or validation of this implementation.
+
+* Commit-to-credential research slice (2026-10-02)
+
+[[https://ap2-protocol.org/ap2/implementation_considerations/][AP2 implementation considerations]] assign mandate verification and payment-token
+release to the credential provider, and distinguish merchant checkout receipts
+from processor payment receipts. The [[https://www.agenticcommerce.dev/docs/reference/payments][ACP Delegate Payment reference]] scopes
+allowances by amount, currency, checkout session, merchant, expiry, and one-time
+reason; its idempotency key addresses duplicate token creation. These motivate
+separate commit, credential-admission, and effect/receipt gates in this model.
+Neither protocol specifies our synthetic shared-budget content-head format.
+
+The [[https://arxiv.org/html/2609.00060v1][formal analysis of agent payment protocols]] studies cross-stage relations
+under explicitly modeled trust boundaries. Its counterexamples and implementation
+witnesses have different evidence levels; they are not a production-wide failure
+claim. We use this distinction to ask whether an authenticated earlier commit
+still authorizes the exact current credential and checkout. We do not import its
+Tamarin results as proofs of this Lean/Rust implementation.
+
+The Rust [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/credential.rs][credential validator]] recovers an exact MRR operation receipt,
+verifies raw previous/committed block CIDs and the original one-reservation
+transition, and rechecks fresh signed root/delegations, policy, merchant offer,
+checkout bytes and independently enrolled issuer key. All projected verification
+flags are omitted. Lean proves accepted credentials retain a current reservation
+and an authenticated commit, with explicit negative cases for ancestor revocation,
+future revision, wrong scope/operation, expiry and checkout substitution.
+
+The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/tests/integration/agentic_ai/commerce/credentials.rs][signed consumers]] test proposal-only and unreadable-ledger rejection, later-head
+retention/removal, issuer rotation/revocation, signed claim tampering, changed
+checkout/price, current cap violations and policy/mandate revocation. The two
+opaque CIDs in the Lean credential template are filled from actual Rust content
+bytes; every semantic receipt field is taken directly from the exported fixture.
+The serialized provider remains test-only. These checks establish local admission
+correspondence, not AP2/ACP conformance, durable credential consumption, payment
+execution, fulfillment, or dispute verification.
+
+* Single consumption and provider binding slice (2026-10-02)
+
+[[https://www.agenticcommerce.dev/docs/reference/payments][ACP Delegate Payment]] provides scoped allowances and token-creation idempotency;
+that does not establish one economic effect for our custom credential. [[https://ap2-protocol.org/ap2/implementation_considerations/][AP2]] assigns
+payment-mandate checks and signed payment receipts to different verifier roles.
+We therefore specify a separate [[file:../../../CedarPooSpec/AgenticAI/Commerce/Consumption.lean][consumption ledger]] keyed by budget scope and
+purchase, independent of credential ID and provider. Its proved duplicate refusal
+applies regardless of the provider outcome. The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/consumption.rs][Rust claim]] reuses the existing
+MRR conditional port, authenticates the original reservation receipt, compares
+exact raw ledger CIDs and proposals, and refreshes budget/issuer/mandate authority
+inside validation. The backend must serialize those changes through release.
+
+A newly confirmed claim yields one move-only release permit. Exact replay,
+uncertain commit and recovery cannot reconstruct it. The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/src/provider.rs][provider interface]] carries
+the complete exact request with a stable scope/purchase idempotency key, and
+verifies a signed receipt's full-request commitment against an independently
+enrolled provider key. Status recovery performs no payment and cannot grant a
+fresh credential or retry. The [[https://github.com/tao3k/mrr-data/blob/feat/mrr-property-source-port/crates/mrr-data-commerce/tests/integration/agentic_ai/commerce/consumption.rs][test-only consumers]] check two competing claims,
+reissued credentials/providers, uncertain claim/payment ACKs, fresh revocation,
+changed receipt/request, and key rotation. No production provider is connected.
+
+This gives bounded local single-release safety, not eventual or exactly-once
+economic execution. A crash after claim but before dispatch may block the purchase;
+a known non-release or absent provider status also does not reopen it. A deploying
+adapter needs a fenced retry/recovery protocol with provider-enforced idempotency,
+authenticated status and live-authority synchronization. Fulfillment and dispute
+receipts require their own issuers and correspondences.
+
+* Next code and evaluation slices
+
+The [[file:Audit.org][2026-10-03 plan and paper audit]] supersedes the earlier next-slice order.
+The immediate sequence is:
+
+1. Freeze source/version-to-property correspondence and current evidence levels.
+2. Model single-root acceptance-time revocation and an endpoint-enforced fence.
+3. Specify durable claim/retry/recovery and build a deterministic failure harness;
+   external adapters implement MRR's conformance contract, without adding a DB
+   dependency to Cedar or treating MRR as a storage backend.
+4. Add one pinned wire profile's presentation and role-specific receipts, then
+   finality, fulfillment and compensation correspondence.
+5. Evaluate pre-signature agent manipulation and, for resource purchases, the
+   separate delivered-capability activation boundary.
+
+The move-only permit remains fail-closed on replay and unknown. The
+[[file:Recovery.org][implemented recovery protocol]] supports resumption through a provider
+ownership CAS contract; production durability remains an endpoint obligation.
+
+The [[file:VerificationPlan.org][mandate verification research and next implementation plan]] now
+refines step 4 with pinned RFC/Delegate SD-JWT/SDK correspondence, an executable
+independent-scope boundary witness, and V1--V5 acceptance experiments. Full
+mandate admission and shared presentation coordination remain designs.
+
+* Rust package ownership
+
+Cedar packages are direct children of =rust/=. =cedar-poo-commerce= owns the
+storage-independent signature, projection and admission APIs; its Case selects
+these capabilities. MRR Data owns =mrr-data-commerce= and the MRR-bound budget,
+recovered credential, consumption and provider-permit implementations and tests.
+MRR Data depends on Cedar's domain crates. The entire Cedar workspace has no
+MRR dependency. Lean models remain specifications, independent of the storage engine.

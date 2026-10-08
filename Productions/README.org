@@ -1,0 +1,46 @@
+#+TITLE: Production Cases and Cross-language Exports
+#+OPTIONS: toc:nil
+
+=Productions/= owns composed, versioned production profiles and their exports.
+Its complete local import closure must exclude =Examples/= and =Tests/=.
+=CedarPooSpec/= owns reusable semantic contracts; example scenarios and their
+publication/replay entrypoints belong to =Examples/=. Tests consume these
+layers to check conformance.
+
+The [[file:../Examples/Manifests.lean][example manifest dispatcher]] and scenario-specific export entrypoints
+live in =Examples/=. [[file:Data/StorageEffectFixture.lean][Raw storage]] and
+[[file:Data/ProtectedStorageFixture.lean][protected storage]] export independent
+Production profiles. Their checked copies under =Tests/Conformance/= are
+conformance vectors, not credentials.
+[[file:Data/StorageProfileMatrix.lean][The storage profile matrix]] crosses
+source sensitivity, destination acceptance, tenant match and storage tier for
+both raw and protected decisions. Its protected cases derive a child LeanPoo
+profile from a base configuration and override the storage effect. Lean exports
+16 composed cases that Rust replays from the same checked JSON. The protected
+fixture also exports intent, pre-root and post-root commit dispositions.
+It now exports eighteen protected read cases, including a fresh read after the old
+write claim expires and denial without an exact committed receipt. Eleven
+read-release cases require a second current observation after fetch and
+verification, before plaintext is returned.
+
+A new production profile must state its input identity, source labels,
+destination, selected policy revision, expected decision and effect receipt.
+The Host remains responsible for authenticating those inputs, enforcing the
+decision and persisting the effect. Lean evaluation and Rust replay are
+conformance evidence, not proof of deployed Host behavior.
+
+#+begin_src sh
+just build-productions
+just check-storage-effect-v1
+just check-protected-storage-v1
+just check-storage-profiles-v1
+just check-google-table-batch-v1
+#+end_src
+
+* Shared backend infrastructure
+
+The [[file:Backend.org][shared Production backend]] defines one MRR Data engine with multiple
+providers for all Profiles and Cases. Profile adapters supply domain state,
+validation and authority requirements; the common backend owns persistence,
+recovery, lifecycle, backpressure and performance instrumentation. The document
+is an architecture contract; implementation/physical qualification remain open.

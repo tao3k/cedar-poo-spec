@@ -31,6 +31,23 @@ the complete source list against a destination. The Host authenticates those
 labels and binds the artifact digest to the actual output; this module does
 not classify content or provide semantic declassification.
 
+[[file:StorageEffect.org][Storage Effect V1]] binds those labels to one physical
+storage operation, exact snapshot CID, destination, policy root and lineage
+revision. Its raw-path rule rejects restricted bytes even if a destination
+could accept a separately protected artifact.
+
+[[file:ProtectedStorage.org][Protected Storage V1]] admits a Host-selected
+protection intent before encryption and checks a distinct outer-root
+publication against current state before the root write. Its commit disposition
+requires an exact physical acknowledgement for a fresh effect and recognizes
+an authenticated exact receipt for idempotent replay. The Host verifies
+encrypted bytes and atomically persists the effect and audit. A
+[[file:ProtectionProfile.lean][LeanPoo profile object]] composes and overrides
+intent configuration without changing the versioned wire contract.
+[[file:ProtectedRead.lean][Protected Read V1]] separately projects an exact
+committed root and a current read decision before cache or provider access,
+then requires a fresh decision after closure verification before plaintext release.
+
 [[file:CumulativeDisclosure.lean][CumulativeDisclosure]] intersects Host-attested candidate sets across accepted
 releases and rejects a result below the configured minimum. It is a finite
 singling-out proxy and must be persisted with the budget and audit before
