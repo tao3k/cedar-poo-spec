@@ -321,3 +321,58 @@ A subsequent algorithm change must again retain all nine families, 51 entries,
 1280 rows, 2560 authorizations, types, Contracts, original proofs and Rust replay;
 Lean/Rust native measurements, every non-win, cold/resource receipts and exact
 CI are separate acceptance evidence. PR #8 remains unmerged.
+
+* Real-Case attribution and documentation organization, 2026-11-02
+
+The root README now indexes architecture, ownership, repository organization,
+verification and reading paths. Detailed case inventories and historical
+measurements remain in their existing focused guides. Concurrent SysML/rendering
+views and their README entry are preserved.
+
+=SourceCatalog= factors its existing source pools, =Entry.prepare= and final
+framing step for both production and Lean-native attribution. This is a shared
+measurement boundary, not a new source registry or an algorithm speedup claim.
+The independent frozen complete catalog remains byte-identical (SHA-256
+=c6856fdb9e8b2d36407b8605756659e8a1c02fca09ce628bc41c845f0e376657=).
+The new =stages= mode covers every actual entry with one first-use pass and
+three fixed samples, then compares the complete production wire. The ordinary
+one-warmup/three-sample benchmark and its nine timing lines remain unchanged.
+
+First-use small-allocation deltas are 800102 (typed producer), 822122
+(publication), 1234 (final framing) and 95398 (rendering). All three subsequent
+samples independently report 172648, 739652, 1228 and 95389 respectively.
+Complete native measurement logs remain outside Git and in CI artifacts.
+
+These are Lean's =IO.getNumHeartbeats= deltas, including diagnostic overhead;
+not total allocator requests/bytes, retained memory or a timing guarantee.
+All four samples are retained. First-use production performs 627454 more small
+allocations than subsequent production. It includes first-use Program and
+source work; it does not isolate their individual contributions. Generated C
+confirms =deferProgram= constructs a pending thunk and forces preparation on
+use, so an eager whole-Program initialization claim is unsupported.
+Publication is about 73 percent of warm phase-counted small allocations, but
+includes actual independent Lean authorization. A subsequent algorithm change
+must separate that semantic work from request/source encoding before claiming
+a serialization improvement. Skipping authorization is not an optimization.
+
+The initial timing-only attribution reported native-main 1399.132 ms against
+external 4.36 s real / 0.26 s user / 0.04 s system. The separately instrumented
+counter run reported native-main 210.483 ms, external 2.80 s real / 0.23 s user /
+0.03 s system. These are different diagnostic runs, not paired variants or
+selected winning repetitions. Both remain evidence. A read-only host snapshot
+showed load average 90.95 and concurrent unrelated compilation; no process was
+changed. Wall time must not be interpreted as CPU work under these conditions.
+The measured diagnostic import spans were 162.496 ms and 35.572 ms respectively.
+External elapsed includes supervision/startup/exit, so subtracting these spans
+does not isolate dyld or prove a kernel-service cause. The exact pre-main
+long-tail event remains unresolved; all previous non-wins and qualifications
+above remain in force. No full-process speedup or new cold-build admission is
+claimed by this instrumentation change.
+
+Local =lake build manifestLifecycleNative Examples Tests= passed (1140 jobs),
+including source-bound/frame Contracts and first-factory/first-publication
+error controls. The library/Production layer audit passed for 336 modules.
+The native 51-entry Rust replay remains byte-identical (SHA-256
+=f2de8a782d2ebeb4acf294e40e96dad8c9dce55391d2c536e07d60fa4c017293=).
+The runtime binary matches the frozen baseline; no Rust algorithm changed.
+Full =just check= and new-head remote CI are separate qualification scopes.

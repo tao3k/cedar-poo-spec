@@ -63,6 +63,23 @@ serialization only; complete-result checking, cleanup, output and pre-main
 startup remain outside it. The helper takes the actual entries as a
 runtime argument, preventing closed catalog work from becoming module initialization.
 
+=just bench-catalog-stages= runs the same native target in a separate attribution
+mode: one first-use pass and three fixed samples over all 51 entries, followed
+by complete equality against the production publisher. It shares the actual
+source pools and publication step. Per-entry production/publication and final
+framing/rendering emit native wall-clock and =IO.getNumHeartbeats= observations.
+Lean defines the latter as current-thread small-allocation counts, not total
+allocated bytes, peak memory, RSS or CPU time. No heartbeat limit is changed.
+The clocks/counters and diagnostic bookkeeping have overhead; these samples
+are distinct from the original nine measurements and ordinary launch cohorts.
+
+Production includes typed Case construction and first-use Program work.
+Publication also forces each Case's independent Lean authorization and builds
+request JSON; lazy fragment compression remains in rendering. Final =wire=
+joins one String for the benchmark oracle, while the ordinary production
+entry streams certified chunks. Native import initialization precedes all these
+stages; loader/runtime work before the first diagnostic import is outside them.
+
 The existing Rust =benchmark-catalog= mode owns SDK parsing, strict validation,
 independent text replay, request preparation and serialization of the same complete
 catalog. Its seven stage observations per sample now also emit =measurement:=

@@ -4,12 +4,12 @@ import CedarPooSpec.Transport.Wire
 /-! Both public authoring JSON and the canonical bulk wire project typed entries.
 No inline case JSON is constructed and then decoded by the bulk publisher. -/
 namespace CedarPooSpec.Transport
-private structure Pools where
+structure SourcePools where
   policies : SourcePool .policy := {}
   entities : SourcePool .entities := {}
   schemas : SourcePool .schema := {}
   entitySlot : EntitySlot := EntitySlot.empty
-private abbrev Encode := StateT Pools (Except String)
+private abbrev Encode := StateT SourcePools (Except String)
 private def policyRef (value : SourceSnapshot .policy) : Encode (SourceRef .policy) := do
   let state ← get
   let published := state.policies.publishSnapshot value
@@ -25,7 +25,7 @@ private def schemaRef (value : SourceSnapshot .schema) : Encode (SourceRef .sche
   let published := state.schemas.publishSnapshot value
   set {state with schemas := published.next}
   return published.reference
-private def manifest (value : Manifest) : Encode EncodedJson := do
+private def prepareManifest (value : Manifest) : Encode EncodedJson := do
   let mut rows := #[]
   let mut bindings : Std.HashMap String Nat := {}
   for row in value.cases do
@@ -48,10 +48,10 @@ private def manifest (value : Manifest) : Encode EncodedJson := do
   else
     fields := fields ++ [("manifest_kind", EncodedJson.native (Lean.toJson "raw"))]
   return EncodedJson.canonicalObject fields
-private def payload : Entry → Encode EncodedJson
-  | .manifest value => manifest value
+def Entry.prepare : Entry → Encode EncodedJson
+  | .manifest value => prepareManifest value
   | .evolution before after => do
-      return EncodedJson.canonicalObject [("before", ← manifest before), ("after", ← manifest after)]
+      return EncodedJson.canonicalObject [("before", ← prepareManifest before), ("after", ← prepareManifest after)]
   | .artifacts values => do
       let rows ← values.mapM fun row => do
         let ref ← policyRef row.source
@@ -60,20 +60,25 @@ private def payload : Entry → Encode EncodedJson
       return EncodedJson.array rows
   | .data value => pure (EncodedJson.native value)
 
-/-- References locate complete sources only; SDK admission remains fresh. -/
-def prepareCatalogFrom (entries : List (String × EntryProducer)) :
-    Except String EncodedJson := do
-  let encode : Encode (List (String × EncodedJson)) := entries.mapM fun (name, produce) => do
-    return (name, (← payload (← produce.run)).compact)
-  let (entries, pools) ← encode.run {}
+/-- Finish the same source pools and ordered entries; shared by the producer and
+native attribution. No SDK admission or extra catalog representation is added. -/
+def SourcePools.finish (pools : SourcePools) (entries : List (String × EncodedJson)) : EncodedJson :=
   let sources := EncodedJson.object [
     ("entities", EncodedJson.array (pools.entities.entries.toList.map EncodedJson.snapshot)),
     ("policies", EncodedJson.array (pools.policies.entries.toList.map EncodedJson.snapshot)),
     ("schemas", EncodedJson.array (pools.schemas.entries.toList.map EncodedJson.snapshot))] (by simp)
-  return EncodedJson.object [
+  EncodedJson.object [
     ("entries", EncodedJson.canonicalObject entries),
     ("format_version", EncodedJson.native (Lean.toJson (2 : Nat))),
     ("sources", sources)] (by simp)
+
+/-- References locate complete sources only; SDK admission remains fresh. -/
+def prepareCatalogFrom (entries : List (String × EntryProducer)) :
+    Except String EncodedJson := do
+  let encode : Encode (List (String × EncodedJson)) := entries.mapM fun (name, produce) => do
+    return (name, (← Entry.prepare (← produce.run)).compact)
+  let (entries, pools) ← encode.run {}
+  return pools.finish entries
 
 /-- Public JSON projection of the same certified envelope. -/
 def sourceCatalogFrom (entries : List (String × EntryProducer)) :

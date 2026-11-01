@@ -87,3 +87,8 @@ bench-catalog-inode output:
 bench-catalog-preparation:
     lake build manifestLifecycleNative
     timeout --signal=TERM --kill-after=3s 120s .lake/build/bin/manifestLifecycleNative benchmark
+
+# Native attribution of the exact production steps; separate from ordinary latency.
+bench-catalog-stages:
+    lake build manifestLifecycleNative
+    timeout --signal=TERM --kill-after=3s 120s .lake/build/bin/manifestLifecycleNative stages
