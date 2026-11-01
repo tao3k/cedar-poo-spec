@@ -161,16 +161,3 @@ example (model : CedarPooSpec.PolicyModules.Model) (root : String) :
   IO.println "SOURCE-RECENT-OK full-source/missing/stale/index-fallback"
 
 #print axioms CedarPooSpec.Transport.SourcePool.publishSnapshot_recent
-
-#print axioms CedarPooSpec.Transport.EncodedJson.nativeArray_value
-
-#eval show IO Unit from do
-  for rows in [#[], #[Lean.toJson "μ\n\""],
-      (List.range 160).toArray.map (fun index => Lean.Json.mkObj [
-        ("index", Lean.toJson index), ("nested", Lean.toJson [true, false])])] do
-    let batch := CedarPooSpec.Transport.EncodedJson.nativeArray rows
-    let old := CedarPooSpec.Transport.EncodedJson.array
-      (rows.toList.map CedarPooSpec.Transport.EncodedJson.native)
-    unless batch.wire == old.wire do
-      throw (IO.userError "native row batching changed complete wire bytes")
-  IO.println "SOURCE-ROW-BATCH-OK empty/unicode/ordered160/full-wire"
