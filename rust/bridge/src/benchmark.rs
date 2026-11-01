@@ -76,6 +76,8 @@ pub(crate) fn run(input: &str, cli_input_read_ns: u128) -> Result<(), String> {
             || metrics.schema_parse_calls + metrics.schema_reuses != expected_schema_bindings
             || metrics.policy_validation_calls != expected_validations
             || metrics.entity_hash_calls + metrics.entity_hash_reuses != rows
+            || metrics.schema_diagnostic_reparses != 0
+            || metrics.entity_diagnostic_reparses != 0
             || metrics.entity_parse_calls != expected_entity_parses
             || metrics.entity_parse_calls + metrics.entity_reuses != rows
             || metrics.uid_parse_calls + metrics.uid_reuses != rows * 3

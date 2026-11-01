@@ -432,3 +432,30 @@ fn shared_schema_retires_and_never_reuses_validation_or_requests() {
         original_validated_replay(&policy)
     );
 }
+
+#[test]
+fn wire_schema_preparation_preserves_original_sdk_rejection_and_invocation_counts() {
+    let mut sources = vec![validated(receipt()).schema];
+    for value in [
+        json!([]),
+        json!({"invalid":false}),
+        json!({"": {"entityTypes": {"Bad": {"shape": {"type": "Unknown"}}}}}),
+        json!({"雪": {"entityTypes": {}, "actions": {}}}),
+    ] {
+        sources.push(serde_json::from_value(value).unwrap());
+    }
+    for source in sources {
+        let expected = cedar_policy::Schema::from_json_value((*source).clone())
+            .map(|_| ())
+            .map_err(|error| format!("Cedar schema: {error}"));
+        let mut stats = crate::ReplayMetrics::default();
+        let actual =
+            crate::schema_preparation::PreparedSchema::parse(&source, Some(&mut stats)).map(|_| ());
+        assert_eq!(actual, expected);
+        assert_eq!(stats.schema_parse_calls, 1);
+        assert_eq!(
+            stats.schema_diagnostic_reparses,
+            usize::from(expected.is_err())
+        );
+    }
+}

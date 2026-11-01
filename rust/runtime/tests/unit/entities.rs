@@ -7,6 +7,9 @@ fn exact_snapshot_changes_and_failed_parse_do_not_poison_a_later_hit() {
     let changed =
         json!([{"uid":{"type":"User","id":"alice"},"attrs":{"enabled":false},"parents":[]}]);
     let invalid = json!({"not":"an entity array"});
+    let first: cedar_poo_core::EntitySourceJson = serde_json::from_value(first).unwrap();
+    let changed: cedar_poo_core::EntitySourceJson = serde_json::from_value(changed).unwrap();
+    let invalid: cedar_poo_core::EntitySourceJson = serde_json::from_value(invalid).unwrap();
     let mut slot = EntitySlot::new(None);
     let mut stats = ReplayMetrics::default();
     let initial = slot
@@ -24,7 +27,16 @@ fn exact_snapshot_changes_and_failed_parse_do_not_poison_a_later_hit() {
             .expect("same UID changed body")
             .deep_eq(&initial)
     );
-    assert!(slot.get(&invalid, Some(&mut stats)).is_err());
+    let original = cedar_policy::Entities::from_json_value((*invalid).clone(), None)
+        .unwrap_err()
+        .to_string();
+    assert_eq!(
+        slot.get(&invalid, Some(&mut stats))
+            .unwrap_err()
+            .to_string(),
+        original
+    );
+    assert_eq!(stats.entity_diagnostic_reparses, 1);
     assert!(
         !slot
             .get(&changed, Some(&mut stats))

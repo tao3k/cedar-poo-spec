@@ -12,13 +12,24 @@ pub(crate) struct PreparedSchema {
 impl PreparedSchema {
     pub(crate) fn parse(
         source: &SchemaSourceJson,
-        metrics: Option<&mut ReplayMetrics>,
+        mut metrics: Option<&mut ReplayMetrics>,
     ) -> Result<Arc<Self>, String> {
-        if let Some(stats) = metrics {
+        if let Some(stats) = metrics.as_deref_mut() {
             stats.schema_parse_calls += 1;
         }
-        let schema = Schema::from_json_value((**source).clone())
-            .map_err(|e| format!("Cedar schema: {e}"))?;
+        // The complete canonical wire is already owned for source identity. Parse
+        // it directly instead of cloning a JSON tree solely for SDK ownership.
+        // The original Value route preserves exact diagnostics on rejection.
+        let schema = match Schema::from_json_str(source.source_identity()?) {
+            Ok(schema) => schema,
+            Err(_) => {
+                if let Some(stats) = metrics {
+                    stats.schema_diagnostic_reparses += 1;
+                }
+                Schema::from_json_value((**source).clone())
+                    .map_err(|e| format!("Cedar schema: {e}"))?
+            }
+        };
         Ok(Arc::new(Self {
             source: source.clone(),
             validator: Validator::new(schema),

@@ -1,13 +1,13 @@
 //! One invocation/schema-bound immutable entity preparation slot.
 use crate::observation::ReplayMetrics;
 use cedar_policy::{Entities, Schema};
-use cedar_poo_core::JsonSourceIdentity;
+use cedar_poo_core::{EntitySourceJson, JsonSourceIdentity};
 use serde_json::Value;
 use std::time::Instant;
 
 pub(crate) struct EntitySlot<'schema, 'input> {
     schema: Option<&'schema Schema>,
-    prepared: Option<(&'input Value, Entities)>,
+    prepared: Option<(&'input EntitySourceJson, Entities)>,
     digest: Option<(&'input Value, String)>,
     #[cfg(test)]
     force_fresh: bool,
@@ -58,7 +58,7 @@ impl<'schema, 'input> EntitySlot<'schema, 'input> {
     }
     pub(crate) fn get(
         &mut self,
-        source: &'input Value,
+        source: &'input EntitySourceJson,
         mut metrics: Option<&mut ReplayMetrics>,
     ) -> Result<&Entities, String> {
         let started = metrics.as_ref().map(|_| Instant::now());
@@ -77,8 +77,27 @@ impl<'schema, 'input> EntitySlot<'schema, 'input> {
                 stats.entity_parse_calls += 1;
             }
             // Parse at the original lazy point, before replacing any successful state.
-            let parsed = Entities::from_json_value(source.clone(), self.schema)
-                .map_err(|error| error.to_string())?;
+            #[cfg(test)]
+            let reference = self.force_fresh;
+            #[cfg(not(test))]
+            let reference = false;
+            let parsed = if reference {
+                // Independent oracle: the original Value-consuming SDK route.
+                Entities::from_json_value((**source).clone(), self.schema)
+                    .map_err(|error| error.to_string())?
+            } else {
+                match Entities::from_json_str(source.source_identity()?, self.schema) {
+                    Ok(parsed) => parsed,
+                    Err(_) => {
+                        if let Some(stats) = metrics.as_deref_mut() {
+                            stats.entity_diagnostic_reparses += 1;
+                        }
+                        // Preserve the original exact error and successful slot on refusal.
+                        Entities::from_json_value((**source).clone(), self.schema)
+                            .map_err(|error| error.to_string())?
+                    }
+                }
+            };
             if let Some(stats) = metrics.as_deref_mut() {
                 stats.entity_replacements += usize::from(self.prepared.is_some());
                 stats.entity_slot_peak = 1;

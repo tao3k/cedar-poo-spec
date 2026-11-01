@@ -1,6 +1,6 @@
 //! Bulk source-table wire contracts. Full sources are owned once, never admission.
 use crate::{Case, Manifest, RequestInput, SchemaEvolutionBundle, ValidatedManifest};
-use cedar_poo_core::{CompiledPolicyJson, EntitySourceJson, JsonSourceIdentity, SchemaSourceJson};
+use cedar_poo_core::{CompiledPolicyJson, EntitySourceJson, SchemaSourceJson};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
@@ -148,7 +148,7 @@ impl CatalogSources {
             Ok(())
         }
         unique(self.policies.iter().map(|v| v.source_identity()))?;
-        unique(self.entities.iter().map(|v| v.deref().encode_source()))?;
+        unique(self.entities.iter().map(|v| v.source_identity()))?;
         unique(self.schemas.iter().map(|v| v.source_identity()))?;
         Ok(())
     }

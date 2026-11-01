@@ -15,7 +15,9 @@ pub struct ReplayMetrics {
     pub catalog_syntax_retirements: usize,
     pub revision_syntax_reuses: usize,
     pub schema_preparation_ns: u128,
+    /// Source preparation invocations; diagnostic reparses are counted separately.
     pub schema_parse_calls: usize,
+    pub schema_diagnostic_reparses: usize,
     pub schema_reuses: usize,
     pub policy_validation_calls: usize,
     pub revision_preparation_ns: u128,
@@ -42,7 +44,9 @@ pub struct ReplayMetrics {
     pub entity_preparation_ns: u128,
     pub entity_hash_calls: usize,
     pub entity_hash_reuses: usize,
+    /// Source preparation invocations; diagnostic reparses are counted separately.
     pub entity_parse_calls: usize,
+    pub entity_diagnostic_reparses: usize,
     pub entity_reuses: usize,
     pub entity_replacements: usize,
     /// Maximum entries retained by this one-slot owner; not a heap/RSS bound.
