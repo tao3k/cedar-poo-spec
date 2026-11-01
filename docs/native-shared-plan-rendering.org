@@ -477,3 +477,32 @@ The preceding baseline revision's [[https://github.com/hardenedlinux/cedar-poo-s
 stage measurements (416 timing and 416 small-allocation counts), the unchanged
 nine ordinary measurements and full-production-wire equality. Final-candidate
 remote CI is a separate required receipt; baseline CI is not reused as its pass.
+
+** Cold build and retained startup non-wins
+
+One actual empty-Cedar-build-root attempt passes in 93.327 s, under the original
+120-second/default-concurrency boundary. All five native images match the hot
+SHA-256 identities and both full catalog/replay wires match the frozen controls.
+Compiler maximum-child RSS is 1123893248 bytes, not aggregate build memory.
+Toolchain and installed SDK package artifacts remain cached. A preliminary script
+preflight refused an old batch's backup path before any build started; that
+record is retained, the batch path was corrected, and no build timeout was raised.
+No cold build speedup is claimed.
+
+All 24 current copy/hardlink launch diagnostics exit successfully, preserve exact
+stdout and pass the original clock-interval guards. Lean fresh-copy pre-main is
+1425.188 and 1155.936 ms; fresh hardlinks are 1184.456 and 740.510 ms. Warm Lean
+samples remain around 43-47 ms except one 122.147 ms non-win, including a 65.141 ms
+import span. The two fresh-copy import spans are only 18.703 and 19.465 ms.
+Rust fresh-copy pre-main is 573.649/348.030 ms; hardlinks 355.111/84.914 ms,
+with all warm samples 4.069-9.835 ms. The repeated hardlink long wait is retained:
+a common inode does not isolate a complete cause. Nix Python's unavailable xattr
+API remains explicitly reported; it is not evidence that attributes are absent.
+No exact kernel wait object/service has been established.
+
+The architecture correction changes documentation and rendered view receipts,
+not the admitted Lean/Rust implementation. Post-gate input comparison finds only
+the two existing =dev/d2/*.json= rendering receipts differ among the original
+qualified inputs; all semantic/native code and dependency inputs still match.
+Separate TypeScript, SDK/source-scope and image/invalidation checks pass (12 tests),
+and all five regenerated figures retain the 12 CSS-pixel readability threshold.
