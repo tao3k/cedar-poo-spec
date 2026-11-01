@@ -153,8 +153,12 @@ inputs. Its erased proof requires the original =prepareProgram= to succeed;
 This does not defer or weaken validation for unproved construction, cache an
 authorization decision, or turn model identity into Host source freshness.
 
-=Model.prepareC4= seeds the graph preparation from its existing Plan witness.
-POO shares canonical ancestor results and derives reachable validation from their
+=Model.prepareC4= now transfers the existing Schema resolver actually consumed
+by original object construction. =prepareC4_current= proves ownership equality
+for a source-current object, including its resolved ancestors. Raw and stale
+models prepare their own graph; declaration-only revisions retain the exact
+owner and graph changes establish a new one. POO shares canonical ancestor
+results and derives reachable validation from their
 traces plus declaration uniqueness. Failed audits and duplicate declarations keep
 the ordinary C4 result/error path. The first demand may prepare the whole finite
 graph; the table lives with this immutable owner.

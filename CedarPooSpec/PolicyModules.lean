@@ -225,16 +225,37 @@ private theorem Model.currentObject_graph (model : Model) (object)
       subst object
       simp [Model.graph, Model.activeSchema?, active, Built.toSchema]
 
-/-- Reuse a graph-bound Plan already owned by the model before demanding the
-shared ancestor table. The original Plan witness supplies the exact result. -/
+/-- Reuse the resolver originally consumed by object construction. The active
+schema gate binds its actual source; stale or raw models prepare their own graph. -/
 def Model.prepareC4 (model : Model) : LeanPoo.C4.Prepared model.graph :=
-  let prepared := LeanPoo.C4.prepare model.graph
-  match found : model.currentObject? with
-  | none => prepared
-  | some object =>
-    prepared.retain object.plan.root (.ok object.plan.precedence) (by
-      rw [← model.currentObject_graph object found]
-      exact object.plan.valid.symm)
+  match active : model.activeSchema? with
+  | none => LeanPoo.C4.prepare model.graph
+  | some schema =>
+      have same : schema.graph = model.graph := by simp [Model.graph, active]
+      same ▸ schema.preparation.get
+
+/-- A source-current object transfers the actual resolver owner, not merely
+an equal answer at its root. This includes the already resolved ancestors. -/
+theorem Model.prepareC4_current (model : Model) (object)
+    (found : model.currentObject? = some object) :
+    HEq model.prepareC4 object.plan.schema.preparation.get := by
+  cases active : model.activeBuilt? with
+  | none => simp [Model.currentObject?, active] at found
+  | some built =>
+    cases built with
+    | schema source schema => simp [Model.currentObject?, active] at found
+    | object source value =>
+      simp [Model.currentObject?, active] at found
+      subst object
+      unfold Model.prepareC4
+      split
+      · rename_i missing
+        simp [Model.activeSchema?, active, Built.toSchema] at missing
+      · rename_i schema selected
+        have same : schema = value.plan.schema := by
+          simpa [Model.activeSchema?, active, Built.toSchema] using selected.symm
+        subst schema
+        exact eqRec_heq _ _
 
 private theorem Model.planAt_graph (model : Model) (root : String) (plan)
     (compiled : model.planAt root = .ok plan) : plan.schema.graph = model.graph := by

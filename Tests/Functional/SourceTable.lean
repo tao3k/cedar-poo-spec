@@ -138,3 +138,6 @@ example (model : CedarPooSpec.PolicyModules.Model) (root : String) :
     let owner : CedarPooSpec.Functional.Compilation model :=
       ⟨Thunk.mk (fun _ => model.prepareC4), fun _ name => .error (.missingModule name)⟩
     owner.compile root = .error (.missingModule root) := rfl
+
+#print axioms CedarPooSpec.PolicyModules.Model.prepareC4_current
+#print axioms LeanPoo.Object.compile_precedence
