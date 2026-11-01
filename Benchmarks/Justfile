@@ -82,3 +82,8 @@ bench-catalog-inode output:
     timeout --signal=TERM --kill-after=3s 120s uv run --project python --package cedar-poo-py-test --locked python -m cedar_poo_py_test.launch rust/target/release/examples/launch_probe --output-directory {{quote(output)}}/rust --materialization hardlink --input .lake/build/functional-catalog.json --expected-exit 0 --child-arguments replay-catalog
     for stdout in {{quote(output)}}/lean/*.stdout; do cmp "$stdout" .lake/build/functional-catalog.json || exit $?; done
     for stdout in {{quote(output)}}/rust/*.stdout; do cmp "$stdout" .lake/build/functional-catalog-receipts.json || exit $?; done
+
+# Actual typed catalog, official Lean measurement lines; no Python benchmark driver.
+bench-catalog-preparation:
+    lake build manifestLifecycleNative
+    timeout --signal=TERM --kill-after=3s 120s .lake/build/bin/manifestLifecycleNative benchmark

@@ -24,6 +24,7 @@ theorem SourceSnapshot.encoded (snapshot : SourceSnapshot kind) :
 structure SourcePool (kind : SourceKind) where
   entries : Array (SourceSnapshot kind) := #[]
   candidates : Std.HashMap String Nat := {}
+  recent : Option Nat := none
 
 def SourcePool.resolve (pool : SourcePool kind) (ref : SourceRef kind) : Option String :=
   (pool.entries[ref.index]?).map (·.wire)
@@ -36,7 +37,9 @@ structure Publication (before : SourcePool kind) (source : Lean.Json) where
 private def append (pool : SourcePool kind) (source : SourceSnapshot kind) :
     Publication pool source.value :=
   let index := pool.entries.size
-  { next := ⟨pool.entries.push source, pool.candidates.insert source.wire index⟩
+  { next := { entries := pool.entries.push source
+              candidates := pool.candidates.insert source.wire index
+              recent := some index }
     reference := ⟨index⟩
     bound := by simp [SourcePool.resolve, index, source.encoded]
     frame := by
@@ -44,15 +47,39 @@ private def append (pool : SourcePool kind) (source : SourceSnapshot kind) :
       simp only [Array.getElem?_push, show i ≠ pool.entries.size from Nat.ne_of_lt h, ite_false] }
 
 /-- Typed publication reuses the snapshot's memoized encoding, including hits. -/
-def SourcePool.publishSnapshot (pool : SourcePool kind) (source : SourceSnapshot kind) :
+private def publishIndexed (pool : SourcePool kind) (source : SourceSnapshot kind) :
     Publication pool source.value :=
   let wire := source.wire
   match pool.candidates[wire]? with
   | some index =>
       if bound : pool.resolve ⟨index⟩ = some wire then
-        ⟨pool, ⟨index⟩, bound.trans (congrArg some source.encoded), fun _ _ => rfl⟩
+        ⟨{ pool with recent := some index }, ⟨index⟩,
+          bound.trans (congrArg some source.encoded), fun _ _ => rfl⟩
       else append pool source
   | none => append pool source
+
+
+/-- Consecutive Cases usually share one snapshot. Check the last published
+reference before hashing the full wire again. Both hints remain untrusted:
+every reuse resolves and compares complete source bytes in this exact pool. -/
+def SourcePool.publishSnapshot (pool : SourcePool kind) (source : SourceSnapshot kind) :
+    Publication pool source.value :=
+  match pool.recent with
+  | some index =>
+      if bound : pool.resolve ⟨index⟩ = some source.wire then
+        ⟨pool, ⟨index⟩, bound.trans (congrArg some source.encoded), fun _ _ => rfl⟩
+      else publishIndexed pool source
+  | none => publishIndexed pool source
+
+
+/-- A checked consecutive-source hit leaves the publication inventory unchanged. -/
+theorem SourcePool.publishSnapshot_recent (pool : SourcePool kind)
+    (source : SourceSnapshot kind) (index : Nat)
+    (recent : pool.recent = some index)
+    (bound : pool.resolve ⟨index⟩ = some source.wire) :
+    (pool.publishSnapshot source).next = pool ∧
+      (pool.publishSnapshot source).reference.index = index := by
+  simp [publishSnapshot, recent, bound]
 
 def SourcePool.publish (pool : SourcePool kind) (source : Lean.Json) : Publication pool source :=
   pool.publishSnapshot (SourceSnapshot.ofJson source)

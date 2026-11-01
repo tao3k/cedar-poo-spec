@@ -25,10 +25,19 @@ pub(crate) fn policy_body_counts(bodies: &BTreeMap<String, String>) -> BTreeMap<
 }
 
 pub(crate) fn canonical_policy_body(policy: &cedar_policy::Policy) -> Result<String, String> {
-    let json = policy
-        .to_json()
+    // Stay in Cedar's public typed syntax representation. The prior path
+    // serialized the parsed EST into Value and decoded it again solely to
+    // obtain the normalized AST printer. Preserve independent text parsing.
+    let syntax = policy
+        .to_pst()
         .map_err(|error| format!("Cedar policy JSON: {error}"))?;
-    let normalized = cedar_policy::Policy::from_json(None, json)
+    let materialized = match syntax {
+        cedar_policy::pst::Policy::Static(policy) => policy,
+        cedar_policy::pst::Policy::Linked(policy) => policy
+            .into_static_policy()
+            .map_err(|error| format!("Cedar policy normalization: {error}"))?,
+    };
+    let normalized = cedar_policy::Policy::from_pst(materialized.into())
         .map_err(|error| format!("Cedar policy normalization: {error}"))?;
     normalized
         .to_cedar()
@@ -221,3 +230,7 @@ pub fn render_artifacts(manifest: &Manifest) -> Result<BTreeMap<String, String>,
         .map(|(revision, (_, artifact))| (revision, artifact))
         .collect())
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/policy_codec.rs"]
+mod tests;

@@ -141,3 +141,23 @@ example (model : CedarPooSpec.PolicyModules.Model) (root : String) :
 
 #print axioms CedarPooSpec.PolicyModules.Model.prepareC4_current
 #print axioms LeanPoo.Object.compile_precedence
+
+-- A last-publication index is a hint, never source authority.
+#eval show IO Unit from do
+  let source : CedarPooSpec.Transport.SourceSnapshot .policy :=
+    CedarPooSpec.Transport.SourceSnapshot.ofJson (Lean.toJson "original")
+  let first := ({} : CedarPooSpec.Transport.SourcePool .policy).publishSnapshot source
+  let missing := { first.next with recent := some 999 }
+  let recovered : CedarPooSpec.Transport.Publication missing source.value :=
+    missing.publishSnapshot source
+  let changed := first.next.publish (Lean.toJson "changed")
+  let stale := { changed.next with recent := some changed.reference.index }
+  let restored : CedarPooSpec.Transport.Publication stale source.value :=
+    stale.publishSnapshot source
+  unless recovered.reference.index == first.reference.index && recovered.next.entries.size == 1 do
+    throw (IO.userError "missing recent hint changed source publication")
+  unless restored.reference.index == first.reference.index && restored.next.entries.size == 2 do
+    throw (IO.userError "stale recent hint admitted another source")
+  IO.println "SOURCE-RECENT-OK full-source/missing/stale/index-fallback"
+
+#print axioms CedarPooSpec.Transport.SourcePool.publishSnapshot_recent

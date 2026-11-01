@@ -28,6 +28,23 @@ or consuming the Lean library requires no Python. An in-process timer cannot
 observe its own pre-main interval; that observation stays external. Diagnostic
 and allocation-instrumented samples remain separate from ordinary latency.
 
+* Complete real-Case native entrypoints
+
+=just bench-catalog-preparation= builds the existing =manifestLifecycleNative=
+Lake executable and runs its =benchmark= mode directly. Lean owns the actual
+51-entry typed catalog, one warmup, three fixed samples, preparation/serialization
+clocks and complete-output equality. It emits nine official =measurement:= lines
+plus the entry/byte/checksum inventory. The helper takes the actual entries as a
+runtime argument, preventing closed catalog work from becoming module initialization.
+
+The existing Rust =benchmark-catalog= mode owns SDK parsing, strict validation,
+independent text replay, request preparation and serialization of the same complete
+catalog. Its seven stage observations per sample now also emit =measurement:=
+lines, after all timed spans. JSON observations and original fixed counters remain.
+Python supplies only external process/resource observations. CI publishes native
+logs and observation files directly. Additional tar.gz evidence bundles are not a
+benchmark entrypoint or a required deliverable; no new archival step is introduced.
+
 * Generated measurements and CI artifacts
 
 Write measurement logs, raw stdout/stderr, CSV and resource receipts under ignored

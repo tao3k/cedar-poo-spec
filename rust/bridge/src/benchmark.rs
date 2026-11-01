@@ -32,6 +32,7 @@ pub(crate) fn run(input: &str, cli_input_read_ns: u128) -> Result<(), String> {
     let revision_inventory_ns = started.elapsed().as_nanos();
     let samples_started = Instant::now();
     let mut results = Vec::with_capacity(3);
+    let mut measurements = Vec::with_capacity(21);
     for sample in 1..=3 {
         let sample_started = Instant::now();
         let allocation_before = crate::allocation::snapshot();
@@ -115,6 +116,17 @@ pub(crate) fn run(input: &str, cli_input_read_ns: u128) -> Result<(), String> {
         if replay_ns + comparison_ns + serialize_ns + output_cleanup_ns > sample_wall_ns {
             return Err("overlapping sample lifecycle stages".into());
         }
+        for (name, elapsed) in [
+            ("replay", replay_ns),
+            ("schema_prepare", metrics.schema_preparation_ns),
+            ("revision_prepare", metrics.revision_preparation_ns),
+            ("normalize", metrics.revision_normalize_ns),
+            ("request_prepare", metrics.request_preparation_ns),
+            ("authorize", metrics.authorization_ns),
+            ("serialize", serialize_ns),
+        ] {
+            measurements.push((sample, name, elapsed));
+        }
         results.push(json!({"sample_wall_ns":sample_wall_ns,"comparison_ns":comparison_ns,"output_cleanup_ns":output_cleanup_ns,"catalog":catalog,"sample":sample,"allocation":allocation,"unattributed_ns":replay_ns-accounted, "rows":rows, "replay_ns":replay_ns,
             "serialization_ns":serialize_ns, "receipt_bytes":receipt_bytes, "runtime":metrics}));
     }
@@ -127,6 +139,10 @@ pub(crate) fn run(input: &str, cli_input_read_ns: u128) -> Result<(), String> {
     let bookkeeping_ns = measured_body_ns
         .checked_sub(accounted)
         .ok_or("overlapping benchmark lifecycle stages")?;
+    // Emit after every timed span; formatting/stdio is not SDK preparation.
+    for (sample, name, elapsed) in measurements {
+        eprintln!("measurement: cedar.sdk.sample{sample}.{name} {elapsed} ns");
+    }
     println!(
         "{}",
         json!({"kind":"native-catalog-benchmark", "build_profile":if cfg!(debug_assertions) { "debug" } else { "release" }, "warmup":1, "reference_catalog":reference_catalog, "cli":{"input_read_ns":cli_input_read_ns}, "lifecycle":{"warmup_ns":warmup_ns,"revision_inventory_ns":revision_inventory_ns,"samples_ns":samples_ns,"reference_cleanup_ns":reference_cleanup_ns,"bookkeeping_ns":bookkeeping_ns,"measured_body_ns":measured_body_ns}, "samples":results})
