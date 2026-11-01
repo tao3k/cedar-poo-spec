@@ -197,11 +197,11 @@ pin qualification separately passes all configured Examples/Tests, full
 398.507 s. All 705 final source hashes and clean d0a3b3e package remain unchanged.
 These are complete qualification durations, not native runtime latency.
 
-POO's complete standard commit gate passes 359 unit/stress invocations and all
-20 phases in 230.207 s with its existing automatic 14-worker default. Exact POO
-CI run 41276571409 passes 17/17; final proof-compilation revision CI is recorded
-in PR #8 with its exact run and pin. Final Cedar publication CI and downloaded
-resource/output/provenance verification are recorded in PR #8 separately.
+POO's owner-transfer gate passes 359 invocations and 20 phases in 230.207 s.
+The final proof-compilation gate separately passes all 359 and 20 phases in
+103.278 s with the existing automatic 14-worker default. Exact final POO CI
+run 41279857382 passes 17/17 at d0a3b3e. Final Cedar publication CI and downloaded
+native resource/output/provenance verification are recorded in PR #8 separately.
 
 Next work stays on these common owners: attribute remaining producer source
 construction and official SDK preparation, reduce fixed metadata regeneration
