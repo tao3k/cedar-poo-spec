@@ -3,7 +3,7 @@
 * Dependency and authority
 
 The library and lockfile pin [[https://github.com/tao3k/lean-poo/pull/13][LeanPOO PR 13]] at
-=c03da1ab399ac8ea57fdefd4b460e725541d88e6=. This is a pinned research-branch
+=3c9dec0f662bf5ea51ef0394cbaac36723accf46=. This is a pinned research-branch
 snapshot, not a claim that PR 13 has merged. SPEC retains Lean 4.34.1 and its
 existing Cedar revision; no unrelated dependency upgrade is included.
 
@@ -12,6 +12,40 @@ owns typed declarations, C4 inheritance, final-self computation, contract
 diagnostics and refinement. SPEC supplies industry fields and predicates, and
 Cedar owns policy/schema validation and authorization. Host facts remain a
 separate admission responsibility.
+
+* Executable cache and index use
+
+The dependency snapshot above was checked against the live PR head for this
+stage. Its [[https://github.com/tao3k/lean-poo/actions/runs/41300497739][17-job exact-revision CI]] passes. Relative to the preceding
+=3abffcaa7728cebd1ff0ee6c9bf6e939b7175e26= pin, the delta chiefly adds
+boundary theorems and examples. C4 Prepared, Object Memo and Functional ContextSlot
+implementations are unchanged. Updating the pin is required for API/proof
+alignment; it is not itself an algorithmic speedup claim.
+
+| Actual SPEC owner / caller | Executable POO mechanism | Alignment boundary |
+|----------------------------+--------------------------+--------------------|
+| =PolicyModules.Model.compilePlanPrepared=, then =compileSelected= | =Plan.compileMemo= builds =CompiledPlan.effective : Std.DHashMap=; =CompiledPlan.resolve= performs the keyed method lookup | =compilePlanPrepared_eq= and =CompiledPlan.resolve_sound=; Cedar edit intent/provenance still execute |
+| =Functional.Compilation= and =PolicyModules.Model.prepareC4= | Graph-owned =C4.Prepared= node index, shared ancestor preparation and per-root thunks | =prepareC4_current= and =Prepared.at_eq=; source revision cannot substitute another graph |
+| =Functional.Reuse.RootSlot= | =Requirements.ContextSlot= retains exact Program/root dependency data | =ContextSlot.consume_value=; =RootSlot.read_value= retains full success/error outcomes |
+| Lean =Transport.Case.EntitySlot= | Same =ContextSlot= over the complete semantic Entities context | =EntitySlot.read_value=, with at most one retained context; no global entity cache |
+| Nine =Functional.ObjectProfile= families | Existing POO Dataflow template schedules and materialized instances | Existing actual field, source, inventory and Contract/refinement proofs |
+
+Thus absence of a local function named index does not imply absence of a runtime
+index: the policy compiler reaches the POO method hash table through compileMemo
+and resolve. Retained data stay in their existing object/Program owners.
+
+=Prototype.RepresentationIndex= also contains finite semantic models for the
+Gerbil sparse ordered-index/storage contract. Importing those definitions is
+not equivalent to selecting an executable fast Lean or Rust backend. Use the
+actual executable APIs above and their source-bound laws, rather than introducing
+another registry, wrapper or cache to reproduce a specification-level index.
+
+Cedar SDK Schema/Entities first parsing executes in Rust through public SDK
+entrypoints. A Lean object cache does not automatically eliminate that independent
+admission boundary. The current SDK optimization reuses complete source wire
+already owned by immutable Rust source objects, preserving strict validation,
+independent replay and exact original rejection diagnostics. See the current
+[[file:native-shared-plan-rendering.org][native performance and resource audit]] for measured results and limitations.
 
 * Concrete alignment
 
@@ -25,9 +59,9 @@ separate admission responsibility.
 | Policy owners | =PolicyModules= delegates object construction, C4 and compiled slots to LeanPOO | Cedar-specific edit intent, ownership, tombstones and provenance remain local |
 | Proof reuse | =Evaluation=, =Validation=, =Composition= and =Revision= retain LeanPOO proof objects and dependency-aware reuse | Cedar evaluation/typechecking relations remain the actual obligations |
 
-The materialized industry types follow LeanPOO's [[https://github.com/tao3k/lean-poo/blob/c03da1ab399ac8ea57fdefd4b460e725541d88e6/Examples/DataflowObject.lean][DataflowObject]] and
-[[https://github.com/tao3k/lean-poo/blob/c03da1ab399ac8ea57fdefd4b460e725541d88e6/Examples/LiveRevision.lean][LiveRevision]] workflows; contract recognition/refinement uses the same public
-[[https://github.com/tao3k/lean-poo/blob/c03da1ab399ac8ea57fdefd4b460e725541d88e6/Examples/VariantContracts.lean][VariantContracts]] mechanisms. Examples are references, not runtime imports.
+The materialized industry types follow LeanPOO's [[https://github.com/tao3k/lean-poo/blob/3c9dec0f662bf5ea51ef0394cbaac36723accf46/Examples/DataflowObject.lean][DataflowObject]] and
+[[https://github.com/tao3k/lean-poo/blob/3c9dec0f662bf5ea51ef0394cbaac36723accf46/Examples/LiveRevision.lean][LiveRevision]] workflows; contract recognition/refinement uses the same public
+[[https://github.com/tao3k/lean-poo/blob/3c9dec0f662bf5ea51ef0394cbaac36723accf46/Examples/VariantContracts.lean][VariantContracts]] mechanisms. Examples are references, not runtime imports.
 
 * Complete materialized-object migration
 
