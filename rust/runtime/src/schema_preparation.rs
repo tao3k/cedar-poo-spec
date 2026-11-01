@@ -1,25 +1,24 @@
 //! Explicit source-bound schema lifetime across related manifest replays.
 use crate::observation::ReplayMetrics;
 use cedar_policy::{Schema, Validator};
-use cedar_poo_core::{JsonSourceIdentity, SchemaSourceJson};
-use serde_json::Value;
+use cedar_poo_core::SchemaSourceJson;
 use std::sync::{Arc, OnceLock};
 
 pub(crate) struct PreparedSchema {
-    source: Value,
+    source: SchemaSourceJson,
     pub(crate) validator: Validator,
     digest: OnceLock<String>,
 }
 impl PreparedSchema {
     pub(crate) fn parse(
-        source: &Value,
+        source: &SchemaSourceJson,
         metrics: Option<&mut ReplayMetrics>,
     ) -> Result<Arc<Self>, String> {
         if let Some(stats) = metrics {
             stats.schema_parse_calls += 1;
         }
-        let schema =
-            Schema::from_json_value(source.clone()).map_err(|e| format!("Cedar schema: {e}"))?;
+        let schema = Schema::from_json_value((**source).clone())
+            .map_err(|e| format!("Cedar schema: {e}"))?;
         Ok(Arc::new(Self {
             source: source.clone(),
             validator: Validator::new(schema),
@@ -52,25 +51,36 @@ impl SchemaPreparation {
     pub fn from_sources(
         sources: impl IntoIterator<Item = SchemaSourceJson>,
     ) -> Result<Self, String> {
-        let mut slots = std::collections::BTreeMap::new();
-        for source in sources {
-            let slot = slots.entry(source.encode_source()?).or_insert(Slot {
-                remaining: 0,
-                prepared: None,
-            });
-            slot.remaining += 1;
+        // Count borrowed complete identities while immutable source owners live.
+        // Shared keys allocate once; one-use sources do not enter the retained plan.
+        let sources = sources.into_iter().collect::<Vec<_>>();
+        let mut counts = std::collections::BTreeMap::<&str, usize>::new();
+        for source in &sources {
+            *counts.entry(source.source_identity()?).or_default() += 1;
         }
-        slots.retain(|_, slot| slot.remaining > 1);
+        let slots = counts
+            .into_iter()
+            .filter(|(_, n)| *n > 1)
+            .map(|(key, remaining)| {
+                (
+                    key.to_owned(),
+                    Slot {
+                        remaining,
+                        prepared: None,
+                    },
+                )
+            })
+            .collect();
         Ok(Self { slots })
     }
     pub(crate) fn acquire(
         &mut self,
-        source: &Value,
+        source: &SchemaSourceJson,
         mut metrics: Option<&mut ReplayMetrics>,
     ) -> Result<Arc<PreparedSchema>, String> {
         let started = metrics.as_ref().map(|_| std::time::Instant::now());
-        let key = source.encode_source()?;
-        let prepared = if let Some(slot) = self.slots.get_mut(&key) {
+        let key = source.source_identity()?;
+        let prepared = if let Some(slot) = self.slots.get_mut(key) {
             let schema = if let Some(schema) = &slot.prepared {
                 if let Some(stats) = metrics.as_deref_mut() {
                     stats.schema_reuses += 1;
@@ -83,7 +93,7 @@ impl SchemaPreparation {
             };
             slot.remaining -= 1;
             if slot.remaining == 0 {
-                self.slots.remove(&key);
+                self.slots.remove(key);
             }
             schema
         } else {

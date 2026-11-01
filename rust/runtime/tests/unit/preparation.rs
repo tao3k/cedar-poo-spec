@@ -36,7 +36,7 @@ fn original_validated_replay(
     manifest: &ValidatedManifest,
 ) -> Result<Vec<crate::SchemaBoundReceipt>, String> {
     use cedar_policy::{Schema, ValidationMode, Validator};
-    let schema = Schema::from_json_value(manifest.schema.clone())
+    let schema = Schema::from_json_value((*manifest.schema).clone())
         .map_err(|e| format!("Cedar schema: {e}"))?;
     let validator = Validator::new(schema);
     let mut roots = std::collections::BTreeSet::new();
@@ -52,7 +52,7 @@ fn original_validated_replay(
             }
         }
     }
-    let hash = json_sha256(&manifest.schema)?;
+    let hash = json_sha256(manifest.schema.deref())?;
     crate::replay::check_manifest_with_entities(
         &manifest.cases,
         true,
@@ -257,8 +257,10 @@ fn entity_reuse_is_scoped_to_invocation_and_actual_schema_and_refusal_retry() {
     )
     .expect("entity source");
     let mut changed = validated(original.cases[0].clone());
-    changed.schema[""]["entityTypes"]["User"]["shape"]["attributes"]["age"] =
+    let mut schema_value = changed.schema.deref().clone();
+    schema_value[""]["entityTypes"]["User"]["shape"]["attributes"]["age"] =
         json!({"type":"Long","required":true});
+    changed.schema = serde_json::from_value(schema_value).unwrap();
     let mut stats = crate::ReplayMetrics::default();
     crate::replay_validated_manifest_measured(&original, &mut stats).expect("original schema");
     let error = crate::replay_validated_manifest_measured(&changed, &mut stats)
@@ -388,9 +390,7 @@ fn policy_body_preparation_shares_only_complete_source_within_one_invocation() {
 #[test]
 fn shared_schema_retires_and_never_reuses_validation_or_requests() {
     let manifest = validated(receipt());
-    let source = || {
-        serde_json::from_value::<cedar_poo_core::SchemaSourceJson>(manifest.schema.clone()).unwrap()
-    };
+    let source = || manifest.schema.clone();
     let mut owner = crate::SchemaPreparation::from_sources([source(), source()]).unwrap();
     let mut metrics = crate::ReplayMetrics::default();
     assert_eq!(
@@ -398,7 +398,9 @@ fn shared_schema_retires_and_never_reuses_validation_or_requests() {
         original_validated_replay(&manifest)
     );
     let mut changed = validated(receipt());
-    changed.schema[""]["entityTypes"]["Extra"] = json!({"shape":{"type":"Record","attributes":{}}});
+    let mut schema_value = changed.schema.deref().clone();
+    schema_value[""]["entityTypes"]["Extra"] = json!({"shape":{"type":"Record","attributes":{}}});
+    changed.schema = serde_json::from_value(schema_value).unwrap();
     assert_eq!(
         owner.replay(&changed, Some(&mut metrics)),
         original_validated_replay(&changed)

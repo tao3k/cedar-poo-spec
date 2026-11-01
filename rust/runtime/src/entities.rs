@@ -65,7 +65,7 @@ impl<'schema, 'input> EntitySlot<'schema, 'input> {
         let reusable = self
             .prepared
             .as_ref()
-            .is_some_and(|(previous, _)| *previous == source);
+            .is_some_and(|(previous, _)| previous.same_source(source));
         #[cfg(test)]
         let reusable = reusable && !self.force_fresh;
         if reusable {

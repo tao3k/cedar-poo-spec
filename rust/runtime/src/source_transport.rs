@@ -136,27 +136,20 @@ impl CatalogSources {
 
     /// Enforce source-table canonicality without moving SDK admission ahead of replay.
     pub fn check_unique(&self) -> Result<(), String> {
-        for sources in [
-            self.policies
-                .iter()
-                .map(|v| v.source_identity().map(str::to_owned))
-                .collect::<Result<Vec<_>, _>>()?,
-            self.entities
-                .iter()
-                .map(|v| v.deref().encode_source())
-                .collect::<Result<Vec<_>, _>>()?,
-            self.schemas
-                .iter()
-                .map(|v| v.deref().encode_source())
-                .collect::<Result<Vec<_>, _>>()?,
-        ] {
+        fn unique<T: Ord>(
+            sources: impl IntoIterator<Item = Result<T, String>>,
+        ) -> Result<(), String> {
             let mut seen = BTreeSet::new();
             for source in sources {
-                if !seen.insert(source) {
+                if !seen.insert(source?) {
                     return Err("duplicate source definition".into());
                 }
             }
+            Ok(())
         }
+        unique(self.policies.iter().map(|v| v.source_identity()))?;
+        unique(self.entities.iter().map(|v| v.deref().encode_source()))?;
+        unique(self.schemas.iter().map(|v| v.source_identity()))?;
         Ok(())
     }
     fn cases(
@@ -212,7 +205,6 @@ impl CatalogSources {
                 .schemas
                 .get(raw.schema_ref.0)
                 .ok_or("schema reference out of bounds")?
-                .deref()
                 .clone(),
             cases: self.cases(raw.cases, raw.revision_sources)?,
         })

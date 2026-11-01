@@ -1,6 +1,7 @@
 use super::SyntaxPreparation;
 use crate::{CatalogPreparation, CompiledPolicyJson, Manifest, ReplayMetrics};
 use serde_json::json;
+use std::ops::Deref;
 fn source() -> CompiledPolicyJson {
     serde_json::from_str(r#"{"staticPolicies":{"base":{"effect":"permit","principal":{"op":"All"},"action":{"op":"All"},"resource":{"op":"All"},"conditions":[]}},"templates":{},"templateLinks":[]}"#).unwrap()
 }
@@ -67,12 +68,14 @@ fn catalog_syntax_reuse_preserves_fresh_requests_and_receipts() {
 #[test]
 fn shared_syntax_never_reuses_schema_admission_or_request_context() {
     use crate::{ValidatedManifest, replay_validated_manifest};
-    let make = || ValidatedManifest {
-        schema: json!({"": {"entityTypes": {
+    let make = || {
+        ValidatedManifest {
+        schema: serde_json::from_value(json!({"": {"entityTypes": {
             "User": {"shape":{"type":"Record","attributes":{}}},
             "Doc": {"shape":{"type":"Record","attributes":{}}}},
-            "actions":{"read":{"appliesTo":{"principalTypes":["User"],"resourceTypes":["Doc"],"context":{"type":"Record","attributes":{}}}}}}}),
+            "actions":{"read":{"appliesTo":{"principalTypes":["User"],"resourceTypes":["Doc"],"context":{"type":"Record","attributes":{}}}}}}})).unwrap(),
         cases: manifest().cases,
+    }
     };
     let mut owner = CatalogPreparation::from_sources(
         [],
@@ -101,8 +104,10 @@ fn shared_syntax_never_reuses_schema_admission_or_request_context() {
         replay_validated_manifest(&context).unwrap_err()
     );
     let mut schema = make();
-    schema.schema[""]["actions"]["read"]["appliesTo"]["context"]["attributes"]["required"] =
+    let mut schema_value = schema.schema.deref().clone();
+    schema_value[""]["actions"]["read"]["appliesTo"]["context"]["attributes"]["required"] =
         json!({"type":"Boolean","required":true});
+    schema.schema = serde_json::from_value(schema_value).unwrap();
     assert_eq!(
         owner
             .replay_validated(&schema, Some(&mut metrics))
@@ -110,7 +115,7 @@ fn shared_syntax_never_reuses_schema_admission_or_request_context() {
         replay_validated_manifest(&schema).unwrap_err()
     );
     let mut malformed_schema = make();
-    malformed_schema.schema = json!({"invalid":false});
+    malformed_schema.schema = serde_json::from_value(json!({"invalid":false})).unwrap();
     assert_eq!(
         owner
             .replay_validated(&malformed_schema, Some(&mut metrics))

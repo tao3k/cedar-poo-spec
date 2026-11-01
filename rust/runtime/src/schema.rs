@@ -8,14 +8,13 @@ use crate::policy_codec::{load_policy_set, render_identified_policy_sources};
 use crate::revision::SourcePolicies;
 use cedar_policy::{Entities, Schema, ValidationMode, Validator};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
 /// A schema-bearing manifest intended for admission as a deployment candidate.
 #[derive(Debug, Deserialize)]
 pub struct ValidatedManifest {
-    pub schema: Value,
+    pub schema: cedar_poo_core::SchemaSourceJson,
     #[serde(deserialize_with = "crate::input::cases")]
     pub cases: Vec<Case>,
 }
@@ -46,7 +45,7 @@ pub fn render_validated_policy_sources(
     if case.policy_ids.len() != declared_ids.len() || declared_ids != actual_ids {
         return Err("candidate policy IDs differ from the Lean compilation".into());
     }
-    let schema = Schema::from_json_value(manifest.schema.clone())
+    let schema = Schema::from_json_value((*manifest.schema).clone())
         .map_err(|error| format!("Cedar schema: {error}"))?;
     let validation = Validator::new(schema.clone()).validate(&policies, ValidationMode::Strict);
     if !validation.validation_passed() {

@@ -89,8 +89,10 @@ fn validated_sources_bind_one_schema_and_entity_snapshot_for_permit_and_forbid()
     deny.expected = "deny".into();
     deny.expected_reasons = vec!["blocked".into()];
     let mut manifest = validated(allow.clone());
-    manifest.schema[""]["actions"]["view"]["appliesTo"]["context"]["attributes"]["blocked"] =
+    let mut schema_value = manifest.schema.deref().clone();
+    schema_value[""]["actions"]["view"]["appliesTo"]["context"]["attributes"]["blocked"] =
         json!({"type": "Boolean"});
+    manifest.schema = serde_json::from_value(schema_value).unwrap();
     manifest.cases.push(deny);
     let mut entity_metrics = crate::ReplayMetrics::default();
     let rows = crate::replay_validated_manifest_measured(&manifest, &mut entity_metrics)
@@ -128,7 +130,9 @@ fn validated_sources_bind_one_schema_and_entity_snapshot_for_permit_and_forbid()
 
     let mut invalid_schema = validated(allow.clone());
     invalid_schema.schema = manifest.schema.clone();
-    invalid_schema.schema[""]["actions"]["view"]["appliesTo"]["context"]["attributes"] = json!({});
+    let mut schema_value = invalid_schema.schema.deref().clone();
+    schema_value[""]["actions"]["view"]["appliesTo"]["context"]["attributes"] = json!({});
+    invalid_schema.schema = serde_json::from_value(schema_value).unwrap();
     assert!(
         render_validated_policy_sources(&invalid_schema, "allow-all")
             .unwrap_err()
@@ -165,7 +169,7 @@ fn validated_sources_bind_one_schema_and_entity_snapshot_for_permit_and_forbid()
 
 fn validated(case: Case) -> ValidatedManifest {
     ValidatedManifest {
-        schema: json!({"": {
+        schema: serde_json::from_value(json!({"": {
             "entityTypes": {
                 "User": {"shape": {"type": "Record", "attributes": {}}},
                 "Document": {"shape": {"type": "Record", "attributes": {}}}
@@ -175,7 +179,8 @@ fn validated(case: Case) -> ValidatedManifest {
                 "resourceTypes": ["Document"],
                 "context": {"type": "Record", "attributes": {}}
             }}}
-        }}),
+        }}))
+        .unwrap(),
         cases: vec![case],
     }
 }
@@ -189,8 +194,10 @@ fn schema_bound_replay_checks_request_and_binds_schema() {
     verify_validated_replay_receipts(&baseline, &receipts).expect("same schema and replay");
 
     let mut changed = validated(receipt());
-    changed.schema[""]["entityTypes"]["Extra"] =
+    let mut schema_value = changed.schema.deref().clone();
+    schema_value[""]["entityTypes"]["Extra"] =
         json!({"shape": {"type": "Record", "attributes": {}}});
+    changed.schema = serde_json::from_value(schema_value).unwrap();
     let changed_receipts = replay_validated_manifest(&changed).expect("valid changed schema");
     assert_eq!(
         changed_receipts[0].replay.decision,
@@ -243,12 +250,16 @@ fn schema_bound_replay_rejects_invalid_policy() {
 #[test]
 fn schema_bound_replay_uses_schema_action_hierarchy_for_authorization() {
     let mut manifest = validated(receipt());
-    manifest.schema[""]["actions"]["read"] = json!({"appliesTo": {
+    let mut schema_value = manifest.schema.deref().clone();
+    schema_value[""]["actions"]["read"] = json!({"appliesTo": {
         "principalTypes": ["User"],
         "resourceTypes": ["Document"],
         "context": {"type": "Record", "attributes": {}}
     }});
-    manifest.schema[""]["actions"]["view"]["memberOf"] = json!([{"type": "Action", "id": "read"}]);
+    manifest.schema = serde_json::from_value(schema_value).unwrap();
+    let mut schema_value = manifest.schema.deref().clone();
+    schema_value[""]["actions"]["view"]["memberOf"] = json!([{"type": "Action", "id": "read"}]);
+    manifest.schema = serde_json::from_value(schema_value).unwrap();
     let mut policies = manifest.cases[0].policies.deref().clone();
     policies["staticPolicies"]["base"]["action"] =
         json!({"op": "in", "entity": {"type": "Action", "id": "read"}});
@@ -270,8 +281,10 @@ fn schema_bound_replay_uses_schema_action_hierarchy_for_authorization() {
 fn optional_attribute_revision() -> SchemaEvolutionBundle {
     let before = validated(receipt());
     let mut after = validated(receipt());
-    after.schema[""]["entityTypes"]["Document"]["shape"]["attributes"]["classification"] =
+    let mut schema_value = after.schema.deref().clone();
+    schema_value[""]["entityTypes"]["Document"]["shape"]["attributes"]["classification"] =
         json!({"type": "String", "required": false});
+    after.schema = serde_json::from_value(schema_value).unwrap();
     SchemaEvolutionBundle { before, after }
 }
 

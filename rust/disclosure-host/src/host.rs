@@ -150,7 +150,7 @@ impl PolicyBundle {
     fn from_manifest(manifest: &ValidatedManifest) -> Result<Self, String> {
         replay_validated_manifest(manifest)?;
         render_validated_policy_sources(manifest, "source-governed-study")?;
-        let schema = Schema::from_json_value(manifest.schema.clone())
+        let schema = Schema::from_json_value((*manifest.schema).clone())
             .map_err(|error| format!("Cedar schema: {error}"))?;
         let mut cases = manifest
             .cases
