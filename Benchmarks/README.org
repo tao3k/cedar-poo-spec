@@ -53,13 +53,18 @@ counters still require every original first parse, strict validation and both
 authorizers. Shared ownership alone is not evidence of a timing or RSS gain;
 retain all fixed samples and byte-identical control images when interpreting it.
 
-SDK Schema/Entities first parsing can consume the complete source-owned wire
-through public SDK entrypoints. =schema_parse_calls= and =entity_parse_calls=
-count logical source preparations; =schema_diagnostic_reparses= and
-=entity_diagnostic_reparses= expose extra original-Value parses used to retain
-exact rejection diagnostics. The valid actual-catalog native guard requires
-both reparse counters to be zero. Instrumented allocation reduction is reported
-separately from retained requested peaks, OS RSS and complete-process timing.
+SDK first parsing uses public string entrypoints. Schema wire remains shared by
+its existing immutable owner; Entity wire is temporary and drops on parsing,
+while the existing one-slot cache retains the prepared SDK Entities. Source-table
+uniqueness uses a temporary borrowed exact-source hash index, with full equality
+on hash collisions. Lower retention can increase total encoding allocations;
+report both rather than treating a requested peak decrease as an OS RSS win.
+
+=schema_parse_calls= and =entity_parse_calls= count logical source preparations;
+=schema_diagnostic_reparses= and =entity_diagnostic_reparses= expose extra
+original-Value parses used to retain exact rejection diagnostics. Valid actual
+catalog guards require both reparse counters zero. Instrumented allocation totals
+and peaks, ordinary OS RSS and complete-process timings remain separate.
 
 * Generated measurements and CI artifacts
 

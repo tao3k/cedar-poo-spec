@@ -1,242 +1,251 @@
-#+TITLE: Latest POO index alignment and SDK first-parse audit
+#+TITLE: Systematic POO cache algorithms and complete native audit
 #+OPTIONS: toc:2
 
-* Exact scope and API alignment
+* Exact revisions and coverage
 
-Implementation =2fa78070e55df9d730c1b79a70fd76757db4af26= pins LeanPOO PR #13
-at =3c9dec0f662bf5ea51ef0394cbaac36723accf46= in both Lake files. This was the
-live PR head checked for this stage; its [[https://github.com/tao3k/lean-poo/actions/runs/41300497739][17-job exact-revision CI]] passes.
-Baseline is Cedar =c12ac9f64ba9060239d313c3b439f1a897a9d018= with POO
-=3abffcaa7728cebd1ff0ee6c9bf6e939b7175e26=. Later publication changes only
-Org documentation. PR #8 stays open, unmerged, with auto-merge disabled.
+Cedar implementation =4773094= pins LeanPOO PR #13 at
+=79747477d7262e686cbc1da673ed968b0f1ea942= in both Lake files. The upstream
+algorithm change is committed in the existing PR, after preserving concurrent
+proof work. Its [[https://github.com/tao3k/lean-poo/actions/runs/41310656569][exact-revision CI passes all 17 jobs]]. Neither PR is merged;
+Cedar PR #8 retains auto-merge disabled.
 
-Cedar already reaches executable POO indexes: =compilePlanPrepared= calls
-=Plan.compileMemo=, whose =CompiledPlan.effective= is a dependent hash table;
-=compileSelected= reads that table through =CompiledPlan.resolve=. Graph-owned
-=C4.Prepared= shares node/ancestor/root preparation, while =ContextSlot= owns
-exact-context root and semantic-Entities retention. Nine typed ObjectProfile
-families use the existing Dataflow schedule/materialization path. See the
-[[file:lean-poo-alignment.org][current API, caller and proof mapping]], including updated upstream example links.
+Baseline is Cedar =7ffe9971ff44d593656da95ed504c167b9e3fdd5= with POO
+=3c9dec0f662bf5ea51ef0394cbaac36723accf46=. The [[https://github.com/hardenedlinux/cedar-poo-spec/blob/7ffe9971ff44d593656da95ed504c167b9e3fdd5/docs/native-shared-plan-rendering.org][preceding pinned audit]] retains
+older observations and failures. Current raw measurements stay outside Git.
+The frozen baseline contains the original executables, catalog, source revisions
+and allocation observations; it was captured before changing either algorithm.
 
-The POO delta chiefly adds boundary proofs and examples; C4 Prepared, Object Memo
-and Functional ContextSlot executable implementations are unchanged. All five
-new-pin Lean images are byte-identical to the frozen prior-pin images. The
-finite models in =Prototype.RepresentationIndex= are not automatically a fast
-runtime backend for arbitrary Lean/Rust callers. Updating a pin or importing a
-model cannot substitute for selecting its actual executable implementation.
-No second registry, object cache, benchmark runner or manifest is introduced.
+Coverage remains all nine typed ObjectProfile families, 43 Programs, 49 typed
+catalog owners and two static entries: 51 entries, 1280 replay rows and 2560
+independent authorizations. Original type/Contract refinements, source/frame/value
+proofs, strict SDK validation, requests and both authorizers remain active.
+See [[file:lean-poo-alignment.org][the executable API/caller/proof mapping]].
 
-All nine families, 43 Programs, 49 actual typed catalog owners plus two static
-entries remain: 51 entries, 1280 replay rows, 2560 independent authorizations.
-Actual ObjectContracts, source/frame/value equations, original Lean statements,
-strict SDK validation, requests and both authorizers retain their boundaries.
-The [[https://github.com/hardenedlinux/cedar-poo-spec/blob/c12ac9f64ba9060239d313c3b439f1a897a9d018/docs/native-shared-plan-rendering.org][pinned preceding audit]] preserves previous ownership, algorithm, cold compiler,
-public-PST and rejected terminal-batching evidence without repeating its history.
+* Cache design audit and root changes
 
-* SDK first parsing consumes the existing complete wire
+| Owner / executable mechanism | Retained preparation | Hit or retirement boundary |
+|------------------------------+----------------------+----------------------------|
+| =CompiledPlan.effective : Std.DHashMap= | Effective open methods for the validated plan | =CompiledPlan.resolve= performs actual keyed lookup; instance cells remain separate |
+| Graph-owned =C4.Prepared= | Node/ancestor/root preparation | Exact graph owner and existing preparation laws |
+| =Functional.Reuse.RootSlot= | Exact Program/root dependent snapshot | Shared-owner equality now skips structural traversal; distinct owners retain full equality |
+| Lean =Transport.Case.EntitySlot= | Complete semantic Entities snapshot | Same upstream ContextSlot algorithm; one retained context, unchanged eviction |
+| Nine Dataflow ObjectProfile families | Existing schedules and materialized instances | Existing field/source/Contract proofs, no second registry |
+| Rust =EntitySlot= | Parsed, schema-bound SDK Entities | Existing exact source/slot matching and failure behavior |
+| Source-table uniqueness | Temporary borrowed exact-source hash index | Freed after canonicality checking; fingerprints only select candidates |
+| Entity JSON wire | One temporary encoding for SDK preparation | Freed on parse completion, before an original-diagnostic retry |
+| Schema source wire | Existing shared encoding | Still shared by revision planning and SDK parsing in its existing owner |
 
-Schema preparation now passes its source-owned complete JSON encoding to public
-=Schema::from_json_str= rather than cloning the JSON tree solely to transfer
-ownership to the SDK. EntitySourceJson likewise extends its existing immutable
-owner with one lazy full encoding. Source-table uniqueness and SDK parsing borrow
-that same encoding. =EntitySlot= still has one schema-bound prepared slot and
-retains the original lazy parse point, source comparison and replacement rules.
-There is no global prepared-Entities cache or schema/request admission cache.
+** Lean: eliminate structural work on same-owner cache hits
 
-Both SDK string entrypoints deserialize directly into their typed SDK input,
-then execute the same SDK semantic preparation. Source wire is the encoding of
-the already normalized immutable Value, not an unchecked original substring or
-a producer-supplied authority. Source equality, receipt hashes and public wire
-shape remain unchanged. The source owner stays live through its existing catalog
-lifetime and releases its encoding with that owner.
+The original generic =ContextSlot.read= invoked =DecidableEq= even when the
+caller passed the very same immutable context. For Cedar Entities, generated C
+allocated two comparison closures before traversing the semantic map. Reusing the
+payload alone did not remove this hit-path work.
 
-On string-route rejection, the original Value-consuming SDK route supplies the
-exact original error. =schema_diagnostic_reparses= and =entity_diagnostic_reparses=
-explicitly record this additional work; logical source preparation counters
-retain their meaning. The actual-catalog native benchmark requires BOTH new
-counters to be zero, as well as all previous parse/reuse/authorization counts.
-Rejected inputs may execute two SDK parses; this is not hidden as one physical
-parse or asserted as a failure-path speedup.
+The shared implementation now uses Lean's standard checked =withPtrEqDecEq=.
+Same-owner hits return retained dependent data directly; independently allocated
+contexts still execute the original structural comparison. No new unsafe
+primitive, axiom, mutable identity authority or global cache is introduced.
+=ContextSlot.read_reference= proves equality of the entire original structural
+reference tuple: snapshot, next slot and reuse flag. Existing =read_value=,
+=consume_value=, rebinding and replacement proofs compile unchanged. Its axiom
+audit reports only standard =propext=.
 
-The test-only uncached Entities oracle still uses the original Value route.
-All catalog replays compare against independent authoring manifests and original
-SDK preparation. Added controls cover exact schema/entity rejection strings,
-valid/invalid/Unicode schemas, unchanged slot after failure, shared encoding,
-public serialization and equality independent of memo state. Core passes 9 tests;
-Runtime passes 56 with one pre-existing ignored test, which the full gate also
-executes explicitly. SDK equivalence here is executable differential evidence;
-Lean proofs continue to establish their typed object/source/Contract laws.
+The actual Cedar generated C confirms the address comparison precedes the two
+EntityUID/EntityData closure allocations and map equality call. The unequal-owner
+branch contains the original structural decision once. This is consumer-level
+code-generation evidence, not merely importing a faster upstream API.
 
-* Native benchmark ownership and fixed observations
+** Rust: cache the SDK result and retire its intermediate representation
 
-=just bench-catalog-preparation= runs the existing actual-Case native Lean
-executable: one warmup, three samples, nine official =measurement:= lines,
-complete output equality and inventory 51 entries / 1177068 bytes / checksum
-3211632310046200224. Total covers preparation plus serialization, excluding
-checking, cleanup, output and pre-main. No workload or timer is moved into Python.
+The preceding EntitySource owner lazily retained full JSON during source-table
+uniqueness. Every encoding survived until the whole catalog owner retired,
+even after the one-slot SDK Entities cache already held the prepared result.
+This accounted for the prior approximately 80 KB higher requested peak.
 
-Rust's existing =benchmark-catalog= owns SDK workloads and clocks, one warmup,
-three samples and 21 native measurement lines after timed spans. Each sample
-retains 221 prepared revisions, 21 schema preparations plus two reuses, 53 entity
-preparations plus 1227 reuses, 1280 rows and 2560 authorizations. Both diagnostic
-reparse counters are zero in the candidate actual catalog.
+EntitySource now shares the immutable Value directly. Source-table uniqueness
+fingerprints its ordered structure without allocating encoded JSON, then uses a
+standard HashSet with complete exact source equality. Hash collisions cannot
+accept duplicates or reject distinct sources. The index borrows Values and
+retires after checking. Expected hashing work is linear in source payload;
+collision cases still require full comparisons and are not claimed constant time.
 
-Python only observes necessary external processes, clocks, resources and artifact
-identity. No new tar/zip evidence bundle is generated or required; CI publishes
-native logs and existing observation artifacts. Raw data stay outside Git.
+Only the SDK preparation miss encodes an entity source. That String is scoped to
+=Entities::from_json_str= and drops before a diagnostic fallback. The expensive
+parsed SDK object stays in its existing one-slot owner. Schema wire retains its
+existing multi-consumer sharing. This is a lifetime decision for each actual
+representation, rather than caching every derived value for the catalog lifetime.
 
-** Retained component samples
+Signed zero, numeric representation and object iteration order retain exact wire
+identity. Tests compare all 49 numeric pairs against actual encoding, and all 49
+source pairs with every fingerprint forced to collide. Core passes 10 tests;
+Runtime passes 57 with one pre-existing ignored full-catalog oracle, executed
+explicitly by the complete gate. No ASP criterion is disabled: its initial
+rejection of a hand-written collision-bucket scan is retained; the final standard
+HashSet implementation passes the original algorithm gate.
+
+SDK rejection still uses the original Value path for exact original diagnostics.
+Both physical diagnostic-reparse counters remain visible; valid actual-catalog
+samples require zero. Lean proofs establish typed/source/Contract laws; SDK
+compatibility remains executable differential evidence, not a claim that the
+foreign SDK is covered by the Lean theorem.
+
+* Native benchmark scope and all observations
+
+Algorithms, workloads, scalar oracles, checksums and clocks stay in compiled
+Lean/Rust. Lean uses =IO.monoNanosNow= and official =measurement:= records.
+Python only coordinates existing external processes, identity/full-wire checks
+and OS resource observations. There is no new benchmark runner, manifest or
+required tar/zip bundle, and no raw CSV or JSON measurements committed to Git.
+
+The upstream structural workload retains one warmup and three samples per mode,
+8192 context elements and 256 reads. Timed spans include initial preparation;
+independent-equal construction occurs outside the span. The identical-object
+mode improves from 26.858416 / 26.921000 / 27.329709 ms to
+0.027583 / 0.025667 / 0.027083 ms. Independently equal sources do not win:
+27.996583 / 28.702084 / 29.788084 to 51.590167 / 156.058542 / 56.726500 ms.
+Alternating misses likewise retain every non-win:
+32.622250 / 29.795459 / 30.206583 to 29.432375 / 75.595125 / 301.812084 ms.
+No timing rerun replaces those samples; they do not establish a general or
+complete-process speedup. The generated native fallback executes one structural
+comparison, but this does not explain away its slower observations.
+
+The actual-Case Lean workload retains 51 entries / 1177068 output bytes /
+checksum 3211632310046200224, one warmup, three samples and nine measurements.
+Its total covers preparation plus final serialization, excluding checking,
+cleanup, output and pre-main. Rust has 21 native stage measurements; every sample
+retains 221 revision preparations, 21 schema preparations plus two reuses,
+53 entity preparations plus 1227 reuses, 1280 rows and 2560 authorizations.
 
 | Native milliseconds | Baseline samples | Candidate samples |
 |---------------------+------------------+-------------------|
-| Lean actual preparation | 22.620291 / 22.725750 / 23.300167 | 23.400417 / 24.334375 / 23.985917 |
-| Lean final serialization | 5.810000 / 5.501334 / 5.378708 | 7.676792 / 5.817625 / 5.823708 |
-| Rust complete replay | 181.006 / 186.369 / 179.163 | 175.581 / 216.842 / 162.166 |
-| Rust schema preparation | 33.170 / 33.651 / 31.341 | 33.954 / 45.581 / 29.975 |
-| Rust entity preparation | 4.957 / 5.015 / 5.081 | 4.703 / 4.949 / 4.040 |
+| Lean preparation | 23.145 / 23.212 / 23.729 | 20.995 / 20.835 / 21.069 |
+| Lean serialization | 5.760 / 6.253 / 5.413 | 5.889 / 6.053 / 5.867 |
+| Lean prepare + serialize | 28.905 / 29.465 / 29.142 | 26.884 / 26.888 / 26.936 |
+| Rust complete replay | 214.459 / 276.807 / 164.291 | 194.430 / 167.172 / 160.076 |
+| Rust schema preparation | 30.334 / 51.053 / 30.479 | 32.283 / 30.945 / 29.131 |
+| Rust entity preparation | 4.420 / 7.464 / 4.257 | 5.831 / 4.531 / 4.442 |
 
-All samples are retained, including the slower candidate observations. Lean
-images/workloads are byte-identical across pins, yet observed timings differ.
-Rust entity preparation improves locally; schema and complete replay do not show
-a consistent improvement. The schema metric includes preparation/strict-validation
-work and does not isolate only the JSON ownership transfer. No universal SDK
-first-parse speedup is inferred from it.
+Lean actual preparation improves in all three retained samples (about 9-11%);
+serialization does not consistently improve. The Rust replay observations alone
+are not a matched process-latency or general SDK speedup claim.
 
-A preliminary schema-only native experiment, before the Entities path and new
-counters, records 1677129 allocations per sample versus baseline 1682729, and
-replay walls 561.012 / 810.203 / 736.189 ms. Its image/source hash and all samples
-remain separately identified; they are not final-image timing evidence.
+** Complete ordinary processes and resources
 
-** Allocation reduction and its retained-memory cost
+The existing fixed cohort retains 48 native children and 15 complete-wire
+comparisons. The three producer + replay pairs retain startup, waited child exit
+and full outputs. No build or other owned benchmark overlaps their execution.
 
-The existing complete-gate native allocation cohorts, without another workload
-rerun, record:
+| Complete pipeline | Baseline samples | Candidate samples |
+|-------------------+------------------+-------------------|
+| Child wall ms | 2363.510 / 263.925 / 265.763 | 1993.003 / 263.034 / 259.225 |
+| Child CPU ms | 260.000 / 240.000 / 240.000 | 280.000 / 240.000 / 220.000 |
+| Peak child RSS MiB | 48.266 / 48.281 / 48.234 | 48.438 / 48.328 / 48.281 |
 
-| Per complete catalog sample | Baseline | Candidate |
-|-----------------------------+----------+-----------|
-| Allocation requests | 1682729 / 1682729 / 1682729 | 1667532 / 1667533 / 1667532 |
-| Requested bytes | 377269681 / 377269673 / 377269681 | 376152925 / 376153053 / 376152949 |
-| Process-wide requested peak bytes | 17000875 / 17110545 / 17220215 | 17080555 / 17190485 / 17300415 |
-| Requested live bytes after sample | 8881709 / 8991379 / 9101049 | 8881709 / 8991639 / 9101569 |
+The first pair remains dominated by first-file startup. Warm child wall samples
+move modestly; CPU includes a non-win and a tie at 10 ms OS resolution. Peak child
+RSS increases. These observations do not establish stable end-to-end acceleration
+or an OS RSS improvement, despite the local Lean preparation gain. Peak child RSS
+is neither aggregate concurrent RAM nor the allocator-requested retained peak.
 
-This removes 15196-15197 requests and roughly 1.12 MB requested bytes per sample,
-less than one percent of the prior request count. Source-owned entity encodings
-also retain memory: schema-plan live-before is 79680 bytes higher in sample one,
-and the recorded requested peaks rise by roughly 80 KB. Later live observations
-also include growing benchmark observation data and the two new counter fields.
-These are instrumented Rust allocator requests, excluding allocator overhead and
-foreign allocations; neither requested bytes nor peaks are OS RSS.
+** Requested-memory cause and explicit tradeoff
 
-Thus fewer allocations are real, but they do not imply lower retained peak or
-stable complete-process latency. Source construction, SDK semantic preparation,
-strict validation, text replay, requests and both authorizers still execute.
-The existing certified Lean serializer remains; no non-winning terminal batch
-experiment is revived to change this result.
+One allocation-instrumented cohort comes from the original complete gate, with
+one warmup and three samples; no extra run selects a more favorable observation.
 
-* Complete ordinary process and resource observations
+| Rust allocator requests | Baseline samples | Candidate samples |
+|-------------------------+------------------+-------------------|
+| Allocation calls | 1667532 / 1667533 / 1667532 | 1667594 / 1667594 / 1667594 |
+| Requested bytes | 376152925 / 376153053 / 376152949 | 376208757 / 376208765 / 376208765 |
+| Process requested peak bytes | 17080555 / 17190485 / 17300415 | 17000875 / 17110805 / 17220735 |
+| Final requested live bytes | 8881709 / 8991639 / 9101569 | 8881709 / 8991639 / 9101569 |
 
-The existing fixed process cohort runs separately from all owned builds, tests
-and diagnostics. All 48 children exit naturally; 15 complete-wire comparisons
-pass. Producer, object-profile and functional control images are byte-identical
-across variants. Every measured source hash matches the full qualified closure.
+The requested peak decreases by exactly 79680 bytes in every sample. Phase
+observations locate that retained decrease immediately after source decoding and
+through schema planning, entries and finalization. Decode itself removes 187
+allocation requests and 152792 requested bytes in sample 1. Preparing entries now
+re-encodes only on actual SDK misses: it adds 249 allocation requests and 208624
+requested bytes across entries, for a net +62 calls and +55832 requested bytes
+in that sample. Subsequent samples retain the corresponding non-winning totals.
+The complete String buffers no longer live across the catalog, but repeated
+buffer growth now costs more total requests. This is a measured tradeoff, not
+an all-metrics optimization. Final live bytes are unchanged; allocator overhead,
+foreign allocations and OS RSS are outside this requested-byte accounting.
 
-| Producer plus Rust replay | Baseline samples | Candidate samples |
-|---------------------------+------------------+-------------------|
-| Native child wall milliseconds | 1907.754 / 262.883 / 260.397 | 1697.360 / 264.738 / 288.810 |
-| Native child CPU milliseconds | 250 / 230 / 230 | 250 / 240 / 220 |
-| Sequential child peak RSS MiB | 48.328125 / 48.328125 / 48.265625 | 48.296875 / 48.343750 / 48.250000 |
+* Pre-main long tail: current evidence and remaining boundary
 
-Walls above sum the two native child lifetimes; external observation-launch
-startup is outside that sum, with all supervised elapsed observations preserved
-separately. CPU has 10-ms OS reporting resolution: one pair is unchanged, one
-worsens by 10 ms and one improves by 10 ms. Warm walls do not improve consistently.
-Median RSS differs by 32 KiB, not a stable memory improvement. Sequential child
-peaks are not aggregate pipeline RAM or a proved retained-heap bound.
+The fixed diagnostic stage retains 24 children: six per Lean/Rust and
+copy/hardlink mode, with two first-path cohorts and their four warm repetitions.
+All full outputs, image identities, bounded clock intervals, stderr byte coverage
+and stopped resource observers are checked. Three near-exit task reads are
+unavailable and retained explicitly; available thread reads have no errors or
+truncation. Loader arrivals are external upper bounds, not child write times.
 
-The initial non-CPU waiting interval can exceed the actual native work. The
-small request-count reduction, retained wire memory, unchanged required SDK
-work, reporting resolution and same-image timing variation explain why the
-current evidence cannot establish stable end-to-end acceleration. They do not
-identify an exclusive scheduler, competing task or OS assessment mechanism.
+| Mode | First new path pre-main ms | Second new path pre-main ms | Four warm repeats ms |
+|------+----------------------------+-----------------------------+----------------------|
+| lean-copy | 1290.149 | 1514.248 | 42.712 / 41.405 / 41.546 / 41.254 |
+| lean-hardlink | 739.965 | 737.380 | 43.668 / 41.873 / 41.609 / 42.126 |
+| rust-copy | 517.282 | 357.792 | 4.261 / 4.181 / 4.353 / 4.294 |
+| rust-hardlink | 372.496 | 86.923 | 4.464 / 4.345 / 4.356 / 4.457 |
 
-* Copy versus same-inode/new-path pre-main diagnosis
+Lean's two hardlink paths use the same inode yet both retain long initial waits.
+Rust's second hardlink path also retains an approximately 80 ms stationary wait
+in this stage, whereas the preceding stage had a short second path. Thus inode
+reuse is not a sufficient guarantee for either runtime. Long samples precede
+first observed dyld output while the initial user thread is sampled waiting and
+CPU/fault/context counters remain stationary. Subsequent repeated-path Lean
+pre-main work is approximately 41-44 ms, Rust approximately 4 ms; algorithm and
+initialization work remain distinct from the long pre-loader interval.
 
-A separate 24-child diagnostic uses the existing launcher, the real Lean catalog
-and Rust launch_probe CLI, opt-in thread states and read-only dyld logging.
-Each runtime has two copy cohorts and two hardlink cohorts, three trials each.
-Hardlinks are verified to share exactly one device/inode with the source image;
-copy cohorts have two distinct inodes. Every image hash, complete stdout, clock,
-stderr byte range and stopped observer validates. One near-exit task-info read
-is unavailable and retained; there are no thread-read errors or truncations.
+Eight read-only exact-owned PID/path/time OS-log queries return zero events;
+this is not evidence that a particular service did not execute. The public
+task-info observation does not expose the exact kernel wait event.
+No exclusive filesystem, signature-validation service, loader or Lean-runtime
+cause is inferred from these correlations. No security settings or limits change.
+All historical failures, non-wins and same-inode counterexamples stay retained.
 
-| Instrumented entrypoint | First start in each path, pre-main ms | Initial waiting span ms |
-|-------------------------+---------------------------------------+-------------------------|
-| Lean copies | 1139.413 / 1147.212 | 1071.194 / 1082.219 |
-| Lean same-inode hardlinks | 810.536 / 763.306 | 723.761 / 690.172 |
-| Rust copies | 2886.531 / 1412.788 | 2878.304 / 1391.738 |
-| Rust same-inode hardlinks | 4045.528 / 4.272 | 4035.332 / no sampled initial plateau |
+* Complete qualification and next priorities
 
-Repeated same-path starts have no sampled initial plateau in these cohorts.
-Both Lean hardlink paths still wait, despite sharing the same inode and image.
-Rust's second hardlink path does not exhibit the same plateau. This contradicts
-a simple inode-only first-execution explanation; it does not establish a universal
-path-only, runtime-only or assessment cause. Birth/change timestamps and other
-file metadata also differ across materializations. Extended-attribute reading
-is unavailable in this observer and remains explicitly recorded.
+The unchanged full Cedar gate plus Examples/Tests and all five native targets
+passes at =4773094= in 461.962 s, with all 708 measured source hashes and the exact
+clean POO package unchanged. The original 120 s/default-concurrency Cedar project
+cold build starts with its entire build root absent: 941 tasks, 41.257 s, all five
+images equal their hot images, producer and Rust replay full bytes unchanged.
+Compiler maximum child RSS is 1125498880 bytes, not aggregate build RAM. The
+changed Rust core/runtime/bridge package-clean attempt takes 3.363 s, maximum
+child RSS 432013312 bytes, identical hot/cold release image and complete replay.
+Installed SDK/toolchain/external dependency artifacts remain cached; no jobs
+environment variable or timeout/heap/sample limit is added.
 
-Initial samples show one waiting handle with stationary task CPU, faults,
-page-ins, context switches and resident bytes, before first observed owned loader
-activity. Arrivals are upper bounds, not child write times or exact loader entry.
-Samples do not prove continuous state; public handles are not unique thread IDs.
-Eight exact owned-PID/path/time-window OS queries return zero events, not proof
-that no assessment occurred. Precise kernel wait event/service remains unresolved.
-The earlier noninteractive off-CPU capability check needs administrative access;
-no signing, SIP, security or logging configuration is changed.
+Upstream complete local checks cover 20 phases, no failures, 179.279 s wall and
+389.939 s CPU after rebasing onto concurrent work. These are qualification times,
+not a controlled whole-gate performance comparison. The formal paper re-audit
+preserves all 45 requirement statuses: source-level context equivalence and the
+standard native identity premise do not establish whole-machine or Scheme parity.
 
-* Complete gate, cold scope and preserved failures
+Upstream empty-project public-library/C4/ContextSlot build passes in 94.481 s
+under the original 120 s bound, maximum child RSS 1489551360 bytes. Both C4
+and ContextSlot hot/cold images are identical. Toolchain/stdlib remain installed.
 
-The clean source-stable full gate passes Examples/Tests, full =just check=, all
-five native targets and the normal default Rust release build in 457.679 s.
-All 708 code/configuration hashes and clean POO 3c9 pin remain stable. Only Org
-documentation changes after this qualified implementation; its full source map
-is independently verified again at publication.
+The next complete pass should prioritize the measured remaining owners:
 
-One actual empty Cedar project build completes all 941 tasks in 41.177 s under
-the original 120-second ceiling/default concurrency, maximum compiler child RSS
-1069.031 MiB. All five hot/cold images match; complete producer and replay outputs
-match goldens. This is project cold, retaining installed toolchain, SDK and POO
-dependency artifacts; it is not a new empty POO dependency build.
+1. Reduce intermediate Entity wire buffer growth without retaining complete
+   strings for the catalog lifetime. Preserve exact JSON identity/collision tests,
+   zero diagnostic reparses on valid inputs, all source/slot/error laws and the
+   measured peak reduction; compare total allocation requests as well as peaks.
+2. Optimize first SDK preparation at its actual boundaries. Candidate median
+   revision preparation is about 47.8 ms, schema preparation 30.9 ms and request
+   preparation 29.2 ms (nested accounting, not additive totals). Exact-source
+   text parsing/normalization and request conversion dominate more than the
+   approximately 4.5 ms Entity preparation. Reuse parsed dependencies only inside
+   their actual source/schema owner; independent revision validation and both
+   authorizers must still run. Lean source serialization has no stable gain yet.
+3. Keep initialization and the pre-loader wait separate. Existing evidence
+   narrows where waiting occurs, but a precise kernel event remains unresolved.
+   Keep the same fixed cold-build and paired whole-entry controls; preserve every
+   non-win rather than changing timeouts, workloads or startup accounting.
 
-Changed Core/Runtime/Bridge packages independently pass package-clean release
-construction in 4.303 s, maximum child RSS 386.797 MiB. Normal hot/cold bridge hash
-=f87be76781afa86193e7491363f47d96b9ea79b5f0da5f698ebda7053463f5d5=
-and full replay match. External SDK dependencies remain cached. CARGO_BUILD_JOBS
-is unset. No timeout, heap, sample count or negative control is widened.
-
-An earlier local gate failed reading an empty authoring manifest after an
-accidentally overlapping gate rewrote that artifact; the duplicate was cancelled.
-Another source/CI gate correctly rejected a newly added inline test/glob import.
-The test was moved to its existing tests/unit owner, not exempted from ASP rules.
-The obsolete import was removed. These failures/cancellations stay preserved,
-with exact code/source records. A cold preflight refused uncommitted Org docs
-before any build; those docs were committed, all 708 source hashes rechecked,
-and only then was the single actual cold build run. No failed timing/cold sample
-is overwritten as a pass or used to justify relaxed gates.
-
-* Remaining whole-stage priorities
-
-P0: obtain qualified kernel off-CPU evidence for the pre-loader waiting interval
-when an administratively equipped environment is available. Preserve the new
-same-inode counterexample; do not assume inode caching alone resolves startup.
-
-P1: use the executable POO API/caller map for future source revisions. Remaining
-SDK semantic/type preparation and independent validation must be distinguished
-from JSON transfer cost. Optimize within the same source/graph owners and public
-SDK interfaces, with source-bound analytic laws and full differential replay;
-do not add an index merely because a reference-model definition has that name.
-
-P2: require complete native process/resource gains before declaring the latency
-objective achieved. The current implementation reduces allocation work but has
-not met stable whole-entry speedup or peak-memory improvement. Keep all source,
-Contract, proof, admission, ordinary-process, cold and rejected-control boundaries
-for the next algorithmic candidate.
+Acceptance for another algorithm change remains the same complete nine-family,
+51-entry catalog with types, Contracts, original proofs, original SDK oracle and
+full Rust replay; native Lean/Rust measurements, ordinary process/resource
+observations and exact-source CI are separate receipts. PR #8 stays unmerged.
