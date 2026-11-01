@@ -3,7 +3,6 @@ use crate::{Case, Manifest, RequestInput, SchemaEvolutionBundle, ValidatedManife
 use cedar_poo_core::{CompiledPolicyJson, EntitySourceJson, SchemaSourceJson};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
-use std::ops::Deref;
 
 /// Kind-separated complete bulk sources; resolving a reference performs no Cedar admission.
 #[derive(Deserialize)]
