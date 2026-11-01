@@ -4,7 +4,7 @@
     "CedarPooSpec/Platform/AWS/AgentCore/README.org": "59c9695d0131b789e6b3342672a5fd20b3c196b1cd0fa8a5168d290ce60a638b",
     "CedarPooSpec/Transport/SourceCatalog.lean": "6a558ed2d6191b9e0264a43d7fdf8c508102f475e01048c76fb9c541a9100c22",
     "CedarPooSpec/Vertical/Health/README.org": "8b7db1eeca779d26bbca0c93fe6152fdc70fe1550d14a5843e830919d220455b",
-    "CedarPooSpec/ZeroTrust/README.org": "7f99595d804f17297ffa43df9842c287c2546821fef32e9d9e4a7a6ee41ce2db",
+    "CedarPooSpec/ZeroTrust/README.org": "6c6608f6b783249fb7e0b299e756dc1df82f0e215af453774d1df731fdfb9b87",
     "dev/.generated/architecture-overview-sdk.json": "6c2d887a362d7d3c721f03251f27393861b777942ddda3c8fc559470340e46db",
     "dev/.generated/lean-catalog.json": "c6856fdb9e8b2d36407b8605756659e8a1c02fca09ce628bc41c845f0e376657",
     "dev/bun.lock": "24ae62404f675c395c3890562d805dcba2024b3dd54a6a7981d5a8e36c37f5d1",
@@ -14,7 +14,9 @@
     "dev/d2/model-components.d2": "bd1f5e867012261c03c011e9f3f2f60ba5acfa112a27b2cc6354c4a16e0bd91f",
     "dev/d2/security-frameworks.d2": "901fd692144ac61c02293a965bde1deb95e38073ab7cdc8db9b4491d7689de1c",
     "dev/d2/verticals-platforms.d2": "e81ccf945900c7a6fa0ffc08aca2119d8ea23245db03a2e576b08d27f2b10e03",
-    "dev/Justfile": "df6448e818ae789666b1a608a24ba9ca18a25b3ff11ca2bf64b0eb35e4e563d5",
+    "dev/d2/zero-trust-model-proofs.d2": "fa450fd51185405e8c7e110fb958d0f1d2d40c58f29e490602e3abeebf734934",
+    "dev/d2/zero-trust-object-proofs.d2": "f0c5009927362fb7468d19a976b86e09c2f08ecb9bf5434d0789fb0e27995df3",
+    "dev/Justfile": "a13b2b6ef2cabfdd03841bbdc3da89fa70245071abf15f653c0095ae3defba7b",
     "dev/package.json": "d861ed19512d396cec7a13b9b8e95b2d3400bbc6828ef7b0540784cf65a57df5",
     "dev/projection.ts": "a3cb1b3b01fd17b8abbb648fd327bad1a7c889775292028f41f0e1336cd8381f",
     "dev/render.ts": "90ee49c4fc387154a2ceca05ba1339131e7799b2da423a8a2e2fc0a509d0e215",
@@ -378,21 +380,21 @@
       "samples": 63,
       "requiredMinimum": 12
     },
-    "inputSHA256": "6615b9db7edaab1642b16c327e76085ab26ab19ccc3a0cb6685b9569cd04df8a",
+    "inputSHA256": "a2fde3d244ba2c8b3887ff792f2315481fe705f2e4173c1067a2b2ab7ef4493f",
     "scenes": [
       {
         "inputSHA256": "e37712d455e547bad725dabd5b84f2c459f5477c15e4f5350e5ef58d5546586a",
         "layoutSHA256": "e3a006d7aedb8c3ed9f03375fdc88ec9edf699022226cf9f75a26b9dd3d7faed",
         "nodes": 10,
         "edges": 14,
-        "milliseconds": 222.37270799999988
+        "milliseconds": 138.0617920000002
       }
     ],
     "svgSHA256": [
-      "ab856c5bfacdd335a554f0c607dbdad770148ef7e9c5502aa1379dbef7edfabe",
+      "93802d787dac23a96fdeaa8a5514aeecbaa35458fe9fcc5bfb04d0d3926bb9d1",
       "1c1c8324c7774e2d1ab76e8273ca28604a281b8df09c4b09660f7c97bcac4449"
     ],
-    "composedHTMLSHA256": "e7b14d0d1f66171e6a1a849049a7cd2eac71fa499a017fbe58a4dcd89fee8df4",
+    "composedHTMLSHA256": "eb629db4ab548a4b5bd9e4083fe6c78f379f5509fd15187cda54a1a2b661dec4",
     "dependencies": {
       "@fontsource/inter": "5.3.0",
       "@fontsource/kalam": "5.3.0",
@@ -405,7 +407,7 @@
       "web-worker": "1.5.0"
     },
     "regionSHA256": {},
-    "htmlSHA256": "f095cd9975e6b83862ab8cdb15f4c233c6772126ae9c222fd6c88fd556bfc3cb",
+    "htmlSHA256": "8ab9edb1f7c515ec0bb09018a2c97e8196d3230dfa7253066a2a5e5b79807c82",
     "drawing": "roughjs@4.6.6",
     "routing": "elkjs@0.12.1",
     "assetSHA256": {

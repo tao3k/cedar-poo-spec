@@ -15,7 +15,9 @@
     "dev/d2/model-components.d2": "bd1f5e867012261c03c011e9f3f2f60ba5acfa112a27b2cc6354c4a16e0bd91f",
     "dev/d2/security-frameworks.d2": "901fd692144ac61c02293a965bde1deb95e38073ab7cdc8db9b4491d7689de1c",
     "dev/d2/verticals-platforms.d2": "e81ccf945900c7a6fa0ffc08aca2119d8ea23245db03a2e576b08d27f2b10e03",
-    "dev/Justfile": "df6448e818ae789666b1a608a24ba9ca18a25b3ff11ca2bf64b0eb35e4e563d5",
+    "dev/d2/zero-trust-model-proofs.d2": "fa450fd51185405e8c7e110fb958d0f1d2d40c58f29e490602e3abeebf734934",
+    "dev/d2/zero-trust-object-proofs.d2": "f0c5009927362fb7468d19a976b86e09c2f08ecb9bf5434d0789fb0e27995df3",
+    "dev/Justfile": "a13b2b6ef2cabfdd03841bbdc3da89fa70245071abf15f653c0095ae3defba7b",
     "dev/package.json": "d861ed19512d396cec7a13b9b8e95b2d3400bbc6828ef7b0540784cf65a57df5",
     "dev/projection.ts": "a3cb1b3b01fd17b8abbb648fd327bad1a7c889775292028f41f0e1336cd8381f",
     "dev/render.ts": "90ee49c4fc387154a2ceca05ba1339131e7799b2da423a8a2e2fc0a509d0e215",
@@ -116,21 +118,21 @@
       "samples": 17,
       "requiredMinimum": 12
     },
-    "inputSHA256": "012798d3e9a4c1aeebae0d4d4c62c6e349e53c1c196f55ecb54aa536438a9738",
+    "inputSHA256": "4e4f09c65dc0c09f223d14e6285ea41c65ba92b9c283bb1b41f09dcee549c7e5",
     "scenes": [
       {
         "inputSHA256": "b17be10ff64f7605949d442d1a1115f2e8d5ab11a936d8aae0cda4782a5ae6d7",
         "layoutSHA256": "220ef9222adb0ce6d1392c0722d333a50c38bac327d166ce1d923e2adfb768c4",
         "nodes": 4,
         "edges": 0,
-        "milliseconds": 233.5679170000003
+        "milliseconds": 99.3780829999996
       }
     ],
     "svgSHA256": [
-      "4e545b426cc62029560eb0f74b854852d4efd65461226c7b4eaebf3c7d5ef1b1",
+      "c00267d8dddc70be65d00fccaff0949e31d5e69985b342fe64fa4b8ee5d65843",
       "6b5e3c7c76f12616be1d28a45782d37c9e431484a4bafd9e0c3f5a29b51a6b2c"
     ],
-    "composedHTMLSHA256": "d6d04cc9509fe58ab53ef20c26b0e7442a4e39e5c333453a8eda1a28722194b7",
+    "composedHTMLSHA256": "91675df8959f15eee016d359b3e36b6f5288781a663e633ae37a20c3899f98de",
     "dependencies": {
       "@fontsource/inter": "5.3.0",
       "@fontsource/kalam": "5.3.0",
@@ -143,7 +145,7 @@
       "web-worker": "1.5.0"
     },
     "regionSHA256": {},
-    "htmlSHA256": "8d7c235c4e8d2884d8fec3bea41b25b4ec09836cf534049209cb9093876ec79d",
+    "htmlSHA256": "9ee7833eed4ee98b048783bafb7b5485b6e26fd59a47d163d70c1af05680e34e",
     "drawing": "roughjs@4.6.6",
     "routing": "elkjs@0.12.1",
     "assetSHA256": {

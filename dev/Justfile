@@ -12,5 +12,6 @@ render: build prepare
     bun run render .generated/lean-catalog.json
 
 test:
+    lake -d .. build Tests.ZeroTrust.Functional Tests.ZeroTrust.ProfileObject Tests.ZeroTrust.UsageControl Tests.Gateway.ZeroTrust
     bun run typecheck
     bun test ./test

@@ -46,7 +46,9 @@ Component, alongside Authorization and other reusable capabilities. The optional
 | [[file:d2/architecture-overview.png][Architecture overview]] | Foundations, shared model, selected Components, consumers and Host responsibilities. |
 | [[file:d2/model-components.png][Model Components]] | Reusable library families; no requirement that every profile selects every Component. |
 | [[file:d2/verticals-platforms.png][Verticals and platforms]] | Actual healthcare/financial-services controls and separate AWS/Google projections. |
-| [[file:d2/security-frameworks.png][Zero Trust detail]] | The Component's functional requirements and optional interpreters. |
+| [[file:d2/security-frameworks.png][Zero Trust detail]] | The Component's module relationships. |
+| [[file:d2/zero-trust-model-proofs.png][Zero Trust model proofs]] | Conditional refinement, observation, mediated-use and recovery laws, with premises visible. |
+| [[file:d2/zero-trust-object-proofs.png][Zero Trust object proofs]] | Root-only counterexample, retained parent/selected Sessions, composition and continuing use. |
 | [[file:d2/lean-catalog.png][Transport inventory]] | Native manifest forms/counts, not an industry classification. |
 
 =architecture.sysml= authors ownership/composition relationships and binds them
@@ -144,3 +146,15 @@ uploaded for inspection. Each platform regenerates its own producer/output
 hashes; binary and image bytes are not required to match across platforms.
 This CI qualifies the development rendering chain. The existing Cedar proof,
 Rust, conformance and benchmark jobs retain their own acceptance boundaries.
+
+* Proof-reading maps
+
+The Zero Trust proof views retain actual fully qualified Lean declaration names
+and source paths as SysML attributes. The SDK round-trips these attributes; the
+existing test entrypoint builds the source proof modules, then Lean checks that
+law/counterexample cards resolve to theorem constants and declared source paths
+match their actual defining Lean modules. Premise/definition cards
+are distinguished explicitly. The rendering does not create a certificate or
+infer deployed Host behavior. Edges are authored logical premises/lemma uses;
+the counterexample edge is explicitly design motivation. Full proof terms and
+additional laws remain in the linked Lean sources and adjacent module guide.

@@ -13,6 +13,46 @@ not place the LeanPoo foundation underneath Zero Trust or classify industries.
 See the [[file:../../dev/d2/architecture-overview.png][project architecture]], [[file:../../dev/d2/model-components.png][Component inventory]] and
 [[file:../../dev/d2/verticals-platforms.png][vertical/platform inventory]] for those distinct scopes.
 
+* Lean proof structure
+
+The module overview below does not show a proof argument. These two source-bound
+views distinguish /definitions/, /premises/, /kernel laws/ and /proved counterexamples/.
+They are reading maps of selected laws, not automatically extracted proof terms.
+
+[[file:../../dev/d2/zero-trust-model-proofs.png]]
+
+[[file:../../dev/d2/zero-trust-model-proofs.d2][Model-proof D2]] · [[file:../../dev/d2/zero-trust-model-proofs.svg][SVG]] ·
+[[file:../../dev/sysml/zero-trust-proofs.sysml][SysML declarations and actual Lean symbols]]
+
+[[file:../../dev/d2/zero-trust-object-proofs.png]]
+
+[[file:../../dev/d2/zero-trust-object-proofs.d2][Object-proof D2]] · [[file:../../dev/d2/zero-trust-object-proofs.svg][SVG]]
+
+| Proof layer | Actual Lean result | Premise that must remain visible |
+|-------------+--------------------+----------------------------------|
+| [[file:Composition.lean][Functional refinement]] | =with_requirement_preserves_framework= retains all core conjuncts. | The selected requirement is actually accepted at this effect/view. |
+| [[file:Continuous.lean][Observation/currentness]] | =changed_generation_blocks= rejects an observation from another generation. | The application supplies an authoritative observation reader. |
+| [[file:Continuous.lean][Mediated traces]] | =effect_step_rechecks= extracts fresh requirements for each marked effect; =run_preserves= transports an invariant. | A real transition relation and its invariant-preservation law are supplied. |
+| [[file:UsageControl.lean][Usage/recovery]] | =usage_retains_core= and =usage_rechecks_after_recovery= retain the core at ongoing admission. Missing conditions/obligations block; unknown accounting blocks closure. | Recovery alone is not acceptance; obligation/mutation witnesses and actual accounting remain required. |
+| [[file:ProfileObject.lean][Typed objects]] | =selected_child_preserves_original= preserves the indexed root. | A source-bound Session read and the selected requirement hold. This does not preserve every parent rule. |
+| [[file:ProfileObject.lean][Retained parent composition]] | =composed_preserves_actual_parent_and_original= preserves both actual reads, both requirements and the root. | Independently required-parent and selected Sessions are retained; their conjunction is accepted. |
+| [[file:../../Tests/ZeroTrust/ProfileObject.lean][Negative control]] | =raw_override_parent_weakening_counterexample= admits 8 under a root ≤10 while violating its parent ≤5; retaining the parent blocks it. | The authoritative required parent cannot be selected by the untrusted child. |
+| [[file:../Gateway/ZeroTrust.lean][Gateway interpretation]] | =continuing_objects_preserve_parent_and_consumption= combines the object theorem with current use and no reconsumption. | Continuing acceptance and installed =CommittedPrefix= evidence; Host authenticity, currentness and durability remain premises. |
+
+=FinalUse= and =zero_trust_final_use= are conditional proof interfaces, not IO
+capabilities or a proof that a deployed Host authenticated facts and committed
+ledgers. =final_use_preserves_authorization_delta= additionally requires the
+actual admission binding, exact coverage and strongly well-formed Cedar world.
+Those premises cannot be replaced by an earlier Allow or an empty solver report.
+
+The view checks evaluate each SysML symbol through the actual SDK, then ask Lean
+whether every law/counterexample is a theorem declaration and every source path
+matches its actual compiled Lean module. The two arrows explicitly claiming lemma
+use are additionally checked against constants in the compiled proof terms. Other
+arrows describe premises or design motivation, not an extracted proof dependency.
+The existing Lean
+modules/tests compile their proofs independently; drawing a card issues no evidence.
+
 * Module ownership
 
 #+NAME: fig:zero-trust-framework
