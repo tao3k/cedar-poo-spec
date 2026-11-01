@@ -177,8 +177,10 @@ carry complete equalities with the original authorized transition results.
 Canonical object fields retain original semantic order/last-key ownership, while
 native fragments use canonical key order. =nativeObject_value= and the generic
 projection laws retain the actual JSON values; =compact_wire= preserves complete
-bytes when grouping fragments. Native catalog rows avoid constructing semantic
-object trees merely to serialize them. Source equality, revision binding, Case
+bytes when grouping fragments. Bounded native rows use one official JSON
+compression queue per object, retaining their bounded semantic leaf instead of
+starting a compressor per field. Complete catalog containers stay lazy and
+fragmented. Source equality, revision binding, Case
 response evidence and independent Rust admission remain mandatory. These
 compositional encoding certificates are not a new kernel proof of Lean's JSON
 parser implementation.

@@ -117,23 +117,11 @@ def EncodedJson.canonicalObject (fields : List (String × EncodedJson)) : Encode
         JsonEncoding.canonicalObject keys (children.map (·.value)) (children.map (·.chunks))
           (by simp [keys, children]) (fragments children)⟩
 
-private theorem nativeFragments (values : List Lean.Json) :
-    JsonFragments values (values.map fun value => [value.compress]) := by
-  induction values with
-  | nil => exact .nil
-  | cons value rest ih => exact .cons (.native value) ih
-
-/-- Native leaf fields need no per-field EncodedJson wrapper or semantic object
-allocation. Their complete fragments stay bound to the original ordered fields. -/
+/-- Batch bounded native leaf fields through Lean's single compression work queue.
+This avoids one independent compressor and fragment list per field. The bounded
+semantic object remains owned by this leaf; the complete catalog stays streamed. -/
 def EncodedJson.nativeObject (fields : List (String × Lean.Json)) : EncodedJson :=
-  let keys := fields.map Prod.fst
-  let values := fields.map Prod.snd
-  ⟨Thunk.mk (fun _ => Lean.Json.mkObj fields), Thunk.mk (fun _ =>
-      [String.join (canonicalChunks keys (values.map fun value => [value.compress]))]), by
-    have same : fields = keys.zip values := List.zip_of_prod rfl rfl
-    have certified := JsonEncoding.compact (JsonEncoding.canonicalObject keys values
-      (values.map fun value => [value.compress]) (by simp [keys, values]) (nativeFragments values))
-    exact (congrArg Lean.Json.mkObj same).symm ▸ certified⟩
+  EncodedJson.native (Lean.Json.mkObj fields)
 
 theorem EncodedJson.nativeObject_value (fields : List (String × Lean.Json)) :
     (EncodedJson.nativeObject fields).value = Lean.Json.mkObj fields := rfl
