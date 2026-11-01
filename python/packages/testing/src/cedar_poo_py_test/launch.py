@@ -94,6 +94,8 @@ def main() -> None:
     parser.add_argument("--output-directory", type=Path, required=True)
     parser.add_argument("--materialization", choices=("copy", "hardlink"), default="copy",
                         help="Fresh inode control, or same-inode/new-path diagnostic")
+    parser.add_argument("--thread-states", action="store_true",
+                        help="Opt-in Darwin scheduler observation; not ordinary latency or a wait reason")
     parser.add_argument("--input", type=Path)
     parser.add_argument("--expected-exit", type=int, choices=(0, 1), default=1)
     parser.add_argument("--child-arguments", nargs=argparse.REMAINDER, default=[])
@@ -125,7 +127,7 @@ def main() -> None:
                     child = subprocess.Popen([str(executable.resolve()), *args.child_arguments], stdin=input_file,
                                              stdout=output, stderr=subprocess.PIPE)
                     created = time.monotonic_ns()
-                    memory = ProcessMemory(child)
+                    memory = ProcessMemory(child, thread_states=args.thread_states)
                     stderr_observer = StderrObservation(child.stderr, report_path)
                     try:
                         try:

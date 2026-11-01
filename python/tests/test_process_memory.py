@@ -22,6 +22,47 @@ class ProcessMemoryTests(unittest.TestCase):
         self.assertEqual(ctypes.sizeof(RUsageInfoV0), 96)
         self.assertGreater(resident_bytes(os.getpid()), 0)
 
+    def test_darwin_thread_states_use_public_handle_abi(self):
+        self.assertEqual(ctypes.sizeof(process_memory.ThreadInfo), 112)
+        def read(pid, flavor, handle, pointer, size):
+            self.assertEqual(pid, 123)
+            if flavor == 6:
+                self.assertEqual((handle, size), (0, 512))
+                ctypes.cast(pointer, ctypes.POINTER(ctypes.c_uint64))[0] = 456
+                return 8
+            self.assertEqual((flavor, handle, size), (5, 456, 112))
+            value = ctypes.cast(pointer, ctypes.POINTER(process_memory.ThreadInfo)).contents
+            value.run_state, value.user_time, value.system_time = 4, 17, 19
+            return size
+        with patch.object(process_memory, "SYSTEM", "Darwin"), patch.object(
+                process_memory, "LIBPROC", SimpleNamespace(proc_pidinfo=read), create=True):
+            result = process_memory.thread_snapshot(123)
+        self.assertFalse(result["possibly_truncated"])
+        self.assertEqual(result["records"][0]["run_state"], 4)
+        self.assertEqual(result["records"][0]["system_time_raw"], 19)
+
+    def test_full_thread_buffer_is_reported_as_possibly_truncated(self):
+        def read(pid, flavor, handle, pointer, size):
+            return size
+        with patch.object(process_memory, "SYSTEM", "Darwin"), patch.object(
+                process_memory, "LIBPROC", SimpleNamespace(proc_pidinfo=read), create=True):
+            result = process_memory.thread_snapshot(123)
+        self.assertTrue(result["possibly_truncated"])
+        self.assertEqual(len(result["records"]), 64)
+
+    def test_darwin_thread_short_list_and_exited_thread_are_explicit(self):
+        for returned in (0, 7, 513):
+            with patch.object(process_memory, "SYSTEM", "Darwin"), patch.object(
+                    process_memory, "LIBPROC", SimpleNamespace(proc_pidinfo=lambda *args: returned), create=True):
+                with self.assertRaisesRegex(OSError, "incomplete thread handle list"):
+                    process_memory.thread_snapshot(123)
+        def read(pid, flavor, handle, pointer, size):
+            return 8 if flavor == 6 else 0
+        with patch.object(process_memory, "SYSTEM", "Darwin"), patch.object(
+                process_memory, "LIBPROC", SimpleNamespace(proc_pidinfo=read), create=True):
+            result = process_memory.thread_snapshot(123)
+        self.assertEqual(result["records"][0]["error"], "incomplete thread info")
+
     def test_darwin_complete_task_counters_keep_raw_units(self):
         def read(pid, flavor, offset, pointer, size):
             self.assertEqual((pid, flavor, offset, size), (123, 4, 0, 96))

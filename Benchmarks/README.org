@@ -100,6 +100,16 @@ owned-process identity observation uses public =proc_pid_rusage= V0 and
 from =sample='s image list. Read failures and unsupported platforms stay explicit;
 no sampling interval, execution deadline or cleanup budget is widened.
 
+The same launcher offers opt-in =--thread-states= on Darwin. It reads public
+=PROC_PIDLISTTHREADS= handles and =PROC_PIDTHREADINFO= scheduler states using the
+installed SDK layout. This is a separate instrumented cohort; default observation
+is unchanged. Raw thread CPU counters, short reads, exited threads and possible
+64-handle truncation remain explicit. A handle is not a unique thread ID.
+=TH_STATE_WAITING= distinguishes a sampled waiting thread from a runnable one;
+it identifies neither a kernel wait event nor a responsible security service.
+No administrator privilege or signing/security changes are required for the
+owned-child API. See [[https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/proc_info.c][Apple's proc_info implementation]] for the public read boundary.
+
 * Native complete-catalog replay
 
 =just bench-functional-catalog= first runs =check-functional-catalog= and its

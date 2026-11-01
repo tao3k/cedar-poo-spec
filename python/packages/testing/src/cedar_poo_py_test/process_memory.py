@@ -19,6 +19,16 @@ class TaskInfo(ctypes.Structure):
                 ("times", ctypes.c_uint64 * 4), ("statistics", ctypes.c_int32 * 12)]
 
 
+class ThreadInfo(ctypes.Structure):
+    # Public Darwin SDK sys/proc_info.h, proc_threadinfo; no kernel addresses.
+    _fields_ = [("user_time", ctypes.c_uint64), ("system_time", ctypes.c_uint64),
+                ("cpu_usage", ctypes.c_int32), ("policy", ctypes.c_int32),
+                ("run_state", ctypes.c_int32), ("flags", ctypes.c_int32),
+                ("sleep_time", ctypes.c_int32), ("current_priority", ctypes.c_int32),
+                ("priority", ctypes.c_int32), ("max_priority", ctypes.c_int32),
+                ("name", ctypes.c_char * 64)]
+
+
 class RUsageInfoV0(ctypes.Structure):
     # Public SDK sys/resource.h: executable UUID and ten uint64 counters.
     _fields_ = [("image_uuid", ctypes.c_uint8 * 16), ("values", ctypes.c_uint64 * 10)]
@@ -75,14 +85,44 @@ def process_snapshot(pid: int) -> dict:
     raise OSError("unsupported resident-byte observation platform")
 
 
+def thread_snapshot(pid: int) -> dict:
+    """Optional owned-child scheduler observation, not a kernel wait reason.
+
+    Public PROC_PIDLISTTHREADS returns user-thread handles, not unique thread IDs.
+    Each list is consumed immediately; thread exits remain explicit read errors.
+    """
+    if SYSTEM != "Darwin":
+        raise OSError("thread-state observation requires Darwin")
+    handles = (ctypes.c_uint64 * 64)()
+    size = ctypes.sizeof(handles)
+    returned = LIBPROC.proc_pidinfo(pid, 6, 0, handles, size)
+    if returned <= 0 or returned > size or returned % 8:
+        raise OSError(ctypes.get_errno(), "incomplete thread handle list")
+    records = []
+    for handle in handles[:returned // 8]:
+        value = ThreadInfo()
+        length = LIBPROC.proc_pidinfo(pid, 5, handle, ctypes.byref(value), ctypes.sizeof(value))
+        if length != ctypes.sizeof(value):
+            records.append({"handle": handle, "error": "incomplete thread info",
+                            "returned_bytes": length, "errno": ctypes.get_errno()})
+            continue
+        records.append({"handle": handle, "run_state": value.run_state,
+                        "user_time_raw": value.user_time, "system_time_raw": value.system_time,
+                        "cpu_usage_raw": value.cpu_usage, "flags": value.flags,
+                        "sleep_seconds": value.sleep_time})
+    return {"records": records, "capacity": len(handles),
+            "possibly_truncated": returned == size}
+
+
 def resident_bytes(pid: int) -> int:
     return process_snapshot(pid)["resident_bytes"]
 
 
 class ProcessMemory:
     """Fixed 5-ms diagnostic only. The launcher passes its own Popen child's PID."""
-    def __init__(self, child):
+    def __init__(self, child, *, thread_states: bool = False):
         self.child = child
+        self.thread_states = thread_states
         self.pid = child.pid
         self.samples = []
         self.identity, self.identity_error = None, None
@@ -109,6 +149,11 @@ class ProcessMemory:
             began = time.time_ns()
             try:
                 value = process_snapshot(self.pid)
+                if self.thread_states:
+                    try:
+                        value["thread_states"] = thread_snapshot(self.pid)
+                    except OSError as error:
+                        value["thread_states"] = {"error": str(error)}
             except (OSError, ValueError, IndexError) as error:
                 value = {"error": str(error)}
             # Discard a read if the owned child exited across the syscall.
@@ -125,6 +170,8 @@ class ProcessMemory:
         values = [sample["resident_bytes"] for sample in samples if "resident_bytes" in sample]
         report = {"pid": self.pid, "interval_ns": 5_000_000, "stopped": not self.thread.is_alive(),
                   "process_identity": self.identity, "identity_error": self.identity_error,
+                  "thread_states_requested": self.thread_states,
+                  "thread_states_scope": "Opt-in Darwin public thread scheduler states; handles are not unique IDs, samples can miss transitions; no wait reason or kernel stack attribution",
                   "task_counters_scope": "Darwin proc_taskinfo raw CPU/fault/thread counters, no wall-time conversion; omitted elsewhere",
                   "scope": "Current resident bytes, sampled externally; can miss short peaks; not retained heap, OS high-water RSS, or a bound. Instrumented launch only.",
                   "samples": samples}
