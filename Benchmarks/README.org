@@ -28,6 +28,30 @@ or consuming the Lean library requires no Python. An in-process timer cannot
 observe its own pre-main interval; that observation stays external. Diagnostic
 and allocation-instrumented samples remain separate from ordinary latency.
 
+* Primary commands and separate external observations
+
+The primary actual-Case benchmark runs Lean directly:
+
+#+begin_src sh
+just bench-catalog-preparation
+# Equivalent direct native entry after building:
+.lake/build/bin/manifestLifecycleNative benchmark
+#+end_src
+
+For the POO library itself, build =contextSlotScale= in its workspace and run:
+
+#+begin_src sh
+.lake/build/bin/contextSlotScale structural equal 8192 256
+.lake/build/bin/contextSlotScale structural miss 8192 256
+.lake/build/bin/contextSlotScale structural-reference 8192 256
+#+end_src
+
+Those workloads, warmup/sample policy, oracles and clocks are Lean. Rust owns the
+SDK workload through its existing =benchmark-catalog= entry. Python is confined
+to the separate external process/resource/identity observations; its coordinator
+is not the algorithm benchmark or its internal elapsed time. /usr/bin/time and
+/usr/bin/sample observations remain separate from native measurement records.
+
 * Complete real-Case native entrypoints
 
 =just bench-catalog-preparation= builds the existing =manifestLifecycleNative=
@@ -53,7 +77,9 @@ counters still require every original first parse, strict validation and both
 authorizers. Shared ownership alone is not evidence of a timing or RSS gain;
 retain all fixed samples and byte-identical control images when interpreting it.
 
-SDK first parsing uses public string entrypoints. Schema wire remains shared by
+SDK first parsing uses public string entrypoints. Exact source encoding now
+uses the standard serializer in a stack-only sizing pass and one exact-capacity
+output pass, with bytewise equivalence controls; it retains no extra Entity wire. Schema wire remains shared by
 its existing immutable owner; Entity wire is temporary and drops on parsing,
 while the existing one-slot cache retains the prepared SDK Entities. Source-table
 uniqueness uses a temporary borrowed exact-source hash index, with full equality

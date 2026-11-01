@@ -3,7 +3,7 @@
 * Dependency and authority
 
 The library and lockfile pin [[https://github.com/tao3k/lean-poo/pull/13][LeanPOO PR 13]] at
-=79747477d7262e686cbc1da673ed968b0f1ea942=. This is a pinned research-branch
+=ed1a2834991b44e8b8e7f47d739229edd599da9b=. This is a pinned research-branch
 snapshot, not a claim that PR 13 has merged. SPEC retains Lean 4.34.1 and its
 existing Cedar revision; no unrelated dependency upgrade is included.
 
@@ -16,14 +16,18 @@ separate admission responsibility.
 * Executable cache and index use
 
 The dependency snapshot includes the shared =ContextSlot.read= algorithm repair
-submitted to the existing upstream PR. Its [[https://github.com/tao3k/lean-poo/actions/runs/41310656569][17-job exact-revision CI]] passes.
-Same immutable context identities now bypass structural equality through Lean's
-standard checked =withPtrEqDecEq=. Distinct owners still perform full equality;
-=ContextSlot.read_reference= proves the complete original data/slot/hit tuple.
-C4 Prepared and the method-table hash index retain their existing ownership.
-The actual Cedar generated C confirms identity testing precedes Entity comparison
-closure allocation. Local algorithm and actual-Case preparation gains do not
-establish stable complete-process acceleration; see the unified resource audit.
+submitted to the existing upstream PR. Its [[https://github.com/tao3k/lean-poo/actions/runs/41317131525][17-job exact-revision CI]] passes.
+Same immutable context identities still bypass structural comparison through
+Lean's standard checked =withPtrEqDecEq=. Equal independent hits now adopt the
+requested context owner. All fourteen shared context modules propagate =BEq=
+and =LawfulBEq=; the native negative List comparison short-circuits at its head
+instead of paying eager proof-decision tail traversal. =read_reference= preserves
+the entire original snapshot/next-slot/reuse tuple for an arbitrary reference
+DecidableEq. C4 Prepared and the method-table index keep their existing owners.
+Cedar selects a local proven Map comparison through public =Map.toList=; the
+actual generated C reaches the computational List comparison and identity guard.
+Native algorithm gains and allocation reduction do not establish stable whole
+process acceleration. See the unified source/resource audit for every non-win.
 
 | Actual SPEC owner / caller | Executable POO mechanism | Alignment boundary |
 |----------------------------+--------------------------+--------------------|
@@ -65,9 +69,9 @@ rejection diagnostics remain active. See the current
 | Policy owners | =PolicyModules= delegates object construction, C4 and compiled slots to LeanPOO | Cedar-specific edit intent, ownership, tombstones and provenance remain local |
 | Proof reuse | =Evaluation=, =Validation=, =Composition= and =Revision= retain LeanPOO proof objects and dependency-aware reuse | Cedar evaluation/typechecking relations remain the actual obligations |
 
-The materialized industry types follow LeanPOO's [[https://github.com/tao3k/lean-poo/blob/79747477d7262e686cbc1da673ed968b0f1ea942/Examples/DataflowObject.lean][DataflowObject]] and
-[[https://github.com/tao3k/lean-poo/blob/79747477d7262e686cbc1da673ed968b0f1ea942/Examples/LiveRevision.lean][LiveRevision]] workflows; contract recognition/refinement uses the same public
-[[https://github.com/tao3k/lean-poo/blob/79747477d7262e686cbc1da673ed968b0f1ea942/Examples/VariantContracts.lean][VariantContracts]] mechanisms. Examples are references, not runtime imports.
+The materialized industry types follow LeanPOO's [[https://github.com/tao3k/lean-poo/blob/ed1a2834991b44e8b8e7f47d739229edd599da9b/Examples/DataflowObject.lean][DataflowObject]] and
+[[https://github.com/tao3k/lean-poo/blob/ed1a2834991b44e8b8e7f47d739229edd599da9b/Examples/LiveRevision.lean][LiveRevision]] workflows; contract recognition/refinement uses the same public
+[[https://github.com/tao3k/lean-poo/blob/ed1a2834991b44e8b8e7f47d739229edd599da9b/Examples/VariantContracts.lean][VariantContracts]] mechanisms. Examples are references, not runtime imports.
 
 * Complete materialized-object migration
 
