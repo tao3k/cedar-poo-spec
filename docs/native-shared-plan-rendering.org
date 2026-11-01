@@ -134,6 +134,27 @@ service, scheduler cause or frequency state. No stable gain, regression bound,
 latency SLO or RSS reduction is claimed. Structural duplicate ownership and
 encoding removal are verified independently of these noisy time observations.
 
+** Native allocator evidence from the completed full gates
+
+The existing allocation-observation native cohorts provide a separate, more
+direct check of the structural change; no workload is rerun. The earlier measured
+code =86dd0a0= has all 706 code/configuration hashes equal to this stage's frozen
+=964e525= baseline; documentation differs. Both completed instrumented cohorts
+have one warmup and three complete samples with unchanged native counters.
+
+Schema-plan allocation requests are 6415 before and 859 after in every sample;
+requested bytes are 766551 versus 184479. Whole-catalog sample allocation counts
+are 1699382 versus 1682729, a reduction of 16653 requests. Requested bytes are
+379279391-379279407 versus 377269673-377269681, about 2.01 MB fewer per sample.
+Final requested live-byte sequences remain exactly 8881709 / 8991379 / 9101049.
+Process-wide requested peaks are 91476 bytes lower in the candidate observations.
+
+These are Rust allocator requests, excluding allocator overhead and foreign
+allocations, not OS RSS or ordinary latency. Schema-plan live-before bytes are
+49408 bytes higher with source-owned memoized identities; the whole-catalog
+requested-byte reduction does not imply every stage uses less retained memory.
+The fixed ordinary RSS observations above remain authoritative for their scope.
+
 * Rust pre-main waiting: new independent evidence
 
 A separate fixed six-child cohort runs the existing Rust launch_probe example
