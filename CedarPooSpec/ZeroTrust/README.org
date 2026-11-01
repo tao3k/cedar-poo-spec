@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 hardenedlinux Linux Team and Contributors
+# SPDX-License-Identifier: Apache-2.0
+
 #+TITLE: Zero Trust Functional and POO Framework
 #+LANGUAGE: en
 
@@ -7,7 +10,9 @@
 #+CAPTION: Functional security frameworks and application-owned POO specialization.
 #+ATTR_ORG: :width 1200
 #+ATTR_HTML: :width 100% :alt Generic Zero Trust framework and application specializations
-[[file:architecture.svg]]
+[[file:../../dev/d2/security-frameworks.png]]
+
+[[file:../../dev/sysml/security-frameworks.sysml][SysML model]] · [[file:../../dev/d2/security-frameworks.d2][D2 presentation]] · [[file:../../dev/d2/security-frameworks.svg][SVG export]] · [[file:../../dev/README.org][Lean / SysML / renderer development path]]
 
 Import =CedarPooSpec.ZeroTrust= as the aggregate entrypoint. Domain consumers may
 import specific modules. No module in this family imports Gateway.

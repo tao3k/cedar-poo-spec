@@ -1,0 +1,93 @@
+# SPDX-FileCopyrightText: 2026 hardenedlinux Linux Team and Contributors
+# SPDX-License-Identifier: Apache-2.0
+
+vars: {d2-config: {data: {figure: |json
+{
+  "purpose": "architecture",
+  "language": "en",
+  "width": 1120,
+  "primary": "purpose",
+  "themes": [
+    "sketchbook",
+    "compact"
+  ],
+  "icons": [
+    "engineering"
+  ],
+  "basis": {
+    "captureRef": "development-source-observation",
+    "modelRefs": [],
+    "obligationRefs": [],
+    "evidenceRefs": []
+  },
+  "title": "Lean publishes the cases. SysML makes their scope visible.",
+  "kind": "catalog-overview",
+  "questions": [
+    {
+      "ref": "purpose",
+      "text": "What does the native Lean catalog actually publish?",
+      "focusRefs": [
+        "sysml",
+        "producer"
+      ]
+    }
+  ],
+  "references": {
+    "source": "dev/d2/lean-catalog.d2",
+    "sysml": "dev/sysml/lean-catalog.sysml",
+    "producer": "CedarPooSpec/Transport/SourceCatalog.lean"
+  },
+  "copy": {
+    "description": "Every category and count comes from the captured native catalog and is checked through the SDK.",
+    "status": "Expected allow/deny values are test expectations, not newly issued authorization results."
+  },
+  "presentation": {
+    "options": {
+      "elk.algorithm": "box",
+      "elk.aspectRatio": "1.8"
+    }
+  },
+  "sysml": {
+    "source": "dev/sysml/lean-catalog.sysml",
+    "view": "LeanCatalog::overview",
+    "bindings": {
+      "raw": {
+        "name": "LeanCatalog::group0",
+        "countRef": "LeanCatalog::group0Count",
+        "category": "raw",
+        "icon": "document"
+      },
+      "schema_bound": {
+        "name": "LeanCatalog::group1",
+        "countRef": "LeanCatalog::group1Count",
+        "category": "schema-bound",
+        "icon": "obligation"
+      },
+      "evolution": {
+        "name": "LeanCatalog::group2",
+        "countRef": "LeanCatalog::group2Count",
+        "category": "evolution",
+        "icon": "decision"
+      },
+      "artifacts": {
+        "name": "LeanCatalog::group3",
+        "countRef": "LeanCatalog::group3Count",
+        "category": "artifacts",
+        "icon": "library"
+      },
+      "data": {
+        "name": "LeanCatalog::group4",
+        "countRef": "LeanCatalog::group4Count",
+        "category": "data",
+        "icon": "model"
+      }
+    }
+  }
+}
+|
+}}}
+raw: Raw manifests
+schema_bound: Schema-bound manifests
+evolution: Revision evolution
+artifacts: Policy artifacts
+data: Domain data
