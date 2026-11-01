@@ -1,236 +1,211 @@
-#+TITLE: Shared C4 ancestry, persistent owners and certified native encoding
+#+TITLE: Original object resolver ownership and native qualification
 #+OPTIONS: toc:2
 
-* Scope and evidence identities
+* Scope and exact source
 
-Measured code: =eaa334d49ad6b5d1d49d9250445400977af38a55=; POO =050b2b33b5cc993d2cf2ac7e7e862cdbd8377485=.
-Lean remains 4.34.1 and Cedar SDK 4.12.0. The frozen reference is
-=f3fb989e3a59e8ca64def806459c882db8c06704= / POO
-=c684858fdbf3df2557b96868d02b451676ea9784=.
-The [[https://github.com/hardenedlinux/cedar-poo-spec/blob/9489ee91ac26562bd0e34275d5bd78165ed627f5/docs/native-shared-plan-rendering.org][previous complete audit]] retains earlier cohorts and failures.
+Measured runtime Cedar code =8014b3303d1905e4c5806de2a1262d506b46225b= with
+POO =08be9d0ba9d4e842adba604bd9208e4c59fd96fd=. Final qualified Cedar code
+=bfc23fb8f7b3adae3f77147d26f4d8d137e8cc56= fixes the final proof-optimized pin. The frozen reference is Cedar
+=eaa334d49ad6b5d1d49d9250445400977af38a55= / POO
+=050b2b33b5cc993d2cf2ac7e7e862cdbd8377485=. Lean 4.34.1 and Cedar SDK
+4.12.0 remain fixed. Final POO proof-compilation revision is
+=d0a3b3efd859d8ee445c49f6f0646b8f1e922047=; final source/artifact binding is
+recorded below. The [[https://github.com/hardenedlinux/cedar-poo-spec/blob/8d4f85db7c4bdbcfd8edae15597169cf2da3f7e3/docs/native-shared-plan-rendering.org][prior audit]] retains all earlier stages, failures and limits.
+PR #8 remains open and unmerged; auto-merge is disabled.
 
-This is one common-owner migration across all applicable domains, including
-payments, health, financial services, governance and the other catalog cases.
-The fixed bulk load remains 51 entries, 1280 rows and 2560 authorization calls.
-Nine object families retain accepted, forged and missing controls. Three Cloud
-workflows retain their own checks; bulk speed is not extrapolated to them.
-PR #8 stays open, unmerged, with no auto-merge.
+All applicable domains consume this common boundary. The unchanged full catalog
+has 51 entries, 1280 rows and 2560 authorization calls. All nine object families
+retain valid/forged/missing cases; three Cloud workflows retain their separate
+acceptance checks. No new parallel Case, runner, registry or provider layer was
+added. Deterministic Host simulation remains the admission boundary.
 
-* Shared ancestor algorithm and original error semantics
+* Original construction carries the resolver
 
-POO prepares one lazy canonical ancestor metadata table over the finite declared
-graph, using the existing audited node resolver. Published successful suffixes
-are shared across roots. A failed branch publishes no partial table. One global
-name-uniqueness check and the canonical trace derive the original reachable-only
-validation for accepted roots. Duplicate-name graphs and unaudited branches use
-the original indexed compiler: ordinary successes rejected by checked C4 and
-complete original error order remain observable.
+Previously =Object.compile= discarded the resolver table after extracting the
+root order. Cedar's later preparation seeded only that root result and rebuilt
+internal ancestor metadata. =Object.Schema.preparation= now retains the actual
+immutable-graph-indexed preparation before original compilation. =Object.compile=
+uses that field, and the returned Plan retains the same Schema. Source-current
+Cedar =Model.prepareC4= directly obtains the field, including resolved ancestors.
+Active staged schemas share it too; raw or stale models prepare independently.
 
-Universal =Prepared.at_eq= and =Object.compilePrepared_eq= preserve complete
-results. =Prepared.retain= requires the exact graph/root result and equality
-witness. Cedar seeds its active root with the original Plan validity proof.
-No root-name-only identity is accepted. All 42 original controls and 80 reversed
-order/fallback replays pass, including crossing-suffix ordinary success.
+This is ownership of the existing resolver, not a result cache keyed by names.
+=Object.compile_precedence= proves original complete precedence/error equality;
+=Object.compilePrepared_eq= still equates entire Plan results. Cedar's universal
+=Model.prepareC4_current= proves actual owner equality (with the necessary graph
+transport). All new proofs use only the original three standard Lean axioms.
+Validation, original error order, checked-mode refusal fallback and source
+identity controls remain. Original 42 result replays and 80 reordered/fallback
+replays pass, now also exercising the ordinary object compiler.
 
-An intermediate implementation exposed a real native specialization regression:
-putting name validation inside the root factory duplicated it into every root
-insertion. Final =fromFactory= selects the complete builder before its fold.
-Generated C contains one actual global uniqueness call. The failing measurement
-is retained. Fixed eight shape/count native result comparisons pass; focused
-observations include deep-256 ordinary/prepared 4655.041/69.874 ms and fan-in-257
-52.479/13.411 ms. These are scoped observations, not whole-application speedups.
-The first accepted root can pay for metadata beyond its reachable subset;
-shared preparation has a first-use cost and retains additional metadata.
+Declaration-only revision proves preservation of the actual preparation field.
+Graph edits must create a fresh indexed owner; production graph transformers and
+four SharedFamily negative fixtures now do so without changing their assertions.
+A stale graph's preparation is rejected by the type checker. The native addNode
+closure captures declaration and graph data, releases the old preparation and
+creates the new graph's thunk; it does not retain a chain of old resolver tables.
 
-* Persistent Program and Case ownership
+Generated C verifies both sides: original =Object.compile= reads Schema field 2
+and forces its existing thunk; Cedar's source-current branch reads that same
+field without calling =C4.prepare=. Only the raw/stale branch constructs a new
+preparation. This closes the first duplicated table for original owned objects.
+The existing whole-graph first-demand cost remains for independently prepared
+single-root graphs; no universal complexity or constant-cost claim is made.
 
-=Program.retained= is a thunk over its actual prepared entries. =deferProgram=
-retains the real provider, model, schema and roots plus the original erased
-success proof. Universal whole-Program equality preserves the original public
-projection. 43 static Program declarations across 40 source files use it.
+All 43 static Programs, actual typed Case inputs (49 owners plus two static
+results), schema-free Compilation, Contracts, proofs and Rust consumers remain
+aligned. The proof-bound fragmented encoder and official batched JSON leaf
+compressor are unchanged. Program-dependent observations stay deferred; 40
+independent raw model/data globals and stock Lean runtime initialization remain.
 
-The existing Case =EntryProducer= retains an actual typed input and interpreter;
-49 native entries carry a real Program/Compilation (TicketSharing keeps both
-model-indexed Programs), and two carry static result data. About 60 public
-export/row helpers consume that same owner. 140 Program-dependent observation
-functions replace eager projections; 57 Program-dependent Bool globals no longer
-execute during import. 40 independent raw model/data Bool globals remain.
-Four exporters no longer prepare duplicate owners; paired TicketSharing exports
-reuse both original Programs. Disclosure fixture states have complete equalities
-to their original authorized transition results. HostSafety proofs keep their
-original Program index rather than generalizing away a necessary premise.
+* Cold compiler root cause and correction
 
-Schema-free =Compilation= is an explicit owner containing a shared preparation
-thunk and resolver. A curried-function attempt let native eta expansion recreate
-the thunk per root; generated C exposed it and the attempt was replaced. The
-final compiler forces the existing field. Full compiler equality includes errors;
-custom refusal compilers still work. All three schema-free families and Delta's
-paired/batch users share the owner. WholeMigration's independent reference law
-and original axiom whitelist remain unchanged.
+Official Lean profiler traces identify a specific source of the prior timeout:
+=SharedSettlement.Publication= constructor injectivity generation compared
+unequal dependent fields by unfolding a complete executable protocol.
 
-* Proof-bound native encoding and the observed regression
+| Profiled stage | Before | After |
+|----------------+--------+-------|
+| Publication declaration | 31.400 s | 0.322 s |
+| Initial Meta.mkNoConfusion correction | 29.236 s | 3.051 s |
+| PrototypeTypes.check_sound proof elaboration | 14.541 s | 1.629 s |
 
-=EncodedJson= separates lazy semantic JSON and certified native rendering.
-Canonical object order/duplicate ownership and public value projections remain;
-=compact_wire= preserves complete bytes. The source catalog builds certified
-metadata rather than retaining a complete intermediate semantic catalog.
+Declaration-local irreducibility boundaries for the protocol/fork constructors
+prevent unnecessary expansion. The first correction alone still left a
+407/422-task timeout; that failed attempt is retained. The final correction
+also makes PrototypeTypes constructor cases use definitional reduction rather
+than simplifier search, and consumes symbolic equality/widening evidence instead
+of enumerating the atom-pair Cartesian product. It ends after the structure declaration; original field
+types, complete generated constructor proofs and downstream definitions remain.
+The SharedSettlement 216425-byte native C output is byte-identical to the
+original, and PrototypeTypes native C is independently byte-identical too. No constructor
+proof, axiom check, timeout, memory limit, concurrency default or cache identity
+was removed or relaxed. The original pinned-paper audit refresh changes only
+local source identities; reviewed scope, baseline, 24 source checks, inventory,
+closure and whole-paper=false remain unchanged.
 
-The first native leaf encoder compressed each key/value independently and joined
-many small fragments. Source review found a separate official compression work
-queue per scalar, while Lean's object compressor can share one queue. This is
-an avoidable algorithm/representation cost, not a reason to add another cache.
+The final empty-project public POO library plus C4 native target completes all
+422 tasks in 60.647 s under the original 120-second budget and default concurrency.
+Maximum child RSS is 1420.047 MiB, not an aggregate RAM bound. Hot/cold C4 hashes
+match exactly; all eight native result groups pass. Installed toolchain/stdlib
+remain cached. This is a new source-level correction, not an unchanged workload
+rerun replacing either earlier timeout.
 
-Bounded row metadata now uses one official Lean =Json.compress= work queue per
-object instead of a fresh queue for every field. The existing native constructor
-binds the complete row value and wire. Bounded semantic leaf objects remain;
-the complete catalog is still fragmented. No custom trusted serializer or parser
-axiom was introduced. Compositional encoding certificates are not a new kernel
-proof of Lean's JSON parser implementation.
+The owner-transfer Cedar code/pin08 round completes all 941 cold native tasks in
+93.394 s, all five hot/cold images byte-identical. Rust runtime/bridge project
+package clean rebuild takes 4.746 s; unchanged Cargo sources/dependencies and
+normal bridge hash match the measured artifact. Cold complete catalog and SDK
+replay bytes match the existing full goldens.
 
-* Fixed complete-process observations
+Final Cedar code/pin independently completes all 941 empty-project native tasks
+in 46.688 s, maximum child RSS 1071.547 MiB. All five hot/cold hashes match,
+and all match the earlier measured images. Full cold catalog and Rust output
+bytes match their complete goldens; producer/consumer OS resource receipts are
+retained. These epochs are acceptance observations, not an isolated compiler
+speedup comparison. Both earlier POO 120-second failures remain failed.
 
-| Final fixed observation | Frozen reference | Candidate |
-|-------------------------+------------------+-----------|
-| Producer CPU median | 90 ms | 80 ms |
-| Sequential pipeline CPU median | 260 ms | 250 ms |
-| Peak sequential child RSS median | 49.953 MiB | 48.172 MiB |
-| First paired pipeline wall | 2565.767 ms | 1985.656 ms |
-| Second paired pipeline wall | 285.936 ms | 280.005 ms |
-| Third paired pipeline wall | 300.701 ms | 285.785 ms |
-| 128-root preparation median | 1.227 ms | 1.251 ms |
+The old POO timeout at 420/422 and 120 seconds remains a failure. SDK load-command
+mismatch and stale lifecycle/policy images from the prior stage remain recorded.
+This round explicitly builds every measured native image before timing and uses
+the same declared Apple SDKROOT for hot/cold linking. Compiler maximum child RSS
+is not aggregate parallel-build RAM. Project-cold retains installed toolchains,
+stdlib and external SDK/dependency artifacts; it is not a cold SDK build.
 
-All three final ordinary wall observations improve, with 10-ms rounded median
-CPU reduction. This cohort is promising but does not establish cross-workload
-stable acceleration. Independent source-bound cold-image phase diagnostics remain
-mixed: application initialization is 18.623 ms and main is 69.250 ms, versus
-reference 46.996 and 28.195 ms. Sources-ready is 58.118 versus 23.316 ms; cumulative
-serialized phase is 66.168 versus 27.663 ms. Deferral is not elimination; not
-every focused workload improves. Phase and ordinary processes are distinct
-instruments and epochs. Existing original-object Plan construction does not yet
-transfer its internal resolver metadata to the later prepared table: retaining
-only its root result does not remove that first-use work.
+* Whole-process performance and resource evidence
 
-An evidence preflight error is retained explicitly: earlier phase/allocator
-observations (including =native-ancestor-batched-phase=) used an old lifecycle
-image not relinked by =just check=. They cannot establish source-level stage
-acceleration. Cold construction exposed this. Final =native-ancestor-final-phase=
-and =native-ancestor-final-allocator= bind the actual cold image. Final ordinary
-producer/profiles/functional images exactly match their cold counterparts, so
-the ordinary table above is unaffected. All old samples remain, not substituted.
+The existing standard benchmark recipe runs the same fixed 48 children and 15
+complete byte comparisons. Every process and comparison passes. All 705 measured
+source inputs match the owner-transfer complete gate. Final source differs only in the two
+Lake pin files. The final complete gate rechecks all types/Contracts/proofs and
+Case/replay paths at d0a3b3e. All five Lean images and the normal Rust bridge are
+byte-identical to the measured images. Timing observations therefore remain
+explicitly attributed to their original 8014/08 source snapshot, with final
+artifact identity verified independently. No identical-binary timing rerun was
+used to select more favorable samples. Ordinary Rust bytes are
+identical on both sides; builds/tests and diagnostics do not overlap this cohort.
 
-Raw stages are =native-ancestor-descriptor-processes= (instrumented Rust mismatch),
-=native-ancestor-qualified-processes= (first encoding), and
-=native-ancestor-batched-processes= (final encoding). All 144 children and 45 full
-byte comparisons are retained. Only the latter two have the byte-identical Rust
-negative control. Per-pair results, not selected minima, remain evidence owners.
+| Fixed complete observation | Reference | Candidate |
+|----------------------------+-----------+-----------|
+| First paired pipeline wall | 2384.965 ms | 2227.016 ms |
+| Second paired pipeline wall | 500.609 ms | 331.359 ms |
+| Third paired pipeline wall | 340.106 ms | 285.839 ms |
+| Pipeline CPU median | 300 ms | 270 ms |
+| Producer CPU samples | 110,130,80 ms | 130,90,80 ms |
+| Identical Rust CPU samples | 190,210,190 ms | 180,180,170 ms |
+| Pipeline peak child RSS median | 48.328 MiB | 48.313 MiB |
 
-Each ordinary cohort has 48 children and 15 full wire comparisons. Samples and
-120-second child limits are unchanged; builds and tests do not overlap the
-measured children. Source inventories record all 705 measured inputs. Full
-catalog and Rust replay bytes match their declared goldens, including independent
-SDK admission. Host scheduling, thermal state and OS caches remain uncontrolled.
+All final paired walls improve, but the identical Rust control also changes CPU.
+The entire pipeline difference cannot be attributed to resolver transfer. CPU is
+rounded at OS precision; these samples do not establish cross-load stable
+acceleration or a latency SLO. Focused ordinary API compilation observations do
+not mean every metadata table is unprepared: the ordinary compiler now owns and
+reuses the same graph preparation. Project cold and fresh-file lifecycle remain
+separate controls.
 
-The first raw cohort accidentally used the allocation-observation Rust build
-left by the full gate. Its output remains, but it is not the byte-identical Rust
-negative control. Rebuilding the normal =--bin cedar-poo-bridge= restores the
-frozen bridge hash =af5cb0f8e7e59efcd58ec444aba6ee261bfb0209ed7a8209bdd9e19419e72814=.
-Qualified cohorts use that exact binary on both sides. Final measurements use
-the existing =bench-dataflow-lifecycle= recipe, which rebuilds that normal owner.
-There are no favorable retries or dropped samples.
+Fixed actual-image phase diagnostics (six per variant) report import
+initialization 16.911/16.939 ms, main 48.621/48.150 ms and sources-ready
+43.006/42.280 ms. These small differences do not establish a stable main-span
+speedup. All phase outputs match the full catalog golden. Separate six-per-side
+allocator diagnostics report committed space 28.8/28.4 MiB and sampled resident
+median 48.281/48.141 MiB. Both retain 1-GiB virtual reservation and zero purges.
+The ordinary RSS difference is only about 16 KiB. There is no exclusive live-heap
+attribution, universal memory bound or demonstrated material RSS improvement.
 
-* RSS and before-main waiting
+Raw observations stay under ignored =native-owner-transfer-*= directories;
+generated CSV/JSON and the raw evidence bundle are outside Git. All baseline
+artifacts and prior failures are retained rather than replaced by selected minima.
 
-Installed Lean 4.34.1 =lean_initialize= still initializes Init, Std and Lean.
-Previous same-body controls observed about 35.953 MiB with JSON versus 3.531 MiB
-without it. These are sampled resident observations, not live heap bytes. The
-application initialization clock starts after core initialization.
+* Before-main investigation and its limits
 
-The actual final cold-image encoder reports about 28.8 MiB committed allocator
-space, versus 35.3 MiB in the frozen reference. Both retain a 1-GiB virtual arena
-and zero purge operations. Instrumented median sampled RSS is 49.633/48.297 MiB
-for reference/final; ordinary high-water RSS also drops about 1.78 MiB. These are
-consistent local reductions, not a universal resident or retained-heap guarantee.
-Retired objects need not uncommit arena pages. Existing core globals, remaining
-40 raw model/data globals, retained ancestor metadata and semantic leaf values
-have different lifetimes. No exclusive heap-byte decomposition or leak-freedom
-claim is made. Earlier allocator receipts from the unqualified stale diagnostic
-image are kept separately and do not characterize the final code.
+Earlier owned-PID sampling located stationary raw CPU/fault/page-in counters and
+entry frames at =_dyld_start + 0=. This round used Apple's installed System Trace
+on one exact prior native image to investigate the kernel boundary. The target
+started, but packaging exceeded the fixed 30-second tool ceiling. Export reports
+Document Missing Template Error. The partial raw trace and incomplete child
+output are retained as failed evidence; neither is accepted as a native run.
 
-The new observer reads existing Darwin public process fields in its bounded
-thread: resident/virtual bytes, raw CPU counters, faults, page-ins and thread
-state. Raw CPU units are not silently interpreted as nanoseconds. The public
-96-byte =RUsageInfoV0= ABI and executable path identify each owned process;
-zero/unavailable identity is explicit. Linux does not fabricate Darwin fields.
-All 32 external observer unit tests pass without changing the sampling or
-cleanup limits.
+A narrow read-only system-log query for that exact PID/path succeeds. Kernel
+AMFI/CoreTrust messages name the same image; a source-bound syspolicyd request
+precedes main. Following its exact TCC request ID identifies
+=kTCCServiceDeveloperTool=, =preflight=yes=, not a proven business-file permission
+failure. This instrumented launch can induce developer-tool checks. Those events
+prove the observed assessment path, not an exclusive ordinary-startup cause or
+callback duration. The [[https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_exec.c][Apple XNU exec source]] documents signature/launch upcalls, but source alone does
+not identify which installed-kernel callback consumed a measured interval.
 
-An earlier separate owned-PID sample per Lean/Rust role retains the requested 1-second,
-10-ms sampling interval with a separate 15-second sampler ceiling. Lean has six
-=_dyld_start + 0= frames with matching PID. Rust has zero qualified such frames
-in this run; it is not retried or called a successful frame capture. Kernel UUID
-and path match both post-exit file identities; sample image-list UUID remains
-unavailable. Native EOF/reap and sampler reap times are separate. This identifies the OS
-boundary of those exact diagnostic images, not a final-code latency result.
+Actual first-file pre-main spans are 1335.366/1162.383 ms in the reference and
+1339.434/1160.782 ms in the candidate, versus repeated medians 39.729/39.632 ms.
+The long tail is not removed by this algorithm change.
 
-Lean's owned invocation spends about 1.2 seconds with unchanged raw CPU, faults
-and page-ins, one thread and zero running threads, while resident bytes stay near
-80 KiB. Rust has a shorter similar stationary interval. Together with entry
-frames, these locate a wait before application C4/serialization. They do not
-identify an exclusive kernel, security-service or page-in callback. Same-inode
-new-path controls also retain fresh-path tails; no pure pathname cause is proven.
-No signing, quarantine, xattr, security settings or runtime ABI was altered.
+Four exact fresh-file PID/path/time-window queries from the completed normal
+phase cohorts return successfully with no matching log events. Absence of stored
+messages does not prove absence of assessment. No native workload was rerun to
+obtain favorable traces. A read-only off-CPU DTrace capability check requires an
+administrator password; that capture was not available. Signing, quarantine,
+SIP, logging configuration and security settings were not changed.
 
-* Semantic, cold-build and CI qualification
+The precise ordinary pre-main kernel/service wait therefore remains unresolved.
+Supported owned-PID kernel/off-CPU evidence is needed to close it; neither C4
+work nor a specific security callback is assigned the entire delay by inference.
 
-Final source-stable =just check= passes in 424.347 s, including types, Contracts,
-proof audits, business replay, SDK admission, negative controls and workspace
-Clippy. Its 705 source hashes and clean POO dependency are unchanged throughout.
-The earlier full common-owner gate passes separately in 593.999 s; this is not
-a comparison of native runtime latency. All 32 external observer tests pass.
+* Qualification and next complete work
 
-The empty Cedar project builds all five native targets: 941 jobs in
-110.386 s, maximum child RSS 1039.922 MiB. The three ordinary
-measurement images match hot/cold hashes exactly. The old lifecycle and policy
-images had not been relinked; the initial strict all-five identity check fails
-and is preserved. Current cold images then pass lifecycle full-wire diagnostics
-and the original policy controls; they are not relabelled as hot-identical.
+The first owner-transfer qualification passes all 688 Examples/Tests targets,
+existing =just check= and all five current native targets in 868.585 s. Final
+pin qualification separately passes all configured Examples/Tests, full
+=just check=, all five current native targets and the normal Rust build in
+398.507 s. All 705 final source hashes and clean d0a3b3e package remain unchanged.
+These are complete qualification durations, not native runtime latency.
 
-Rust cleans only runtime/bridge project release packages; external dependencies
-remain cached. Default-concurrency release build passes in
-12.421 s, restoring the exact frozen ordinary bridge hash. Complete cold catalog
-and Rust replay outputs match their complete existing goldens. The generated
-cold POO C4 executable also passes all eight fixed shape/count result comparisons;
-this does not complete the public-library cold gate below.
+POO's complete standard commit gate passes 359 unit/stress invocations and all
+20 phases in 230.207 s with its existing automatic 14-worker default. Exact POO
+CI run 41276571409 passes 17/17; final proof-compilation revision CI is recorded
+in PR #8 with its exact run and pin. Final Cedar publication CI and downloaded
+resource/output/provenance verification are recorded in PR #8 separately.
 
-POO's public-library plus native-C4 empty-project attempt stops at the unchanged
-120-second limit, with 420/422 tasks complete and maximum child RSS 1311.219 MiB.
-This is a failed complete cold-build gate. It is not replaced by an incremental
-success. Native C4 was generated; generated C and link response match the prior
-hot build, but the inherited Apple SDKROOT changes its Mach-O SDK load command
-from 99.0 to 26.5. Binary hashes therefore differ; no reproducible-image claim
-is made. Maximum child RSS is not aggregate concurrent build memory.
-
-Installed toolchains/stdlib and external SDK artifacts remain cached. Project
-cold is not SDK cold. Earlier cold failures remain alongside the new evidence.
-Default concurrency, heaps, watchdogs and negative controls are unchanged.
-
-CI and raw-artifact verification are recorded in PR #8 for the final publication
-head. The POO pin has 17 successful jobs on run 41263867544. Local resource
-observations, Linux CI, proof equality and native performance remain distinct.
-Generated CSV/JSON and raw bundles are outside Git; CI uploads evidence artifacts.
-
-* Remaining common-owner work
-
-1. Factor invariant request/field inputs from Program-dependent authorization so
-   deferred Case production does not regenerate fixed metadata. Bind this to the
-   same typed Case and original outcome proofs, then repeat the fixed all-domain
-   catalog, SDK replay, first-file and process-resource controls.
-2. Separate first-use ancestor preparation from roots actually requested; retain
-   the complete ordinary-error fallback and graph/root equality witnesses. Do
-   not extrapolate deep-graph microbenchmarks to small single-root cases.
-3. Attribute remaining core/import initialization and allocator retention using
-   supported upstream boundaries. Keep raw OS waiting separate; a replacement
-   for =lean_initialize= requires upstream extern/initializer qualification.
-4. Close the public POO cold-build failure under the original budget and a
-   declared consistent linker environment. Runtime optimization does not qualify
-   compiler/resource acceptance. No merged or stable-latency claim is made.
+Next work stays on these common owners: attribute remaining producer source
+construction and official SDK preparation, reduce fixed metadata regeneration
+without caching authorization decisions, and preserve original full-result
+proofs and all-domain replay. Close ordinary OS waiting only with qualified
+kernel evidence. Algorithm-level reuse, semantic closure, cold acceptance and
+whole-process performance remain distinct claims.
