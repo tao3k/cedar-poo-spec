@@ -80,6 +80,15 @@ joins one String for the benchmark oracle, while the ordinary production
 entry streams certified chunks. Native import initialization precedes all these
 stages; loader/runtime work before the first diagnostic import is outside them.
 
+=just bench-catalog-authorization= uses the same target's =stages-authorized=
+mode. It first forces existing proof-bound response thunks, records native
+wall/small-allocation observations, then invokes the unchanged publisher on
+those same Cases. This diagnostic moves authorization earlier and adds traversal
+and counter overhead; its residual publication time is not an exact subtraction
+from ordinary latency. All 1292 typed Cases are traversed per pass: 1280 main
+replay rows and 12 separately replayed schema-evolution rows. Complete production
+wire equality is still required. No authorization decision cache is introduced.
+
 The existing Rust =benchmark-catalog= mode owns SDK parsing, strict validation,
 independent text replay, request preparation and serialization of the same complete
 catalog. Its seven stage observations per sample now also emit =measurement:=

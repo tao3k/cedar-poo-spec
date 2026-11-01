@@ -306,8 +306,11 @@ def Ready.case (ready : Ready context) (name revision : String)
     Except.ok.inj (ready.checked.compiled.symm.trans publication.compiled)
   return {
     name, revision
-    policy := ⟨publication.policies, publication.snapshot,
-      by simpa only [publication.snapshot_value] using publication.serialized⟩
+    policy := {
+      policies := publication.policies
+      snapshot := publication.snapshot
+      aligned := by simpa only [publication.snapshot_value] using publication.serialized
+      identifiers := publication.identifiers }
     request, entities
     response := Thunk.mk fun _ => (ready.authorizeLayer request entities).response
     evaluated := by

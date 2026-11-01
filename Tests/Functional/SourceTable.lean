@@ -63,7 +63,7 @@ end CedarPooSpec.Transport.SourceTableTest
       ("templates", Lean.Json.mkObj []), ("templateLinks", Lean.toJson ([] : List Lean.Json))])
   let input : CedarPooSpec.Transport.Case := {
     name := "self-ancestor", revision := "source"
-    policy := ⟨[], source, rfl⟩
+    policy := { policies := [], snapshot := source, aligned := rfl }
     request := req, entities := store
     response := Thunk.mk fun _ => Cedar.Spec.isAuthorized req store []
     evaluated := rfl }
@@ -161,3 +161,24 @@ example (model : CedarPooSpec.PolicyModules.Model) (root : String) :
   IO.println "SOURCE-RECENT-OK full-source/missing/stale/index-fallback"
 
 #print axioms CedarPooSpec.Transport.SourcePool.publishSnapshot_recent
+
+namespace CedarPooSpec.Transport.SourceTableTest
+
+-- Universal proof covers arbitrary public raw maps, not only canonical inputs.
+theorem arbitrary_record_key_admission (fields : List (String × α)) :
+    PolicyJson.uniqueRecordKeys fields = decide (fields.map Prod.fst).Nodup :=
+  PolicyJson.uniqueRecordKeys_eq fields
+
+#print axioms arbitrary_record_key_admission
+#print axioms PolicySource.identifiers_bound
+
+#eval show IO Unit from do
+  let controls : List (List (String × Nat)) := [[], [("", 0)],
+    [("a", 1), ("b", 2), ("é", 3)], [("b", 1), ("a", 2)],
+    [("a", 1), ("a", 2)], [("a", 1), ("b", 2), ("a", 3)],
+    [("é", 1), ("a", 2), ("é", 3)]]
+  for fields in controls do
+    unless PolicyJson.uniqueRecordKeys fields == decide (fields.map Prod.fst).Nodup do
+      throw (IO.userError "record key admission changed")
+  IO.println "RECORD-KEY-ADMISSION-OK ordered/unordered/duplicate/empty/unicode"
+end CedarPooSpec.Transport.SourceTableTest

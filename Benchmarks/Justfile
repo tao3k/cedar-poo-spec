@@ -92,3 +92,8 @@ bench-catalog-preparation:
 bench-catalog-stages:
     lake build manifestLifecycleNative
     timeout --signal=TERM --kill-after=3s 120s .lake/build/bin/manifestLifecycleNative stages
+
+# Same production publisher after explicitly forcing proof-bound response thunks.
+bench-catalog-authorization:
+    lake build manifestLifecycleNative
+    timeout --signal=TERM --kill-after=3s 120s .lake/build/bin/manifestLifecycleNative stages-authorized

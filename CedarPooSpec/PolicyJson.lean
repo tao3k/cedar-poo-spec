@@ -37,6 +37,59 @@ inductive Error where
 
 private def obj (fields : List (String × Lean.Json)) : Lean.Json := Lean.Json.mkObj fields
 
+-- Cedar maps normally present canonical ordered fields, but their public raw
+-- constructor permits arbitrary lists. Certify the adjacent-key fast path and
+-- retain the original complete duplicate decision for every unordered input.
+private def ascendingKeysFrom (previous : String) : List (String × α) → Bool
+  | [] => true
+  | (key, _) :: rest => decide (previous < key) && ascendingKeysFrom key rest
+
+private theorem ascendingKeysFrom_sound (fields : List (String × α)) (previous : String)
+    (ordered : ascendingKeysFrom previous fields = true) :
+    (∀ field ∈ fields, previous < field.1) ∧ (fields.map Prod.fst).Nodup := by
+  induction fields generalizing previous with
+  | nil => exact ⟨by simp, by simp⟩
+  | cons field rest ih =>
+    have parts : previous < field.1 ∧ ascendingKeysFrom field.1 rest = true := by
+      simpa [ascendingKeysFrom] using ordered
+    obtain ⟨larger, unique⟩ := ih field.1 parts.2
+    refine ⟨?_, List.nodup_cons.mpr ⟨?_, unique⟩⟩
+    · intro next member
+      rcases List.mem_cons.mp member with same | member
+      · subst next; exact parts.1
+      · exact String.lt_trans parts.1 (larger next member)
+    · intro member
+      obtain ⟨next, member, same⟩ := List.mem_map.mp member
+      have less := larger next member
+      rw [same] at less
+      exact String.lt_irrefl _ less
+
+/-- Linear adjacent checks for ordered fields; the original exact decision is
+used for arbitrary order. No key list or hash table is allocated on a hit. -/
+def uniqueRecordKeys (fields : List (String × α)) : Bool :=
+  match fields with
+  | [] => true
+  | (key, _) :: rest =>
+    if ascendingKeysFrom key rest then true else decide (fields.map Prod.fst).Nodup
+
+theorem uniqueRecordKeys_eq (fields : List (String × α)) :
+    uniqueRecordKeys fields = decide (fields.map Prod.fst).Nodup := by
+  cases fields with
+  | nil => rfl
+  | cons field rest =>
+    by_cases ordered : ascendingKeysFrom field.1 rest = true
+    · have facts := ascendingKeysFrom_sound rest field.1 ordered
+      have unique : (field :: rest).map Prod.fst |>.Nodup := by
+        refine List.nodup_cons.mpr ⟨?_, facts.2⟩
+        intro member
+        obtain ⟨next, member, same⟩ := List.mem_map.mp member
+        have less := facts.1 next member
+        rw [same] at less
+        exact String.lt_irrefl _ less
+      simpa only [uniqueRecordKeys, ordered, ↓reduceIte] using
+        (decide_eq_true unique).symm
+    · simp [uniqueRecordKeys, ordered]
+
 def entity (uid : EntityUID) : Lean.Json :=
   obj [("type", Lean.toJson (toString uid.ty)), ("id", Lean.toJson uid.eid)]
 
@@ -150,7 +203,7 @@ private def expressionFuel (id : PolicyID) : Nat → Cedar.Spec.Expr → Except 
   | fuel + 1, .set members => do
       return obj [("Set", Lean.toJson (← members.mapM (expressionFuel id fuel)))]
   | fuel + 1, .record fields => do
-      if !(decide (fields.map Prod.fst).Nodup) then
+      if !(uniqueRecordKeys fields) then
         throw (.duplicateRecordKey id)
       let fields ← fields.mapM fun (key, value) => do
         return (key, ← expressionFuel id fuel value)
@@ -270,7 +323,7 @@ private def valueFuel : Nat → Value → Except Error Lean.Json
   | fuel + 1, .set members => do
       return Lean.toJson (← members.toList.mapM (valueFuel fuel))
   | fuel + 1, .record attrs => do
-      if !(decide (attrs.toList.map Prod.fst).Nodup) then
+      if !(uniqueRecordKeys attrs.toList) then
         throw .duplicateEntityAttribute
       let fields ← attrs.toList.mapM fun (key, val) => do
         return (key, ← valueFuel fuel val)
@@ -303,7 +356,7 @@ private def value (input : Value) : Except Error Lean.Json :=
   valueFuel 1024 input
 
 private def attrs (values : Cedar.Data.Map String Value) : Except Error Lean.Json := do
-  if !(decide (values.toList.map Prod.fst).Nodup) then
+  if !(uniqueRecordKeys values.toList) then
     throw .duplicateEntityAttribute
   let fields ← values.toList.mapM fun (key, val) => do
     return (key, ← value val)
@@ -354,6 +407,9 @@ structure Publication (model : PolicyModules.Model) (root : String)
   serialized : policySet policies = .ok json
   snapshot : Transport.SourceSnapshot .policy
   snapshot_value : snapshot.value = json
+  /-- Immutable policy metadata belongs to the checked publication, not each request. -/
+  identifiers : Thunk { value : Lean.Json // value = Lean.toJson (policies.map Policy.id) } :=
+    Thunk.mk fun _ => ⟨Lean.toJson (policies.map Policy.id), rfl⟩
 
 private theorem policyIdsUniqueOfNodup (policies : Policies)
     (unique : (policies.map Policy.id).Nodup) :

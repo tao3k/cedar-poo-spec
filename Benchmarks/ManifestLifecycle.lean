@@ -45,23 +45,56 @@ private def benchmark : IO Unit := do
     (pools : CedarPooSpec.Transport.SourcePools) : IO CedarPooSpec.Transport.EncodedJson :=
   pure (pools.finish entries)
 
-private def attributeActual (label : String) : IO String := do
+-- Diagnostic intervention only: force the existing, proof-bound response thunks
+-- before the unmodified publisher. It still sees the same Cases and source pools.
+@[noinline] private def forceCaseResponse (row : CedarPooSpec.Transport.Case) : IO Nat := do
+  let response := row.response.get
+  return (match response.decision with | .allow => 1 | .deny => 0) +
+    response.determiningPolicies.toList.length + response.erroringPolicies.toList.length
+
+private def forceManifestResponses (manifest : CedarPooSpec.Transport.Manifest) : IO (Nat × Nat) := do
+  let mut rows := 0
+  let mut checksum := 0
+  for row in manifest.cases do
+    checksum := checksum + (← forceCaseResponse row)
+    rows := rows + 1
+  return (rows, checksum)
+
+private def forceEntryResponses : CedarPooSpec.Transport.Entry → IO (Nat × Nat)
+  | .manifest value => forceManifestResponses value
+  | .evolution before after => do
+      let (first, left) ← forceManifestResponses before
+      let (second, right) ← forceManifestResponses after
+      return (first + second, left + right)
+  | _ => pure (0, 0)
+
+private def attributeActual (label : String) (separateAuthorization : Bool := false) : IO String := do
   let mut pools : CedarPooSpec.Transport.SourcePools := {}
   let mut entries := #[]
   let mut observations : Array (String × Nat × Nat × Nat × Nat) := #[]
+  let mut authObservations : Array (String × Nat × Nat × Nat × Nat) := #[]
   for (name, producer) in CedarPooSpec.Manifests.entries do
     let begin ← IO.monoNanosNow
     let firstAlloc ← IO.getNumHeartbeats
     let entry ← produceActualEntry producer
     let producedAlloc ← IO.getNumHeartbeats
     let produced ← IO.monoNanosNow
+    if separateAuthorization then
+      let begin ← IO.monoNanosNow
+      let before ← IO.getNumHeartbeats
+      let (rows, checksum) ← forceEntryResponses entry
+      let after ← IO.getNumHeartbeats
+      let authFinished ← IO.monoNanosNow
+      authObservations := authObservations.push (name, authFinished-begin, after-before, rows, checksum)
+    let publishBegin ← IO.monoNanosNow
+    let publishAlloc ← IO.getNumHeartbeats
     let (encoded, next) ← publishActualEntry entry pools
     let publishedAlloc ← IO.getNumHeartbeats
     let published ← IO.monoNanosNow
     pools := next
     entries := entries.push (name, encoded)
-    observations := observations.push (name, produced-begin, published-produced,
-      producedAlloc-firstAlloc, publishedAlloc-producedAlloc)
+    observations := observations.push (name, produced-begin, published-publishBegin,
+      producedAlloc-firstAlloc, publishedAlloc-publishAlloc)
   let begin ← IO.monoNanosNow
   let firstAlloc ← IO.getNumHeartbeats
   let encoded ← finishActualEntries entries.toList pools
@@ -71,6 +104,10 @@ private def attributeActual (label : String) : IO String := do
   let renderedAlloc ← IO.getNumHeartbeats
   let rendered ← IO.monoNanosNow
   let stdout ← IO.getStdout
+  for (name, elapsed, allocations, rows, checksum) in authObservations do
+    stdout.putStrLn s!"measurement: cedar.catalog.stages.{label}.{name}.authorize {elapsed} ns"
+    stdout.putStrLn s!"measurement: cedar.catalog.stages.{label}.{name}.authorize.small_allocations {allocations} count"
+    stdout.putStrLn s!"AUTHORIZATION-STAGE entry={name} rows={rows} checksum={checksum}"
   for (name, produce, publish, produceAlloc, publishAlloc) in observations do
     stdout.putStrLn s!"measurement: cedar.catalog.stages.{label}.{name}.produce {produce} ns"
     stdout.putStrLn s!"measurement: cedar.catalog.stages.{label}.{name}.publish {publish} ns"
@@ -82,11 +119,11 @@ private def attributeActual (label : String) : IO String := do
   stdout.putStrLn s!"measurement: cedar.catalog.stages.{label}.serialize.small_allocations {renderedAlloc-finishedAlloc} count"
   return wire
 
-private def stageBenchmark : IO Unit := do
+private def stageBenchmark (separateAuthorization : Bool := false) : IO Unit := do
   -- The first-use pass is separately visible, after native import initialization.
-  let first ← attributeActual "first-use"
+  let first ← attributeActual "first-use" separateAuthorization
   for sample in [1, 2, 3] do
-    let wire ← attributeActual s!"sample{sample}"
+    let wire ← attributeActual s!"sample{sample}" separateAuthorization
     unless wire == first do throw (IO.userError "stage catalog changed across samples")
   let reference ← renderActual (← prepareActual CedarPooSpec.Manifests.entries)
   unless first == reference do throw (IO.userError "attribution changed production catalog")
@@ -103,6 +140,7 @@ def main (args : List String) : IO Unit := do
     ("unix_ns", Lean.toJson entry.toNanosecondsSinceUnixEpoch.toInt)]).compress
   if args == ["benchmark"] then benchmark
   else if args == ["stages"] then stageBenchmark
+  else if args == ["stages-authorized"] then stageBenchmark true
   else CedarPooSpec.Manifests.run args true
   stderr.putStrLn (Lean.Json.mkObj [
     ("observation", Lean.toJson "native-main-return"), ("success", Lean.toJson true),

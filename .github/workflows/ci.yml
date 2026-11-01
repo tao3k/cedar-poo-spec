@@ -46,6 +46,7 @@ jobs:
       - run: just bench-functional-native | tee .lake/build/resources/functional-native.log
       - run: just bench-catalog-preparation | tee .lake/build/resources/catalog-preparation.log
       - run: just bench-catalog-stages | tee .lake/build/resources/catalog-stages.log
+      - run: just bench-catalog-authorization | tee .lake/build/resources/catalog-authorization.log
       - name: Check benchmark source tree is clean
         run: |
           git diff --exit-code

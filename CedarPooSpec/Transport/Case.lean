@@ -9,6 +9,12 @@ structure PolicySource where
   policies : Policies
   snapshot : SourceSnapshot .policy
   aligned : PolicyJson.policySet policies = .ok snapshot.value
+  identifiers : Thunk { value : Lean.Json // value = Lean.toJson (policies.map Policy.id) } :=
+    Thunk.mk fun _ => ⟨Lean.toJson (policies.map Policy.id), rfl⟩
+
+theorem PolicySource.identifiers_bound (source : PolicySource) :
+    source.identifiers.get.val = Lean.toJson (source.policies.map Policy.id) :=
+  source.identifiers.get.property
 
 /-- Request, entities and response evidence belong to this exact semantic case. -/
 structure Case where
@@ -103,7 +109,7 @@ def Case.fields (input : Case) : Except String (List (String × Lean.Json)) := d
   let response := input.response.get
   return [
     ("name", Lean.toJson input.name), ("revision", Lean.toJson input.revision),
-    ("policy_ids", Lean.toJson (input.policy.policies.map Policy.id)),
+    ("policy_ids", input.policy.identifiers.get.val),
     ("request", request),
     ("expected", Lean.toJson (match response.decision with | .allow => "allow" | .deny => "deny")),
     ("expected_reasons", Lean.toJson response.determiningPolicies.toList),

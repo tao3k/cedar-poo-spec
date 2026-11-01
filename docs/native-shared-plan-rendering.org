@@ -376,3 +376,104 @@ The native 51-entry Rust replay remains byte-identical (SHA-256
 =f2de8a782d2ebeb4acf294e40e96dad8c9dce55391d2c536e07d60fa4c017293=).
 The runtime binary matches the frozen baseline; no Rust algorithm changed.
 Full =just check= and new-head remote CI are separate qualification scopes.
+
+* Authorization/encoding separation and immutable metadata ownership
+
+The next native =stages-authorized= diagnostic forces each existing Case's
+proof-bound response before invoking the same publisher, on the same entries and
+source pools. It traverses 1292 typed Cases per pass; Rust's main 1280-row metrics
+exclude the additional 12 schema-evolution rows, whose independent replay has a
+separate entrypoint. No Case is dropped to reconcile the counters. The ordinary
+benchmark and all earlier samples remain separate and unchanged.
+
+Before optimization, each warm sample records 533764 authorization small
+allocations and 207281 residual publication small allocations. The diagnostic
+traversal adds overhead, so their sum need not equal the earlier unsplit total.
+Authorization accounts for approximately seven tenths of the original publication
+work by this allocation proxy; that does not establish a CPU-time ratio.
+
+Two algorithms address the remaining source/encoding path:
+
+- =PolicyJson.uniqueRecordKeys= checks adjacent ordered String keys without
+  allocating a projected key list or hash table. Its universal kernel theorem
+  equates the result to the original complete =Nodup= decision for arbitrary
+  lists. Unordered inputs retain the original decision, including duplicates.
+  AST records, nested value records and request/entity attributes use this path.
+- A checked =Publication= now owns one lazy, proof-bound policy-identifiers JSON
+  value. Each =Ready.case= shares that exact owner. =PolicySource.identifiers_bound=
+  binds the value to the actual immutable policies. Each request still receives
+  fresh authorization. The independent inline serializer retains its original
+  policy-ID mapping as an oracle. Raw compile-only sources construct their own
+  bound metadata; no process-global lookup or decision cache is added.
+
+The first ordered-key-only diagnostic reduces residual publication small
+allocations from 207281 to 201167 in each of three warm samples. It also has a
+first-use non-win: producer/publication wall spans 52.738/24.104 ms versus the
+baseline's 21.349/10.952 ms. Producer allocation is unchanged, and these separate
+diagnostic process samples do not establish that the producer algorithm slowed.
+All values remain recorded; the retained final candidate also includes shared
+identifiers and must be qualified separately.
+
+** Pre-main waiting evidence
+
+A reanalysis of the preserved owned-child thread observations, without rerunning
+them, checks =TH_STATE_WAITING= against the installed public Darwin SDK (value 3).
+The two long fresh-copy samples have waiting-state prefixes spanning
+1084.424 and 1473.482 ms, at constant observed task CPU counters and 32768 resident
+bytes, against 1147.556 and 1538.858 ms before main. The long hardlink sample has
+a 712.018 ms such prefix against 755.520 ms before main. Their diagnostic import
+initialization spans are only 18.260, 17.929 and 17.109 ms respectively.
+
+These are sampled spans, not proof of uninterrupted sleep: transitions between
+samples can be missed, counters have their own resolution, and thread handles
+are not unique identities. They support a startup waiting diagnosis rather than
+attributing these long spans to executing the Lean Program preparation loop.
+They do not identify the awaited kernel object or service. Previous =dyld_start=
+stacks and empty exact-owned log queries remain qualified evidence; no exclusive
+Gatekeeper/signature/inode cause is claimed and no security setting is changed.
+
+** Complete candidate observations
+
+The final candidate keeps all first-use and three warm samples. Authorization
+remains 533765/533764/533764/533764 small allocations. Residual publication is
+271772 on first use and 188273 in each warm sample, versus baseline
+289750 and 207281. Producer small allocations increase from 800102 to 800308
+on first use and from 172648 to 172678 on every warm sample. Final framing and
+rendering counts remain unchanged. Net phase-counted small allocations decrease
+17772 on first use and 18978 on each warm sample; these are not allocator bytes.
+The added retained metadata has its immutable Publication/Program lifetime.
+
+Ordinary native preparation+serialization spans are 27.990/27.624/30.144 ms
+before and 25.895/26.432/27.038 ms after (one warmup, three fixed samples each).
+The separate authorized diagnostic retains rendering non-wins: 16.353/6.596/9.794
+ms after versus 6.554/6.215/6.421 ms before. Diagnostic intervention and ordinary
+latency must not be conflated. Whole native benchmark process CPU is 0.18 user /
+0.03 system seconds before and 0.16 / 0.03 after at the OS's reported precision;
+RSS is 58736640 versus 58753024 bytes, a 16384-byte non-win.
+
+The original complete local gate passes in 773.858 s: Examples/Tests, full
+=just check=, all five native targets under the original 120-second limit and
+release bridge build. Measured source/dependency identities remain unchanged
+during qualification; =CARGO_BUILD_JOBS= is unset. All-domain types, Contracts,
+proofs, both replay workflows and negative controls remain admitted.
+The subsequent ordinary cohort has 48 native children and 15 complete wire
+comparisons, all successful. Sequential producer+Rust replay wall spans are
+2340.518/262.330/269.175 ms before and 2198.380/555.174/256.714 ms after.
+Their CPU sums are 240/240/240 ms before and 250/320/220 ms after. Maximum child
+RSS is 50675712/50495488/50659328 before and 50479104/50495488/50462720 bytes after.
+These peaks are maxima of sequential children, not sums or retained-memory bounds.
+The second pair is an explicit complete-process non-win; no stable application
+speedup is claimed.
+
+In that pair, the Rust replay stage is 454.326 ms after versus 169.598 ms before,
+with 730 versus 62 involuntary context switches and 240 versus 160 ms user CPU.
+Both Rust executable bytes and complete catalog input bytes are identical.
+This unchanged-code control locates most of this pair's wall regression in the
+Rust stage; it does not identify an exclusive scheduler, allocator or kernel
+cause. Lean encoder gains alone cannot remove that independent variability.
+
+The preceding baseline revision's [[https://github.com/hardenedlinux/cedar-poo-spec/actions/runs/41327182134][four-job semantic/native CI]] and
+[[https://github.com/hardenedlinux/cedar-poo-spec/actions/runs/41327182168][both platform rendering jobs]] pass. Downloaded native logs contain all 832
+stage measurements (416 timing and 416 small-allocation counts), the unchanged
+nine ordinary measurements and full-production-wire equality. Final-candidate
+remote CI is a separate required receipt; baseline CI is not reused as its pass.
