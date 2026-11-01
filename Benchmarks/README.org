@@ -33,7 +33,9 @@ and allocation-instrumented samples remain separate from ordinary latency.
 =just bench-catalog-preparation= builds the existing =manifestLifecycleNative=
 Lake executable and runs its =benchmark= mode directly. Lean owns the actual
 51-entry typed catalog, one warmup, three fixed samples, preparation/serialization
-clocks and complete-output equality. It emits nine official =measurement:= lines
+clocks and complete-output equality. The =total= observation covers preparation
+and serialization; equality, cleanup, output and pre-main remain separate from
+that span. It emits nine official =measurement:= lines
 plus the entry/byte/checksum inventory. The helper takes the actual entries as a
 runtime argument, preventing closed catalog work from becoming module initialization.
 

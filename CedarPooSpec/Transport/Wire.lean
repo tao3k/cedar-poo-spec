@@ -91,6 +91,19 @@ def EncodedJson.array (items : List EncodedJson) : EncodedJson :=
       by simpa only [Thunk.get, semantics, renderings, List.map_map, Function.comp_def, EncodedJson.chunks, EncodedJson.value] using
         JsonEncoding.array _ _ (fragments items)⟩
 
+
+/-- Batch homogeneous native Case rows through one standard JSON work queue.
+Policy/entity sources remain separately streamed and are not duplicated here. -/
+def EncodedJson.nativeArray (rows : Array Lean.Json) : EncodedJson :=
+  EncodedJson.native (.arr rows)
+
+/-- Batching preserves the complete ordered semantic array for arbitrary rows. -/
+theorem EncodedJson.nativeArray_value (rows : Array Lean.Json) :
+    (EncodedJson.nativeArray rows).value =
+      (EncodedJson.array (rows.toList.map EncodedJson.native)).value := by
+  simp [nativeArray, native, array, value, Thunk.get, Thunk.pure,
+    List.map_map, Function.comp_def]
+
 def EncodedJson.object (fields : List (String × EncodedJson))
     (unique : (fields.map Prod.fst).Nodup) : EncodedJson :=
   let keys := fields.map Prod.fst

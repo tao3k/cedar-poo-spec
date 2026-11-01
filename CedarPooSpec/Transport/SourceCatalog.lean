@@ -38,9 +38,9 @@ private def manifest (value : Manifest) : Encode EncodedJson := do
     if let some prior := bindings[revision]? then
       unless prior = policy.index do throw s!"conflicting source for revision: {revision}"
     bindings := bindings.insert revision policy.index
-    rows := rows.push (EncodedJson.nativeObject ((← row.fields) ++ [
+    rows := rows.push (Lean.Json.mkObj ((← row.fields) ++ [
       ("policy_ref", Lean.toJson policy.index), ("entities_ref", Lean.toJson entities.index)]))
-  let mut fields := [("cases", EncodedJson.array rows.toList),
+  let mut fields := [("cases", EncodedJson.nativeArray rows),
     ("revision_sources", EncodedJson.nativeObject (bindings.toList.map fun (key, index) => (key, Lean.toJson index)))]
   if let some schema := value.schema then
     let ref ← schemaRef schema
