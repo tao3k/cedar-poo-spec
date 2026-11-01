@@ -1,4 +1,5 @@
 use super::CatalogSources;
+use cedar_poo_core::JsonSourceIdentity;
 use serde_json::{Value, json};
 use std::ops::Deref;
 fn source() -> Value {
@@ -121,4 +122,29 @@ fn schema_reference_cannot_be_stripped_or_merged_into_raw_manifest() {
             .unwrap_err()
             .contains("out of bounds")
     );
+}
+
+#[test]
+fn entity_uniqueness_remains_exact_even_when_all_fingerprints_collide() {
+    let values = [
+        json!([]),
+        json!({"x":0.0}),
+        json!({"x":-0.0}),
+        json!({"x":1}),
+        json!({"x":true}),
+        json!({"x":"雪"}),
+        json!([{"x":1},{"x":2}]),
+    ];
+    for a in &values {
+        for b in &values {
+            let sources = [
+                serde_json::from_value(a.clone()).unwrap(),
+                serde_json::from_value(b.clone()).unwrap(),
+            ];
+            assert_eq!(
+                super::unique_entities_by(&sources, |_| 0).is_err(),
+                a.encode_source().unwrap() == b.encode_source().unwrap()
+            );
+        }
+    }
 }

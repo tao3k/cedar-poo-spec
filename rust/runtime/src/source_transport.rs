@@ -1,8 +1,77 @@
 //! Bulk source-table wire contracts. Full sources are owned once, never admission.
 use crate::{Case, Manifest, RequestInput, SchemaEvolutionBundle, ValidatedManifest};
-use cedar_poo_core::{CompiledPolicyJson, EntitySourceJson, SchemaSourceJson};
+use cedar_poo_core::{CompiledPolicyJson, EntitySourceJson, JsonSourceIdentity, SchemaSourceJson};
 use serde::Deserialize;
-use std::collections::{BTreeMap, BTreeSet};
+use serde_json::Value;
+use std::collections::{BTreeMap, BTreeSet, HashSet, hash_map::RandomState};
+use std::hash::{BuildHasher, Hash, Hasher};
+use std::ops::Deref;
+
+// Ordered structural fingerprinting allocates no encoded JSON. Fingerprints
+// only select candidates; full exact source equality always decides uniqueness.
+fn hash_source(value: &Value, state: &mut impl Hasher) {
+    match value {
+        Value::Null => state.write_u8(0),
+        Value::Bool(v) => {
+            state.write_u8(1);
+            v.hash(state);
+        }
+        Value::Number(v) => {
+            state.write_u8(2);
+            v.hash(state);
+        }
+        Value::String(v) => {
+            state.write_u8(3);
+            v.hash(state);
+        }
+        Value::Array(items) => {
+            state.write_u8(4);
+            items.len().hash(state);
+            for item in items {
+                hash_source(item, state);
+            }
+        }
+        Value::Object(fields) => {
+            state.write_u8(5);
+            fields.len().hash(state);
+            for (key, value) in fields {
+                key.hash(state);
+                hash_source(value, state);
+            }
+        }
+    }
+}
+struct EntitySourceKey<'a> {
+    source: &'a Value,
+    fingerprint: u64,
+}
+impl PartialEq for EntitySourceKey<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.source.same_source(other.source)
+    }
+}
+impl Eq for EntitySourceKey<'_> {}
+impl Hash for EntitySourceKey<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.fingerprint.hash(state);
+    }
+}
+fn unique_entities_by(
+    sources: &[EntitySourceJson],
+    fingerprint: impl Fn(&Value) -> u64,
+) -> Result<(), String> {
+    let mut index = HashSet::with_capacity(sources.len());
+    for source in sources {
+        let value = source.deref();
+        if !index.insert(EntitySourceKey {
+            source: value,
+            fingerprint: fingerprint(value),
+        }) {
+            return Err("duplicate source definition".into());
+        }
+    }
+    Ok(())
+}
 
 /// Kind-separated complete bulk sources; resolving a reference performs no Cedar admission.
 #[derive(Deserialize)]
@@ -147,7 +216,12 @@ impl CatalogSources {
             Ok(())
         }
         unique(self.policies.iter().map(|v| v.source_identity()))?;
-        unique(self.entities.iter().map(|v| v.source_identity()))?;
+        let seed = RandomState::new();
+        unique_entities_by(&self.entities, |source| {
+            let mut state = seed.build_hasher();
+            hash_source(source, &mut state);
+            state.finish()
+        })?;
         unique(self.schemas.iter().map(|v| v.source_identity()))?;
         Ok(())
     }

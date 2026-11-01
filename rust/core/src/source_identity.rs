@@ -6,7 +6,7 @@ fn same_json_source(left: &Value, right: &Value) -> bool {
     }
     match (left, right) {
         (Value::Number(a), Value::Number(b)) if a.is_f64() && b.is_f64() => {
-            a.as_f64().map(f64::to_bits) == b.as_f64().map(f64::to_bits)
+            a == b && a.as_f64().map(f64::to_bits) == b.as_f64().map(f64::to_bits)
         }
         (Value::Array(a), Value::Array(b)) => {
             a.len() == b.len() && a.iter().zip(b).all(|(x, y)| same_json_source(x, y))

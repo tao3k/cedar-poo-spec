@@ -86,7 +86,13 @@ impl<'schema, 'input> EntitySlot<'schema, 'input> {
                 Entities::from_json_value((**source).clone(), self.schema)
                     .map_err(|error| error.to_string())?
             } else {
-                match Entities::from_json_str(source.source_identity()?, self.schema) {
+                // Retain the SDK result, not its intermediate wire. The scoped
+                // encoding also retires before an original-diagnostic reparse.
+                let result = {
+                    let wire = source.encode_source()?;
+                    Entities::from_json_str(&wire, self.schema)
+                };
+                match result {
                     Ok(parsed) => parsed,
                     Err(_) => {
                         if let Some(stats) = metrics.as_deref_mut() {
