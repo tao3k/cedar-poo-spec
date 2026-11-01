@@ -47,6 +47,12 @@ Python supplies only external process/resource observations. CI publishes native
 logs and observation files directly. Additional tar.gz evidence bundles are not a
 benchmark entrypoint or a required deliverable; no new archival step is introduced.
 
+Schema source identity now travels through one immutable owner from the source
+table through finite-use planning, typed manifest and SDK preparation. Native
+counters still require every original first parse, strict validation and both
+authorizers. Shared ownership alone is not evidence of a timing or RSS gain;
+retain all fixed samples and byte-identical control images when interpreting it.
+
 * Generated measurements and CI artifacts
 
 Write measurement logs, raw stdout/stderr, CSV and resource receipts under ignored
