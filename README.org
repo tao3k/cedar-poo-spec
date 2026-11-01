@@ -13,19 +13,17 @@ requests, then checks exported cases with the official Rust Cedar authorizer.
 The canonical repository is [[https://github.com/hardenedlinux/cedar-poo-spec][hardenedlinux/cedar-poo-spec]].
 =tao3k/cedar-poo-spec= is a mirror.
 
-* Model-driven engineering views
+* Architecture views
 
-[[file:dev/README.org][Development rendering]] connects native Lean catalog JSON to
-[[file:dev/sysml/lean-catalog.sysml][SysML]], the actual OpenSysML SDK and the deterministic-engineering
-Render Library. D2 declares Questions, captions, icons and layout choices;
-identities and topology come from the SDK. Expectations remain test data,
-not issued authorization decisions.
+Zero Trust is an important Component of the shared Cedar model. Applications
+compose it with Authorization and other Components; it does not subsume
+LeanPoo, Cedar semantics or the vertical libraries.
 
-[[file:dev/d2/security-frameworks.png]]
+[[file:dev/d2/architecture-overview.png]]
 
-[[file:dev/d2/lean-catalog.png][Native catalog overview]] ·
-[[file:dev/d2/security-frameworks.d2][D2 source]] ·
-[[file:dev/sysml/security-frameworks.sysml][Architecture model]]
+[[file:dev/d2/architecture-overview.svg][Architecture SVG]] · [[file:dev/d2/model-components.png][Component inventory]] ·
+[[file:dev/d2/verticals-platforms.png][Vertical controls and platform projections]] ·
+[[file:dev/README.org][Model sources and rendering]]
 
 * Architecture and ownership
 

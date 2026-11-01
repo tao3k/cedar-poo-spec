@@ -20,12 +20,12 @@ vars: {d2-config: {data: {figure: |json
     "obligationRefs": [],
     "evidenceRefs": []
   },
-  "title": "Reusable security. Application-owned effects.",
+  "title": "Zero Trust Component: requirements and interpretation",
   "kind": "responsibility-map",
   "questions": [
     {
       "ref": "purpose",
-      "text": "How do reusable frameworks reach applications without importing them?",
+      "text": "How does the Zero Trust Component retain requirements in selected consumers?",
       "focusRefs": [
         "sysml",
         "lean"
@@ -35,10 +35,10 @@ vars: {d2-config: {data: {figure: |json
   "references": {
     "source": "dev/d2/security-frameworks.d2",
     "sysml": "dev/sysml/security-frameworks.sysml",
-    "lean": "CedarPooSpec/ZeroTrust/Model.lean"
+    "lean": "CedarPooSpec/ZeroTrust/ProfileObject.lean"
   },
   "copy": {
-    "description": "Framework requirements and Policy assessment stay reusable; applications specialize their actual use.",
+    "description": "This is the Zero Trust Component detail, not the repository architecture or a map of vertical industries.",
     "status": "Logical specification handoffs; this diagram is not an import proof or an authorization decision."
   },
   "presentation": {
@@ -78,11 +78,11 @@ vars: {d2-config: {data: {figure: |json
 }
 |
 }}}
-core: "Zero Trust functional core\nPre / ongoing authorization\nConditions and witnessed obligations\nMutable observations and refinement"
+core: "ZeroTrust functional requirements\nPre / ongoing use and obligations\nImmutable observations and refinement"
 authorization: "Authorization framework\nCedar Policy composition\nSchema-bound Delta analysis\nRevision and evidence contracts"
-poo: "Generic POO interpretation\nOriginal root as type index\nRequired parent + selected Sessions\nConjoin retained requirements"
-gateway: "Gateway specialization\nIdentity / facts / original profile\nPE / PA / PEP application roles\nCurrent use and retained consumption"
-other: "Other application specializations\nArtifact access / workflow effects\nIdentity / protected channels / facts\nRecovery and final mediation"
+poo: "ZeroTrust.ProfileObject\nOptional LeanPoo interpretation\nRequired + selected Sessions\nRetains the original requirement"
+gateway: "Gateway.ZeroTrust adapter\nGateway-specific effect binding\nCurrent use and retained consumption"
+other: "Other downstream integrations\nApplication-owned effects and views\nNo generic industry implementation"
 core -> poo: Functional requirements
 poo -> other: Typed specialization
 poo -> gateway: Actual inherited profile

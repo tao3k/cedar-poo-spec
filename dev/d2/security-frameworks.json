@@ -1,13 +1,16 @@
 {
   "sources": {
-    "CedarPooSpec/Transport/SourceCatalog.lean": "8ad7f7b90234b165e6b8da743de6ee77ff21c75a2e24280a0263ae20e4af7c19",
-    "CedarPooSpec/ZeroTrust/Model.lean": "bf9827dc36c52cfc41f63fd1ee9ff83b325972c41504b41444e2134d635519a2",
+    "CedarPooSpec/Transport/SourceCatalog.lean": "6a558ed2d6191b9e0264a43d7fdf8c508102f475e01048c76fb9c541a9100c22",
+    "CedarPooSpec/ZeroTrust/ProfileObject.lean": "5b78e3ea7c418c0dd44339f8c05dcad659a4f1763313be32768ee3a589c57580",
     "dev/.generated/lean-catalog.json": "c6856fdb9e8b2d36407b8605756659e8a1c02fca09ce628bc41c845f0e376657",
     "dev/.generated/security-frameworks-sdk.json": "2021c0471e10263855ebf35a954c6c17720c84054c8dee7aaaa8140f19213a9f",
     "dev/bun.lock": "24ae62404f675c395c3890562d805dcba2024b3dd54a6a7981d5a8e36c37f5d1",
     "dev/catalog.ts": "2f201bb5b793a16c9b2e3766736522c16106e42c1cb15675cbc3be472b4a1463",
-    "dev/d2/lean-catalog.d2": "b3c00fe704ee803e493dbcf1200150a9ef599fbb96655cd7d70755fd42182182",
-    "dev/d2/security-frameworks.d2": "dcd789eb56fefa31dadfe849e6c13f96c2c725e4d6e3c3b20b318e568838ce83",
+    "dev/d2/architecture-overview.d2": "040b9de8acb2b8ef9780b231f4dd171f74f856ea21b0c0614597383c560c3c6f",
+    "dev/d2/lean-catalog.d2": "5d4f1b2be11e2122e7750a08d663ae08b88f5c3265fca351514a6f31c7af1249",
+    "dev/d2/model-components.d2": "bd1f5e867012261c03c011e9f3f2f60ba5acfa112a27b2cc6354c4a16e0bd91f",
+    "dev/d2/security-frameworks.d2": "901fd692144ac61c02293a965bde1deb95e38073ab7cdc8db9b4491d7689de1c",
+    "dev/d2/verticals-platforms.d2": "e81ccf945900c7a6fa0ffc08aca2119d8ea23245db03a2e576b08d27f2b10e03",
     "dev/Justfile": "df6448e818ae789666b1a608a24ba9ca18a25b3ff11ca2bf64b0eb35e4e563d5",
     "dev/package.json": "d861ed19512d396cec7a13b9b8e95b2d3400bbc6828ef7b0540784cf65a57df5",
     "dev/projection.ts": "a3cb1b3b01fd17b8abbb648fd327bad1a7c889775292028f41f0e1336cd8381f",
@@ -32,48 +35,48 @@
         "x": 0,
         "y": 0,
         "width": 1120,
-        "height": 964.984375
+        "height": 900.984375
       },
       "subjects": [
         {
           "id": "n0",
           "role": "default",
-          "x": 291.6650390625,
-          "y": 180.19003295898438,
-          "width": 287.1494140625,
-          "height": 152.00656127929688
+          "x": 259.50030517578125,
+          "y": 180.18995666503906,
+          "width": 338.31951904296875,
+          "height": 121.87437438964844
         },
         {
           "id": "n1",
           "role": "default",
-          "x": 635.8312377929688,
-          "y": 369.57427978515625,
-          "width": 263.85052490234375,
-          "height": 151.49273681640625
+          "x": 630.3311767578125,
+          "y": 337.57452392578125,
+          "width": 263.84954833984375,
+          "height": 151.49221801757812
         },
         {
           "id": "n2",
           "role": "default",
-          "x": 293.80267333984375,
-          "y": 369.75537109375,
-          "width": 278.53118896484375,
-          "height": 147.84033203125
+          "x": 302.1366882324219,
+          "y": 337.755615234375,
+          "width": 253.60073852539062,
+          "height": 147.83984375
         },
         {
           "id": "n3",
           "role": "default",
-          "x": 572.7710571289062,
-          "y": 558.41259765625,
-          "width": 289.76763916015625,
-          "height": 148.0712890625
+          "x": 567.2711791992188,
+          "y": 526.4122314453125,
+          "width": 289.76666259765625,
+          "height": 116.3739013671875
         },
         {
           "id": "n4",
           "role": "default",
-          "x": 224.17587280273438,
-          "y": 558.619384765625,
-          "width": 325.4455871582031,
-          "height": 148.24810791015625
+          "x": 229.6768798828125,
+          "y": 526.6090087890625,
+          "width": 314.44476318359375,
+          "height": 116.271240234375
         }
       ],
       "relations": [
@@ -107,63 +110,63 @@
         {
           "role": "heading",
           "x": 20,
-          "y": 743.984375,
+          "y": 679.984375,
           "width": 532,
           "height": 31
         },
         {
           "role": "note",
           "x": 20,
-          "y": 778.984375,
+          "y": 714.984375,
           "width": 532,
           "height": 27
         },
         {
           "role": "heading",
           "x": 568,
-          "y": 743.984375,
+          "y": 679.984375,
           "width": 532,
           "height": 31
         },
         {
           "role": "note",
           "x": 568,
-          "y": 778.984375,
+          "y": 714.984375,
           "width": 532,
           "height": 27
         },
         {
           "role": "heading",
           "x": 20,
-          "y": 825.984375,
+          "y": 761.984375,
           "width": 532,
           "height": 31
         },
         {
           "role": "note",
           "x": 20,
-          "y": 860.984375,
+          "y": 796.984375,
           "width": 532,
           "height": 27
         },
         {
           "role": "heading",
           "x": 568,
-          "y": 825.984375,
+          "y": 761.984375,
           "width": 532,
           "height": 31
         },
         {
           "role": "note",
           "x": 568,
-          "y": 860.984375,
+          "y": 796.984375,
           "width": 532,
           "height": 27
         },
         {
           "role": "note",
           "x": 20,
-          "y": 907.984375,
+          "y": 843.984375,
           "width": 1080,
           "height": 27
         }
@@ -175,24 +178,24 @@
     },
     "readability": {
       "minimumTextSize": 12,
-      "samples": 33,
+      "samples": 30,
       "requiredMinimum": 12
     },
-    "inputSHA256": "b8cf251478098e4671b30b2b728181ce8b4303db168947a75157358258c69f79",
+    "inputSHA256": "b66fbb0b46972762e159fb70b168ac4c2a7f6b207932c1ffc718fc05c8668c22",
     "scenes": [
       {
-        "inputSHA256": "02801a27d08e85688aab842f70be0c2914250cf2ad15a952fd85c6d8aec847f9",
-        "layoutSHA256": "f5274620dd2bb3d18860de0fc610bc481145420c9100825110556f5a7ad7a7d0",
+        "inputSHA256": "75517e118c4c919af36c800fe94379b54024bdac668ba87a4c5d30d50935bacb",
+        "layoutSHA256": "4a432db44828e657def2d85df373b3adedde9ad127445b9de43d034751d4dda0",
         "nodes": 5,
         "edges": 4,
-        "milliseconds": 173.18891699999995
+        "milliseconds": 468.87762499999917
       }
     ],
     "svgSHA256": [
-      "7ee9d7e3f3516e50e6b2d4bfe43317eee9e2eb572b9b4d5e80eccb5d96f1dd82",
-      "667729dca0fe5c9c5e22b2e5ec0cf8437413e7078365dc5768d6bff9a5b3178f"
+      "3e2869d0a6a8570d93fc86d88a8225d41ac0d95f235cbc118c4d79fa126422bc",
+      "814a2af3255f5a4cebda87bc26b2856855523b4ac308fdff73326a7249826f51"
     ],
-    "composedHTMLSHA256": "b81d51077c2a568a759481faa435c11ac1f8a7a2fcb71208bfdc232afa83dac2",
+    "composedHTMLSHA256": "661c297780da212e6c51f900258e4cb55d9f1942437b7ca266f981d149af1933",
     "dependencies": {
       "@fontsource/inter": "5.3.0",
       "@fontsource/kalam": "5.3.0",
@@ -205,17 +208,17 @@
       "web-worker": "1.5.0"
     },
     "regionSHA256": {},
-    "htmlSHA256": "6b84c2b819879841dca02570120718602e406cd87f72bb08166ccf0043961d7c",
+    "htmlSHA256": "fe259a02589c311337dda99b3b00008962eaf782ee93675f2a4e7e4706069f83",
     "drawing": "roughjs@4.6.6",
     "routing": "elkjs@0.12.1",
     "assetSHA256": {
       "@fontsource/kalam/files/kalam-latin-400-normal.woff2": "954410601a823f37e219f7930b7446f86afa15621326a7078d56fb9c910135cb",
       "@fontsource/kalam/files/kalam-latin-700-normal.woff2": "252063af6ade8b9a744cde4ddad0fc21ea53b8ba711eed121a0c2e8610ea9c93"
     },
-    "pngSHA256": "98c668f1d930b3da78cfdb24daef60301641f04f6b6798cf2433db8bb5adce9d",
+    "pngSHA256": "1021d88c2244b888d8cd819c10f0b2dd585c333cff3d453cb64866a4518756c2",
     "browser": "156.0.8078.4",
     "width": 1680,
-    "height": 1448,
+    "height": 1352,
     "scale": 1.5,
     "bounds": {}
   },
@@ -368,7 +371,7 @@
   },
   "binaries": {
     "dev/vendor/render-d000902.tgz": "abd7bcba27ba23d0260c65534c897e902fd4c814c1e4fbf8704c87429804b44c",
-    ".lake/build/bin/caseManifestsNative": "0fd6d670907ea9cab5dfa99d1dadd94f57246709f044ac108f69d5632ce4f810"
+    ".lake/build/bin/caseManifestsNative": "038918d3292cc60fc4415948e4ab2df4e4c16db12d3473a9bfdab57a9c786f6c"
   },
   "rendererArchiveSHA256": "abd7bcba27ba23d0260c65534c897e902fd4c814c1e4fbf8704c87429804b44c"
 }

@@ -35,6 +35,29 @@ measurement, ELK layout, Rough.js strokes and PNG/SVG/HTML exports. Long connect
 labels become a readable source-bound legend; actual text must remain at least
 12 CSS pixels. This local condition does not assert aesthetic acceptance.
 
+* Distinct model scopes
+
+The project architecture is compositional. Zero Trust is an important model
+Component, alongside Authorization and other reusable capabilities. The optional
+=ZeroTrust.ProfileObject= interpreter is not the LeanPoo foundation.
+
+| View | Scope |
+|------+-------|
+| [[file:d2/architecture-overview.png][Architecture overview]] | Foundations, shared model, selected Components, consumers and Host responsibilities. |
+| [[file:d2/model-components.png][Model Components]] | Reusable library families; no requirement that every profile selects every Component. |
+| [[file:d2/verticals-platforms.png][Verticals and platforms]] | Actual healthcare/financial-services controls and separate AWS/Google projections. |
+| [[file:d2/security-frameworks.png][Zero Trust detail]] | The Component's functional requirements and optional interpreters. |
+| [[file:d2/lean-catalog.png][Transport inventory]] | Native manifest forms/counts, not an industry classification. |
+
+=architecture.sysml= authors ownership/composition relationships and binds them
+to the referenced Lean/module documentation. The SDK verifies that the generated
+view matches that model; this alone cannot prove the model is architecturally
+correct. Regression checks require Zero Trust's Component role and a distinct
+source-bound subject for every current Vertical and Platform directory.
+The existing Lean import audit independently enforces Library/Production isolation.
+Vehicle, procurement and other example families are not silently promoted into
+implemented generic vertical libraries. Their domain facts remain with the cases.
+
 * Native commands
 Run from the repository root:
 #+begin_src sh
@@ -71,10 +94,10 @@ this development path. The module README displays the new PNG and links its mode
 and D2. Existing topology and the four original relation captions remain checked.
 Git history retains the old source; there is no active RAW renderer fallback.
 
-* Actual cases
-[[file:d2/security-frameworks.png]]
+* Views
 
-[[file:d2/lean-catalog.png]]
+See the scoped views above. PNG, SVG, SysML and D2 sources live together under
+=dev/=; the root README embeds only the project architecture overview.
 
 * Licensing
 Cedar remains Apache-2.0, with its existing Cedar and Faré / POOF credits unchanged.

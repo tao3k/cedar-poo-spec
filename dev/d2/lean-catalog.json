@@ -1,12 +1,15 @@
 {
   "sources": {
-    "CedarPooSpec/Transport/SourceCatalog.lean": "8ad7f7b90234b165e6b8da743de6ee77ff21c75a2e24280a0263ae20e4af7c19",
+    "CedarPooSpec/Transport/SourceCatalog.lean": "6a558ed2d6191b9e0264a43d7fdf8c508102f475e01048c76fb9c541a9100c22",
     "dev/.generated/lean-catalog-sdk.json": "753379a05389491ce2c0871239106ba5422fb279c6b12de9670bf05273456abf",
     "dev/.generated/lean-catalog.json": "c6856fdb9e8b2d36407b8605756659e8a1c02fca09ce628bc41c845f0e376657",
     "dev/bun.lock": "24ae62404f675c395c3890562d805dcba2024b3dd54a6a7981d5a8e36c37f5d1",
     "dev/catalog.ts": "2f201bb5b793a16c9b2e3766736522c16106e42c1cb15675cbc3be472b4a1463",
-    "dev/d2/lean-catalog.d2": "b3c00fe704ee803e493dbcf1200150a9ef599fbb96655cd7d70755fd42182182",
-    "dev/d2/security-frameworks.d2": "dcd789eb56fefa31dadfe849e6c13f96c2c725e4d6e3c3b20b318e568838ce83",
+    "dev/d2/architecture-overview.d2": "040b9de8acb2b8ef9780b231f4dd171f74f856ea21b0c0614597383c560c3c6f",
+    "dev/d2/lean-catalog.d2": "5d4f1b2be11e2122e7750a08d663ae08b88f5c3265fca351514a6f31c7af1249",
+    "dev/d2/model-components.d2": "bd1f5e867012261c03c011e9f3f2f60ba5acfa112a27b2cc6354c4a16e0bd91f",
+    "dev/d2/security-frameworks.d2": "901fd692144ac61c02293a965bde1deb95e38073ab7cdc8db9b4491d7689de1c",
+    "dev/d2/verticals-platforms.d2": "e81ccf945900c7a6fa0ffc08aca2119d8ea23245db03a2e576b08d27f2b10e03",
     "dev/Justfile": "df6448e818ae789666b1a608a24ba9ca18a25b3ff11ca2bf64b0eb35e4e563d5",
     "dev/package.json": "d861ed19512d396cec7a13b9b8e95b2d3400bbc6828ef7b0540784cf65a57df5",
     "dev/projection.ts": "a3cb1b3b01fd17b8abbb648fd327bad1a7c889775292028f41f0e1336cd8381f",
@@ -116,21 +119,21 @@
       "samples": 15,
       "requiredMinimum": 12
     },
-    "inputSHA256": "e2a74f8707e9166e9e6226364c5e364c3fc539611d794011e4a475cf23f50360",
+    "inputSHA256": "4347fc92e1b73ea0fedf58dd8737113150e009b5c79e6f9627c9ad1f9c429c74",
     "scenes": [
       {
         "inputSHA256": "b82c75dbd14a51b3f16fca7a2f47aa2d4b03f7dfeabd7a73dd998da2b0bd5780",
         "layoutSHA256": "a221a5e4f7349068f8701046972ce793ab445e84da6753666a375097cdd42d80",
         "nodes": 5,
         "edges": 0,
-        "milliseconds": 117.7631250000004
+        "milliseconds": 228.77820900000006
       }
     ],
     "svgSHA256": [
-      "a6f6190d91121f1c9e4f09db7d35490073c32da52243aa4ee44450ca735d8f47",
-      "b20b12e2979b38e80c26ca3b9d6aa2a2971f61fdb6f5957d7a189135ff408859"
+      "f934d4e500eb1d49f2d933594ec4cb7546afe4eb2e82d85b20eadc3ebe3f8d4b",
+      "2bba8ad7741dd2f690377128044235869511e92e8aa3ae5e0a648562ac01dbc0"
     ],
-    "composedHTMLSHA256": "961e9b7dd339c248e8e6cf30e5faf256b9df04c39830cd4e9137d0d48c59e58f",
+    "composedHTMLSHA256": "374a3bf1356073b97f48e3a1b0686aa47ad4f43b5b88a9730683d788c2b79f9b",
     "dependencies": {
       "@fontsource/inter": "5.3.0",
       "@fontsource/kalam": "5.3.0",
@@ -143,14 +146,14 @@
       "web-worker": "1.5.0"
     },
     "regionSHA256": {},
-    "htmlSHA256": "9c48061006ab65a4d211693260c0593cd0a8a0beb09d93d6eba81771f7b5dffd",
+    "htmlSHA256": "2be22908c39309fdbed0a8c4ff36094887a646b6e41ec2fb1eecd8c6ca1171b8",
     "drawing": "roughjs@4.6.6",
     "routing": "elkjs@0.12.1",
     "assetSHA256": {
       "@fontsource/kalam/files/kalam-latin-700-normal.woff2": "252063af6ade8b9a744cde4ddad0fc21ea53b8ba711eed121a0c2e8610ea9c93",
       "@fontsource/kalam/files/kalam-latin-400-normal.woff2": "954410601a823f37e219f7930b7446f86afa15621326a7078d56fb9c910135cb"
     },
-    "pngSHA256": "29d8fa201013becf6618c416288fb05b4416388ecf4fa45ef9875fdccafc63f3",
+    "pngSHA256": "1435283ba003c24f8adfe6c4a56b1cfddaddbb5b604a69f2362be63cde9173b1",
     "browser": "156.0.8078.4",
     "width": 1680,
     "height": 845,
@@ -262,7 +265,7 @@
   },
   "binaries": {
     "dev/vendor/render-d000902.tgz": "abd7bcba27ba23d0260c65534c897e902fd4c814c1e4fbf8704c87429804b44c",
-    ".lake/build/bin/caseManifestsNative": "0fd6d670907ea9cab5dfa99d1dadd94f57246709f044ac108f69d5632ce4f810"
+    ".lake/build/bin/caseManifestsNative": "038918d3292cc60fc4415948e4ab2df4e4c16db12d3473a9bfdab57a9c786f6c"
   },
   "rendererArchiveSHA256": "abd7bcba27ba23d0260c65534c897e902fd4c814c1e4fbf8704c87429804b44c"
 }

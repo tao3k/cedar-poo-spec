@@ -4,12 +4,21 @@
 #+TITLE: Zero Trust Functional and POO Framework
 #+LANGUAGE: en
 
+* Component scope
+
+Zero Trust is one important Component of the shared Cedar model, alongside
+Authorization and other reusable capabilities. This detail view illustrates its
+functional requirements and optional =ProfileObject= interpretation. It does
+not place the LeanPoo foundation underneath Zero Trust or classify industries.
+See the [[file:../../dev/d2/architecture-overview.png][project architecture]], [[file:../../dev/d2/model-components.png][Component inventory]] and
+[[file:../../dev/d2/verticals-platforms.png][vertical/platform inventory]] for those distinct scopes.
+
 * Module ownership
 
 #+NAME: fig:zero-trust-framework
-#+CAPTION: Functional security frameworks and application-owned POO specialization.
+#+CAPTION: Zero Trust Component detail: functional requirements and optional POO interpretation.
 #+ATTR_ORG: :width 1200
-#+ATTR_HTML: :width 100% :alt Generic Zero Trust framework and application specializations
+#+ATTR_HTML: :width 100% :alt Zero Trust Component detail, not a repository architecture diagram
 [[file:../../dev/d2/security-frameworks.png]]
 
 [[file:../../dev/sysml/security-frameworks.sysml][SysML model]] · [[file:../../dev/d2/security-frameworks.d2][D2 presentation]] · [[file:../../dev/d2/security-frameworks.svg][SVG export]] · [[file:../../dev/README.org][Lean / SysML / renderer development path]]
