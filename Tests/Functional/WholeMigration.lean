@@ -21,7 +21,9 @@ theorem compiled_all_exact (model : PolicyModules.Model) (root : String)
     (requests : List Request) (entities : Entities) :
     (Functional.compilation model).authorize root requests entities =
       referenceAll model root requests entities := by
-  unfold Functional.Compilation.authorize Functional.compilation Authorization.Compound.authorizeAllWith
+  unfold Functional.Compilation.authorize
+  rw [Functional.compilation_eq]
+  unfold Authorization.Compound.authorizeAllWith
   unfold PolicyPreparation.compile referenceAll
   split <;> rename_i first
   all_goals split <;> rename_i second

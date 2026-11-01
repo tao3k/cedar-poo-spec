@@ -112,7 +112,7 @@ def roots : List String :=
     "ChannelGoverned", "MemoryRemoved", "ChannelIncident", "ChannelRecovered"]
 
 def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard model schema roots).toOption.get
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard model schema roots
       (by native_decide)
 
 inductive Payload where
@@ -139,8 +139,11 @@ def request (envelope : Envelope) : Request :=
     ("patientMatches", .prim (.bool envelope.patientMatches)),
     ("delegationActive", .prim (.bool envelope.delegationActive))]⟩
 
-def admitted (root : String) (envelope : Envelope) : Bool :=
-  match program.authorize root [request envelope] entities with
+def admitted
+     (root : String) (envelope : Envelope)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationInternalChannels.model CedarPooSpec.PriorAuthorizationInternalChannels.schema :=
+      CedarPooSpec.PriorAuthorizationInternalChannels.program) : Bool :=
+  match programContext.authorize root [request envelope] entities with
   | .error _ => false
   | .ok receipt => receipt.allowed
 
@@ -150,9 +153,12 @@ structure Port (m : Type → Type) (Raw : Type) where
   project : Raw → m Envelope
   deliver : Raw → m Unit
 
-def Port.submit [Monad m] (port : Port m Raw) (root : String) (raw : Raw) : m Bool := do
+def Port.submit
+     [Monad m] (port : Port m Raw) (root : String) (raw : Raw)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationInternalChannels.model CedarPooSpec.PriorAuthorizationInternalChannels.schema :=
+      CedarPooSpec.PriorAuthorizationInternalChannels.program) : m Bool := do
   let envelope ← port.project raw
-  if admitted root envelope then
+  if (admitted (programContext := programContext)) root envelope then
     port.deliver raw
     return true
   return false

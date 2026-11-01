@@ -120,8 +120,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Exact checked policy snapshots; actual requests/entities remain per-call. -/
 def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard model schema
-    (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard model schema
+    (model.modules.map (·.name)) (by native_decide)
 
 structure Choice where
   name : String
@@ -141,21 +141,33 @@ def transformRequest (choice : Choice) : Request :=
     ("releasedArtifactDigest", .prim (.string choice.digest)),
     ("keyAuthorized", .prim (.bool choice.keyAuthorized))]⟩
 
-def allowed (root : String) (request : Request) : Bool :=
-  match program.authorize root [request] entities with
+def allowed
+     (root : String) (request : Request)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.model CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.schema :=
+      CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.program) : Bool :=
+  match programContext.authorize root [request] entities with
   | .error _ => false
   | .ok receipt => receipt.allowed
 
-def pipelineAllowed (choice : Choice) : Bool :=
-  allowed choice.root (GoogleThreatCase.request GoogleThreatCase.candidate choice.pipeline)
+def pipelineAllowed
+     (choice : Choice)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.model CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.schema :=
+      CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.program) : Bool :=
+  (allowed (programContext := programContext)) choice.root (GoogleThreatCase.request GoogleThreatCase.candidate choice.pipeline)
 
-def transformAllowed (choice : Choice) : Bool :=
-  allowed choice.root (transformRequest choice)
+def transformAllowed
+     (choice : Choice)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.model CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.schema :=
+      CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.program) : Bool :=
+  (allowed (programContext := programContext)) choice.root (transformRequest choice)
 
 /-- The sample Host admission checks both decisions before dispatching the
     provider effect; production redemption still needs an atomic receipt. -/
-def admitted (choice : Choice) : Bool :=
-  match program.authorize choice.root
+def admitted
+     (choice : Choice)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.model CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.schema :=
+      CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.program) : Bool :=
+  match programContext.authorize choice.root
       [GoogleThreatCase.request GoogleThreatCase.candidate choice.pipeline,
        transformRequest choice] entities with
   | .error _ => false

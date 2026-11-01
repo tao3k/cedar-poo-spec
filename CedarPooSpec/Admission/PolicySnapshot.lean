@@ -23,14 +23,14 @@ inductive PolicySnapshot.Error where
 /-- Capture the exact C4-composed Cedar policies used at preparation. -/
 def PolicySnapshot.capture (model : Model) (root : String) :
     Except PolicyModules.Error PolicySnapshot := do
-  let compiled ← (Functional.compilation model) root
+  let compiled ← (Functional.compilation model).compile root
   return ⟨root, compiled.policies⟩
 
 /-- Return the current policies only when this root still compiles to the
     exact same policy set. A changed body, order, or compilation error fails. -/
 def PolicySnapshot.currentPolicies (snapshot : PolicySnapshot)
     (model : Model) : Except PolicySnapshot.Error Policies :=
-  match (Functional.compilation model) snapshot.root with
+  match (Functional.compilation model).compile snapshot.root with
   | .ok compiled => if compiled.policies == snapshot.policies then .ok compiled.policies else .error .changed
   | .error error => .error (.compilation error)
 

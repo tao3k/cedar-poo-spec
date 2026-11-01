@@ -6,7 +6,9 @@ namespace CedarPooSpec.MultiAccountBankingValidatedExport
 
 open CedarPooSpec.MultiAccountBankingExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.MultiAccountBankingExample.model CedarPooSpec.MultiAccountBankingExample.schema :=
+      CedarPooSpec.MultiAccountBankingExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let mut rows : List CedarPooSpec.Transport.Case := []
   for (label, action) in [
     ("customer", customer), ("accounts", accounts), ("balance", balance),
@@ -20,7 +22,7 @@ def manifest : Except String CedarPooSpec.Transport.Manifest := do
     ("initialize", initializeAction)] do
     for (root, variant) in [("SampleBroad", "source"),
                             ("OwnerCombined", "owners")] do
-      let row ← CedarPooSpec.MultiAccountBankingExample.program.case
+      let row ← owner.case
           s!"{variant}-{label}" variant root (request banker action) entities
       rows := rows ++ [row]
   for (root, variant, label, action) in [
@@ -29,7 +31,7 @@ def manifest : Except String CedarPooSpec.Transport.Manifest := do
     ("TransferPaused", "paused", "balance", balance),
     ("TransferPaused", "paused", "delete-customer", deleteCustomer),
     ("TransferResumed", "resumed", "transfer", transfer)] do
-    let row ← CedarPooSpec.MultiAccountBankingExample.program.case
+    let row ← owner.case
         s!"{variant}-{label}" variant root (request banker action) entities
     rows := rows ++ [row]
   CedarPooSpec.SchemaJson.manifest schema rows

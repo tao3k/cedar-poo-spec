@@ -157,8 +157,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
 /-- The composition is the LeanPOO C4 order, not a handwritten conjunction
     of the five Cedar conditions. Each policy below comes from its own owner. -/
@@ -178,8 +178,11 @@ theorem governedComposition :
         (crossDepartment.id, "Team")] := by
   native_decide
 
-def decideAt (root : String) (req : Request) : Option Decision := do
-  let response ← (CedarPooSpec.AWS.Expense.program.response root req entities).toOption
+def decideAt
+     (root : String) (req : Request)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AWS.Expense.model CedarPooSpec.AWS.Expense.schema :=
+      CedarPooSpec.AWS.Expense.program) : Option Decision := do
+  let response ← (programContext.response root req entities).toOption
   if response.erroringPolicies.isEmpty then some response.decision else none
 
 /-- Named operation checks are shared by the Lean proof and official Cedar

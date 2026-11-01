@@ -32,17 +32,21 @@ def cases : List (String × String × Request × Decision) := Id.run do
               expectedDecision root principal resource agent requested) :: rows
   return rows.reverse
 
-def exact : Bool := cases.all fun (_, root, req, expected) =>
-  match CedarPooSpec.DelegatedApprovalExample.delegatedProgram.response root req delegatedEntities with
+def exact
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.DelegatedApprovalExample.delegatedModel CedarPooSpec.DelegatedApprovalExample.delegatedSchema :=
+      CedarPooSpec.DelegatedApprovalExample.delegatedProgram) : Bool := cases.all fun (_, root, req, expected) =>
+  match owner.response root req delegatedEntities with
   | .error _ => false
   | .ok response =>
       response.decision == expected && response.erroringPolicies.isEmpty
 
 theorem exactFully : exact = true := by native_decide
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.DelegatedApprovalExample.delegatedModel CedarPooSpec.DelegatedApprovalExample.delegatedSchema :=
+      CedarPooSpec.DelegatedApprovalExample.delegatedProgram) : Except String CedarPooSpec.Transport.Manifest := do
   let exported ← cases.mapM fun (name, root, req, _) =>
-    CedarPooSpec.DelegatedApprovalExample.delegatedProgram.case name root.toLower root req delegatedEntities
+    owner.case name root.toLower root req delegatedEntities
   return { cases := exported }
 
 end CedarPooSpec.DelegatedApprovalMatrixExport

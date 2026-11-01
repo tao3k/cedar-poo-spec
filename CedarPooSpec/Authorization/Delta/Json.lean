@@ -99,10 +99,11 @@ def impactReport (item : ImpactReport) : Except String Lean.Json := do
 
 def witnessCases (item : Report) (model : Model)
     (beforeRoot afterRoot : String) : Except String Lean.Json := do
+  let compiler := CedarPooSpec.Functional.compilation model
   let cases ← item.expansions.zipIdx.mapM fun (entry, index) => do
-    let before ← (CedarPooSpec.Functional.compilation model).authorizationCase
+    let before ← compiler.authorizationCase
         s!"delta-before-{index}" beforeRoot beforeRoot entry.witness.request entry.witness.entities
-    let after ← (CedarPooSpec.Functional.compilation model).authorizationCase
+    let after ← compiler.authorizationCase
         s!"delta-after-{index}" afterRoot afterRoot entry.witness.request entry.witness.entities
     return [before, after]
   return Lean.Json.mkObj [("cases", Lean.toJson cases.flatten)]
@@ -110,11 +111,12 @@ def witnessCases (item : Report) (model : Model)
 /-- Replay both directions using the original before and after roots. -/
 def impactWitnessCases (item : ImpactReport) (model : Model)
     (beforeRoot afterRoot : String) : Except String Lean.Json := do
+  let compiler := CedarPooSpec.Functional.compilation model
   let witnesses := item.gains.map (·.witness) ++ item.losses.map (·.witness)
   let cases ← witnesses.zipIdx.mapM fun (witness, index) => do
-    let before ← (CedarPooSpec.Functional.compilation model).authorizationCase
+    let before ← compiler.authorizationCase
         s!"impact-before-{index}" beforeRoot beforeRoot witness.request witness.entities
-    let after ← (CedarPooSpec.Functional.compilation model).authorizationCase
+    let after ← compiler.authorizationCase
         s!"impact-after-{index}" afterRoot afterRoot witness.request witness.entities
     return [before, after]
   return Lean.Json.mkObj [("cases", Lean.toJson cases.flatten)]
@@ -135,9 +137,10 @@ def snapshotReport (item : SnapshotImpact) (before after : Cedar.Spec.Env) :
 
 def snapshotCases (name : String) (model : Model) (beforeRoot afterRoot : String)
     (before after : Cedar.Spec.Env) : Except String Lean.Json := do
-  let beforeCase ← (CedarPooSpec.Functional.compilation model).authorizationCase
+  let compiler := CedarPooSpec.Functional.compilation model
+  let beforeCase ← compiler.authorizationCase
       s!"{name}-before" beforeRoot beforeRoot before.request before.entities
-  let afterCase ← (CedarPooSpec.Functional.compilation model).authorizationCase
+  let afterCase ← compiler.authorizationCase
       s!"{name}-after" afterRoot afterRoot after.request after.entities
   return Lean.Json.mkObj [("cases", Lean.toJson [beforeCase, afterCase])]
 

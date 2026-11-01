@@ -6,7 +6,9 @@ namespace CedarPooSpec.AWS.Reconciliation.ValidatedExport
 
 open CedarPooSpec.AWS.Reconciliation
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.AWS.Reconciliation.model CedarPooSpec.AWS.Reconciliation.schema :=
+      CedarPooSpec.AWS.Reconciliation.program) : Except String CedarPooSpec.Transport.Manifest := do
   let mut rows : List CedarPooSpec.Transport.Case := []
   for (label, tool) in [
     ("ledger", searchLedger), ("notices", searchNotices),
@@ -15,7 +17,7 @@ def manifest : Except String CedarPooSpec.Transport.Manifest := do
     ("graph-list", graphList), ("graph-send", graphSend)] do
     for (root, variant) in [("SourceCombined", "source"),
                             ("OwnerCombined", "owners")] do
-      let row ← CedarPooSpec.AWS.Reconciliation.program.case
+      let row ← owner.case
           s!"{variant}-{label}" variant root (readRequest agent tool) entities
       rows := rows ++ [row]
   for (name, root, req) in [
@@ -35,7 +37,7 @@ def manifest : Except String CedarPooSpec.Transport.Manifest := do
     ("recovered-graph-send", "Recovered", readRequest agent graphSend),
     ("joint-worker-85", "JointIncident", writeRequest worker (some "85.0000")),
     ("joint-worker-90", "JointIncident", writeRequest worker (some "90.0000"))] do
-    let row ← CedarPooSpec.AWS.Reconciliation.program.case name root root req entities
+    let row ← owner.case name root root req entities
     rows := rows ++ [row]
   CedarPooSpec.SchemaJson.manifest schema rows
 

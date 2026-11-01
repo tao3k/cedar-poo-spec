@@ -172,7 +172,7 @@ def roots : List String :=
     "Combined", "Governed", "Incident", "Recovered"]
 
 def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard model schema roots).toOption.get
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard model schema roots
     (by native_decide)
 
 structure State where
@@ -208,8 +208,11 @@ def request (state : State) (attempt : Attempt) : Request :=
     ("payerRequirementsCurrent", .prim (.bool state.payerRequirementsCurrent)),
     ("delegationActive", .prim (.bool state.delegationActive))]⟩
 
-def authorized (root : String) (state : State) (attempt : Attempt) : Bool :=
-  match program.authorize root [request state attempt] entities with
+def authorized
+     (root : String) (state : State) (attempt : Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationExample.model CedarPooSpec.PriorAuthorizationExample.schema :=
+      CedarPooSpec.PriorAuthorizationExample.program) : Bool :=
+  match programContext.authorize root [request state attempt] entities with
   | .error _ => false
   | .ok receipt => receipt.allowed
 
@@ -220,29 +223,42 @@ def advance (state : State) (attempt : Attempt) : State :=
     billingSeen := state.billingSeen ||
       (attempt.action == readBilling && attempt.resource == billingA) }
 
-def replayFactory (attempts : List Attempt) : LeanPoo.Functional.Factory (String × State)
+def replayFactory
+     (attempts : List Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationExample.model CedarPooSpec.PriorAuthorizationExample.schema :=
+      CedarPooSpec.PriorAuthorizationExample.program) : LeanPoo.Functional.Factory (String × State)
     (fun _ => State × List (Request × Bool)) :=
   LeanPoo.Functional.Factory.fold
     (fun (root, _) (state, rows) attempt =>
       let req := request state attempt
-      let allowed := authorized root state attempt
+      let allowed := (authorized (programContext := programContext)) root state attempt
       (if allowed then advance state attempt else state, rows ++ [(req, allowed)]))
     (fun (_, initial) => (initial, []))
     (attempts.map fun attempt _ => attempt)
 
-def replay (root : String) (initial : State) (attempts : List Attempt) :
+def replay
+     (root : String) (initial : State) (attempts : List Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationExample.model CedarPooSpec.PriorAuthorizationExample.schema :=
+      CedarPooSpec.PriorAuthorizationExample.program) :
     List (Request × Bool) × State :=
-  let (state, rows) := replayFactory attempts (root, initial)
+  let (state, rows) := (replayFactory (programContext := programContext)) attempts (root, initial)
   (rows, state)
 
-def decisions (root : String) (initial : State) (attempts : List Attempt) :
-    List Bool := (replay root initial attempts).1.map Prod.snd
+def decisions
+     (root : String) (initial : State) (attempts : List Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationExample.model CedarPooSpec.PriorAuthorizationExample.schema :=
+      CedarPooSpec.PriorAuthorizationExample.program) :
+    List Bool := ((replay (programContext := programContext)) root initial attempts).1.map Prod.snd
 
-def afterEvidenceRevoked : State :=
-  { (replay "Governed" {} [clinicalRead, billingRead]).2 with
+def afterEvidenceRevoked
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationExample.model CedarPooSpec.PriorAuthorizationExample.schema :=
+      CedarPooSpec.PriorAuthorizationExample.program) : State :=
+  { ((replay (programContext := programContext)) "Governed" {} [clinicalRead, billingRead]).2 with
     delegationActive := false }
 
-def cases : List (String × String × State × List Attempt × List Bool) := [
+def cases
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationExample.model CedarPooSpec.PriorAuthorizationExample.schema :=
+      CedarPooSpec.PriorAuthorizationExample.program) : List (String × String × State × List Attempt × List Bool) := [
   ("baseline-submits-without-evidence", "Base", {}, [payerSubmit], [true]),
   ("identity-owner-misses-admin", "Identity", {},
     [clinicalRead, billingRead, payerSubmit], [true, true, true]),
@@ -273,7 +289,7 @@ def cases : List (String × String × State × List Attempt × List Bool) := [
   ("stale-payer-requirements", "Governed",
     { payerRequirementsCurrent := false },
     [clinicalRead, billingRead, payerSubmit], [true, true, false]),
-  ("delegation-revoked-after-reads", "Governed", afterEvidenceRevoked,
+  ("delegation-revoked-after-reads", "Governed", (afterEvidenceRevoked (programContext := programContext)),
     [payerSubmit], [false]),
   ("incident-freezes-valid-submission", "Incident", {},
     [clinicalRead, billingRead, payerSubmit], [true, true, false]),

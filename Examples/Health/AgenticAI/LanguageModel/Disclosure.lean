@@ -159,8 +159,8 @@ def publicationModel : Model := publicationModelResult.toOption.get (by native_d
 
 /-- Retain checked policies for this exact model/schema, never request decisions. -/
 def program : CedarPooSpec.Functional.Program publicationModel publicationSchema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard publicationModel publicationSchema
-    (publicationModel.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard publicationModel publicationSchema
+    (publicationModel.modules.map (·.name)) (by native_decide)
 
 /-- Only composed roots may be used to prepare an external disclosure. The
     partial owner roots remain available for diagnostics and comparison. -/
@@ -202,6 +202,7 @@ structure State where
   delegations : List CedarPooSpec.Governance.Personnel.Delegation := []
   auditReady : Bool := true
   audit : List String := []
+  deriving DecidableEq
 
 def approval (resource : EntityUID) : ScopedApproval :=
   { id := "study-one", approver := steward, actor := agent,
@@ -290,8 +291,11 @@ def projectedRequest (state : State) (effect : Effect) : Request :=
       (selectionBound state effect))),
     ("auditReady", .prim (.bool state.auditReady))]⟩
 
-def authorized (root : String) (state : State) (effect : Effect) : Bool :=
-  match program.authorize root [projectedRequest state effect] publicationEntities with
+def authorized
+     (root : String) (state : State) (effect : Effect)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationModel CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationSchema :=
+      CedarPooSpec.AgenticAI.LanguageModel.Disclosure.program) : Bool :=
+  match programContext.authorize root [projectedRequest state effect] publicationEntities with
   | .error _ => false
   | .ok receipt => receipt.allowed
 
@@ -305,20 +309,26 @@ structure Ticket where
   effect : Effect
   deriving DecidableEq
 
-def prepare (root : DeployableRoot) (state : State) (effect : Effect) : Option Ticket :=
-  if effect.channel.isEmpty || !authorized root.name state effect then none
+def prepare
+     (root : DeployableRoot) (state : State) (effect : Effect)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationModel CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationSchema :=
+      CedarPooSpec.AgenticAI.LanguageModel.Disclosure.program) : Option Ticket :=
+  if effect.channel.isEmpty || !(authorized (programContext := programContext)) root.name state effect then none
   else some ⟨root, state.epoch, state.approvalRevision, state.delegationRevision,
     state.policyRevision, state.audienceRevision, effect⟩
 
 /-- A finite atomic-state model. A real Host must persist the shared ledger
     and audit before making either channel's external effect visible. -/
-def redeem (state : State) (ticket : Ticket) (effect : Effect) : Option State :=
+def redeem
+     (state : State) (ticket : Ticket) (effect : Effect)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationModel CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationSchema :=
+      CedarPooSpec.AgenticAI.LanguageModel.Disclosure.program) : Option State :=
   if ticket.epoch != state.epoch ||
       ticket.approvalRevision != state.approvalRevision ||
       ticket.delegationRevision != state.delegationRevision ||
       ticket.policyRevision != state.policyRevision ||
       ticket.audienceRevision != state.audienceRevision ||
-      ticket.effect != effect || !authorized ticket.root.name state effect then none
+      ticket.effect != effect || !(authorized (programContext := programContext)) ticket.root.name state effect then none
   else
     match state.cohort.record effect.candidateIds with
     | none => none
@@ -329,9 +339,12 @@ def redeem (state : State) (ticket : Ticket) (effect : Effect) : Option State :=
         let next := { next with audit := state.audit ++ [effect.payloadDigest] }
         some next
 
-def release (root : DeployableRoot) (state : State) (effect : Effect) : Option State := do
-  let ticket ← prepare root state effect
-  redeem state ticket effect
+def release
+     (root : DeployableRoot) (state : State) (effect : Effect)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationModel CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationSchema :=
+      CedarPooSpec.AgenticAI.LanguageModel.Disclosure.program) : Option State := do
+  let ticket ← (prepare (programContext := programContext)) root state effect
+  (redeem (programContext := programContext)) state ticket effect
 
 theorem validWorkspaceRelease :
     (release .governed initial workspaceEffect).isSome = true := by
@@ -412,8 +425,10 @@ def secondCohort : Effect :=
     payloadDigest := "cohort-second",
     candidateIds := ["p3", "p4", "p5", "p6"] }
 
-def cohortAfterFirst : Option State := do
-  let next ← release .governed cohortInitial firstCohort
+def cohortAfterFirst
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationModel CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationSchema :=
+      CedarPooSpec.AgenticAI.LanguageModel.Disclosure.program) : Option State := do
+  let next ← (release (programContext := programContext)) .governed cohortInitial firstCohort
   some { next with observedDigest := "cohort-second" }
 
 /-- Each release has four candidate IDs in isolation, but their intersection
@@ -442,8 +457,10 @@ def selectionSecond : Effect :=
   { secondCohort with
     artifact := { joinedResult with digest := "selection-second" },
     payloadDigest := "selection-second", selectionDelta := some secondSelection }
-def selectionAfterFirst : Option State := do
-  let next ← release .governed selectionInitial selectionFirst
+def selectionAfterFirst
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationModel CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationSchema :=
+      CedarPooSpec.AgenticAI.LanguageModel.Disclosure.program) : Option State := do
+  let next ← (release (programContext := programContext)) .governed selectionInitial selectionFirst
   some { { next with observedDigest := "selection-second" } with
     observedSelection := some secondSelection }
 
@@ -463,6 +480,28 @@ theorem incidentAndRecovery :
     prepare .incident initial workspaceEffect = none ∧
     (release .recovered initial workspaceEffect).isSome = true := by
   native_decide
+
+/-- Fixed replay inputs carry actual transition equalities. Constructing their
+semantic states needs no repeated policy preparation during module loading. -/
+private def cohortAfterFirstState : State :=
+  { cohortInitial with
+    epoch := cohortInitial.epoch + 1
+    remaining := cohortInitial.remaining - 1
+    cohort := (cohortInitial.cohort.record firstCohort.candidateIds).get (by native_decide)
+    audit := cohortInitial.audit ++ [firstCohort.payloadDigest]
+    observedDigest := "cohort-second" }
+
+private def selectionAfterFirstState : State :=
+  { selectionInitial with
+    epoch := selectionInitial.epoch + 1
+    remaining := selectionInitial.remaining - 1
+    cohort := (selectionInitial.cohort.record selectionFirst.candidateIds).get (by native_decide)
+    audit := selectionInitial.audit ++ [selectionFirst.payloadDigest]
+    observedDigest := "selection-second"
+    observedSelection := some secondSelection }
+
+theorem cohortFixture_evaluated : cohortAfterFirst = some cohortAfterFirstState := by native_decide
+theorem selectionFixture_evaluated : selectionAfterFirst = some selectionAfterFirstState := by native_decide
 
 def cases : List (String × String × State × Effect × Decision) := [
   ("source-base-allows-external", "DerivedPublicationBase", initial, externalEffect, .allow),
@@ -484,7 +523,7 @@ def cases : List (String × String × State × Effect × Decision) := [
   ("source-cohort-second-alone", "DerivedPublicationGoverned",
     { cohortInitial with observedDigest := "cohort-second" }, secondCohort, .allow),
   ("source-cohort-second-after-first", "DerivedPublicationGoverned",
-    (cohortAfterFirst.get (by native_decide)), secondCohort, .deny),
+    cohortAfterFirstState, secondCohort, .deny),
   ("source-selection-survivors", "DerivedPublicationGoverned",
     selectionInitial, selectionFirst, .allow),
   ("source-selection-unobserved", "DerivedPublicationGoverned",
@@ -493,7 +532,7 @@ def cases : List (String × String × State × Effect × Decision) := [
     selectionInitial,
     { selectionFirst with candidateIds := ["p1", "p2", "p3"] }, .deny),
   ("source-selection-second-after-first", "DerivedPublicationGoverned",
-    (selectionAfterFirst.get (by native_decide)), selectionSecond, .deny),
+    selectionAfterFirstState, selectionSecond, .deny),
   ("source-dropped-label", "DerivedPublicationGoverned", initial,
     { workspaceEffect with artifact := { joinedResult with sources := [source hospital] } }, .deny),
   ("source-substituted-output", "DerivedPublicationGoverned", initial,
@@ -503,8 +542,10 @@ def cases : List (String × String × State × Effect × Decision) := [
   ("source-incident", "DerivedPublicationIncident", initial, workspaceEffect, .deny),
   ("source-recovered", "DerivedPublicationRecovered", initial, workspaceEffect, .allow)]
 
-def casesConform : Bool := cases.all fun (_, root, state, effect, expected) =>
-  match program.authorize root [projectedRequest state effect] publicationEntities with
+def casesConform
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationModel CedarPooSpec.AgenticAI.LanguageModel.Disclosure.publicationSchema :=
+      CedarPooSpec.AgenticAI.LanguageModel.Disclosure.program) : Bool := cases.all fun (_, root, state, effect, expected) =>
+  match programContext.authorize root [projectedRequest state effect] publicationEntities with
   | .error _ => false
   | .ok receipt => receipt.responses.all fun answer =>
       answer.decision == expected && answer.erroringPolicies.isEmpty

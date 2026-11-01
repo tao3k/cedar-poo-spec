@@ -152,15 +152,21 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
-def authorizedRequest (root : String) (req : Request) : Bool :=
-  match CedarPooSpec.SuccessorBoundaryExample.program.authorizeLayers [(root, req)] entities with
+def authorizedRequest
+     (root : String) (req : Request)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.SuccessorBoundaryExample.model CedarPooSpec.SuccessorBoundaryExample.schema :=
+      CedarPooSpec.SuccessorBoundaryExample.program) : Bool :=
+  match programContext.authorizeLayers [(root, req)] entities with
   | .error _ => false
   | .ok receipts => CedarPooSpec.Authorization.Compound.layersAllowed receipts
-def authorized (root : String) (action : EntityUID) (candidate : Candidate) : Bool :=
-  authorizedRequest root (request action candidate)
+def authorized
+     (root : String) (action : EntityUID) (candidate : Candidate)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.SuccessorBoundaryExample.model CedarPooSpec.SuccessorBoundaryExample.schema :=
+      CedarPooSpec.SuccessorBoundaryExample.program) : Bool :=
+  (authorizedRequest (programContext := programContext)) root (request action candidate)
 
 def clear : Candidate := {}
 def withSteps (steps : List Successor) : Candidate :=
@@ -215,8 +221,10 @@ def cases : List (String × String × EntityUID × Candidate × Bool) := [
   ("current-allows-fresh-horizon", "Current", proceed, clear, true),
   ("current-keeps-fallback-available", "Current", fallback, collision, true)]
 
-def casesExact : Bool := cases.all fun (_, root, action, candidate, expected) =>
-  authorized root action candidate == expected
+def casesExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.SuccessorBoundaryExample.model CedarPooSpec.SuccessorBoundaryExample.schema :=
+      CedarPooSpec.SuccessorBoundaryExample.program) : Bool := cases.all fun (_, root, action, candidate, expected) =>
+  (authorized (programContext := programContext)) root action candidate == expected
 theorem casesExactFully : casesExact = true := by native_decide
 theorem sameProposalDifferentSuccessor :
     clear.proposalId = skippedCheckpoint.proposalId ∧
@@ -272,9 +280,11 @@ theorem matrixExact :
     matrixCases.all (fun (_, root, action, candidate, expected) =>
       authorized root action candidate == expected) = true := by native_decide
 
-def rootsValidated : Bool :=
+def rootsValidated
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.SuccessorBoundaryExample.model CedarPooSpec.SuccessorBoundaryExample.schema :=
+      CedarPooSpec.SuccessorBoundaryExample.program) : Bool :=
   ["Base", "Platform", "Mission", "Evidence", "Integrated", "Current"].all fun root =>
-    (CedarPooSpec.SuccessorBoundaryExample.program.publish root).isOk
+    (programContext.publish root).isOk
 theorem rootsValidatedFully : rootsValidated = true := by native_decide
 
 def freshnessRevision : Revision :=

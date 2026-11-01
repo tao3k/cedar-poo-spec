@@ -8,12 +8,14 @@ namespace CedarPooSpec.ClinicalBreakGlassExport
 
 open CedarPooSpec.ClinicalBreakGlassExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.ClinicalBreakGlassExample.model CedarPooSpec.ClinicalBreakGlassExample.schema :=
+      CedarPooSpec.ClinicalBreakGlassExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let integrated ← cases.mapM fun (name, req, _) =>
-    CedarPooSpec.ClinicalBreakGlassExample.program.case name "clinical-integrated" "Integrated" req entities
-  let before ← CedarPooSpec.ClinicalBreakGlassExample.program.case
+    owner.case name "clinical-integrated" "Integrated" req entities
+  let before ← owner.case
       "pre-integration-broad-permit" "clinical-emergency" "Emergency" (request remoteRecord {}) entities
-  let preference ← CedarPooSpec.ClinicalBreakGlassExample.program.case
+  let preference ← owner.case
       "preference-released" "clinical-integrated" "Integrated" (request restrictedRecord {}) unrestrictedEntities
   return { cases := (before :: integrated ++ [preference]) }
 

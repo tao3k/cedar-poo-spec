@@ -195,8 +195,8 @@ def dataModel : Model := dataModelResult.toOption.get (by native_decide)
 
 /-- Prepared against this exact model/schema; requests and entities remain current. -/
 def program : CedarPooSpec.Functional.Program dataModel dataSchema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard dataModel dataSchema
-    (dataModel.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard dataModel dataSchema
+    (dataModel.modules.map (·.name)) (by native_decide)
 
 def readRequest (source origin : EntityUID) : Request :=
   ⟨knowledgeBot, readDocument, source, Map.make [
@@ -211,9 +211,12 @@ def checks (readRoot publishRoot : String) (source repo origin approver : Entity
     (approved : Bool) : List (String × Request) := [
   (readRoot, readRequest source origin),
   (publishRoot, publishRequest source repo origin approver approved)]
-def authorizeFlow (readRoot publishRoot : String) (source repo origin approver : EntityUID)
-    (approved : Bool) : Bool :=
-  match program.authorizeLayers
+def authorizeFlow
+     (readRoot publishRoot : String) (source repo origin approver : EntityUID)
+    (approved : Bool)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDataFlowExample.dataModel CedarPooSpec.AgentDataFlowExample.dataSchema :=
+      CedarPooSpec.AgentDataFlowExample.program) : Bool :=
+  match programContext.authorizeLayers
       (checks readRoot publishRoot source repo origin approver approved) dataEntities with
   | .error _ => false
   | .ok receipts => CedarPooSpec.Authorization.Compound.layersAllowed receipts
@@ -235,27 +238,33 @@ def cases : List (String × String × String × EntityUID × EntityUID × Entity
   ("revoked-public-document", "ReadTenant", "PublishRevoked", publicDoc, publicRepo, admin, reviewer, true, false),
   ("restored-public-document", "ReadTenant", "PublishRestored", publicDoc, publicRepo, admin, reviewer, true, true)]
 
-def casesExact : Bool := cases.all fun (_, readRoot, publishRoot, source, repo,
+def casesExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDataFlowExample.dataModel CedarPooSpec.AgentDataFlowExample.dataSchema :=
+      CedarPooSpec.AgentDataFlowExample.program) : Bool := cases.all fun (_, readRoot, publishRoot, source, repo,
     origin, approver, approved, expected) =>
-  authorizeFlow readRoot publishRoot source repo origin approver approved == expected
+  (authorizeFlow (programContext := programContext)) readRoot publishRoot source repo origin approver approved == expected
 theorem casesExactFully : casesExact = true := by native_decide
 
-def casesErrorFree : Bool := cases.all fun (_, readRoot, publishRoot, source, repo,
+def casesErrorFree
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDataFlowExample.dataModel CedarPooSpec.AgentDataFlowExample.dataSchema :=
+      CedarPooSpec.AgentDataFlowExample.program) : Bool := cases.all fun (_, readRoot, publishRoot, source, repo,
     origin, approver, approved, _) =>
-  match program.authorizeLayers
+  match programContext.authorizeLayers
       (checks readRoot publishRoot source repo origin approver approved) dataEntities with
   | .error _ => false
   | .ok receipts => receipts.all fun layer => layer.response.erroringPolicies.isEmpty
 theorem casesErrorFreeFully : casesErrorFree = true := by native_decide
 
-def branchesNeedComposition : Bool :=
-  authorizeFlow "ReadTenant" "PublishClassified" publicDoc publicRepo
+def branchesNeedComposition
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDataFlowExample.dataModel CedarPooSpec.AgentDataFlowExample.dataSchema :=
+      CedarPooSpec.AgentDataFlowExample.program) : Bool :=
+  (authorizeFlow (programContext := programContext)) "ReadTenant" "PublishClassified" publicDoc publicRepo
       admin support false &&
-  authorizeFlow "ReadTenant" "PublishReview" internalDoc publicRepo
+  (authorizeFlow (programContext := programContext)) "ReadTenant" "PublishReview" internalDoc publicRepo
       admin reviewer true &&
-  !authorizeFlow "ReadTenant" "PublishGoverned" publicDoc publicRepo
+  !(authorizeFlow (programContext := programContext)) "ReadTenant" "PublishGoverned" publicDoc publicRepo
       admin support false &&
-  !authorizeFlow "ReadTenant" "PublishGoverned" internalDoc publicRepo
+  !(authorizeFlow (programContext := programContext)) "ReadTenant" "PublishGoverned" internalDoc publicRepo
       admin reviewer true
 theorem branchesNeedCompositionFully : branchesNeedComposition = true := by
   native_decide
@@ -302,8 +311,10 @@ def malformedReviewRequest : Request :=
 def malformedChecks : List (String × Request) := [
   ("ReadTenant", readRequest publicDoc admin),
   ("PublishGoverned", malformedReviewRequest)]
-def malformedReviewRejected : Bool :=
-  match program.authorizeLayers
+def malformedReviewRejected
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDataFlowExample.dataModel CedarPooSpec.AgentDataFlowExample.dataSchema :=
+      CedarPooSpec.AgentDataFlowExample.program) : Bool :=
+  match programContext.authorizeLayers
       malformedChecks dataEntities with
   | .ok [readLayer, publishLayer] =>
       publishLayer.response.decision == .allow &&
@@ -313,8 +324,10 @@ def malformedReviewRejected : Bool :=
 theorem malformedReviewRejectedFully : malformedReviewRejected = true := by
   native_decide
 
-def classifiedLeakBoundary : Bool :=
-  match program.authorizeLayers
+def classifiedLeakBoundary
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDataFlowExample.dataModel CedarPooSpec.AgentDataFlowExample.dataSchema :=
+      CedarPooSpec.AgentDataFlowExample.program) : Bool :=
+  match programContext.authorizeLayers
       (checks "ReadTenant" "PublishClassified" internalDoc publicRepo admin reviewer true)
       dataEntities with
   | .error _ => false
@@ -323,11 +336,13 @@ def classifiedLeakBoundary : Bool :=
   | .ok _ => false
 theorem classifiedLeakBoundaryFully : classifiedLeakBoundary = true := by native_decide
 
-def allRootsValidated : Bool :=
+def allRootsValidated
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDataFlowExample.dataModel CedarPooSpec.AgentDataFlowExample.dataSchema :=
+      CedarPooSpec.AgentDataFlowExample.program) : Bool :=
   ["ReadBase", "ReadTenant", "PublishBase", "PublishScoped",
     "PublishClassified", "PublishReview", "PublishGoverned", "PublishDispatched",
     "PublishRevoked", "PublishRestored"].all fun root =>
-      (program.publish root).isOk
+      (programContext.publish root).isOk
 theorem allRootsValidatedFully : allRootsValidated = true := by native_decide
 
 end CedarPooSpec.AgentDataFlowExample

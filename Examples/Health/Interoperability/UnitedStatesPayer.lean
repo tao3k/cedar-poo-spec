@@ -108,8 +108,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
 
 structure Facts where
@@ -165,8 +165,10 @@ def cases : List (String × String × Request × Decision) := [
   ("recovered-keeps-opt-in", "Recovered", request receivingPayer
     transferToPayer clinicalA { patientOptIn := false }, .deny)]
 
-def casesConform : Bool := cases.all fun (_, root, req, expected) =>
-  match CedarPooSpec.UnitedStatesPayerExample.program.response root req entities with
+def casesConform
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.UnitedStatesPayerExample.model CedarPooSpec.UnitedStatesPayerExample.schema :=
+      CedarPooSpec.UnitedStatesPayerExample.program) : Bool := cases.all fun (_, root, req, expected) =>
+  match programContext.response root req entities with
   | .error _ => false
   | .ok answer =>
       answer.decision == expected && answer.erroringPolicies.isEmpty

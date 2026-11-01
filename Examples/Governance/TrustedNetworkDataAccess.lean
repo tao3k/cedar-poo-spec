@@ -65,8 +65,8 @@ def networkSchema : Schema :=
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def networkProgram : CedarPooSpec.Functional.Program networkModel networkSchema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    networkModel networkSchema (networkModel.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    networkModel networkSchema (networkModel.modules.map (·.name)) (by native_decide)
 
 def networkEntities : Entities := Map.make
   (entities.toList.map fun (uid, data) =>
@@ -107,9 +107,11 @@ def cases : List (String × String × Request × Decision) := [
   ("enclave-other-project", "EnclaveNetwork",
     requestWithIp financeDataset {} officeIp, .deny)]
 
-def decisionsExact : Bool :=
+def decisionsExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.TrustedNetworkDataAccessExample.networkModel CedarPooSpec.TrustedNetworkDataAccessExample.networkSchema :=
+      CedarPooSpec.TrustedNetworkDataAccessExample.networkProgram) : Bool :=
   cases.all fun (_, root, req, expected) =>
-    match CedarPooSpec.TrustedNetworkDataAccessExample.networkProgram.response root req networkEntities with
+    match programContext.response root req networkEntities with
     | .error _ => false
     | .ok response =>
         response.decision == expected && response.erroringPolicies.isEmpty

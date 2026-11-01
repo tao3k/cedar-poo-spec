@@ -19,7 +19,10 @@ def Root.name : Root → String
   | .quarantined => "Quarantined"
   | .recovered => "Recovered"
 
-def publish (root : Root) :=
-  CedarPooSpec.Cloud.Pipeline.GoogleThreatCase.program.publish root.name
+def publish
+     (root : Root)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.Cloud.Pipeline.GoogleThreatCase.model CedarPooSpec.Cloud.Pipeline.GoogleThreatCase.schema :=
+      CedarPooSpec.Cloud.Pipeline.GoogleThreatCase.program) :=
+  programContext.publish root.name
 
 end CedarPooSpec.Cloud.Pipeline.GoogleThreatCase.Deployment

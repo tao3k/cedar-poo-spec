@@ -7,11 +7,13 @@ namespace CedarPooSpec.UnitedStatesPayerExample.ValidatedExport
 
 open CedarPooSpec.UnitedStatesPayerExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.UnitedStatesPayerExample.model CedarPooSpec.UnitedStatesPayerExample.schema :=
+      CedarPooSpec.UnitedStatesPayerExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let rows ← cases.mapM fun (name, root, req, _) =>
-    CedarPooSpec.UnitedStatesPayerExample.program.case name root root req entities
+    owner.case name root root req entities
   let projected ← Admission.projectedCases.mapM fun (name, req, _) =>
-    CedarPooSpec.UnitedStatesPayerExample.program.case name "Governed" "Governed" req entities
+    owner.case name "Governed" "Governed" req entities
   CedarPooSpec.SchemaJson.manifest schema (rows ++ projected)
 
 end CedarPooSpec.UnitedStatesPayerExample.ValidatedExport

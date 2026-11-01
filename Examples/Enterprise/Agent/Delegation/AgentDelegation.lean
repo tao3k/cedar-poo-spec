@@ -151,8 +151,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
 def requestTool (agent tool : EntityUID) : Request :=
   ⟨agent, invoke, tool, Map.empty⟩
@@ -180,9 +180,12 @@ def checks (roots : Roots) (agent tool origin : EntityUID) (depth : Int64)
   (roots.delegation, requestDelegate agent depth capability),
   (roots.origin, requestOrigin agent tool origin depth)]
 
-def authorizeFlow (roots : Roots) (agent tool origin : EntityUID) (depth : Int64)
-    (capability : String) : Bool :=
-  match CedarPooSpec.AgentDelegationExample.program.authorizeLayers
+def authorizeFlow
+     (roots : Roots) (agent tool origin : EntityUID) (depth : Int64)
+    (capability : String)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDelegationExample.model CedarPooSpec.AgentDelegationExample.schema :=
+      CedarPooSpec.AgentDelegationExample.program) : Bool :=
+  match programContext.authorizeLayers
       (checks roots agent tool origin depth capability) entities with
   | .error _ => false
   | .ok receipts => CedarPooSpec.Authorization.Compound.layersAllowed receipts
@@ -199,8 +202,10 @@ def flowCases : List (String × Roots × EntityUID × EntityUID × EntityUID × 
   ("governed-missing-user", governed, dataBot, deleteRecords, missingUser, 2, "delete_records", false),
   ("revoked-admin", revoked, dataBot, deleteRecords, admin, 2, "delete_records", false)]
 
-def flowsExact : Bool := flowCases.all fun (_, roots, agent, tool, origin, depth, capability, expected) =>
-  authorizeFlow roots agent tool origin depth capability == expected
+def flowsExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDelegationExample.model CedarPooSpec.AgentDelegationExample.schema :=
+      CedarPooSpec.AgentDelegationExample.program) : Bool := flowCases.all fun (_, roots, agent, tool, origin, depth, capability, expected) =>
+  (authorizeFlow (programContext := programContext)) roots agent tool origin depth capability == expected
 
 theorem flowsExactFully : flowsExact = true := by native_decide
 
@@ -222,17 +227,21 @@ def malformedRawResponse : Bool :=
 
 theorem malformedRawAllowsWithError : malformedRawResponse = true := by native_decide
 
-def malformedFlowRejected : Bool :=
-  match CedarPooSpec.AgentDelegationExample.program.authorizeLayers malformedChecks entities with
+def malformedFlowRejected
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDelegationExample.model CedarPooSpec.AgentDelegationExample.schema :=
+      CedarPooSpec.AgentDelegationExample.program) : Bool :=
+  match programContext.authorizeLayers malformedChecks entities with
   | .error _ => false
   | .ok receipts => !CedarPooSpec.Authorization.Compound.layersAllowed receipts
 
 theorem malformedFlowRejectedFully : malformedFlowRejected = true := by native_decide
 
-def allRootsValidated : Bool :=
+def allRootsValidated
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentDelegationExample.model CedarPooSpec.AgentDelegationExample.schema :=
+      CedarPooSpec.AgentDelegationExample.program) : Bool :=
   ["ToolBase", "ToolHardened", "DelegationBase", "DelegationBounded",
    "OriginBase", "OriginBounded", "OriginRevoked", "OriginUnsafe"].all fun root =>
-    (CedarPooSpec.AgentDelegationExample.program.publish root).isOk
+    (programContext.publish root).isOk
 
 theorem allRootsValidatedFully : allRootsValidated = true := by native_decide
 

@@ -1,4 +1,5 @@
 import CedarPooSpec.Transport.SourceCatalog
+import CedarPooSpec.Functional.Capabilities
 
 namespace CedarPooSpec.Transport.SourceTableTest
 open LeanPoo.Functional.ObjectContract
@@ -48,7 +49,7 @@ end CedarPooSpec.Transport.SourceTableTest
 -- Streaming must stop at the first factory or publication error.
 #eval show IO Unit from do
   let failed := CedarPooSpec.Transport.sourceCatalogFrom
-    [("first", fun _ => .error "first factory"), ("later", fun _ => .error "later factory")]
+    [("first", CedarPooSpec.Transport.EntryProducer.of () (fun _ => .error "first factory")), ("later", CedarPooSpec.Transport.EntryProducer.of () (fun _ => .error "later factory"))]
   match failed with
   | .error "first factory" => pure ()
   | _ => throw (IO.userError "factory error order changed")
@@ -67,8 +68,8 @@ end CedarPooSpec.Transport.SourceTableTest
     response := Thunk.mk fun _ => Cedar.Spec.isAuthorized req store []
     evaluated := rfl }
   let malformed := CedarPooSpec.Transport.sourceCatalogFrom
-    [("first", fun _ => .ok (.manifest ⟨[input], none⟩)),
-     ("later", fun _ => .error "later factory")]
+    [("first", CedarPooSpec.Transport.EntryProducer.of input (fun row => .ok (.manifest ⟨[row], none⟩))),
+     ("later", CedarPooSpec.Transport.EntryProducer.of () (fun _ => .error "later factory"))]
   match malformed with
   | .error message =>
     if message == "later factory" then throw (IO.userError "publication error was deferred")
@@ -97,6 +98,15 @@ end CedarPooSpec.Transport.SourceTableTest
   unless (Lean.Json.parse unsorted.wire).toOption.map (·.compress) ==
       some unsorted.value.compress do
     throw (IO.userError "fragment value binding or key escaping failed")
+  let canonical := CedarPooSpec.Transport.EncodedJson.canonicalObject [
+    ("z", .native (Lean.toJson "old")), ("a", .native (Lean.toJson "μ\n\"")),
+    ("z", .native (Lean.toJson "last"))]
+  unless canonical.compact.wire == canonical.value.compress do
+    throw (IO.userError "canonical key order/duplicate ownership/compact wire changed")
+  let native := CedarPooSpec.Transport.EncodedJson.nativeObject [
+    ("z", Lean.toJson "old"), ("a", Lean.toJson "μ\n\""), ("z", Lean.toJson "last")]
+  unless native.wire == native.value.compress do
+    throw (IO.userError "native field certificate/order/duplicate projection changed")
   IO.println "CERTIFIED-JSON-FRAGMENTS-OK escaping/order/full-values"
 
 #print axioms CedarPooSpec.PolicyPreparation.checkUsing_eq
@@ -109,3 +119,22 @@ end CedarPooSpec.Transport.SourceTableTest
 #print axioms LeanPoo.Object.compilePrepared_eq
 #print axioms CedarPooSpec.Transport.EncodedJson.detach_eq
 #print axioms CedarPooSpec.Transport.EncodedJson.detach_certified
+
+#print axioms CedarPooSpec.Transport.EntryProducer.run_of
+
+#print axioms CedarPooSpec.Transport.EncodedJson.canonicalObject_value
+#print axioms CedarPooSpec.Transport.EncodedJson.array_value
+#print axioms CedarPooSpec.Transport.EncodedJson.compact_wire
+#print axioms CedarPooSpec.Functional.deferProgram_eq
+
+#print axioms CedarPooSpec.Transport.EncodedJson.nativeObject_value
+
+#print axioms CedarPooSpec.PolicyPreparation.compilePrepared_eq
+#print axioms CedarPooSpec.Functional.compilation_eq
+
+-- A selected compile-stage factory may still refuse; metadata sharing cannot
+-- manufacture a successful Compiled witness or swallow the original failure.
+example (model : CedarPooSpec.PolicyModules.Model) (root : String) :
+    let owner : CedarPooSpec.Functional.Compilation model :=
+      ⟨Thunk.mk (fun _ => model.prepareC4), fun _ name => .error (.missingModule name)⟩
+    owner.compile root = .error (.missingModule root) := rfl

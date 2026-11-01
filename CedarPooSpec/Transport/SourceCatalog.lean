@@ -25,7 +25,7 @@ private def schemaRef (value : SourceSnapshot .schema) : Encode (SourceRef .sche
   let published := state.schemas.publishSnapshot value
   set {state with schemas := published.next}
   return published.reference
-private def manifest (value : Manifest) : Encode Lean.Json := do
+private def manifest (value : Manifest) : Encode EncodedJson := do
   let mut rows := #[]
   let mut bindings : Std.HashMap String Nat := {}
   for row in value.cases do
@@ -38,47 +38,48 @@ private def manifest (value : Manifest) : Encode Lean.Json := do
     if let some prior := bindings[revision]? then
       unless prior = policy.index do throw s!"conflicting source for revision: {revision}"
     bindings := bindings.insert revision policy.index
-    rows := rows.push (Lean.Json.mkObj ((← row.fields) ++ [
+    rows := rows.push (EncodedJson.nativeObject ((← row.fields) ++ [
       ("policy_ref", Lean.toJson policy.index), ("entities_ref", Lean.toJson entities.index)]))
-  let mut fields := [("cases", .arr rows),
-    ("revision_sources", Lean.Json.mkObj (bindings.toList.map fun (key, index) => (key, Lean.toJson index)))]
+  let mut fields := [("cases", EncodedJson.array rows.toList),
+    ("revision_sources", EncodedJson.nativeObject (bindings.toList.map fun (key, index) => (key, Lean.toJson index)))]
   if let some schema := value.schema then
     let ref ← schemaRef schema
-    fields := fields ++ [("schema_ref", Lean.toJson ref.index), ("manifest_kind", Lean.toJson "schema-bound")]
+    fields := fields ++ [("schema_ref", EncodedJson.native (Lean.toJson ref.index)), ("manifest_kind", EncodedJson.native (Lean.toJson "schema-bound"))]
   else
-    fields := fields ++ [("manifest_kind", Lean.toJson "raw")]
-  return Lean.Json.mkObj fields
-private def payload : Entry → Encode Lean.Json
+    fields := fields ++ [("manifest_kind", EncodedJson.native (Lean.toJson "raw"))]
+  return EncodedJson.canonicalObject fields
+private def payload : Entry → Encode EncodedJson
   | .manifest value => manifest value
   | .evolution before after => do
-      return Lean.Json.mkObj [("before", ← manifest before), ("after", ← manifest after)]
+      return EncodedJson.canonicalObject [("before", ← manifest before), ("after", ← manifest after)]
   | .artifacts values => do
       let rows ← values.mapM fun row => do
         let ref ← policyRef row.source
-        return Lean.Json.mkObj [("root", Lean.toJson row.root), ("policy_ref", Lean.toJson ref.index)]
-      return Lean.toJson rows
-  | .data value => pure value
+        return EncodedJson.nativeObject [("root", Lean.toJson row.root),
+          ("policy_ref", Lean.toJson ref.index)]
+      return EncodedJson.array rows
+  | .data value => pure (EncodedJson.native value)
 
 /-- References locate complete sources only; SDK admission remains fresh. -/
-def prepareCatalogFrom (entries : List (String × (Unit → Except String Entry))) :
+def prepareCatalogFrom (entries : List (String × EntryProducer)) :
     Except String EncodedJson := do
-  let encode : Encode (List (String × Lean.Json)) := entries.mapM fun (name, produce) => do
-    return (name, ← payload (← produce ()))
+  let encode : Encode (List (String × EncodedJson)) := entries.mapM fun (name, produce) => do
+    return (name, (← payload (← produce.run)).compact)
   let (entries, pools) ← encode.run {}
   let sources := EncodedJson.object [
     ("entities", EncodedJson.array (pools.entities.entries.toList.map EncodedJson.snapshot)),
     ("policies", EncodedJson.array (pools.policies.entries.toList.map EncodedJson.snapshot)),
     ("schemas", EncodedJson.array (pools.schemas.entries.toList.map EncodedJson.snapshot))] (by simp)
   return EncodedJson.object [
-    ("entries", EncodedJson.native (Lean.Json.mkObj entries)),
+    ("entries", EncodedJson.canonicalObject entries),
     ("format_version", EncodedJson.native (Lean.toJson (2 : Nat))),
     ("sources", sources)] (by simp)
 
 /-- Public JSON projection of the same certified envelope. -/
-def sourceCatalogFrom (entries : List (String × (Unit → Except String Entry))) :
+def sourceCatalogFrom (entries : List (String × EntryProducer)) :
     Except String Lean.Json :=
   (prepareCatalogFrom entries).map (·.value)
 
 def sourceCatalog (entries : List (String × Entry)) : Except String Lean.Json :=
-  sourceCatalogFrom (entries.map fun (name, value) => (name, fun _ => .ok value))
+  sourceCatalogFrom (entries.map fun (name, value) => (name, EntryProducer.of value Except.ok))
 end CedarPooSpec.Transport

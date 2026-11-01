@@ -83,6 +83,23 @@ validation for a generated policy set; its static proof claims are checked by
 just bench-policy-reuse
 #+end_src
 
+* Native input and resource boundaries
+
+The catalog's =EntryProducer= stores the actual typed Program/Compilation value
+and its interpreter. Native execution uses the same parameterized public Case
+factory, rather than a closed Unit wrapper whose computation can be extracted
+into module initialization. Program-dependent verification functions remain
+proved/tested but no longer run merely because their example module is imported.
+Other static model/data computations and Lean's core initialization remain.
+
+Darwin diagnostic memory records retain raw =proc_taskinfo= CPU, fault and thread
+counters alongside resident/virtual bytes, using the installed public SDK ABI.
+Raw CPU counters are not silently converted to wall-clock nanoseconds. A bounded
+owned-process identity observation uses public =proc_pid_rusage= V0 and
+=proc_pidpath=. Its executable UUID/start clock are kernel observations, distinct
+from =sample='s image list. Read failures and unsupported platforms stay explicit;
+no sampling interval, execution deadline or cleanup budget is widened.
+
 * Native complete-catalog replay
 
 =just bench-functional-catalog= first runs =check-functional-catalog= and its

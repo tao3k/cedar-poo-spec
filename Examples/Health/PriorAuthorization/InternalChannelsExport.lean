@@ -4,9 +4,11 @@ namespace CedarPooSpec.PriorAuthorizationInternalChannelsExport
 
 open CedarPooSpec.PriorAuthorizationInternalChannels
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.PriorAuthorizationInternalChannels.model CedarPooSpec.PriorAuthorizationInternalChannels.schema :=
+      CedarPooSpec.PriorAuthorizationInternalChannels.program) : Except String CedarPooSpec.Transport.Manifest := do
   let rows ← LeanPoo.Functional.Validation.traverse (fun (name, root, envelope, _) =>
-    program.case name root root (request envelope) entities) cases
+    owner.case name root root (request envelope) entities) cases
   CedarPooSpec.SchemaJson.manifest schema rows
 
 end CedarPooSpec.PriorAuthorizationInternalChannelsExport

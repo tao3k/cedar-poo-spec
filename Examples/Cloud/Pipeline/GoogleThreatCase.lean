@@ -261,11 +261,14 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Prepared against this exact model/schema; requests and entities remain current. -/
 def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard model schema
-    (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard model schema
+    (model.modules.map (·.name)) (by native_decide)
 
-def allowed (root : String) (resource : EntityUID) (facts : Facts) : Bool :=
-  match program.authorize root [request resource facts] entities with
+def allowed
+     (root : String) (resource : EntityUID) (facts : Facts)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.Cloud.Pipeline.GoogleThreatCase.model CedarPooSpec.Cloud.Pipeline.GoogleThreatCase.schema :=
+      CedarPooSpec.Cloud.Pipeline.GoogleThreatCase.program) : Bool :=
+  match programContext.authorize root [request resource facts] entities with
   | .error _ => false
   | .ok receipt => receipt.allowed
 

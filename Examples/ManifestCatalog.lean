@@ -51,59 +51,58 @@ import Examples.Scenarios.TenantDevicePolicyEvolutionExport
 
 namespace CedarPooSpec.Manifests
 
-def entries : List (String × (Unit → Except String Transport.Entry)) := [
-  ("claim-settlement-claims", fun _ => (AWS.ClaimSettlementExport.claimsManifest).map Transport.Entry.manifest),
-  ("claim-settlement-banking", fun _ => (AWS.ClaimSettlementExport.bankingManifest).map Transport.Entry.manifest),
-  ("claim-settlement-handoff", fun _ => (AWS.ClaimSettlementExport.handoffs).map Transport.Entry.data),
-  ("ticket-sharing", fun _ => (TicketSharingExport.manifest).map Transport.Entry.manifest),
-  ("clinical", fun _ => (ClinicalBreakGlassExport.manifest).map Transport.Entry.manifest),
-  ("pseudonymization-validated", fun _ => (PseudonymizationExport.manifest).map Transport.Entry.manifest),
-  ("pseudonymization-deployable", fun _ => (PseudonymizationExport.deploymentManifest).map Transport.Entry.artifacts),
-  ("pseudonymization-tabular", fun _ => (PseudonymizationExample.Tabular.fixture).map Transport.Entry.data),
-  ("agentic-ai-language-model-health-disclosure", fun _ =>
-    (AgenticAI.LanguageModel.DisclosureExport.manifest).map Transport.Entry.manifest),
-  ("wearable-triage", fun _ => (WearableTriageExport.manifest).map Transport.Entry.manifest),
-  ("model-stewardship", fun _ => (ModelStewardshipExample.ReplayExport.manifest).map Transport.Entry.manifest),
-  ("prior-authorization-validated", fun _ => (PriorAuthorizationValidatedExport.manifest).map Transport.Entry.manifest),
-  ("prior-authorization-malformed", fun _ => (PriorAuthorizationValidatedExport.malformedManifest).map Transport.Entry.manifest),
-  ("prior-authorization-internal-channels", fun _ => (PriorAuthorizationInternalChannelsExport.manifest).map Transport.Entry.manifest),
-  ("my-health-record-consumer-platform", fun _ => (MyHealthRecordExample.ValidatedExport.manifest).map Transport.Entry.manifest),
-  ("australian-emr-upload", fun _ => (AustralianEMRExample.ValidatedExport.manifest).map Transport.Entry.manifest),
-  ("united-states-payer-exchange", fun _ => (UnitedStatesPayerExample.ValidatedExport.manifest).map Transport.Entry.manifest),
-  ("attested", fun _ => (AttestedDataAccessExport.manifest).map Transport.Entry.manifest),
-  ("attested-views-validated", fun _ => (AttestedViewsValidatedExport.manifest).map Transport.Entry.manifest),
-  ("attested-schema-evolution", fun _ => AttestedSchemaEvolutionExport.bundle),
-  ("scope-pattern", fun _ => (ScopeAndPatternExport.manifest).map Transport.Entry.manifest),
-  ("scope-pattern-validated", fun _ => (ScopeAndPatternValidatedExport.manifest).map Transport.Entry.manifest),
-  ("namespaced-enum-validated", fun _ => (NamespacedEnumValidatedExport.manifest).map Transport.Entry.manifest),
-  ("network", fun _ => (TrustedNetworkDataAccessExport.manifest).map Transport.Entry.manifest),
-  ("network-validated", fun _ => (TrustedNetworkValidatedExport.manifest).map Transport.Entry.manifest),
-  ("country-approval", fun _ => (CountryApprovalExport.manifest).map Transport.Entry.manifest),
-  ("country-approval-validated", fun _ => (CountryApprovalValidatedExport.manifest).map Transport.Entry.manifest),
-  ("purchase-approval", fun _ => (PurchaseApprovalExport.manifest).map Transport.Entry.manifest),
-  ("delegated-approval", fun _ => (DelegatedApprovalExport.manifest).map Transport.Entry.manifest),
-  ("delegated-matrix", fun _ => (DelegatedApprovalMatrixExport.manifest).map Transport.Entry.manifest),
-  ("payment-release", fun _ => (PaymentReleaseExport.manifest).map Transport.Entry.manifest),
-  ("agent-delegation", fun _ => (AgentDelegationExport.manifest).map Transport.Entry.manifest),
-  ("agent-chain", fun _ => (AgentChainExport.manifest).map Transport.Entry.manifest),
-  ("agent-payment", fun _ => (AgentPaymentExport.manifest).map Transport.Entry.manifest),
-  ("agent-payment-validated", fun _ => (AgentPaymentValidatedExport.manifest).map Transport.Entry.manifest),
-  ("agent-data-flow", fun _ => (AgentDataFlowExport.manifest).map Transport.Entry.manifest),
-  ("agent-data-flow-validated", fun _ => (AgentDataFlowValidatedExport.manifest).map Transport.Entry.manifest),
-  ("lakehouse-gateway-validated", fun _ => (LakehouseGatewayValidatedExport.manifest).map Transport.Entry.manifest),
-  ("multi-account-banking-validated", fun _ => (MultiAccountBankingValidatedExport.manifest).map Transport.Entry.manifest),
-  ("reconciliation-validated", fun _ => (CedarPooSpec.AWS.Reconciliation.ValidatedExport.manifest).map Transport.Entry.manifest),
-  ("expense-governance-validated", fun _ => (CedarPooSpec.AWS.Expense.ValidatedExport.manifest).map Transport.Entry.manifest),
-  ("bounded-session", fun _ => (BoundedSessionExport.manifest).map Transport.Entry.manifest),
-  ("shared-budget", fun _ => (SharedBudgetExport.manifest).map Transport.Entry.manifest),
-  ("cross-agent-egress-validated", fun _ => (CrossAgentEgressValidatedExport.manifest).map Transport.Entry.manifest),
-  ("department-synthesis-validated", fun _ => (DepartmentSynthesisValidatedExport.manifest).map Transport.Entry.manifest),
-  ("source-custody-validated", fun _ => (SourceCustodyValidatedExport.manifest).map Transport.Entry.manifest),
-  ("supplier-transition", fun _ => (SupplierTransitionExport.manifest).map Transport.Entry.manifest),
-  ("vla-command", fun _ => (VlaCommandBoundaryExport.manifest).map Transport.Entry.manifest),
-  ("mission-successor", fun _ => (SuccessorBoundaryExport.manifest).map Transport.Entry.manifest),
-  ("extension-coverage", fun _ => (ExtensionCoverageExport.manifest).map Transport.Entry.manifest),
-  ("tenant-device", fun _ => (TenantDevicePolicyEvolutionExport.manifest).map Transport.Entry.manifest)]
+def entries : List (String × Transport.EntryProducer) := [
+  ("claim-settlement-claims", Transport.EntryProducer.of CedarPooSpec.LakehouseGatewayExample.program (fun owner => ((AWS.ClaimSettlementExport.claimsManifest owner)).map Transport.Entry.manifest)),
+  ("claim-settlement-banking", Transport.EntryProducer.of CedarPooSpec.MultiAccountBankingExample.program (fun owner => ((AWS.ClaimSettlementExport.bankingManifest owner)).map Transport.Entry.manifest)),
+  ("claim-settlement-handoff", Transport.EntryProducer.of AWS.ClaimSettlementExport.handoffs (fun outcome => outcome.map Transport.Entry.data)),
+  ("ticket-sharing", Transport.EntryProducer.of (CedarPooSpec.TicketSharingExample.program, CedarPooSpec.TicketSharingExample.expandedProgram) (fun owner => ((TicketSharingExport.manifest owner)).map Transport.Entry.manifest)),
+  ("clinical", Transport.EntryProducer.of CedarPooSpec.ClinicalBreakGlassExample.program (fun owner => ((ClinicalBreakGlassExport.manifest owner)).map Transport.Entry.manifest)),
+  ("pseudonymization-validated", Transport.EntryProducer.of CedarPooSpec.PseudonymizationExample.program (fun owner => ((PseudonymizationExport.manifest owner)).map Transport.Entry.manifest)),
+  ("pseudonymization-deployable", Transport.EntryProducer.of CedarPooSpec.PseudonymizationExample.program (fun owner => ((PseudonymizationExport.deploymentManifest owner)).map Transport.Entry.artifacts)),
+  ("pseudonymization-tabular", Transport.EntryProducer.of PseudonymizationExample.Tabular.fixture (fun outcome => outcome.map Transport.Entry.data)),
+  ("agentic-ai-language-model-health-disclosure", Transport.EntryProducer.of CedarPooSpec.AgenticAI.LanguageModel.Disclosure.program (fun owner => ((AgenticAI.LanguageModel.DisclosureExport.manifest owner)).map Transport.Entry.manifest)),
+  ("wearable-triage", Transport.EntryProducer.of CedarPooSpec.WearableTriageExample.program (fun owner => ((WearableTriageExport.manifest owner)).map Transport.Entry.manifest)),
+  ("model-stewardship", Transport.EntryProducer.of CedarPooSpec.ModelStewardshipExample.program (fun owner => ((ModelStewardshipExample.ReplayExport.manifest owner)).map Transport.Entry.manifest)),
+  ("prior-authorization-validated", Transport.EntryProducer.of CedarPooSpec.PriorAuthorizationExample.program (fun owner => ((PriorAuthorizationValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("prior-authorization-malformed", Transport.EntryProducer.of CedarPooSpec.PriorAuthorizationExample.program (fun owner => ((PriorAuthorizationValidatedExport.malformedManifest owner)).map Transport.Entry.manifest)),
+  ("prior-authorization-internal-channels", Transport.EntryProducer.of CedarPooSpec.PriorAuthorizationInternalChannels.program (fun owner => ((PriorAuthorizationInternalChannelsExport.manifest owner)).map Transport.Entry.manifest)),
+  ("my-health-record-consumer-platform", Transport.EntryProducer.of CedarPooSpec.MyHealthRecordExample.program (fun owner => ((MyHealthRecordExample.ValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("australian-emr-upload", Transport.EntryProducer.of CedarPooSpec.AustralianEMRExample.program (fun owner => ((AustralianEMRExample.ValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("united-states-payer-exchange", Transport.EntryProducer.of CedarPooSpec.UnitedStatesPayerExample.program (fun owner => ((UnitedStatesPayerExample.ValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("attested", Transport.EntryProducer.of CedarPooSpec.AttestedDataAccessExample.program (fun owner => ((AttestedDataAccessExport.manifest owner)).map Transport.Entry.manifest)),
+  ("attested-views-validated", Transport.EntryProducer.of CedarPooSpec.AttestedDataAccessExample.program (fun owner => ((AttestedViewsValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("attested-schema-evolution", Transport.EntryProducer.of CedarPooSpec.AttestedDataAccessExample.program (fun owner => (AttestedSchemaEvolutionExport.bundle owner))),
+  ("scope-pattern", Transport.EntryProducer.of CedarPooSpec.ScopeAndPatternExample.program (fun owner => ((ScopeAndPatternExport.manifest owner)).map Transport.Entry.manifest)),
+  ("scope-pattern-validated", Transport.EntryProducer.of CedarPooSpec.ScopeAndPatternExample.program (fun owner => ((ScopeAndPatternValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("namespaced-enum-validated", Transport.EntryProducer.of CedarPooSpec.NamespacedEnumExample.program (fun owner => ((NamespacedEnumValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("network", Transport.EntryProducer.of CedarPooSpec.TrustedNetworkDataAccessExample.networkProgram (fun owner => ((TrustedNetworkDataAccessExport.manifest owner)).map Transport.Entry.manifest)),
+  ("network-validated", Transport.EntryProducer.of CedarPooSpec.TrustedNetworkDataAccessExample.networkProgram (fun owner => ((TrustedNetworkValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("country-approval", Transport.EntryProducer.of CedarPooSpec.CountryApprovalExample.program (fun owner => ((CountryApprovalExport.manifest owner)).map Transport.Entry.manifest)),
+  ("country-approval-validated", Transport.EntryProducer.of CedarPooSpec.CountryApprovalExample.program (fun owner => ((CountryApprovalValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("purchase-approval", Transport.EntryProducer.of CedarPooSpec.PurchaseApprovalExample.program (fun owner => ((PurchaseApprovalExport.manifest owner)).map Transport.Entry.manifest)),
+  ("delegated-approval", Transport.EntryProducer.of CedarPooSpec.DelegatedApprovalExample.delegatedProgram (fun owner => ((DelegatedApprovalExport.manifest owner)).map Transport.Entry.manifest)),
+  ("delegated-matrix", Transport.EntryProducer.of CedarPooSpec.DelegatedApprovalExample.delegatedProgram (fun owner => ((DelegatedApprovalMatrixExport.manifest owner)).map Transport.Entry.manifest)),
+  ("payment-release", Transport.EntryProducer.of CedarPooSpec.PaymentReleaseExample.program (fun owner => ((PaymentReleaseExport.manifest owner)).map Transport.Entry.manifest)),
+  ("agent-delegation", Transport.EntryProducer.of CedarPooSpec.AgentDelegationExample.program (fun owner => ((AgentDelegationExport.manifest owner)).map Transport.Entry.manifest)),
+  ("agent-chain", Transport.EntryProducer.of CedarPooSpec.AgentChainExample.chainProgram (fun owner => ((AgentChainExport.manifest owner)).map Transport.Entry.manifest)),
+  ("agent-payment", Transport.EntryProducer.of CedarPooSpec.AgentPaymentExample.paymentProgram (fun owner => ((AgentPaymentExport.manifest owner)).map Transport.Entry.manifest)),
+  ("agent-payment-validated", Transport.EntryProducer.of CedarPooSpec.AgentPaymentExample.paymentProgram (fun owner => ((AgentPaymentValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("agent-data-flow", Transport.EntryProducer.of CedarPooSpec.AgentDataFlowExample.program (fun owner => ((AgentDataFlowExport.manifest owner)).map Transport.Entry.manifest)),
+  ("agent-data-flow-validated", Transport.EntryProducer.of CedarPooSpec.AgentDataFlowExample.program (fun owner => ((AgentDataFlowValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("lakehouse-gateway-validated", Transport.EntryProducer.of CedarPooSpec.LakehouseGatewayExample.program (fun owner => ((LakehouseGatewayValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("multi-account-banking-validated", Transport.EntryProducer.of CedarPooSpec.MultiAccountBankingExample.program (fun owner => ((MultiAccountBankingValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("reconciliation-validated", Transport.EntryProducer.of CedarPooSpec.AWS.Reconciliation.program (fun owner => ((CedarPooSpec.AWS.Reconciliation.ValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("expense-governance-validated", Transport.EntryProducer.of CedarPooSpec.AWS.Expense.program (fun owner => ((CedarPooSpec.AWS.Expense.ValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("bounded-session", Transport.EntryProducer.of CedarPooSpec.BoundedSessionExample.program (fun owner => ((BoundedSessionExport.manifest owner)).map Transport.Entry.manifest)),
+  ("shared-budget", Transport.EntryProducer.of CedarPooSpec.SharedBudgetExample.program (fun owner => ((SharedBudgetExport.manifest owner)).map Transport.Entry.manifest)),
+  ("cross-agent-egress-validated", Transport.EntryProducer.of CedarPooSpec.CrossAgentEgressExample.program (fun owner => ((CrossAgentEgressValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("department-synthesis-validated", Transport.EntryProducer.of CedarPooSpec.DepartmentSynthesisExample.program (fun owner => ((DepartmentSynthesisValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("source-custody-validated", Transport.EntryProducer.of CedarPooSpec.SourceCustodyExample.program (fun owner => ((SourceCustodyValidatedExport.manifest owner)).map Transport.Entry.manifest)),
+  ("supplier-transition", Transport.EntryProducer.of CedarPooSpec.SupplierTransitionExample.program (fun owner => ((SupplierTransitionExport.manifest owner)).map Transport.Entry.manifest)),
+  ("vla-command", Transport.EntryProducer.of CedarPooSpec.VlaCommandBoundaryExample.program (fun owner => ((VlaCommandBoundaryExport.manifest owner)).map Transport.Entry.manifest)),
+  ("mission-successor", Transport.EntryProducer.of CedarPooSpec.SuccessorBoundaryExample.program (fun owner => ((SuccessorBoundaryExport.manifest owner)).map Transport.Entry.manifest)),
+  ("extension-coverage", Transport.EntryProducer.of CedarPooSpec.ExtensionCoverageExample.program (fun owner => ((ExtensionCoverageExport.manifest owner)).map Transport.Entry.manifest)),
+  ("tenant-device", Transport.EntryProducer.of CedarPooSpec.TenantDeviceAuthorizationExample.program (fun owner => ((TenantDevicePolicyEvolutionExport.manifest owner)).map Transport.Entry.manifest))]
 
 def evaluate {α : Type} (produce : Unit → Except String α) : IO α :=
   match produce () with
@@ -122,7 +121,7 @@ private def writeChunks (stdout : IO.FS.Stream) : List String → IO Unit
       stdout.putStr chunk
       writeChunks stdout rest
 
-@[noinline] private def prepareSources (outputs : List (String × (Unit → Except String Transport.Entry))) :
+@[noinline] private def prepareSources (outputs : List (String × Transport.EntryProducer)) :
     IO (Thunk (List String)) := do
   let encoded ← evaluate (fun _ => Transport.prepareCatalogFrom outputs)
   return encoded.detach
@@ -152,14 +151,14 @@ def run (args : List String) (observe : Bool := false) : IO Unit := do
       phase started "output-written"
   | ["all"] => do
       let outputs ← entries.mapM fun (name, produce) => do
-        let json ← evaluate (fun _ => do (← produce ()).toJson)
+        let json ← evaluate (fun _ => do (← produce.run).toJson)
         pure (name, json)
       for (name, json) in outputs do
         IO.FS.writeFile s!".lake/build/{name}-manifest.json" json.compress
   | [name] =>
       match entries.find? (fun entry => entry.1 == name) with
       | some (_, produce) => do
-          let json ← evaluate (fun _ => do (← produce ()).toJson)
+          let json ← evaluate (fun _ => do (← produce.run).toJson)
           IO.println json.compress
       | none => throw (IO.userError s!"unknown manifest: {name}")
   | _ => throw (IO.userError "expected a manifest name or all")

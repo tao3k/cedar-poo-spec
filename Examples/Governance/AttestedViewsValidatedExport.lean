@@ -3,8 +3,10 @@ import Examples.Governance.AttestedDataAccessExport
 
 namespace CedarPooSpec.AttestedViewsValidatedExport
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
-  let rows ← CedarPooSpec.AttestedDataAccessExport.rows
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.AttestedDataAccessExample.model CedarPooSpec.AttestedDataAccessExample.schema :=
+      CedarPooSpec.AttestedDataAccessExample.program) : Except String CedarPooSpec.Transport.Manifest := do
+  let rows ← (CedarPooSpec.AttestedDataAccessExport.rows (owner := owner))
   CedarPooSpec.SchemaJson.manifest
     CedarPooSpec.AttestedDataAccessExample.schema rows
 

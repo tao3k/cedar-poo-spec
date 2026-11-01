@@ -28,12 +28,15 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model CedarPooSpec.AgentPaymentExample.paymentSchema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model CedarPooSpec.AgentPaymentExample.paymentSchema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model CedarPooSpec.AgentPaymentExample.paymentSchema (model.modules.map (·.name)) (by native_decide)
 
 
-private def hasPolicy (root : String) (id : PolicyID) : Bool :=
-  match CedarPooSpec.AgentPaymentJointRelease.program.at root with
+private def hasPolicy
+     (root : String) (id : PolicyID)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentPaymentJointRelease.model CedarPooSpec.AgentPaymentExample.paymentSchema :=
+      CedarPooSpec.AgentPaymentJointRelease.program) : Bool :=
+  match programContext.at root with
   | .ok ready => (ready.checked.policies.map Policy.id).contains id
   | .error _ => false
 
@@ -48,7 +51,9 @@ theorem compiledRoots :
     hasPolicy "JointRelease" complianceHold.id = false := by
   native_decide
 
-def run : IO Lean.Json := do
+def run
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.AgentPaymentJointRelease.model CedarPooSpec.AgentPaymentExample.paymentSchema :=
+      CedarPooSpec.AgentPaymentJointRelease.program) : IO Lean.Json := do
   match ← analyzeModelInteraction model "DualHold" "RiskReleased"
       "ComplianceReleased" "PaymentFrozen" paymentSchema with
   | .error (.topology _) => pure ()
@@ -152,7 +157,7 @@ def run : IO Lean.Json := do
   let entities := gain.combined.witness.entities
   let mut cases := []
   for root in ["DualHold", "RiskReleased", "ComplianceReleased", "JointRelease"] do
-    let .ok receipt := CedarPooSpec.AgentPaymentJointRelease.program.authorizationCase root root root request entities
+    let .ok receipt := programContext.authorizationCase root root root request entities
       | throw (IO.userError s!"cannot export {root} Cedar replay")
     cases := cases ++ [receipt]
   return Lean.Json.mkObj [

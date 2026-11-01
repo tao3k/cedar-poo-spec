@@ -40,6 +40,12 @@ def compilePrepared (model : Model) (prepared : LeanPoo.C4.Prepared model.graph)
   | .error error => .error error
   | .ok policies => .ok ⟨policies, by simpa only [model.compilePrepared_eq] using h⟩
 
+theorem compilePrepared_eq (model : Model) (prepared : LeanPoo.C4.Prepared model.graph)
+    (root : String) : compilePrepared model prepared root = compile model root := by
+  have same := model.compilePrepared_eq prepared root
+  unfold compilePrepared compile
+  split <;> split <;> simp_all
+
 theorem compile_error (h : model.compile root = .error error) :
     compile model root = .error error := by
   unfold compile

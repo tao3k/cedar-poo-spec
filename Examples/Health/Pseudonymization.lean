@@ -288,8 +288,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Exact checked policy snapshots; actual requests/entities remain per-call. -/
 def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard model schema
-    (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard model schema
+    (model.modules.map (·.name)) (by native_decide)
 
 structure Facts where
   targetDataset : EntityUID := hospital
@@ -440,8 +440,10 @@ def cases : List (String × String × Request × Decision) := [
   ("incident-steward-join", "AgentIncident", request steward join hospital {}, .allow),
   ("recovered-agent-join", "Recovered", request agent join hospital {}, .allow)]
 
-def scenarioConforms : Bool := cases.all fun (_, root, req, expected) =>
-  match program.authorize root [req] entities with
+def scenarioConforms
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PseudonymizationExample.model CedarPooSpec.PseudonymizationExample.schema :=
+      CedarPooSpec.PseudonymizationExample.program) : Bool := cases.all fun (_, root, req, expected) =>
+  match programContext.authorize root [req] entities with
   | .error _ => false
   | .ok receipt => receipt.responses.all fun response =>
       response.decision == expected && response.erroringPolicies.isEmpty

@@ -97,8 +97,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
 def request (principal resource : EntityUID) (requested : String) : Request :=
   ⟨principal, approve, resource,
@@ -115,8 +115,10 @@ def cases : List (String × String × Request × Decision) := [
   ("integrated-other-negative", "Integrated", request bob operationsOrder "-1.0000", .deny),
   ("integrated-cross-department", "Integrated", request alice researchOrder "10.0000", .deny)]
 
-def decisionsExact : Bool := cases.all fun (_, root, req, expected) =>
-  match CedarPooSpec.PurchaseApprovalExample.program.response root req entities with
+def decisionsExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PurchaseApprovalExample.model CedarPooSpec.PurchaseApprovalExample.schema :=
+      CedarPooSpec.PurchaseApprovalExample.program) : Bool := cases.all fun (_, root, req, expected) =>
+  match programContext.response root req entities with
   | .error _ => false
   | .ok response =>
       response.decision == expected && response.erroringPolicies.isEmpty
@@ -140,8 +142,8 @@ def malformedModel : Model := { modules := model.modules ++ [
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def malformedProgram : CedarPooSpec.Functional.Program malformedModel schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    malformedModel schema []).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    malformedModel schema [] (by native_decide)
 
 
 theorem malformedPublicationRejected :

@@ -84,8 +84,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Retain checked policies for this exact model/schema, never request decisions. -/
 def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard model schema
-    (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard model schema
+    (model.modules.map (·.name)) (by native_decide)
 
 inductive LedgerView where
   | workerLocal
@@ -152,9 +152,12 @@ def authorizedWith (ready : CedarPooSpec.Functional.Ready ⟨activeModel, root, 
   if attempt.worker != workerA && attempt.worker != workerB then false else
     (ready.authorize [request view state attempt] entities).allowed
 
-def authorized (root : String) (view : LedgerView) (state : State)
-    (attempt : Attempt) : Bool :=
-  match program.at root with
+def authorized
+     (root : String) (view : LedgerView) (state : State)
+    (attempt : Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.CrossAgentEgressExample.model CedarPooSpec.CrossAgentEgressExample.schema :=
+      CedarPooSpec.CrossAgentEgressExample.program) : Bool :=
+  match programContext.at root with
   | .error _ => false
   | .ok ready => authorizedWith ready view state attempt
 
@@ -171,9 +174,12 @@ def advance (state : State) (attempt : Attempt) : State :=
 
 /-- A policy-only diagnostic transition for Cedar replay cases. It does not
     consume an approval instance; Host admission uses prepare/commit below. -/
-def admit (root : String) (view : LedgerView) (state : State)
-    (attempt : Attempt) : Bool × State :=
-  let allowed := authorized root view state attempt
+def admit
+     (root : String) (view : LedgerView) (state : State)
+    (attempt : Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.CrossAgentEgressExample.model CedarPooSpec.CrossAgentEgressExample.schema :=
+      CedarPooSpec.CrossAgentEgressExample.program) : Bool × State :=
+  let allowed := (authorized (programContext := programContext)) root view state attempt
   let next := advance state attempt
   (allowed, if allowed then { next with epoch := state.epoch + 1 } else state)
 
@@ -226,24 +232,33 @@ def commit (activeModel : Model) (root : String) (view : LedgerView) (state : St
                   let next := advance state effect.attempt
                   some { next with authority, operations, epoch := state.epoch + 1 }
 
-def replayFactory (attempts : List Attempt) :
+def replayFactory
+     (attempts : List Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.CrossAgentEgressExample.model CedarPooSpec.CrossAgentEgressExample.schema :=
+      CedarPooSpec.CrossAgentEgressExample.program) :
     LeanPoo.Functional.Factory (String × LedgerView × State)
       (fun _ => State × List (Request × Bool)) :=
   LeanPoo.Functional.Factory.fold
     (fun (root, view, _) (state, rows) attempt =>
       let req := request view state attempt
-      let (allowed, next) := admit root view state attempt
+      let (allowed, next) := (admit (programContext := programContext)) root view state attempt
       (next, rows ++ [(req, allowed)]))
     (fun (_, _, initial) => (initial, []))
     (attempts.map fun attempt _ => attempt)
 
-def replay (root : String) (view : LedgerView) (initial : State)
-    (attempts : List Attempt) : List (Request × Bool) × State :=
-  let (state, rows) := replayFactory attempts (root, view, initial)
+def replay
+     (root : String) (view : LedgerView) (initial : State)
+    (attempts : List Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.CrossAgentEgressExample.model CedarPooSpec.CrossAgentEgressExample.schema :=
+      CedarPooSpec.CrossAgentEgressExample.program) : List (Request × Bool) × State :=
+  let (state, rows) := (replayFactory (programContext := programContext)) attempts (root, view, initial)
   (rows, state)
 
-def decisions (root : String) (view : LedgerView) (attempts : List Attempt) :
-    List Bool := (replay root view {} attempts).1.map Prod.snd
+def decisions
+     (root : String) (view : LedgerView) (attempts : List Attempt)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.CrossAgentEgressExample.model CedarPooSpec.CrossAgentEgressExample.schema :=
+      CedarPooSpec.CrossAgentEgressExample.program) :
+    List Bool := ((replay (programContext := programContext)) root view {} attempts).1.map Prod.snd
 
 def cases : List (String × String × LedgerView × List Attempt × List Bool) := [
   ("read-only-owner-leaks-across-workers", "Read", .delegationShared,
@@ -358,8 +373,8 @@ def reloadedModel : Model := reloadedModelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def reloadedProgram : CedarPooSpec.Functional.Program reloadedModel schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    reloadedModel schema (reloadedModel.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    reloadedModel schema (reloadedModel.modules.map (·.name)) (by native_decide)
 
 
 theorem reloadedPolicyStillAllowsSend :

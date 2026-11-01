@@ -6,9 +6,11 @@ namespace CedarPooSpec.AWS.Expense.ValidatedExport
 
 open CedarPooSpec.AWS.Expense
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.AWS.Expense.model CedarPooSpec.AWS.Expense.schema :=
+      CedarPooSpec.AWS.Expense.program) : Except String CedarPooSpec.Transport.Manifest := do
   let rows ← cases.mapM fun (name, root, req, _) =>
-    CedarPooSpec.AWS.Expense.program.case name root root req entities
+    owner.case name root root req entities
   CedarPooSpec.SchemaJson.manifest schema rows
 
 end CedarPooSpec.AWS.Expense.ValidatedExport

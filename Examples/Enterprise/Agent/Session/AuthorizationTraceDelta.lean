@@ -22,29 +22,37 @@ private def compare (attempts : List Attempt) :
   compareTrace schema model "Base" "Integrated" ({} : Session)
     attempts observe advance
 
-private def receiptCases (name : String) (impact : TraceImpact Session) :
+private def receiptCases
+     (name : String) (impact : TraceImpact Session)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.BoundedSessionExample.model CedarPooSpec.BoundedSessionExample.schema :=
+      CedarPooSpec.BoundedSessionExample.program) :
     Except String (List Lean.Json) := do
   let indexed := impact.steps.zipIdx
   let before ← indexed.mapM fun (step, index) =>
-    CedarPooSpec.BoundedSessionExample.program.authorizationCase
+    programContext.authorizationCase
         s!"{name}-before-{index}" "Base" "Base" step.beforeEnv.request step.beforeEnv.entities
   let after ← indexed.mapM fun (step, index) =>
-    CedarPooSpec.BoundedSessionExample.program.authorizationCase
+    programContext.authorizationCase
         s!"{name}-after-{index}" "Integrated" "Integrated" step.afterEnv.request step.afterEnv.entities
   return before ++ after
 
-private def crossReceiptCases (name : String) (impact : TraceImpact Session) :
+private def crossReceiptCases
+     (name : String) (impact : TraceImpact Session)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.BoundedSessionExample.model CedarPooSpec.BoundedSessionExample.schema :=
+      CedarPooSpec.BoundedSessionExample.program) :
     Except String (List Lean.Json) := do
   let indexed := impact.steps.zipIdx
   let beforeOnAfter ← indexed.mapM fun (step, index) =>
-    CedarPooSpec.BoundedSessionExample.program.authorizationCase
+    programContext.authorizationCase
         s!"{name}-before-on-after-{index}" "Base" "Base" step.afterEnv.request step.afterEnv.entities
   let afterOnBefore ← indexed.mapM fun (step, index) =>
-    CedarPooSpec.BoundedSessionExample.program.authorizationCase
+    programContext.authorizationCase
         s!"{name}-after-on-before-{index}" "Integrated" "Integrated" step.beforeEnv.request step.beforeEnv.entities
   return beforeOnAfter ++ afterOnBefore
 
-def run : IO Lean.Json := do
+def run
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.BoundedSessionExample.model CedarPooSpec.BoundedSessionExample.schema :=
+      CedarPooSpec.BoundedSessionExample.program) : IO Lean.Json := do
   let .ok sensitive := compare [readSecret, sendExternal]
     | throw (IO.userError "sensitive-read trace comparison failed")
   if sensitive.steps.map TraceStep.beforeAllowed != [true, true] ||
@@ -121,24 +129,24 @@ def run : IO Lean.Json := do
       ({} : Session) alphabet 3 38 observe advance with
   | .error .invalidBoundedScope => pure ()
   | _ => throw (IO.userError "undersized bounded-scope cap was admitted")
-  let .ok sensitiveCases := receiptCases "sensitive" sensitive
+  let .ok sensitiveCases := (receiptCases (programContext := programContext)) "sensitive" sensitive
     | throw (IO.userError "cannot export sensitive Cedar replay")
-  let .ok budgetCases := receiptCases "budget" budget
+  let .ok budgetCases := (receiptCases (programContext := programContext)) "budget" budget
     | throw (IO.userError "cannot export budget Cedar replay")
-  let .ok maskedCases := receiptCases "masked" masked
+  let .ok maskedCases := (receiptCases (programContext := programContext)) "masked" masked
     | throw (IO.userError "cannot export masked Cedar replay")
   let .ok boundedCaseLists := bounded.zipIdx.mapM fun ((_, impact), index) =>
-      receiptCases s!"bounded-{index}" impact
+      (receiptCases (programContext := programContext)) s!"bounded-{index}" impact
     | throw (IO.userError "cannot export bounded Cedar replay")
   let boundedCases := boundedCaseLists.flatten
-  let .ok sensitiveCrossCases := crossReceiptCases "sensitive" sensitive
+  let .ok sensitiveCrossCases := (crossReceiptCases (programContext := programContext)) "sensitive" sensitive
     | throw (IO.userError "cannot export sensitive cross replay")
-  let .ok budgetCrossCases := crossReceiptCases "budget" budget
+  let .ok budgetCrossCases := (crossReceiptCases (programContext := programContext)) "budget" budget
     | throw (IO.userError "cannot export budget cross replay")
-  let .ok maskedCrossCases := crossReceiptCases "masked" masked
+  let .ok maskedCrossCases := (crossReceiptCases (programContext := programContext)) "masked" masked
     | throw (IO.userError "cannot export masked cross replay")
   let .ok boundedCrossCaseLists := bounded.zipIdx.mapM fun ((_, impact), index) =>
-      crossReceiptCases s!"bounded-{index}" impact
+      (crossReceiptCases (programContext := programContext)) s!"bounded-{index}" impact
     | throw (IO.userError "cannot export bounded cross replay")
   let boundedCrossCases := boundedCrossCaseLists.flatten
   return Lean.Json.mkObj [

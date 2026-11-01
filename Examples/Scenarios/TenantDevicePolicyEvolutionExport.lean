@@ -8,9 +8,11 @@ namespace CedarPooSpec.TenantDevicePolicyEvolutionExport
 
 open CedarPooSpec.TenantDeviceAuthorizationExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.TenantDeviceAuthorizationExample.model CedarPooSpec.TenantDeviceAuthorizationExample.schema :=
+      CedarPooSpec.TenantDeviceAuthorizationExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let rows ← expectedDecisions.zipIdx.mapM fun ((root, req, _), index) =>
-    CedarPooSpec.TenantDeviceAuthorizationExample.program.case
+    owner.case
         s!"{root.toLower}-case-{index}" root.toLower root req entities
   return { cases := rows }
 

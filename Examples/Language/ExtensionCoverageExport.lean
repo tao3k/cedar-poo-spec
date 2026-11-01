@@ -5,9 +5,11 @@ namespace CedarPooSpec.ExtensionCoverageExport
 
 open CedarPooSpec.ExtensionCoverageExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Compilation CedarPooSpec.ExtensionCoverageExample.model :=
+      CedarPooSpec.ExtensionCoverageExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let exported ← cases.mapM fun (name, root, req, _) =>
-    CedarPooSpec.ExtensionCoverageExample.program.case name root.toLower root req entities
+    owner.case name root.toLower root req entities
   return { cases := exported }
 
 end CedarPooSpec.ExtensionCoverageExport

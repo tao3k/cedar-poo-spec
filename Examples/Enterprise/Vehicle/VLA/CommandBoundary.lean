@@ -101,8 +101,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
 
 structure Facts where
@@ -116,8 +116,11 @@ def context (facts : Facts) : Map String Value := Map.make [
   ("modelAffected", .prim (.bool facts.modelAffected))]
 def request (action segment : EntityUID) (facts : Facts) : Request :=
   ⟨planner, action, segment, context facts⟩
-def authorized (root : String) (action segment : EntityUID) (facts : Facts) : Bool :=
-  match CedarPooSpec.VlaCommandBoundaryExample.program.authorizeLayers [(root, request action segment facts)] entities with
+def authorized
+     (root : String) (action segment : EntityUID) (facts : Facts)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.VlaCommandBoundaryExample.model CedarPooSpec.VlaCommandBoundaryExample.schema :=
+      CedarPooSpec.VlaCommandBoundaryExample.program) : Bool :=
+  match programContext.authorizeLayers [(root, request action segment facts)] entities with
   | .error _ => false
   | .ok receipts => CedarPooSpec.Authorization.Compound.layersAllowed receipts
 
@@ -150,14 +153,18 @@ def cases : List (String × String × EntityUID × EntityUID × Facts × Bool) :
   ("recovery-keeps-pedestrian-veto", "Recovered", accelerate, crosswalk,
     { modelAffected := true }, false)]
 
-def casesExact : Bool :=
+def casesExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.VlaCommandBoundaryExample.model CedarPooSpec.VlaCommandBoundaryExample.schema :=
+      CedarPooSpec.VlaCommandBoundaryExample.program) : Bool :=
   cases.all (fun (_, root, action, segment, facts, expected) =>
-    authorized root action segment facts == expected)
+    (authorized (programContext := programContext)) root action segment facts == expected)
 theorem casesExactFully : casesExact = true := by native_decide
 
-def rootsValidated : Bool :=
+def rootsValidated
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.VlaCommandBoundaryExample.model CedarPooSpec.VlaCommandBoundaryExample.schema :=
+      CedarPooSpec.VlaCommandBoundaryExample.program) : Bool :=
   ["Base", "Safety", "Provenance", "Integrated", "Incident", "Recovered"].all fun root =>
-    (CedarPooSpec.VlaCommandBoundaryExample.program.publish root).isOk
+    (programContext.publish root).isOk
 theorem rootsValidatedFully : rootsValidated = true := by native_decide
 
 def incidentRevision : Revision :=

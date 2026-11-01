@@ -144,6 +144,45 @@ These deterministic Host simulations remain the qualification boundary. Durable
 atomic execution, authentic external facts and distributed crash recovery are
 separate obligations, not prerequisites for running the simulated Cases.
 
+* Typed native preparation and Case inputs
+
+=deferProgram standard model schema roots proof= retains the actual preparation
+inputs. Its erased proof requires the original =prepareProgram= to succeed;
+=deferProgram_eq= equates the complete Program with that original result.
+=Program.entries= and its open root factory share the deferred checked result.
+This does not defer or weaken validation for unproved construction, cache an
+authorization decision, or turn model identity into Host source freshness.
+
+=Model.prepareC4= seeds the graph preparation from its existing Plan witness.
+POO shares canonical ancestor results and derives reachable validation from their
+traces plus declaration uniqueness. Failed audits and duplicate declarations keep
+the ordinary C4 result/error path. The first demand may prepare the whole finite
+graph; the table lives with this immutable owner.
+
+Schema-free =Compilation= likewise owns its graph preparation as data, together
+with its selected compiler factory. Its =compile= method preserves the original
+complete compiled result/error via =compilation_eq=. It adds no schema admission.
+A bare curried compiler was insufficient: generated C reconstructed its thunk at
+every root call. The explicit owner keeps preparation within one actual lifetime.
+
+Native =Transport.EntryProducer= carries actual typed Program/Compilation input
+separately from its interpreter. All applicable catalog factories use this same
+public manifest implementation with their real input. Program-dependent checks
+are observation functions rather than eager global Bool values; their original
+proofs and test calls retain the default owner. Independent data/model globals
+remain and must be measured separately. Two disclosure replay states additionally
+carry complete equalities with the original authorized transition results.
+
+=EncodedJson= separates lazy semantic JSON from certified native rendering.
+Canonical object fields retain original semantic order/last-key ownership, while
+native fragments use canonical key order. =nativeObject_value= and the generic
+projection laws retain the actual JSON values; =compact_wire= preserves complete
+bytes when grouping fragments. Native catalog rows avoid constructing semantic
+object trees merely to serialize them. Source equality, revision binding, Case
+response evidence and independent Rust admission remain mandatory. These
+compositional encoding certificates are not a new kernel proof of Lean's JSON
+parser implementation.
+
 * Measured scoped reuse (D)
 
 [[file:Reuse.lean][RootSlot]] is an alias of LeanPOO's =Requirements.ContextSlot=,
@@ -164,13 +203,14 @@ entities, authorization decisions and Host tickets are not stored in the slot.
 threads one slot through an ordered batch, reevaluating each current request.
 Its universal equality with ordinary =Validation.traverse= preserves all JSON
 values and the first error. Medical prior-authorization and cross-agent egress
-manifests use empty-retention Programs plus this batch path, removing their
-nested export traversals. Their policy/state replay and admission boundaries
-remain unchanged. This bounds extra prepared-root retention; input/output lists,
+manifests reuse their existing checked Programs through this batch path, avoiding
+a second empty-retention preparation owner. Their policy/state replay and
+admission boundaries remain unchanged. This bounds extra prepared-root retention; input/output lists,
 the caller's other Program entries and overall process RSS are not bounded by it.
 
-=just bench-functional-reuse= runs a fixed 16-read warmup and three 128-read
-samples under the existing 120-second, 2048-MiB, 10000000-tick Lean-run limits.
+=just bench-functional-reuse= runs the fixed 16-read warmup and three 128-read
+samples as a Lake native executable under the existing 120-second supervision.
+The separate elaboration/proof memory and tick limits remain unchanged.
 Each iteration changes the actual budget fact; all paths must return matching
 checksums. Same-root workloads require exactly 127 hits; alternating governed/
 incident workloads require zero hits. Timings are observations, never pass/fail

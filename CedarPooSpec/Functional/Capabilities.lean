@@ -101,7 +101,7 @@ def constructUsing (context : Context) (data : Data context) (contract : Coheren
     aligned := fun requests entities => (contract checked requests entities).2 }
 
 def construct (context : Context) (data : Data context) (contract : Coherent context data) :=
-  constructUsing context data contract (LeanPoo.C4.prepare context.model.graph)
+  constructUsing context data contract context.model.prepareC4
     (SchemaFacts.prepare context.schema)
 
 private def prepareWithFacts (provider : Operations) : Except Capability
@@ -151,19 +151,42 @@ def Error.message : Error → String
 /-- Finite retained policy snapshots, indexed by the actual immutable model and
 schema. Request/entity data is supplied at each call, never cached as a decision. -/
 structure Program (model : PolicyModules.Model) (schema : Schema) where
-  entries : List ((root : String) × Ready ⟨model, root, schema⟩)
+  retained : Thunk (List ((root : String) × Ready ⟨model, root, schema⟩))
   factory : (root : String) → Except PolicyJson.PublicationError (Ready ⟨model, root, schema⟩)
+
+def Program.entries (program : Program model schema) := program.retained.get
 
 def prepareProgram (provider : Operations) (model : PolicyModules.Model) (schema : Schema)
     (roots : List String) : Except Error (Program model schema) := do
   let selected ← (prepareWithFacts provider).mapError .missingCapability
   let facts := SchemaFacts.prepare schema
-  let prepared := LeanPoo.C4.prepare model.graph
+  let prepared := model.prepareC4
   let factory := fun root => selected ⟨model, root, schema⟩ prepared facts
   let entries ← Validation.traverse (fun root =>
     ((factory root).mapError (Error.context root)).map
       (fun ready => (⟨root, ready⟩ : (root : String) × Ready ⟨model, root, schema⟩))) roots.eraseDups
-  return ⟨entries, factory⟩
+  return ⟨Thunk.pure entries, factory⟩
+
+/-- A typed preparation descriptor. Construction retains only its actual inputs;
+validation runs at first use and its successful Program is shared thereafter.
+The supplied proof is erased; there is no unchecked runtime admission. -/
+def deferProgram (provider : Operations) (model : PolicyModules.Model) (schema : Schema)
+    (roots : List String) (valid : (prepareProgram provider model schema roots).toOption.isSome) :
+    Program model schema :=
+  let pending := Thunk.mk fun _ => (prepareProgram provider model schema roots).toOption.get valid
+  ⟨Thunk.mk fun _ => pending.get.entries, fun root => pending.get.factory root⟩
+
+theorem deferProgram_eq (provider : Operations) (model : PolicyModules.Model) (schema : Schema)
+    (roots : List String) (valid : (prepareProgram provider model schema roots).toOption.isSome) :
+    deferProgram provider model schema roots valid =
+      (prepareProgram provider model schema roots).toOption.get valid := by
+  unfold deferProgram
+  generalize (prepareProgram provider model schema roots).toOption.get valid = actual
+  cases actual with
+  | mk retained factory =>
+    cases retained with
+    | mk build =>
+      congr 2
 
 private theorem traverse_length {E A B : Type} (check : A → Except E B) (items : List A)
     (result : List B) (success : Validation.traverse check items = .ok result) :
@@ -195,7 +218,7 @@ theorem prepareProgram_retained (provider : Operations) (model : PolicyModules.M
     split at success
     · simp_all
     · rename_i entries built
-      simp only [Except.pure, Except.ok.injEq] at success
+      simp only [Except.ok.injEq] at success
       subst program
       exact traverse_length _ _ entries built
 

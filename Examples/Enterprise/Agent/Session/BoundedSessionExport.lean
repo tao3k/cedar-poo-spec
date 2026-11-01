@@ -7,11 +7,13 @@ namespace CedarPooSpec.BoundedSessionExport
 
 open CedarPooSpec.BoundedSessionExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.BoundedSessionExample.model CedarPooSpec.BoundedSessionExample.schema :=
+      CedarPooSpec.BoundedSessionExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let mut rows : List CedarPooSpec.Transport.Case := []
   for (name, root, initial, attempts, _) in cases do
-    for ((req, _), index) in (replay root initial attempts).1.zipIdx do
-      let receipt ← CedarPooSpec.BoundedSessionExample.program.case
+    for ((req, _), index) in ((replay (programContext := owner)) root initial attempts).1.zipIdx do
+      let receipt ← owner.case
           s!"{name}-step-{index}" root.toLower root req entities
       rows := rows ++ [receipt]
   return { cases := rows }

@@ -212,8 +212,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Prepared against this exact model/schema; requests and entities remain current. -/
 def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard model schema
-    (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard model schema
+    (model.modules.map (·.name)) (by native_decide)
 /-- An owner chain can opt into C4's indivisible inherited suffix. -/
 def strictOwner : Module := { dataOwner with suffix := true }
 def independentCompliance : Module :=

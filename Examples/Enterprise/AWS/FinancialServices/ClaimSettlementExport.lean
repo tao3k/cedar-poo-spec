@@ -42,19 +42,23 @@ def bankCalls (selection : Selection) :=
   CedarPooSpec.MultiAccountBankingLineage.transferRoute.map fun call =>
     { call with origin := selection.actors.bankOperator }
 
-def claimsManifest : Except String CedarPooSpec.Transport.Manifest := do
+def claimsManifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.LakehouseGatewayExample.model CedarPooSpec.LakehouseGatewayExample.schema :=
+      CedarPooSpec.LakehouseGatewayExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let batches ← LeanPoo.Functional.Validation.traverse (fun scenario =>
     LeanPoo.Functional.Validation.traverse (fun (request, index) =>
-      CedarPooSpec.LakehouseGatewayExample.program.case
+      owner.case
         s!"{scenario.name}-claims-{index}" scenario.selection.claimRoot scenario.selection.claimRoot
         request CedarPooSpec.LakehouseGatewayExample.entities)
       (claimRequests scenario.selection).zipIdx) scenarios
   SchemaJson.manifest CedarPooSpec.LakehouseGatewayExample.schema batches.flatten
 
-def bankingManifest : Except String CedarPooSpec.Transport.Manifest := do
+def bankingManifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.MultiAccountBankingExample.model CedarPooSpec.MultiAccountBankingExample.schema :=
+      CedarPooSpec.MultiAccountBankingExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let batches ← LeanPoo.Functional.Validation.traverse (fun scenario =>
     LeanPoo.Functional.Validation.traverse (fun (call, index) =>
-      CedarPooSpec.MultiAccountBankingExample.program.case
+      owner.case
         s!"{scenario.name}-bank-{index}" scenario.selection.bankRoot scenario.selection.bankRoot
         (CedarPooSpec.MultiAccountBankingExample.request call.origin call.action)
         CedarPooSpec.MultiAccountBankingExample.entities)
@@ -80,7 +84,9 @@ def requirementName : CedarPooSpec.MultiAccountBankingLineage.Requirement → St
   | .transactionDataPlane => "transactionDataPlane"
   | .lendingDataPlane => "lendingDataPlane"
 
-def handoffs : Except String Lean.Json := do
+def handoffs
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.LakehouseGatewayExample.model CedarPooSpec.LakehouseGatewayExample.schema × CedarPooSpec.Functional.Program CedarPooSpec.MultiAccountBankingExample.model CedarPooSpec.MultiAccountBankingExample.schema :=
+      (CedarPooSpec.LakehouseGatewayExample.program, CedarPooSpec.MultiAccountBankingExample.program)) : Except String Lean.Json := do
   return Lean.toJson (scenarios.map fun scenario =>
     let selection := scenario.selection
     Lean.Json.mkObj [
@@ -99,7 +105,7 @@ def handoffs : Except String Lean.Json := do
           ("origin", Lean.toJson (toString call.origin)), ("action", Lean.toJson (toString call.action)),
           ("required", match CedarPooSpec.MultiAccountBankingLineage.requirements selection.mode call.lob with
             | none => Lean.Json.null | some required => Lean.toJson (required.map requirementName))])),
-      ("expectedGateway", Lean.toJson (gatewayPlanAllows selection.claimRoot selection.bankRoot
+      ("expectedGateway", Lean.toJson ((gatewayPlanAllows (programContext := (programContext.1, programContext.2))) selection.claimRoot selection.bankRoot
         selection.mode selection.actors selection.geography)),
       ("expectedAdmitted", Lean.toJson (admitted scenario.profile scenario.handoff selection))])
 end CedarPooSpec.AWS.ClaimSettlementExport

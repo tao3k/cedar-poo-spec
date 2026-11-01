@@ -35,6 +35,22 @@ inductive Entry where
   | artifacts (values : List PolicyArtifact)
   | data (value : Lean.Json)
 
+/-- A typed native input and its interpreter. Keeping input separate from code
+prevents closed manifest computations from becoming persistent global values. -/
+structure EntryProducer where
+  Input : Type
+  input : Input
+  produce : Input → Except String Entry
+
+def EntryProducer.of {α : Type} (input : α) (produce : α → Except String Entry) : EntryProducer :=
+  ⟨α, input, produce⟩
+
+def EntryProducer.run (producer : EntryProducer) : Except String Entry :=
+  producer.produce producer.input
+
+theorem EntryProducer.run_of {α : Type} (input : α) (produce : α → Except String Entry) :
+    (EntryProducer.of input produce).run = produce input := rfl
+
 private def entitySource (store : Entities) : Except String (SourceSnapshot .entities) := do
   return SourceSnapshot.ofJson (← (PolicyJson.entities store).mapError reprStr)
 

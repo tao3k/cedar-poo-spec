@@ -77,8 +77,8 @@ def delegatedModel : Model := delegatedModelResult.toOption.get (by native_decid
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def delegatedProgram : CedarPooSpec.Functional.Program delegatedModel delegatedSchema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    delegatedModel delegatedSchema (delegatedModel.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    delegatedModel delegatedSchema (delegatedModel.modules.map (·.name)) (by native_decide)
 
 def delegatedRequest (principal resource agent : EntityUID) (requested : String) : Request :=
   ⟨principal, approve, resource,
@@ -98,8 +98,10 @@ def delegatedCases : List (String × String × Request × Decision) := [
   ("revoked-agent", "Revoked", delegatedRequest bob operationsOrder purchasingBot "250.0000", .deny),
   ("revoked-inactive-agent", "Revoked", delegatedRequest bob operationsOrder dormantBot "250.0000", .deny)]
 
-def delegatedDecisionsExact : Bool := delegatedCases.all fun (_, root, req, expected) =>
-  match CedarPooSpec.DelegatedApprovalExample.delegatedProgram.response root req delegatedEntities with
+def delegatedDecisionsExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.DelegatedApprovalExample.delegatedModel CedarPooSpec.DelegatedApprovalExample.delegatedSchema :=
+      CedarPooSpec.DelegatedApprovalExample.delegatedProgram) : Bool := delegatedCases.all fun (_, root, req, expected) =>
+  match programContext.response root req delegatedEntities with
   | .error _ => false
   | .ok response =>
       response.decision == expected && response.erroringPolicies.isEmpty

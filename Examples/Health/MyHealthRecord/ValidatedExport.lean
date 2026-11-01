@@ -7,9 +7,11 @@ namespace CedarPooSpec.MyHealthRecordExample.ValidatedExport
 
 open CedarPooSpec.MyHealthRecordExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.MyHealthRecordExample.model CedarPooSpec.MyHealthRecordExample.schema :=
+      CedarPooSpec.MyHealthRecordExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let rows ← cases.mapM fun (name, root, req, _) =>
-    CedarPooSpec.MyHealthRecordExample.program.case name root root req entities
+    owner.case name root root req entities
   CedarPooSpec.SchemaJson.manifest schema rows
 
 end CedarPooSpec.MyHealthRecordExample.ValidatedExport

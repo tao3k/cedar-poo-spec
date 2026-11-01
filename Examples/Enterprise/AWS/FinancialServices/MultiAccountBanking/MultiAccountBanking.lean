@@ -118,11 +118,14 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
-def decideAt (root : String) (req : Request) : Option Decision := do
-  let response ← (CedarPooSpec.MultiAccountBankingExample.program.response root req entities).toOption
+def decideAt
+     (root : String) (req : Request)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.MultiAccountBankingExample.model CedarPooSpec.MultiAccountBankingExample.schema :=
+      CedarPooSpec.MultiAccountBankingExample.program) : Option Decision := do
+  let response ← (programContext.response root req entities).toOption
   if response.erroringPolicies.isEmpty then some response.decision else none
 
 def expected (action : EntityUID) : Decision :=

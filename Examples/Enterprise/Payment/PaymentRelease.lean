@@ -162,21 +162,27 @@ def roots : List String :=
   ["Base", "Threshold", "Duties", "Risk", "Retired", "Integrated", "Restricted"]
 
 def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard model schema roots).toOption.get
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard model schema roots
       (by native_decide)
 
 def request (principal action resource : EntityUID) : Request :=
   ⟨principal, action, resource, Map.empty⟩
 
-def authorized (root : String) (principal action resource : EntityUID) : Bool :=
-  match program.authorize root [request principal action resource] entities with
+def authorized
+     (root : String) (principal action resource : EntityUID)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PaymentReleaseExample.model CedarPooSpec.PaymentReleaseExample.schema :=
+      CedarPooSpec.PaymentReleaseExample.program) : Bool :=
+  match programContext.authorize root [request principal action resource] entities with
   | .error _ => false
   | .ok receipt => receipt.allowed
 
 /-- The application must require both permissions on the same payment snapshot. -/
-def releaseOperation (root : String) (preparer releaser resource : EntityUID) : Bool :=
+def releaseOperation
+     (root : String) (preparer releaser resource : EntityUID)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PaymentReleaseExample.model CedarPooSpec.PaymentReleaseExample.schema :=
+      CedarPooSpec.PaymentReleaseExample.program) : Bool :=
   let requests := [request preparer prepare resource, request releaser release resource]
-  match program.authorize root requests entities with
+  match programContext.authorize root requests entities with
   | .error _ => false
   | .ok receipt => receipt.allowed
 
@@ -202,8 +208,10 @@ def branchCases : List (String × String × EntityUID × EntityUID × EntityUID 
   ("risk-frozen-release", "Risk", bob, release, frozen, .deny),
   ("integrated-unmatched-release-probe", "Integrated", bob, release, unmatched, .deny)]
 
-def operationsExact : Bool := operationCases.all fun (_, root, preparer, releaser, resource, expected) =>
-  releaseOperation root preparer releaser resource == expected
+def operationsExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PaymentReleaseExample.model CedarPooSpec.PaymentReleaseExample.schema :=
+      CedarPooSpec.PaymentReleaseExample.program) : Bool := operationCases.all fun (_, root, preparer, releaser, resource, expected) =>
+  (releaseOperation (programContext := programContext)) root preparer releaser resource == expected
 
 theorem operationsExactFully : operationsExact = true := by native_decide
 
@@ -212,23 +220,27 @@ theorem emptyCompoundRejected :
      | .ok receipt => receipt.allowed
      | .error _ => false) = false := by native_decide
 
-def branchCasesExact : Bool := branchCases.all fun (_, root, principal, action, resource, expected) =>
-  match CedarPooSpec.PaymentReleaseExample.program.response root (request principal action resource) entities with
+def branchCasesExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PaymentReleaseExample.model CedarPooSpec.PaymentReleaseExample.schema :=
+      CedarPooSpec.PaymentReleaseExample.program) : Bool := branchCases.all fun (_, root, principal, action, resource, expected) =>
+  match programContext.response root (request principal action resource) entities with
   | .error _ => false
   | .ok response =>
       response.decision == expected && response.erroringPolicies.isEmpty
 
 theorem branchCasesExactFully : branchCasesExact = true := by native_decide
 
-def controlsNeedComposition : Bool :=
-  releaseOperation "Base" dave dave sameActor &&
-  !releaseOperation "Duties" dave dave sameActor &&
-  releaseOperation "Threshold" alice bob large &&
-  releaseOperation "Retired" alice bob large &&
-  !releaseOperation "Integrated" alice bob large &&
-  releaseOperation "Base" alice bob frozen &&
-  !releaseOperation "Risk" alice bob frozen &&
-  !authorized "Integrated" bob release unmatched
+def controlsNeedComposition
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PaymentReleaseExample.model CedarPooSpec.PaymentReleaseExample.schema :=
+      CedarPooSpec.PaymentReleaseExample.program) : Bool :=
+  (releaseOperation (programContext := programContext)) "Base" dave dave sameActor &&
+  !(releaseOperation (programContext := programContext)) "Duties" dave dave sameActor &&
+  (releaseOperation (programContext := programContext)) "Threshold" alice bob large &&
+  (releaseOperation (programContext := programContext)) "Retired" alice bob large &&
+  !(releaseOperation (programContext := programContext)) "Integrated" alice bob large &&
+  (releaseOperation (programContext := programContext)) "Base" alice bob frozen &&
+  !(releaseOperation (programContext := programContext)) "Risk" alice bob frozen &&
+  !(authorized (programContext := programContext)) "Integrated" bob release unmatched
 
 theorem controlsNeedCompositionFully : controlsNeedComposition = true := by
   native_decide
@@ -250,8 +262,10 @@ theorem validatedIntegrated :
     (program.publish "Integrated").isOk = true := by
   native_decide
 
-def allRootsValidated : Bool :=
-  roots.all fun root => (program.publish root).isOk
+def allRootsValidated
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.PaymentReleaseExample.model CedarPooSpec.PaymentReleaseExample.schema :=
+      CedarPooSpec.PaymentReleaseExample.program) : Bool :=
+  roots.all fun root => (programContext.publish root).isOk
 
 theorem allRootsValidatedFully : allRootsValidated = true := by native_decide
 

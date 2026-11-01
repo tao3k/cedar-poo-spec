@@ -130,8 +130,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
 
 structure Facts where
@@ -149,9 +149,12 @@ def checks (root : String) (observation : EntityUID) (facts : Facts) :
     List (String × Request) := [
   (root, ⟨triageService, analyze, observation, requestContext facts⟩),
   (root, ⟨clinician, release, observation, requestContext facts⟩)]
-def authorizeFlow (root : String) (observation : EntityUID) (facts : Facts)
-    (world : Entities := entities) : Bool :=
-  match CedarPooSpec.WearableTriageExample.program.authorizeLayers (checks root observation facts) world with
+def authorizeFlow
+     (root : String) (observation : EntityUID) (facts : Facts)
+    (world : Entities := entities)
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.WearableTriageExample.model CedarPooSpec.WearableTriageExample.schema :=
+      CedarPooSpec.WearableTriageExample.program) : Bool :=
+  match programContext.authorizeLayers (checks root observation facts) world with
   | .error _ => false
   | .ok receipts => CedarPooSpec.Authorization.Compound.layersAllowed receipts
 
@@ -170,20 +173,26 @@ def cases : List (String × String × EntityUID × Facts × Bool) := [
   ("other-monitor-during-quarantine", "Quarantined", vitalA, {}, true),
   ("suspect-after-recovery", "Recovered", vitalSuspect, {}, true)]
 
-def casesExact : Bool := cases.all fun (_, root, observation, facts, expected) =>
-  authorizeFlow root observation facts == expected
+def casesExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.WearableTriageExample.model CedarPooSpec.WearableTriageExample.schema :=
+      CedarPooSpec.WearableTriageExample.program) : Bool := cases.all fun (_, root, observation, facts, expected) =>
+  (authorizeFlow (programContext := programContext)) root observation facts == expected
 theorem casesExactFully : casesExact = true := by native_decide
 
-def casesErrorFree : Bool := cases.all fun (_, root, observation, facts, _) =>
-  match CedarPooSpec.WearableTriageExample.program.authorizeLayers (checks root observation facts) entities with
+def casesErrorFree
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.WearableTriageExample.model CedarPooSpec.WearableTriageExample.schema :=
+      CedarPooSpec.WearableTriageExample.program) : Bool := cases.all fun (_, root, observation, facts, _) =>
+  match programContext.authorizeLayers (checks root observation facts) entities with
   | .error _ => false
   | .ok receipts => receipts.all fun layer => layer.response.erroringPolicies.isEmpty
 theorem casesErrorFreeFully : casesErrorFree = true := by native_decide
 
-def rootsValidated : Bool :=
+def rootsValidated
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.WearableTriageExample.model CedarPooSpec.WearableTriageExample.schema :=
+      CedarPooSpec.WearableTriageExample.program) : Bool :=
   ["Base", "Privacy", "DeviceSecurity", "ClinicalAI", "Integrated",
     "Quarantined", "Recovered"].all fun root =>
-      (CedarPooSpec.WearableTriageExample.program.publish root).isOk
+      (programContext.publish root).isOk
 theorem rootsValidatedFully : rootsValidated = true := by native_decide
 
 theorem quarantineChangesOnePolicy :

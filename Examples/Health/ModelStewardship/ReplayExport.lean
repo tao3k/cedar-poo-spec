@@ -8,7 +8,9 @@ namespace CedarPooSpec.ModelStewardshipExample.ReplayExport
 open CedarPooSpec.ModelStewardshipExample
 open CedarPooSpec.ModelStewardshipExample.Admission
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Compilation CedarPooSpec.ModelStewardshipExample.model :=
+      CedarPooSpec.ModelStewardshipExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let cases : List (String × String × Effect × Snapshot) := [
     ("train-approved", "MedicalModel", trainingEffect, trainingSnapshot),
     ("train-swapped-source", "MedicalModel",
@@ -47,7 +49,7 @@ def manifest : Except String CedarPooSpec.Transport.Manifest := do
     ("recovered-publish", "Recovered", publicationEffect, publicationSnapshot),
     ("recovered-infer", "Recovered", inferenceEffect, inferenceSnapshot)]
   let rows ← cases.mapM fun (name, root, effect, snapshot) =>
-    CedarPooSpec.ModelStewardshipExample.program.case
+    owner.case
         name root root (operationRequest effect snapshot) (entities snapshot.lineageRevision)
   return { cases := rows }
 

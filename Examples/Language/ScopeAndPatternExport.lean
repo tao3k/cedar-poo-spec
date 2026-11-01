@@ -5,9 +5,11 @@ namespace CedarPooSpec.ScopeAndPatternExport
 
 open CedarPooSpec.ScopeAndPatternExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.ScopeAndPatternExample.model CedarPooSpec.ScopeAndPatternExample.schema :=
+      CedarPooSpec.ScopeAndPatternExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let exported ← cases.mapM fun (name, root, req, _) =>
-    CedarPooSpec.ScopeAndPatternExample.program.case name root.toLower root req entities
+    owner.case name root.toLower root req entities
   return { cases := exported }
 
 end CedarPooSpec.ScopeAndPatternExport

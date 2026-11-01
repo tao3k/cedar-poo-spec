@@ -138,8 +138,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
 def finalPolicies : Policies :=
   (model.compile "Revoked").toOption.get (by native_decide)
@@ -158,8 +158,8 @@ def expandedModel : Model :=
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def expandedProgram : CedarPooSpec.Functional.Program expandedModel schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    expandedModel schema (expandedModel.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    expandedModel schema (expandedModel.modules.map (·.name)) (by native_decide)
 
 def expandedLinked : LinkedSet schema :=
   (revokedLinked.tryRefresh postureTemplates expandedLinks).toOption.get (by native_decide)

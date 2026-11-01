@@ -145,8 +145,8 @@ def model : Model := modelResult.toOption.get (by native_decide)
 
 /-- Checked immutable policy context; current request inputs are supplied at consumption. -/
 protected def program : CedarPooSpec.Functional.Program model schema :=
-  (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema (model.modules.map (·.name))).toOption.get (by native_decide)
+  CedarPooSpec.Functional.deferProgram CedarPooSpec.Functional.standard
+    model schema (model.modules.map (·.name)) (by native_decide)
 
 
 theorem approvalObjectsPopulateEntities :
@@ -159,8 +159,10 @@ theorem approvalObjectsPopulatePolicies :
       ((model.compile "Integrated").toOption.get (by native_decide)).any
         (fun policy => policy.id == object.policyId)) = true := by native_decide
 
-def schemaValidationExact : Bool :=
-  ["Base", "Expansion", "Sensitive", "Integrated"].all fun root => (CedarPooSpec.CountryApprovalExample.program.at root).isOk
+def schemaValidationExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.CountryApprovalExample.model CedarPooSpec.CountryApprovalExample.schema :=
+      CedarPooSpec.CountryApprovalExample.program) : Bool :=
+  ["Base", "Expansion", "Sensitive", "Integrated"].all fun root => (programContext.at root).isOk
 
 theorem schemaValidationFully : schemaValidationExact = true := by native_decide
 
@@ -182,8 +184,10 @@ def cases : List (String × String × Request × Decision) := [
   ("restricted-before-veto", "Expansion", request charlie approve restrictedSheet, .allow),
   ("restricted-after-veto", "Integrated", request charlie approve restrictedSheet, .deny)]
 
-def decisionsExact : Bool := cases.all fun (_, root, req, expected) =>
-  match CedarPooSpec.CountryApprovalExample.program.response root req entities with
+def decisionsExact
+    (programContext : CedarPooSpec.Functional.Program CedarPooSpec.CountryApprovalExample.model CedarPooSpec.CountryApprovalExample.schema :=
+      CedarPooSpec.CountryApprovalExample.program) : Bool := cases.all fun (_, root, req, expected) =>
+  match programContext.response root req entities with
   | .error _ => false
   | .ok response =>
       response.decision == expected && response.erroringPolicies.isEmpty

@@ -10,11 +10,13 @@ namespace CedarPooSpec.PseudonymizationExport
 
 open CedarPooSpec.PseudonymizationExample
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.PseudonymizationExample.model CedarPooSpec.PseudonymizationExample.schema :=
+      CedarPooSpec.PseudonymizationExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   unless hmacCatalogSeparated datasets do
     throw "cross-scope HMAC key reuse in published dataset catalog"
   let rows ← LeanPoo.Functional.Validation.traverse (fun (name, root, req, _) =>
-    program.case name root root req entities) cases
+    owner.case name root root req entities) cases
   CedarPooSpec.SchemaJson.manifest schema rows
 
 def deployableRoots : List PseudonymizationExample.Deployment.Root :=
@@ -23,11 +25,13 @@ def deployableRoots : List PseudonymizationExample.Deployment.Root :=
 
 /-- Deployment artifacts have a typed allowlist; the migration ancestor is
     available only to the authorization regression manifest above. -/
-def deploymentManifest : Except String (List CedarPooSpec.Transport.PolicyArtifact) := do
+def deploymentManifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.PseudonymizationExample.model CedarPooSpec.PseudonymizationExample.schema :=
+      CedarPooSpec.PseudonymizationExample.program) : Except String (List CedarPooSpec.Transport.PolicyArtifact) := do
   unless hmacCatalogSeparated datasets do
     throw "cross-scope HMAC key reuse in published dataset catalog"
   let roots ← LeanPoo.Functional.Validation.traverse (fun root => do
-    let publication ← (PseudonymizationExample.Deployment.publish root).mapError
+    let publication ← (owner.publish root.name).mapError
       (fun _ => "deployable root failed Cedar publication")
     return { root := root.name, source := publication.snapshot }) deployableRoots
   return roots

@@ -48,9 +48,11 @@ def scenarios : List (String × String × Cedar.Spec.Entities ×
   ("incident-still-reads", "Incident", entities, normalRead),
   ("recovered-release", "Recovered", entities, approvedRelease 1)]
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.SourceCustodyExample.model CedarPooSpec.SourceCustodyExample.schema :=
+      CedarPooSpec.SourceCustodyExample.program) : Except String CedarPooSpec.Transport.Manifest := do
   let rows ← LeanPoo.Functional.Validation.traverse (fun (name, root, store, operation) =>
-    program.case name root root
+    owner.case name root root
       operation.request store) scenarios
   CedarPooSpec.SchemaJson.manifest schema rows
 

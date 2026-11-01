@@ -225,6 +225,17 @@ private theorem Model.currentObject_graph (model : Model) (object)
       subst object
       simp [Model.graph, Model.activeSchema?, active, Built.toSchema]
 
+/-- Reuse a graph-bound Plan already owned by the model before demanding the
+shared ancestor table. The original Plan witness supplies the exact result. -/
+def Model.prepareC4 (model : Model) : LeanPoo.C4.Prepared model.graph :=
+  let prepared := LeanPoo.C4.prepare model.graph
+  match found : model.currentObject? with
+  | none => prepared
+  | some object =>
+    prepared.retain object.plan.root (.ok object.plan.precedence) (by
+      rw [← model.currentObject_graph object found]
+      exact object.plan.valid.symm)
+
 private theorem Model.planAt_graph (model : Model) (root : String) (plan)
     (compiled : model.planAt root = .ok plan) : plan.schema.graph = model.graph := by
   have fromSchema (h : LeanPoo.Object.compile model.schema root = .ok plan) :

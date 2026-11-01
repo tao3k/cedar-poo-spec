@@ -5,12 +5,16 @@ namespace CedarPooSpec.TrustedNetworkDataAccessExport
 
 open CedarPooSpec.TrustedNetworkDataAccessExample
 
-def rows : Except String (List CedarPooSpec.Transport.Case) :=
+def rows
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.TrustedNetworkDataAccessExample.networkModel CedarPooSpec.TrustedNetworkDataAccessExample.networkSchema :=
+      CedarPooSpec.TrustedNetworkDataAccessExample.networkProgram) : Except String (List CedarPooSpec.Transport.Case) :=
   cases.mapM fun (name, root, req, _) =>
-    CedarPooSpec.TrustedNetworkDataAccessExample.networkProgram.case name root.toLower root req networkEntities
+    owner.case name root.toLower root req networkEntities
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
-  let exported ← rows
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.TrustedNetworkDataAccessExample.networkModel CedarPooSpec.TrustedNetworkDataAccessExample.networkSchema :=
+      CedarPooSpec.TrustedNetworkDataAccessExample.networkProgram) : Except String CedarPooSpec.Transport.Manifest := do
+  let exported ← (rows (owner := owner))
   return { cases := exported }
 
 end CedarPooSpec.TrustedNetworkDataAccessExport

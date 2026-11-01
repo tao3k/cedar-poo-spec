@@ -5,9 +5,10 @@ namespace CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease
 
 open CedarPooSpec.Cloud.Pipeline
 
-def manifest : Except String CedarPooSpec.Transport.Manifest := do
-  let source ← (CedarPooSpec.Functional.prepareProgram CedarPooSpec.Functional.standard
-    model schema []).mapError CedarPooSpec.Functional.Error.message
+def manifest
+    (owner : CedarPooSpec.Functional.Program CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.model CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.schema :=
+      CedarPooSpec.Cloud.DataProtection.GoogleSdpRelease.program) : Except String CedarPooSpec.Transport.Manifest := do
+  let source := owner
   let inputs : List CedarPooSpec.Functional.AuthorizationInput := choices.flatMap fun choice =>
     [⟨s!"{choice.name}-pipeline", choice.root, choice.root,
       GoogleThreatCase.request GoogleThreatCase.candidate choice.pipeline, entities⟩,

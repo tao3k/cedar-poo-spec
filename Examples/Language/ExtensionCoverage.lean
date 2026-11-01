@@ -118,8 +118,10 @@ def cases : List (String × String × Request × Decision) := [
   ("duration-negative-value", "NegativeDuration",
     request [("value", negativeDurationValue)], .allow)]
 
-def decisionsExact : Bool := cases.all fun (_, root, req, expected) =>
-  match CedarPooSpec.ExtensionCoverageExample.program.response root req entities with
+def decisionsExact
+    (programContext : CedarPooSpec.Functional.Compilation CedarPooSpec.ExtensionCoverageExample.model :=
+      CedarPooSpec.ExtensionCoverageExample.program) : Bool := cases.all fun (_, root, req, expected) =>
+  match programContext.response root req entities with
   | .error _ => false
   | .ok response =>
       response.decision == expected && response.erroringPolicies.isEmpty
