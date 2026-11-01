@@ -55,6 +55,25 @@ private def entitySource (store : Entities) : Except String (SourceSnapshot .ent
   return SourceSnapshot.ofJson (← (PolicyJson.entities store).mapError reprStr)
 
 open LeanPoo.Functional
+-- Select the public ordered representation's lawful short-circuit comparison.
+-- These instances stay local to this adapter; Cedar's admission is unchanged.
+local instance {α β : Type} [BEq α] [BEq β] : BEq (Cedar.Data.Map α β) where
+  beq left right := left.toList == right.toList
+local instance {α β : Type} [BEq α] [BEq β] [LawfulBEq α] [LawfulBEq β] :
+    LawfulBEq (Cedar.Data.Map α β) where
+  rfl := by
+    intro value
+    change (value.toList == value.toList) = true
+    exact BEq.rfl
+  eq_of_beq := by
+    intro left right equal
+    cases left with
+    | mk left =>
+      cases right with
+      | mk right =>
+        have same : left = right := eq_of_beq equal
+        cases same
+        rfl
 private abbrev EntityValue (_ : Entities) (_ : Unit) :=
   Except String (SourceSnapshot .entities)
 private def entityFamily :

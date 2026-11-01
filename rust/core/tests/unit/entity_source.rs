@@ -40,3 +40,27 @@ fn numeric_source_equality_matches_the_actual_encoding() {
         }
     }
 }
+
+#[test]
+fn exact_source_encoding_preserves_unicode_escapes_and_large_nested_values() {
+    use crate::JsonSourceIdentity;
+    let values = [
+        serde_json::json!(null),
+        serde_json::json!("\u{0}\n\r\t\"\\雪🙂"),
+        serde_json::json!({"quote\"": [true, false, -0.0, u64::MAX], "empty": {}}),
+        serde_json::json!(
+            (0..1024)
+                .map(|i| serde_json::json!({"id": i, "value": "雪🙂\n\\"}))
+                .collect::<Vec<_>>()
+        ),
+    ];
+    for value in values {
+        let wire = value.encode_source().unwrap();
+        assert_eq!(wire, serde_json::to_string(&value).unwrap());
+        assert!(
+            serde_json::from_str::<serde_json::Value>(&wire)
+                .unwrap()
+                .same_source(&value)
+        );
+    }
+}

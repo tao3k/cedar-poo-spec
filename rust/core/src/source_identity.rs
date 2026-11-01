@@ -1,5 +1,22 @@
 //! Exact canonical JSON source identity for immutable preparation, not authority.
 use serde_json::Value;
+use std::io::{self, Write};
+
+// Two serializer passes avoid geometric buffer growth without retaining wire.
+// Both use the same immutable Value and default serializer, so sizing preserves
+// exact numeric, escaping and object-order behavior.
+struct EncodedLength(usize);
+impl Write for EncodedLength {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.0 = self.0.checked_add(bytes.len()).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "encoded source length overflow")
+        })?;
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 fn same_json_source(left: &Value, right: &Value) -> bool {
     if std::ptr::eq(left, right) {
         return true;
@@ -34,6 +51,10 @@ impl JsonSourceIdentity for Value {
         same_json_source(self, other)
     }
     fn encode_source(&self) -> Result<String, String> {
-        serde_json::to_string(self).map_err(|e| e.to_string())
+        let mut size = EncodedLength(0);
+        serde_json::to_writer(&mut size, self).map_err(|e| e.to_string())?;
+        let mut encoded = Vec::with_capacity(size.0);
+        serde_json::to_writer(&mut encoded, self).map_err(|e| e.to_string())?;
+        String::from_utf8(encoded).map_err(|e| e.to_string())
     }
 }
